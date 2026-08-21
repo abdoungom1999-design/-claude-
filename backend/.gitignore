@@ -1,0 +1,39 @@
+# compiled output
+/dist
+/node_modules
+
+# Lockfile régénéré via `npm install` (non versionné dans cet environnement)
+package-lock.json
+
+# Prisma generated client
+/generated/prisma
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Environment variables
+.env
+
+# Documentation agent auto-installée par `prisma init`
+/.agents
+/.claude
+/.windsurf
+/skills-lock.json

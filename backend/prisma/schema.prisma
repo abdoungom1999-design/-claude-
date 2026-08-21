@@ -1,0 +1,115 @@
+// Prisma schema - Projet Spid (VTC & Livraison)
+// PostgreSQL + extension PostGIS (activée via migration SQL) pour les futures
+// requêtes géospatiales avancées (ST_DWithin, etc.). Le suivi GPS temps réel
+// (position live des conducteurs) est géré côté Redis (GEOADD/GEOSEARCH) afin
+// de ne pas saturer PostgreSQL ; les colonnes latitude/longitude ci-dessous ne
+// stockent que la dernière position connue, persistée périodiquement.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StatutConducteur {
+  EN_LIGNE
+  HORS_LIGNE
+}
+
+enum TypeCourse {
+  PASSAGER
+  COLIS
+}
+
+enum StatutCourse {
+  EN_ATTENTE
+  ACCEPTEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
+}
+
+enum MethodePaiement {
+  WAVE
+  ORANGE_MONEY
+  CASH
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  SUPPORT
+}
+
+model Client {
+  id               String   @id @default(cuid())
+  nom              String
+  telephone        String   @unique
+  motDePasseHash   String
+  preferences      Json?
+  refreshTokenHash String?
+  courses          Course[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("clients")
+}
+
+model Conducteur {
+  id                  String           @id @default(cuid())
+  nom                 String
+  telephone           String           @unique
+  motDePasseHash      String
+  vehiculeId          String?
+  statut              StatutConducteur @default(HORS_LIGNE)
+  latitudeActuelle    Float?
+  longitudeActuelle   Float?
+  derniereMajPosition DateTime?
+  refreshTokenHash    String?
+  courses             Course[]
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@map("conducteurs")
+}
+
+model Admin {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  role             AdminRole @default(SUPPORT)
+  refreshTokenHash String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("admins")
+}
+
+model Course {
+  id               String           @id @default(cuid())
+  client           Client           @relation(fields: [clientId], references: [id])
+  clientId         String
+  conducteur       Conducteur?      @relation(fields: [conducteurId], references: [id])
+  conducteurId     String?
+  type             TypeCourse
+  adresseDepart    String
+  latitudeDepart   Float
+  longitudeDepart  Float
+  adresseArrivee   String
+  latitudeArrivee  Float
+  longitudeArrivee Float
+  distanceKm       Float?
+  dureeEstimeeMin  Int?
+  prixFcfa         Int?
+  statut           StatutCourse     @default(EN_ATTENTE)
+  methodePaiement  MethodePaiement?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([statut])
+  @@index([conducteurId])
+  @@index([clientId])
+  @@map("courses")
+}
