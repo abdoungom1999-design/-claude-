@@ -6,5 +6,6 @@ class AppRoutes {
   static const String clientColis = '/client/colis';
   static const String espacePro = '/espace-pro';
   static const String conducteur = '/conducteur';
+  static const String conducteurAlerteCourse = '/conducteur/alerte-course';
   static const String admin = '/admin';
 }

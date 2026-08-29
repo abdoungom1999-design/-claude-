@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/secondary_button.dart';
 
 /// Sélecteur temporaire entre l'interface Conducteur et l'interface Admin.
 /// Sera remplacé par un flux d'authentification par rôle.
@@ -16,20 +18,16 @@ class EspaceProPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => context.go(AppRoutes.conducteur),
-                child: const Text('Conducteur'),
-              ),
+            PrimaryButton(
+              label: 'Conducteur',
+              icon: Icons.two_wheeler_rounded,
+              onPressed: () => context.push(AppRoutes.conducteur),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => context.go(AppRoutes.admin),
-                child: const Text('Admin'),
-              ),
+            SecondaryButton(
+              label: 'Admin',
+              icon: Icons.admin_panel_settings_outlined,
+              onPressed: () => context.push(AppRoutes.admin),
             ),
           ],
         ),

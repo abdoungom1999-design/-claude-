@@ -3,6 +3,7 @@ import '../../features/admin/presentation/admin_home_page.dart';
 import '../../features/client/presentation/colis_page.dart';
 import '../../features/client/presentation/passager_page.dart';
 import '../../features/conducteur/presentation/conducteur_home_page.dart';
+import '../../features/conducteur/presentation/course_alert_page.dart';
 import '../../features/onboarding/presentation/accueil_page.dart';
 import '../../features/onboarding/presentation/espace_pro_page.dart';
 import 'app_routes.dart';
@@ -29,6 +30,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.conducteur,
       builder: (context, state) => const ConducteurHomePage(),
+    ),
+    GoRoute(
+      path: AppRoutes.conducteurAlerteCourse,
+      builder: (context, state) => const CourseAlertPage(),
     ),
     GoRoute(
       path: AppRoutes.admin,
