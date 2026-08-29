@@ -17,7 +17,7 @@ describe('AppController', () => {
   describe('root', () => {
     it('should return the API health status', () => {
       expect(appController.health()).toEqual({
-        service: 'Spid API',
+        service: 'Sprint API',
         status: 'ok',
       });
     });

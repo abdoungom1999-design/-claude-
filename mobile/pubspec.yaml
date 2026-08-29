@@ -1,7 +1,8 @@
-name: spid
+name: sprint
 description: >
-  Spid - plateforme VTC & livraison (moto-taxis et colis) pour Dakar.
-  Application Flutter couvrant les interfaces Client, Conducteur et Admin.
+  Sprint (Groupe Santine) - plateforme VTC & livraison (moto-taxis et colis)
+  pour Dakar. Application Flutter couvrant les interfaces Client, Conducteur
+  et Admin.
 publish_to: "none"
 version: 0.1.0
 

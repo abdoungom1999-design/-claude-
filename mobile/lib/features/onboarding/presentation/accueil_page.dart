@@ -17,7 +17,7 @@ class AccueilPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Spid',
+                'Sprint',
                 style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),

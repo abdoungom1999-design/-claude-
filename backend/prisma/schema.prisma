@@ -1,4 +1,4 @@
-// Prisma schema - Projet Spid (VTC & Livraison)
+// Prisma schema - Projet Sprint (Groupe Santine) - VTC & Livraison
 // PostgreSQL + extension PostGIS (activée via migration SQL) pour les futures
 // requêtes géospatiales avancées (ST_DWithin, etc.). Le suivi GPS temps réel
 // (position live des conducteurs) est géré côté Redis (GEOADD/GEOSEARCH) afin

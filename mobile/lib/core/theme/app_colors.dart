@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Identité visuelle Spid : dominante blanche, appels à l'action en orange,
+/// Identité visuelle Sprint : dominante blanche, appels à l'action en orange,
 /// textes et structures en noir.
 class AppColors {
   AppColors._();
