@@ -25,7 +25,9 @@ export default () => ({
   payments: {
     waveApiKey: process.env.WAVE_API_KEY,
     waveApiUrl: process.env.WAVE_API_URL,
+    waveWebhookSecret: process.env.WAVE_WEBHOOK_SECRET,
     orangeMoneyApiKey: process.env.ORANGE_MONEY_API_KEY,
     orangeMoneyApiUrl: process.env.ORANGE_MONEY_API_URL,
+    orangeMoneyWebhookSecret: process.env.ORANGE_MONEY_WEBHOOK_SECRET,
   },
 });

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { UpdatePositionDto } from './dto/update-position.dto';
@@ -20,6 +24,7 @@ export class ConducteursService {
         telephone: true,
         vehiculeId: true,
         statut: true,
+        estValide: true,
         createdAt: true,
       },
     });
@@ -30,6 +35,18 @@ export class ConducteursService {
   }
 
   async mettreAJourStatut(id: string, dto: UpdateStatutDto) {
+    if (dto.statut === 'EN_LIGNE') {
+      const conducteur = await this.prisma.conducteur.findUnique({
+        where: { id },
+        select: { estValide: true },
+      });
+      if (!conducteur?.estValide) {
+        throw new ForbiddenException(
+          "Compte conducteur en attente de validation par l'administrateur",
+        );
+      }
+    }
+
     return this.prisma.conducteur.update({
       where: { id },
       data: { statut: dto.statut },
@@ -48,5 +65,30 @@ export class ConducteursService {
       },
     });
     return { ok: true };
+  }
+
+  async trouverProches(latitude: number, longitude: number, rayonKm: number) {
+    const idsProches = await this.redis.conducteursProches(
+      { latitude, longitude },
+      rayonKm,
+    );
+    if (idsProches.length === 0) {
+      return [];
+    }
+
+    return this.prisma.conducteur.findMany({
+      where: {
+        id: { in: idsProches },
+        statut: 'EN_LIGNE',
+        estValide: true,
+      },
+      select: {
+        id: true,
+        nom: true,
+        vehiculeId: true,
+        latitudeActuelle: true,
+        longitudeActuelle: true,
+      },
+    });
   }
 }

@@ -43,6 +43,12 @@ enum AdminRole {
   SUPPORT
 }
 
+enum StatutPaiement {
+  EN_ATTENTE
+  REUSSI
+  ECHOUE
+}
+
 model Client {
   id               String   @id @default(cuid())
   nom              String
@@ -64,6 +70,7 @@ model Conducteur {
   motDePasseHash      String
   vehiculeId          String?
   statut              StatutConducteur @default(HORS_LIGNE)
+  estValide           Boolean          @default(false)
   latitudeActuelle    Float?
   longitudeActuelle   Float?
   derniereMajPosition DateTime?
@@ -105,6 +112,7 @@ model Course {
   prixFcfa         Int?
   statut           StatutCourse     @default(EN_ATTENTE)
   methodePaiement  MethodePaiement?
+  paiement         Paiement?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -112,4 +120,19 @@ model Course {
   @@index([conducteurId])
   @@index([clientId])
   @@map("courses")
+}
+
+model Paiement {
+  id               String          @id @default(cuid())
+  course           Course          @relation(fields: [courseId], references: [id])
+  courseId         String          @unique
+  provider         MethodePaiement
+  referenceExterne String
+  statut           StatutPaiement  @default(EN_ATTENTE)
+  montantFcfa      Int?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([referenceExterne])
+  @@map("paiements")
 }

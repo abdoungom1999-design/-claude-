@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -20,9 +20,25 @@ export class AdminService {
         telephone: true,
         vehiculeId: true,
         statut: true,
+        estValide: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async validerConducteur(id: string) {
+    const conducteur = await this.prisma.conducteur.findUnique({
+      where: { id },
+    });
+    if (!conducteur) {
+      throw new NotFoundException('Conducteur introuvable');
+    }
+
+    return this.prisma.conducteur.update({
+      where: { id },
+      data: { estValide: true },
+      select: { id: true, nom: true, estValide: true },
     });
   }
 }

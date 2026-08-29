@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -18,5 +18,10 @@ export class AdminController {
   @Get('conducteurs')
   listerConducteurs() {
     return this.adminService.listerConducteurs();
+  }
+
+  @Patch('conducteurs/:id/valider')
+  validerConducteur(@Param('id') id: string) {
+    return this.adminService.validerConducteur(id);
   }
 }
