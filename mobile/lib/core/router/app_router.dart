@@ -1,5 +1,9 @@
 import 'package:go_router/go_router.dart';
 import '../../features/admin/presentation/admin_home_page.dart';
+import '../../features/auth/presentation/client_login_page.dart';
+import '../../features/auth/presentation/client_register_page.dart';
+import '../../features/auth/presentation/conducteur_login_page.dart';
+import '../../features/auth/presentation/conducteur_register_page.dart';
 import '../../features/client/presentation/colis_page.dart';
 import '../../features/client/presentation/passager_page.dart';
 import '../../features/conducteur/presentation/conducteur_home_page.dart';
@@ -24,12 +28,28 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const ColisPage(),
     ),
     GoRoute(
+      path: AppRoutes.clientLogin,
+      builder: (context, state) => const ClientLoginPage(),
+    ),
+    GoRoute(
+      path: AppRoutes.clientRegister,
+      builder: (context, state) => const ClientRegisterPage(),
+    ),
+    GoRoute(
       path: AppRoutes.espacePro,
       builder: (context, state) => const EspaceProPage(),
     ),
     GoRoute(
       path: AppRoutes.conducteur,
       builder: (context, state) => const ConducteurHomePage(),
+    ),
+    GoRoute(
+      path: AppRoutes.conducteurLogin,
+      builder: (context, state) => const ConducteurLoginPage(),
+    ),
+    GoRoute(
+      path: AppRoutes.conducteurRegister,
+      builder: (context, state) => const ConducteurRegisterPage(),
     ),
     GoRoute(
       path: AppRoutes.conducteurAlerteCourse,

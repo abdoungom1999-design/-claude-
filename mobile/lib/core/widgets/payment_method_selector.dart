@@ -16,6 +16,20 @@ extension PaymentMethodLabel on PaymentMethod {
   }
 }
 
+/// Valeur attendue par l'API NestJS (enum `MethodePaiement` Prisma).
+extension PaymentMethodApi on PaymentMethod {
+  String get apiValue {
+    switch (this) {
+      case PaymentMethod.wave:
+        return 'WAVE';
+      case PaymentMethod.orangeMoney:
+        return 'ORANGE_MONEY';
+      case PaymentMethod.cash:
+        return 'CASH';
+    }
+  }
+}
+
 /// Sélecteur de méthode de paiement (Wave / Orange Money / Espèces) sous
 /// forme de puces sélectionnables.
 class PaymentMethodSelector extends StatelessWidget {
