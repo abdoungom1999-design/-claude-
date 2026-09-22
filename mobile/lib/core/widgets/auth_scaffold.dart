@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/api_config.dart';
 import '../theme/app_colors.dart';
 
 /// Structure premium commune aux écrans de connexion/inscription Sprint :
@@ -124,14 +125,23 @@ class _Header extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (peutRevenir)
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+              if (peutRevenir || ApiConfig.modeDemo)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (peutRevenir)
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                    if (ApiConfig.modeDemo) const _BadgeModeDemo(),
+                  ],
                 ),
-              SizedBox(height: peutRevenir ? 20 : 8),
+              SizedBox(height: peutRevenir || ApiConfig.modeDemo ? 20 : 8),
               Container(
                 width: 56,
                 height: 56,
@@ -159,6 +169,41 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Repère discret indiquant que l'authentification est simulée (build web
+/// sans backend public configuré, voir [ApiConfig.modeDemo]) : aucune
+/// donnée saisie n'est réellement envoyée ni persistée.
+class _BadgeModeDemo extends StatelessWidget {
+  const _BadgeModeDemo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.science_outlined, color: Colors.white, size: 13),
+          SizedBox(width: 5),
+          Text(
+            'MODE DÉMO',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
           ),
         ],
       ),

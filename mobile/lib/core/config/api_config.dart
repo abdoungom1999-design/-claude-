@@ -28,4 +28,12 @@ class ApiConfig {
     }
     return 'http://localhost:3000';
   }
+
+  /// Mode démo : le build web tourne sans backend public configuré
+  /// (aucun `--dart-define=API_BASE_URL` fourni). Dans ce cas,
+  /// l'authentification est simulée localement pour permettre de tester
+  /// l'interface (voir [AuthRepository]) plutôt que d'échouer sur chaque
+  /// appel réseau. Se désactive automatiquement dès qu'un vrai backend
+  /// est renseigné au build — aucun interrupteur séparé à retourner.
+  static bool get modeDemo => kIsWeb && _override.isEmpty;
 }
