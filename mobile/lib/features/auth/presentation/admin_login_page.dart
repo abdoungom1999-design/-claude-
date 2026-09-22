@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../data/auth_repository.dart';
 
@@ -55,52 +56,49 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Connexion admin')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppTextField(
-                  label: 'Email',
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  prefixIcon: Icons.mail_outline,
-                  validator: (valeur) =>
-                      (valeur == null || !valeur.contains('@'))
-                      ? 'Email invalide'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Mot de passe',
-                  controller: _motDePasseController,
-                  obscureText: true,
-                  prefixIcon: Icons.lock_outline,
-                  validator: (valeur) => (valeur == null || valeur.length < 8)
-                      ? '8 caractères minimum'
-                      : null,
-                ),
-                if (_erreur != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _erreur!,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                PrimaryButton(
-                  label: 'Se connecter',
-                  isLoading: _enCours,
-                  onPressed: _seConnecter,
-                ),
-              ],
+    return AuthScaffold(
+      icon: Icons.admin_panel_settings_outlined,
+      title: 'Espace Admin',
+      subtitle: 'Gestion de la plateforme Sprint',
+      form: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              label: 'Email',
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: Icons.mail_outline,
+              validator: (valeur) =>
+                  (valeur == null || !valeur.contains('@'))
+                  ? 'Email invalide'
+                  : null,
             ),
-          ),
+            const SizedBox(height: 14),
+            AppTextField(
+              label: 'Mot de passe',
+              controller: _motDePasseController,
+              obscureText: true,
+              prefixIcon: Icons.lock_outline,
+              validator: (valeur) => (valeur == null || valeur.length < 8)
+                  ? '8 caractères minimum'
+                  : null,
+            ),
+            if (_erreur != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _erreur!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 24),
+            PrimaryButton(
+              label: 'Se connecter',
+              isLoading: _enCours,
+              onPressed: _seConnecter,
+            ),
+          ],
         ),
       ),
     );

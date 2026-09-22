@@ -4,6 +4,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../data/auth_repository.dart';
 
@@ -56,60 +57,56 @@ class _ConducteurLoginPageState extends State<ConducteurLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Connexion conducteur')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppTextField(
-                  label: 'Téléphone',
-                  controller: _telephoneController,
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: Icons.phone_outlined,
-                  validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-                      ? 'Numéro requis'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                  label: 'Mot de passe',
-                  controller: _motDePasseController,
-                  obscureText: true,
-                  prefixIcon: Icons.lock_outline,
-                  validator: (valeur) => (valeur == null || valeur.length < 8)
-                      ? '8 caractères minimum'
-                      : null,
-                ),
-                if (_erreur != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _erreur!,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                PrimaryButton(
-                  label: 'Se connecter',
-                  isLoading: _enCours,
-                  onPressed: _seConnecter,
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
-                    onPressed: () => context.push(AppRoutes.conducteurRegister),
-                    child: const Text(
-                      'Pas encore de compte ? Créer un compte',
-                      style: TextStyle(color: AppColors.grey),
-                    ),
-                  ),
-                ),
-              ],
+    return AuthScaffold(
+      icon: Icons.two_wheeler_rounded,
+      title: 'Espace Conducteur',
+      subtitle: 'Connectez-vous pour prendre des courses',
+      form: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              label: 'Téléphone',
+              controller: _telephoneController,
+              keyboardType: TextInputType.phone,
+              prefixIcon: Icons.phone_outlined,
+              validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
+                  ? 'Numéro requis'
+                  : null,
             ),
+            const SizedBox(height: 14),
+            AppTextField(
+              label: 'Mot de passe',
+              controller: _motDePasseController,
+              obscureText: true,
+              prefixIcon: Icons.lock_outline,
+              validator: (valeur) => (valeur == null || valeur.length < 8)
+                  ? '8 caractères minimum'
+                  : null,
+            ),
+            if (_erreur != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _erreur!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 24),
+            PrimaryButton(
+              label: 'Se connecter',
+              isLoading: _enCours,
+              onPressed: _seConnecter,
+            ),
+          ],
+        ),
+      ),
+      footer: Center(
+        child: TextButton(
+          onPressed: () => context.push(AppRoutes.conducteurRegister),
+          child: const Text(
+            'Pas encore de compte ? Créer un compte',
+            style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w500),
           ),
         ),
       ),
