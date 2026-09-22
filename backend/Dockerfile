@@ -6,7 +6,11 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts : à ce stade prisma/schema.prisma n'existe pas encore
+# dans l'image (seuls package.json/package-lock.json sont copiés, pour
+# profiter du cache Docker), donc le postinstall (prisma generate) doit
+# être reporté après la copie complète des sources ci-dessous.
+RUN npm ci --ignore-scripts
 
 COPY . .
 RUN npx prisma generate
