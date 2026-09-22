@@ -1,35 +1,28 @@
 import 'package:firebase_core/firebase_core.dart';
 
-/// Configuration Firebase du projet "Santine" (déploiement web
+/// Configuration Firebase du projet "Sprint VTC" (déploiement web
 /// uniquement — Sprint ne cible que Flutter Web pour l'instant).
 ///
-/// Toutes les valeurs ci-dessous sont des PLACEHOLDERS : ce fichier a
-/// été préparé pour la migration vers Firebase, mais aucun projet
-/// Firebase n'existe encore côté Groupe Santine au moment où il est
-/// écrit. Tant qu'elles ne sont pas remplacées par les vraies valeurs
+/// Valeurs réelles du projet Firebase créé par le Groupe Santine
 /// (Console Firebase > Paramètres du projet > Vos applications > SDK
-/// setup and configuration), [DefaultFirebaseOptions.estConfigure]
-/// reste faux et [AuthRepository] continue d'utiliser le mode démo
-/// existant — l'app déployée ne casse donc pas tant que ce fichier
-/// n'est pas complété. Voir le guide de configuration fourni pour la
-/// marche à suivre exacte.
-///
-/// Remarque : ces clés (apiKey compris) sont conçues par Firebase pour
-/// être embarquées dans le code client et publiques — la sécurité
-/// réelle vient des règles Firestore/Auth, pas du secret de ce
-/// fichier. Il est donc normal et sûr de les committer telles quelles.
+/// setup and configuration). Ces clés (apiKey compris) sont conçues
+/// par Firebase pour être embarquées dans le code client et
+/// publiques — la sécurité réelle vient des règles Firestore/Auth,
+/// pas du secret de ce fichier. Il est donc normal et sûr de les
+/// committer telles quelles.
 class DefaultFirebaseOptions {
   DefaultFirebaseOptions._();
 
   static const String _placeholder = 'A_REMPLACER';
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: _placeholder,
-    appId: _placeholder,
-    messagingSenderId: _placeholder,
-    projectId: _placeholder,
-    authDomain: _placeholder,
-    storageBucket: _placeholder,
+    apiKey: 'AIzaSyBI86kFD1rOGdm_4q49ytxm7Og9QtB26PM',
+    appId: '1:671806634534:web:9c2d22682a5ebcabb6c4e7',
+    messagingSenderId: '671806634534',
+    projectId: 'sprint-vtc',
+    authDomain: 'sprint-vtc.firebaseapp.com',
+    storageBucket: 'sprint-vtc.firebasestorage.app',
+    measurementId: 'G-8VH7H8XYM6',
   );
 
   /// Devient vrai automatiquement dès que les valeurs ci-dessus auront
