@@ -5,6 +5,11 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
+# node:20-slim n'embarque pas openssl : le moteur Prisma en a besoin dès
+# `prisma generate` pour détecter la version d'OpenSSL et choisir le bon
+# binaire (sinon il tombe sur un binaire incompatible, cf. étape runtime).
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 # --ignore-scripts : à ce stade prisma/schema.prisma n'existe pas encore
 # dans l'image (seuls package.json/package-lock.json sont copiés, pour
@@ -19,6 +24,10 @@ RUN npm run build
 FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Même raison qu'à l'étape builder : le moteur Prisma (déjà généré pour la
+# bonne cible OpenSSL) a besoin de libssl présent pour s'exécuter.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
