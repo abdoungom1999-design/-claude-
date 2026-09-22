@@ -9,6 +9,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/address_search_field.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -118,10 +119,12 @@ class _ColisPageState extends State<ColisPage> {
       });
       if (!mounted) return;
       final prixTexte = course.prixFcfa != null
-          ? ' — ${course.prixFcfa} FCFA'
+          ? ' Prix estimé : ${course.prixFcfa} FCFA.'
           : '';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Colis envoyé avec succès !$prixTexte')),
+      AppSnackbar.succes(
+        context,
+        'Votre demande a été envoyée aux chauffeurs à proximité.$prixTexte',
+        icon: Icons.inventory_2_outlined,
       );
     } on ApiException catch (e) {
       if (!mounted) return;

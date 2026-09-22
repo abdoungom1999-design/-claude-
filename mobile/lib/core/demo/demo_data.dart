@@ -194,6 +194,7 @@ class DemoData {
       prixFcfa: 2400,
       date: DateTime.now().subtract(const Duration(hours: 3)),
       statut: 'Terminée',
+      noteDonnee: 5,
     ),
     CourseHistorique(
       id: 'demo-hist-2',
@@ -203,6 +204,7 @@ class DemoData {
       prixFcfa: 1800,
       date: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
       statut: 'Terminée',
+      noteDonnee: 4,
     ),
     CourseHistorique(
       id: 'demo-hist-3',
@@ -212,6 +214,7 @@ class DemoData {
       prixFcfa: 1500,
       date: DateTime.now().subtract(const Duration(days: 2, hours: 5)),
       statut: 'Terminée',
+      noteDonnee: 5,
     ),
     CourseHistorique(
       id: 'demo-hist-4',
@@ -221,6 +224,7 @@ class DemoData {
       prixFcfa: 2000,
       date: DateTime.now().subtract(const Duration(days: 5)),
       statut: 'Terminée',
+      noteDonnee: 5,
     ),
   ];
 
@@ -231,19 +235,24 @@ class DemoData {
 
   // --- Profil et statistiques Client (onglet Compte) ----------------------
 
-  static String monNomClient = 'Vous (compte démo)';
-  static String monTelephoneClient = '+221 77 000 00 00';
+  static String monPrenomClient = 'Bamba';
+  static String monNomFamilleClient = 'Diallo';
+  static String monTelephoneClient = '+221';
   static String monEmailClient = 'vous@exemple.com';
   static const double noteMoyenneClient = 4.8;
   static const int coursesEffectueesClient = 23;
   static const int reservationsClient = 3;
 
+  static String get monNomClient => '$monPrenomClient $monNomFamilleClient';
+
   static void mettreAJourProfilClient({
+    required String prenom,
     required String nom,
     required String telephone,
     required String email,
   }) {
-    monNomClient = nom;
+    monPrenomClient = prenom;
+    monNomFamilleClient = nom;
     monTelephoneClient = telephone;
     monEmailClient = email;
   }
@@ -305,6 +314,97 @@ class DemoData {
   static const int gainsSemaineFcfa = 96500;
   static const int gainsMoisFcfa = 342000;
   static const int coursesSemaine = 34;
+
+  // --- Messagerie (onglet Messages + Mes échanges) ------------------------
+
+  static final List<Conversation> _conversations = [
+    Conversation(
+      id: 'demo-conv-1',
+      nom: 'Moussa Diallo',
+      sousTitre: 'Chauffeur · Bajaj Boxer',
+      messages: [
+        ChatMessage(
+          texte: 'Bonjour ! Je suis en route, j\'arrive dans 5 minutes.',
+          envoyeParMoi: false,
+          heure: DateTime.now().subtract(const Duration(minutes: 6)),
+        ),
+        ChatMessage(
+          texte: 'Parfait, je vous attends devant l\'entrée principale.',
+          envoyeParMoi: true,
+          heure: DateTime.now().subtract(const Duration(minutes: 5)),
+        ),
+      ],
+    ),
+    Conversation(
+      id: 'demo-conv-2',
+      nom: 'Fatou Sarr',
+      sousTitre: 'Chauffeuse · Bajaj RE',
+      messages: [
+        ChatMessage(
+          texte: 'Votre colis a bien été livré, merci !',
+          envoyeParMoi: false,
+          heure: DateTime.now().subtract(const Duration(days: 1)),
+        ),
+      ],
+    ),
+  ];
+
+  static List<Conversation> conversations() => List.unmodifiable(_conversations);
+
+  /// Exposée directement (mutable), comme [Conversation.messages] :
+  /// [ChatPage] y ajoute les messages envoyés sans wrapper en lecture
+  /// seule, pour que le fil support persiste tant que l'app reste ouverte.
+  static final List<ChatMessage> messagesSupport = [];
+
+  // --- Préférences (écran Préférences) ------------------------------------
+
+  static String villeActivite = 'Dakar';
+  static String theme = 'Système';
+  static String uniteDistance = 'km';
+  static String formatHeure = '24h';
+  static String devise = 'FCFA';
+
+  // --- Notifications (écran Notifications) --------------------------------
+
+  static bool notifCourses = true;
+  static bool notifPromotions = true;
+  static bool notifActualites = false;
+
+  // --- Parrainage (écran Inviter des amis) ---------------------------------
+
+  static const String codeParrainage = '7ZMXZJ';
+  static const int parrainageInvites = 0;
+  static const int parrainageQualifies = 0;
+  static const int parrainageGainsFcfa = 0;
+}
+
+/// Un message dans une conversation (voir [Conversation]) ou dans le fil
+/// support (voir [DemoData.messagesSupport]).
+class ChatMessage {
+  ChatMessage({required this.texte, required this.envoyeParMoi, required this.heure});
+
+  final String texte;
+  final bool envoyeParMoi;
+  final DateTime heure;
+}
+
+/// Fil de discussion avec un chauffeur (écran Messages).
+class Conversation {
+  Conversation({
+    required this.id,
+    required this.nom,
+    required this.sousTitre,
+    required this.messages,
+  });
+
+  final String id;
+  final String nom;
+  final String sousTitre;
+
+  /// Mutable : envoyer un message depuis [ChatPage] l'ajoute directement
+  /// ici, pour que la conversation garde son historique tant que l'app
+  /// reste ouverte.
+  final List<ChatMessage> messages;
 }
 
 /// Adresse enregistrée par le client (écran Favoris).

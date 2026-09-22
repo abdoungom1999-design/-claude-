@@ -21,13 +21,17 @@ class InformationsPersonnellesPage extends StatefulWidget {
 class _InformationsPersonnellesPageState
     extends State<InformationsPersonnellesPage> {
   final _formKey = GlobalKey<FormState>();
-  late final _nomController = TextEditingController(text: DemoData.monNomClient);
+  late final _prenomController =
+      TextEditingController(text: DemoData.monPrenomClient);
+  late final _nomController =
+      TextEditingController(text: DemoData.monNomFamilleClient);
   late final _telephoneController =
       TextEditingController(text: DemoData.monTelephoneClient);
   late final _emailController = TextEditingController(text: DemoData.monEmailClient);
 
   @override
   void dispose() {
+    _prenomController.dispose();
     _nomController.dispose();
     _telephoneController.dispose();
     _emailController.dispose();
@@ -39,6 +43,7 @@ class _InformationsPersonnellesPageState
 
     setState(() {
       DemoData.mettreAJourProfilClient(
+        prenom: _prenomController.text.trim(),
         nom: _nomController.text.trim(),
         telephone: _telephoneController.text.trim(),
         email: _emailController.text.trim(),
@@ -80,8 +85,8 @@ class _InformationsPersonnellesPageState
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      _nomController.text.isNotEmpty
-                          ? _nomController.text[0].toUpperCase()
+                      _prenomController.text.isNotEmpty
+                          ? _prenomController.text[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
                         color: Colors.white,
@@ -93,7 +98,17 @@ class _InformationsPersonnellesPageState
                 ),
                 const SizedBox(height: 28),
                 AppTextField(
-                  label: 'Nom complet',
+                  label: 'Prénom *',
+                  controller: _prenomController,
+                  prefixIcon: Icons.person_outline,
+                  validator: (valeur) =>
+                      (valeur == null || valeur.trim().length < 2)
+                          ? 'Prénom trop court'
+                          : null,
+                ),
+                const SizedBox(height: 14),
+                AppTextField(
+                  label: 'Nom *',
                   controller: _nomController,
                   prefixIcon: Icons.person_outline,
                   validator: (valeur) =>
@@ -103,24 +118,36 @@ class _InformationsPersonnellesPageState
                 ),
                 const SizedBox(height: 14),
                 AppTextField(
-                  label: 'Téléphone',
-                  controller: _telephoneController,
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: Icons.phone_outlined,
-                  validator: (valeur) =>
-                      (valeur == null || valeur.trim().isEmpty)
-                          ? 'Numéro requis'
-                          : null,
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
                   label: 'Email',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   prefixIcon: Icons.mail_outline,
-                  validator: (valeur) => (valeur == null || !valeur.contains('@'))
+                  validator: (valeur) => (valeur != null &&
+                          valeur.trim().isNotEmpty &&
+                          !valeur.contains('@'))
                       ? 'Email invalide'
                       : null,
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 6, left: 4),
+                  child: Text(
+                    'La modification de l\'email nécessitera une vérification.',
+                    style: TextStyle(fontSize: 11.5, color: AppColors.grey),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                AppTextField(
+                  label: 'Téléphone',
+                  controller: _telephoneController,
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: Icons.phone_outlined,
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 6, left: 4),
+                  child: Text(
+                    'Optionnel - format recommandé : +221 77 000 00 00',
+                    style: TextStyle(fontSize: 11.5, color: AppColors.grey),
+                  ),
                 ),
                 const SizedBox(height: 28),
                 PrimaryButton(

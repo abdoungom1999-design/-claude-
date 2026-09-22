@@ -109,6 +109,37 @@ class _SecuritePageState extends State<SecuritePage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.verified_user_rounded, color: Colors.green.shade700, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Hébergement et données sécurisées — conforme à la '
+                      'législation et aux chartes du Sénégal',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
             const Text(
               'Changer le mot de passe',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),

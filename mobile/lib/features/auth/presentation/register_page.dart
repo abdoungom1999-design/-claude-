@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -75,6 +76,10 @@ class _RegisterPageState extends State<RegisterPage> {
           motDePasse: _motDePasseController.text,
         );
         if (!mounted) return;
+        AppSnackbar.succes(
+          context,
+          'Un email de confirmation vous a été envoyé pour valider votre compte.',
+        );
         context.pop(true);
       } else {
         await _authRepository.inscrireConducteur(
@@ -84,6 +89,10 @@ class _RegisterPageState extends State<RegisterPage> {
           vehiculeId: _vehiculeController.text,
         );
         if (!mounted) return;
+        AppSnackbar.succes(
+          context,
+          'Un email de confirmation vous a été envoyé pour valider votre compte.',
+        );
         context.go(AppRoutes.conducteur);
       }
     } on ApiException catch (e) {

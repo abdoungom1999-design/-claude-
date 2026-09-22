@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/stat_tile.dart';
 
 /// Courses terminées non encore notées par le client.
 class CoursesANoterPage extends StatefulWidget {
@@ -41,24 +42,40 @@ class _CoursesANoterPageState extends State<CoursesANoterPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Courses à noter')),
       body: SafeArea(
-        child: courses.isEmpty
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text(
-                    'Vous avez noté toutes vos dernières courses. Merci !',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.grey),
-                  ),
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            StatTile(
+              label: 'Avis en attente',
+              valeur: '${courses.length}',
+              icon: Icons.star_border_rounded,
+              accent: courses.isEmpty ? Colors.green.shade600 : AppColors.orange,
+            ),
+            const SizedBox(height: 20),
+            if (courses.isEmpty)
+              const AppCard(
+                child: Column(
+                  children: [
+                    Text('😊', style: TextStyle(fontSize: 40)),
+                    SizedBox(height: 12),
+                    Text(
+                      'Tout est noté !',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Merci de partager vos retours sur vos dernières courses.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                    ),
+                  ],
                 ),
               )
-            : ListView.separated(
-                padding: const EdgeInsets.all(20),
-                itemCount: courses.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final course = courses[index];
-                  return AppCard(
+            else
+              ...courses.map(
+                (course) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AppCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -81,9 +98,11 @@ class _CoursesANoterPageState extends State<CoursesANoterPage> {
                         ),
                       ],
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
+          ],
+        ),
       ),
     );
   }

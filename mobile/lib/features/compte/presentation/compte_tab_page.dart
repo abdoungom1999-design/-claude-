@@ -9,12 +9,13 @@ import '../../../core/widgets/section_list_tile.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/wallet_card.dart';
 import '../../auth/data/auth_repository.dart';
-import 'centre_aide_page.dart';
+import 'aide_support_page.dart';
 import 'conditions_utilisation_page.dart';
 import 'courses_a_noter_page.dart';
 import 'favoris_page.dart';
 import 'informations_personnelles_page.dart';
 import 'inviter_amis_page.dart';
+import 'parametres_page.dart';
 import 'politique_confidentialite_page.dart';
 import 'securite_page.dart';
 
@@ -195,7 +196,12 @@ class _CompteTabPageState extends State<CompteTabPage> {
             SectionListTile(
               icon: Icons.help_outline_rounded,
               label: 'Aide & Support',
-              onTap: () => _ouvrir(const CentreAidePage()),
+              onTap: () => _ouvrir(const AideSupportPage()),
+            ),
+            SectionListTile(
+              icon: Icons.settings_outlined,
+              label: 'Paramètres',
+              onTap: () => _ouvrir(const ParametresPage()),
             ),
             const SizedBox(height: 20),
             const Text(
