@@ -12,11 +12,13 @@ class DashboardHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onDeconnexion,
+    this.leading,
   });
 
   final String title;
   final String subtitle;
   final VoidCallback? onDeconnexion;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +47,7 @@ class DashboardHeader extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (leading != null) ...[leading!, const SizedBox(width: 12)],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

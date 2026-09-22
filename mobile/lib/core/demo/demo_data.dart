@@ -124,6 +124,7 @@ class DemoData {
   // afficher des "0" figés en mode démo.
   static const int coursesAujourdHui = 7;
   static const int gainsEstimesFcfa = 18400;
+  static const double noteMoyenneConducteur = 5.0;
 
   // --- Tarification (réplique exacte du backend) -------------------------
 
@@ -181,6 +182,82 @@ class DemoData {
   static String nouvelIdCourse() {
     return 'demo-course-${_random.nextInt(900000) + 100000}';
   }
+
+  // --- Historique (onglet Activité côté Client) --------------------------
+
+  static final List<CourseHistorique> _historique = [
+    CourseHistorique(
+      id: 'demo-hist-1',
+      type: 'PASSAGER',
+      adresseDepart: 'Plateau, Dakar',
+      adresseArrivee: 'Almadies, Dakar',
+      prixFcfa: 2400,
+      date: DateTime.now().subtract(const Duration(hours: 3)),
+      statut: 'Terminée',
+    ),
+    CourseHistorique(
+      id: 'demo-hist-2',
+      type: 'COLIS',
+      adresseDepart: 'Médina, Dakar',
+      adresseArrivee: 'Ouakam, Dakar',
+      prixFcfa: 1800,
+      date: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
+      statut: 'Terminée',
+    ),
+    CourseHistorique(
+      id: 'demo-hist-3',
+      type: 'PASSAGER',
+      adresseDepart: 'Ngor, Dakar',
+      adresseArrivee: 'Point E, Dakar',
+      prixFcfa: 1500,
+      date: DateTime.now().subtract(const Duration(days: 2, hours: 5)),
+      statut: 'Terminée',
+    ),
+    CourseHistorique(
+      id: 'demo-hist-4',
+      type: 'PASSAGER',
+      adresseDepart: 'Yoff, Dakar',
+      adresseArrivee: 'Mermoz, Dakar',
+      prixFcfa: 2000,
+      date: DateTime.now().subtract(const Duration(days: 5)),
+      statut: 'Terminée',
+    ),
+  ];
+
+  static List<CourseHistorique> historique({String? type}) {
+    if (type == null) return List.unmodifiable(_historique);
+    return List.unmodifiable(_historique.where((c) => c.type == type));
+  }
+
+  // --- Profil et statistiques Client (onglet Compte) ----------------------
+
+  static const String monNomClient = 'Vous (compte démo)';
+  static const double noteMoyenneClient = 4.8;
+  static const int coursesEffectueesClient = 23;
+  static const int reservationsClient = 3;
+  static const int favorisClient = 2;
+  static const int soldePortefeuilleFcfa = 0;
+}
+
+/// Course passée factice affichée dans l'onglet Activité > Historique.
+class CourseHistorique {
+  CourseHistorique({
+    required this.id,
+    required this.type,
+    required this.adresseDepart,
+    required this.adresseArrivee,
+    required this.prixFcfa,
+    required this.date,
+    required this.statut,
+  });
+
+  final String id;
+  final String type; // 'PASSAGER' | 'COLIS'
+  final String adresseDepart;
+  final String adresseArrivee;
+  final int prixFcfa;
+  final DateTime date;
+  final String statut;
 }
 
 class _Tarifs {

@@ -10,6 +10,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/coming_soon_view.dart';
 import '../../../core/widgets/dashboard_header.dart';
 import '../../../core/widgets/network_error_view.dart';
 import '../../../core/widgets/online_toggle_button.dart';
@@ -156,6 +157,12 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: _ConducteurDrawer(
+        profil: _profil,
+        enLigne: _enLigne,
+        onChangerStatut: _basculerStatut,
+        onDeconnexion: _seDeconnecter,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -163,6 +170,21 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
               title: 'Tableau de bord',
               subtitle: 'Espace Conducteur Sprint',
               onDeconnexion: _seDeconnecter,
+              leading: Builder(
+                builder: (context) => InkWell(
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.menu_rounded, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
             ),
             Expanded(
               child: _chargement
@@ -273,6 +295,222 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
           onPressed: () => context.push(AppRoutes.conducteurAlerteCourse),
         ),
       ],
+    );
+  }
+}
+
+class _ConducteurDrawer extends StatelessWidget {
+  const _ConducteurDrawer({
+    required this.profil,
+    required this.enLigne,
+    required this.onChangerStatut,
+    required this.onDeconnexion,
+  });
+
+  final ProfilConducteur? profil;
+  final bool enLigne;
+  final ValueChanged<bool> onChangerStatut;
+  final VoidCallback onDeconnexion;
+
+  void _ouvrirPage(BuildContext context, String titre, IconData icon) {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(titre)),
+          body: ComingSoonView(icon: icon, titre: titre),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      backgroundColor: AppColors.background,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.orange, AppColors.orangeDark],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      profil?.nom.isNotEmpty == true
+                          ? profil!.nom[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    profil?.nom ?? 'Conducteur',
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  const Row(
+                    children: [
+                      Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        '${DemoData.noteMoyenneConducteur}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: enLigne
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : AppColors.greyLight,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            enLigne ? 'En ligne · ACTIF' : 'Hors ligne',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: enLigne
+                                  ? Colors.green.shade700
+                                  : AppColors.grey,
+                            ),
+                          ),
+                        ),
+                        Switch(
+                          value: enLigne,
+                          onChanged: onChangerStatut,
+                          activeThumbColor: Colors.green.shade600,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _ItemMenu(
+                    icon: Icons.home_outlined,
+                    label: 'Accueil',
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  _ItemMenu(
+                    icon: Icons.assignment_outlined,
+                    label: 'Missions',
+                    onTap: () => _ouvrirPage(context, 'Missions', Icons.assignment_outlined),
+                  ),
+                  _ItemMenu(
+                    icon: Icons.payments_outlined,
+                    label: 'Gains',
+                    onTap: () => _ouvrirPage(context, 'Gains', Icons.payments_outlined),
+                  ),
+                  _ItemMenu(
+                    icon: Icons.star_border_rounded,
+                    label: 'Évaluations',
+                    onTap: () => _ouvrirPage(context, 'Évaluations', Icons.star_border_rounded),
+                  ),
+                  _ItemMenu(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: 'Messages',
+                    badge: '2',
+                    onTap: () => _ouvrirPage(context, 'Messages', Icons.chat_bubble_outline_rounded),
+                  ),
+                  _ItemMenu(
+                    icon: Icons.help_outline_rounded,
+                    label: 'Centre d\'aide',
+                    onTap: () => _ouvrirPage(context, 'Centre d\'aide', Icons.help_outline_rounded),
+                  ),
+                  _ItemMenu(
+                    icon: Icons.settings_outlined,
+                    label: 'Paramètres',
+                    onTap: () => _ouvrirPage(context, 'Paramètres', Icons.settings_outlined),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            _ItemMenu(
+              icon: Icons.logout_rounded,
+              label: 'Se déconnecter',
+              onTap: onDeconnexion,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemMenu extends StatelessWidget {
+  const _ItemMenu({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badge,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.text, size: 21),
+      title: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      ),
+      trailing: badge != null
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                badge!,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          : null,
+      onTap: onTap,
     );
   }
 }

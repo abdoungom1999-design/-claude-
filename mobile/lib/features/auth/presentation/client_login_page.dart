@@ -66,7 +66,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       icon: Icons.two_wheeler_rounded,
-      title: 'Bon retour',
+      title: 'Content de vous revoir',
       subtitle: 'Connectez-vous pour réserver une course ou envoyer un colis',
       form: Form(
         key: _formKey,

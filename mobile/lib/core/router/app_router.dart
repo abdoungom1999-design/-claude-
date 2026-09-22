@@ -1,24 +1,66 @@
 import 'package:go_router/go_router.dart';
+import '../../features/activite/presentation/activite_tab_page.dart';
 import '../../features/admin/presentation/admin_home_page.dart';
 import '../../features/auth/presentation/admin_login_page.dart';
 import '../../features/auth/presentation/client_login_page.dart';
-import '../../features/auth/presentation/client_register_page.dart';
 import '../../features/auth/presentation/conducteur_login_page.dart';
-import '../../features/auth/presentation/conducteur_register_page.dart';
+import '../../features/auth/presentation/register_page.dart';
 import '../../features/client/presentation/colis_page.dart';
 import '../../features/client/presentation/passager_page.dart';
+import '../../features/compte/presentation/compte_tab_page.dart';
 import '../../features/conducteur/presentation/conducteur_home_page.dart';
 import '../../features/conducteur/presentation/course_alert_page.dart';
-import '../../features/onboarding/presentation/accueil_page.dart';
+import '../../features/home/presentation/home_tab_page.dart';
+import '../../features/messages/presentation/messages_tab_page.dart';
 import '../../features/onboarding/presentation/espace_pro_page.dart';
+import '../../features/onboarding/presentation/welcome_page.dart';
+import '../navigation/home_shell_page.dart';
 import 'app_routes.dart';
 
 final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.accueil,
+  initialLocation: AppRoutes.welcome,
   routes: [
     GoRoute(
-      path: AppRoutes.accueil,
-      builder: (context, state) => const AccueilPage(),
+      path: AppRoutes.welcome,
+      builder: (context, state) => const WelcomePage(),
+    ),
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          HomeShellPage(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.home,
+              builder: (context, state) => const HomeTabPage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.activiteTab,
+              builder: (context, state) => const ActiviteTabPage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.messagesTab,
+              builder: (context, state) => const MessagesTabPage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.compteTab,
+              builder: (context, state) => const CompteTabPage(),
+            ),
+          ],
+        ),
+      ],
     ),
     GoRoute(
       path: AppRoutes.clientPassager,
@@ -34,7 +76,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.clientRegister,
-      builder: (context, state) => const ClientRegisterPage(),
+      builder: (context, state) => const RegisterPage(),
     ),
     GoRoute(
       path: AppRoutes.espacePro,
@@ -50,7 +92,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.conducteurRegister,
-      builder: (context, state) => const ConducteurRegisterPage(),
+      builder: (context, state) => const RegisterPage(roleInitial: 'chauffeur'),
     ),
     GoRoute(
       path: AppRoutes.conducteurAlerteCourse,
