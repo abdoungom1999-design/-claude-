@@ -41,4 +41,16 @@ export class AdminService {
       select: { id: true, nom: true, estValide: true },
     });
   }
+
+  async rejeterConducteur(id: string) {
+    const conducteur = await this.prisma.conducteur.findUnique({
+      where: { id },
+    });
+    if (!conducteur) {
+      throw new NotFoundException('Conducteur introuvable');
+    }
+
+    await this.prisma.conducteur.delete({ where: { id } });
+    return { id, supprime: true };
+  }
 }

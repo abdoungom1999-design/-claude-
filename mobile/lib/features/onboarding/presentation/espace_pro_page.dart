@@ -27,7 +27,7 @@ class EspaceProPage extends StatelessWidget {
             SecondaryButton(
               label: 'Admin',
               icon: Icons.admin_panel_settings_outlined,
-              onPressed: () => context.push(AppRoutes.admin),
+              onPressed: () => context.push(AppRoutes.adminLogin),
             ),
           ],
         ),

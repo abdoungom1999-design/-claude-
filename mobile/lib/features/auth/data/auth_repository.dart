@@ -58,6 +58,16 @@ class AuthRepository {
     });
   }
 
+  Future<void> connecterAdmin({
+    required String email,
+    required String motDePasse,
+  }) {
+    return _authentifier('/auth/admin/login', {
+      'email': email,
+      'motDePasse': motDePasse,
+    });
+  }
+
   Future<void> deconnecter() async {
     try {
       await _dio.post('/auth/logout');
