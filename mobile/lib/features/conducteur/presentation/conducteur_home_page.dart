@@ -10,16 +10,20 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/coming_soon_view.dart';
 import '../../../core/widgets/dashboard_header.dart';
 import '../../../core/widgets/network_error_view.dart';
 import '../../../core/widgets/online_toggle_button.dart';
+import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/secondary_button.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/trip_map.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../compte/presentation/centre_aide_page.dart';
+import '../../messages/presentation/messages_tab_page.dart';
 import '../data/conducteur_repository.dart';
+import 'evaluations_page.dart';
+import 'gains_page.dart';
 
 /// Tableau de bord Conducteur, connecté à l'API : profil réel, bascule
 /// En Ligne/Hors Ligne, et envoi périodique (toutes les 5s) de la
@@ -312,16 +316,14 @@ class _ConducteurDrawer extends StatelessWidget {
   final ValueChanged<bool> onChangerStatut;
   final VoidCallback onDeconnexion;
 
-  void _ouvrirPage(BuildContext context, String titre, IconData icon) {
+  void _ouvrirPage(BuildContext context, Widget page) {
     Navigator.of(context).pop();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(titre)),
-          body: ComingSoonView(icon: icon, titre: titre),
-        ),
-      ),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  }
+
+  void _bientotDisponible(BuildContext context, String label) {
+    Navigator.of(context).pop();
+    PremiumDialog.bientotDisponible(context, label);
   }
 
   @override
@@ -427,33 +429,33 @@ class _ConducteurDrawer extends StatelessWidget {
                   _ItemMenu(
                     icon: Icons.assignment_outlined,
                     label: 'Missions',
-                    onTap: () => _ouvrirPage(context, 'Missions', Icons.assignment_outlined),
+                    onTap: () => _bientotDisponible(context, 'Missions'),
                   ),
                   _ItemMenu(
                     icon: Icons.payments_outlined,
                     label: 'Gains',
-                    onTap: () => _ouvrirPage(context, 'Gains', Icons.payments_outlined),
+                    onTap: () => _ouvrirPage(context, const GainsPage()),
                   ),
                   _ItemMenu(
                     icon: Icons.star_border_rounded,
                     label: 'Évaluations',
-                    onTap: () => _ouvrirPage(context, 'Évaluations', Icons.star_border_rounded),
+                    onTap: () => _ouvrirPage(context, const EvaluationsPage()),
                   ),
                   _ItemMenu(
                     icon: Icons.chat_bubble_outline_rounded,
                     label: 'Messages',
                     badge: '2',
-                    onTap: () => _ouvrirPage(context, 'Messages', Icons.chat_bubble_outline_rounded),
+                    onTap: () => _ouvrirPage(context, const MessagesTabPage()),
                   ),
                   _ItemMenu(
                     icon: Icons.help_outline_rounded,
                     label: 'Centre d\'aide',
-                    onTap: () => _ouvrirPage(context, 'Centre d\'aide', Icons.help_outline_rounded),
+                    onTap: () => _ouvrirPage(context, const CentreAidePage()),
                   ),
                   _ItemMenu(
                     icon: Icons.settings_outlined,
                     label: 'Paramètres',
-                    onTap: () => _ouvrirPage(context, 'Paramètres', Icons.settings_outlined),
+                    onTap: () => _bientotDisponible(context, 'Paramètres'),
                   ),
                 ],
               ),

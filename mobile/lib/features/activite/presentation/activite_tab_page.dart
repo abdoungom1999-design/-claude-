@@ -4,6 +4,7 @@ import '../../../core/demo/demo_data.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import 'receipts_page.dart';
 
@@ -58,11 +59,8 @@ class ActiviteTabPage extends StatelessWidget {
                     _OngletActivite(
                       typeFiltre: null,
                       labelCta: 'Découvrir les réservations',
-                      onCta: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Réservations : bientôt disponible'),
-                        ),
-                      ),
+                      onCta: () =>
+                          PremiumDialog.bientotDisponible(context, 'Réservations'),
                       aucuneDonneePossible: true,
                     ),
                   ],

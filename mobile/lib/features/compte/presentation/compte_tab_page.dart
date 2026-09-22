@@ -3,11 +3,22 @@ import 'package:go_router/go_router.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/coming_soon_view.dart';
+import '../../../core/widgets/premium_dialog.dart';
+import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/section_list_tile.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/wallet_card.dart';
 import '../../auth/data/auth_repository.dart';
+import 'centre_aide_page.dart';
+import 'conditions_utilisation_page.dart';
+import 'courses_a_noter_page.dart';
+import 'favoris_page.dart';
+import 'informations_personnelles_page.dart';
+import 'inviter_amis_page.dart';
+import 'politique_confidentialite_page.dart';
+import 'securite_page.dart';
+
+const _montantsRecharge = [1000, 2000, 5000, 10000, 20000];
 
 /// Onglet Compte : profil, portefeuille, statistiques et menu de
 /// paramètres.
@@ -22,14 +33,27 @@ class _CompteTabPageState extends State<CompteTabPage> {
   final _authRepository = AuthRepository();
   bool _payerAvecSolde = false;
 
-  void _ouvrirPage(BuildContext context, String titre, IconData icon) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(titre)),
-          body: ComingSoonView(icon: icon, titre: titre),
-        ),
-      ),
+  void _ouvrir(Widget page) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  }
+
+  Future<void> _recharger() async {
+    final montant = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _RechargeSheet(),
+    );
+    if (montant == null || !mounted) return;
+
+    setState(() => DemoData.rechargerPortefeuille(montant));
+    if (!mounted) return;
+    PremiumDialog.afficher(
+      context,
+      icon: Icons.account_balance_wallet_outlined,
+      titre: 'Portefeuille rechargé',
+      message: 'Votre solde a été crédité de $montant FCFA.',
+      succes: true,
     );
   }
 
@@ -60,9 +84,11 @@ class _CompteTabPageState extends State<CompteTabPage> {
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: const Text(
-                    'V',
-                    style: TextStyle(
+                  child: Text(
+                    DemoData.monNomClient.isNotEmpty
+                        ? DemoData.monNomClient[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -70,16 +96,16 @@ class _CompteTabPageState extends State<CompteTabPage> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         DemoData.monNomClient,
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                       ),
-                      SizedBox(height: 2),
-                      Text(
+                      const SizedBox(height: 2),
+                      const Text(
                         'Client Sprint',
                         style: TextStyle(fontSize: 12.5, color: AppColors.grey),
                       ),
@@ -94,11 +120,7 @@ class _CompteTabPageState extends State<CompteTabPage> {
               payerAvecSolde: _payerAvecSolde,
               onTogglePaiement: (valeur) =>
                   setState(() => _payerAvecSolde = valeur),
-              onRecharger: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Recharge du portefeuille : bientôt disponible'),
-                ),
-              ),
+              onRecharger: _recharger,
             ),
             const SizedBox(height: 22),
             Row(
@@ -141,56 +163,55 @@ class _CompteTabPageState extends State<CompteTabPage> {
             ),
             const SizedBox(height: 28),
             const Text(
-              'Paramètres',
+              'Compte',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             SectionListTile(
               icon: Icons.badge_outlined,
               label: 'Informations personnelles',
-              onTap: () => _ouvrirPage(
-                context,
-                'Informations personnelles',
-                Icons.badge_outlined,
-              ),
+              onTap: () => _ouvrir(const InformationsPersonnellesPage()),
             ),
             SectionListTile(
               icon: Icons.shield_outlined,
               label: 'Sécurité',
-              onTap: () => _ouvrirPage(context, 'Sécurité', Icons.shield_outlined),
+              onTap: () => _ouvrir(const SecuritePage()),
             ),
             SectionListTile(
               icon: Icons.favorite_border_rounded,
               label: 'Favoris',
-              onTap: () =>
-                  _ouvrirPage(context, 'Favoris', Icons.favorite_border_rounded),
+              onTap: () => _ouvrir(const FavorisPage()),
             ),
             SectionListTile(
               icon: Icons.star_border_rounded,
               label: 'Courses à noter',
-              onTap: () => _ouvrirPage(
-                context,
-                'Courses à noter',
-                Icons.star_border_rounded,
-              ),
+              onTap: () => _ouvrir(const CoursesANoterPage()),
             ),
             SectionListTile(
               icon: Icons.person_add_alt_outlined,
               label: 'Inviter des amis',
-              onTap: () => _ouvrirPage(
-                context,
-                'Inviter des amis',
-                Icons.person_add_alt_outlined,
-              ),
+              onTap: () => _ouvrir(const InviterAmisPage()),
             ),
             SectionListTile(
               icon: Icons.help_outline_rounded,
               label: 'Aide & Support',
-              onTap: () => _ouvrirPage(
-                context,
-                'Aide & Support',
-                Icons.help_outline_rounded,
-              ),
+              onTap: () => _ouvrir(const CentreAidePage()),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Informations légales',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            SectionListTile(
+              icon: Icons.description_outlined,
+              label: 'Conditions d\'utilisation',
+              onTap: () => _ouvrir(const ConditionsUtilisationPage()),
+            ),
+            SectionListTile(
+              icon: Icons.privacy_tip_outlined,
+              label: 'Politique de confidentialité',
+              onTap: () => _ouvrir(const PolitiqueConfidentialitePage()),
             ),
             const SizedBox(height: 8),
             SectionListTile(
@@ -200,6 +221,77 @@ class _CompteTabPageState extends State<CompteTabPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RechargeSheet extends StatefulWidget {
+  const _RechargeSheet();
+
+  @override
+  State<_RechargeSheet> createState() => _RechargeSheetState();
+}
+
+class _RechargeSheetState extends State<_RechargeSheet> {
+  int _montantChoisi = _montantsRecharge[1];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.greyBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Recharger mon portefeuille',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _montantsRecharge.map((montant) {
+              final selectionne = montant == _montantChoisi;
+              return ChoiceChip(
+                label: Text('$montant FCFA'),
+                selected: selectionne,
+                onSelected: (_) => setState(() => _montantChoisi = montant),
+                selectedColor: AppColors.orange,
+                labelStyle: TextStyle(
+                  color: selectionne ? Colors.white : AppColors.text,
+                  fontWeight: FontWeight.w600,
+                ),
+                backgroundColor: AppColors.greyLight,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide.none,
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+          PrimaryButton(
+            label: 'Confirmer la recharge',
+            onPressed: () => Navigator.of(context).pop(_montantChoisi),
+          ),
+        ],
       ),
     );
   }

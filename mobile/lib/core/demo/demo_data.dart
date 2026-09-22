@@ -231,12 +231,110 @@ class DemoData {
 
   // --- Profil et statistiques Client (onglet Compte) ----------------------
 
-  static const String monNomClient = 'Vous (compte démo)';
+  static String monNomClient = 'Vous (compte démo)';
+  static String monTelephoneClient = '+221 77 000 00 00';
+  static String monEmailClient = 'vous@exemple.com';
   static const double noteMoyenneClient = 4.8;
   static const int coursesEffectueesClient = 23;
   static const int reservationsClient = 3;
-  static const int favorisClient = 2;
-  static const int soldePortefeuilleFcfa = 0;
+
+  static void mettreAJourProfilClient({
+    required String nom,
+    required String telephone,
+    required String email,
+  }) {
+    monNomClient = nom;
+    monTelephoneClient = telephone;
+    monEmailClient = email;
+  }
+
+  // --- Portefeuille (onglet Compte) ---------------------------------------
+
+  static int soldePortefeuilleFcfa = 0;
+
+  static void rechargerPortefeuille(int montantFcfa) {
+    soldePortefeuilleFcfa += montantFcfa;
+  }
+
+  // --- Favoris (adresses enregistrées) ------------------------------------
+
+  static final List<AdresseFavorite> _favoris = [
+    AdresseFavorite(
+      id: 'demo-fav-1',
+      libelle: 'Maison',
+      adresse: 'Sacré-Cœur 3, Dakar',
+      icon: 'maison',
+    ),
+    AdresseFavorite(
+      id: 'demo-fav-2',
+      libelle: 'Travail',
+      adresse: 'Plateau, Dakar',
+      icon: 'travail',
+    ),
+  ];
+
+  static List<AdresseFavorite> favoris() => List.unmodifiable(_favoris);
+  static int get favorisClient => _favoris.length;
+
+  // --- Avis reçus par le conducteur (onglet Évaluations) ------------------
+
+  static final List<AvisClient> _avisConducteur = [
+    AvisClient(
+      auteur: 'Aïssatou D.',
+      note: 5,
+      commentaire: 'Conducteur ponctuel et très courtois. Trajet impeccable.',
+      date: DateTime.now().subtract(const Duration(days: 1)),
+    ),
+    AvisClient(
+      auteur: 'Modou N.',
+      note: 5,
+      commentaire: 'Super moto, trajet rapide et sécurisé.',
+      date: DateTime.now().subtract(const Duration(days: 3)),
+    ),
+    AvisClient(
+      auteur: 'Khady S.',
+      note: 4,
+      commentaire: 'Bonne course, un peu d\'attente au départ.',
+      date: DateTime.now().subtract(const Duration(days: 6)),
+    ),
+  ];
+
+  static List<AvisClient> avisConducteur() => List.unmodifiable(_avisConducteur);
+
+  // Récapitulatif des gains chauffeur (écran Gains).
+  static const int gainsSemaineFcfa = 96500;
+  static const int gainsMoisFcfa = 342000;
+  static const int coursesSemaine = 34;
+}
+
+/// Adresse enregistrée par le client (écran Favoris).
+class AdresseFavorite {
+  AdresseFavorite({
+    required this.id,
+    required this.libelle,
+    required this.adresse,
+    required this.icon,
+  });
+
+  final String id;
+  final String libelle;
+  final String adresse;
+  final String icon; // 'maison' | 'travail' | 'autre'
+}
+
+/// Avis client factice affiché à un conducteur (écran Évaluations).
+class AvisClient {
+  AvisClient({
+    required this.auteur,
+    required this.note,
+    required this.commentaire,
+    required this.date,
+  });
+
+  final String auteur;
+  final int note;
+  final String commentaire;
+  final DateTime date;
 }
 
 /// Course passée factice affichée dans l'onglet Activité > Historique.
@@ -249,6 +347,7 @@ class CourseHistorique {
     required this.prixFcfa,
     required this.date,
     required this.statut,
+    this.noteDonnee,
   });
 
   final String id;
@@ -258,6 +357,10 @@ class CourseHistorique {
   final int prixFcfa;
   final DateTime date;
   final String statut;
+
+  /// null tant que le client n'a pas noté la course (écran "Courses à
+  /// noter"), sinon la note (1 à 5) donnée.
+  int? noteDonnee;
 }
 
 class _Tarifs {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
+import '../widgets/premium_dialog.dart';
 
 /// Coquille de navigation Client : barre du bas à 4 onglets (Accueil,
 /// Activité, Messages, Compte) surmontée d'un bouton d'action flottant
@@ -17,7 +18,7 @@ class HomeShellPage extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => const _MenuActionsRapides(),
+      builder: (sheetContext) => _MenuActionsRapides(contextParent: context),
     );
   }
 
@@ -140,7 +141,12 @@ class _OngletBarre extends StatelessWidget {
 }
 
 class _MenuActionsRapides extends StatelessWidget {
-  const _MenuActionsRapides();
+  const _MenuActionsRapides({required this.contextParent});
+
+  /// Contexte de la page hôte (stable), utilisé pour les actions qui
+  /// s'exécutent après la fermeture de ce bottom sheet — son propre
+  /// [BuildContext] ne serait plus fiable une fois le sheet démonté.
+  final BuildContext contextParent;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +182,7 @@ class _MenuActionsRapides extends StatelessWidget {
             description: 'Réservez une moto-taxi maintenant',
             onTap: () {
               Navigator.of(context).pop();
-              context.push(AppRoutes.clientPassager);
+              contextParent.push(AppRoutes.clientPassager);
             },
           ),
           _ActionRapide(
@@ -191,7 +197,7 @@ class _MenuActionsRapides extends StatelessWidget {
             description: 'Envoyez un colis rapidement',
             onTap: () {
               Navigator.of(context).pop();
-              context.push(AppRoutes.clientColis);
+              contextParent.push(AppRoutes.clientColis);
             },
           ),
           _ActionRapide(
@@ -213,9 +219,7 @@ class _MenuActionsRapides extends StatelessWidget {
 
   void _bientotDisponible(BuildContext context, String label) {
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label : bientôt disponible')),
-    );
+    PremiumDialog.bientotDisponible(contextParent, label);
   }
 }
 
