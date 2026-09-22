@@ -3,19 +3,20 @@ import '../config/api_config.dart';
 import '../theme/app_colors.dart';
 
 /// Structure premium commune aux écrans de connexion/inscription Sprint :
-/// un bandeau "Hero Header" à coins arrondis (photo d'arrière-plan, filtre
-/// en dégradé noir vers orange, icône, titre, sous-titre) surmonté d'une
-/// carte blanche flottante contenant le formulaire. Remplace les anciens
-/// écrans "AppBar + Column" basiques par un rendu haut de gamme, cohérent
-/// sur les 5 écrans d'authentification.
+/// un bandeau "Hero Header" plein cadre (vraie photo en arrière-plan,
+/// filtre en dégradé noir profond vers orange Santine, titre, sous-titre)
+/// surmonté d'une carte blanche flottante contenant le formulaire.
+/// Volontairement épuré (pas d'icône superposée à la photo) pour laisser
+/// l'image et le texte porter l'ambiance premium.
 ///
 /// Note de transparence : la photo d'arrière-plan ([_urlPhotoHeaderAuth])
 /// n'a pas pu être chargée ni vérifiée depuis cet environnement de
 /// développement (accès direct aux CDN d'images bloqué par le bac à
-/// sable — même contrainte que pour la photo héros de l'écran Welcome et
-/// le carrousel Accueil). Elle reste en place pour la production ; en cas
-/// d'échec de chargement chez un visiteur, [_FondRepliOrange] affiche
-/// automatiquement l'ancien dégradé orange uni, jamais une image cassée.
+/// sable — confirmé à nouveau via l'outil de fetch web, même verdict que
+/// pour la photo héros de l'écran Welcome et le carrousel Accueil). Elle
+/// reste en place pour la production ; en cas d'échec de chargement chez
+/// un visiteur, [_FondRepliOrange] affiche automatiquement l'ancien
+/// dégradé orange uni, jamais une image cassée.
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
@@ -27,6 +28,9 @@ class AuthScaffold extends StatelessWidget {
     this.showBackButton = true,
   });
 
+  /// Conservée pour la compatibilité des 4 écrans d'authentification qui
+  /// l'appellent déjà ; plus affichée dans le nouveau Hero Header (voir
+  /// note de classe), la photo et le texte suffisant à l'ambiance visée.
   final IconData icon;
   final String title;
   final String subtitle;
@@ -44,7 +48,6 @@ class AuthScaffold extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _Header(
-                icon: icon,
                 title: title,
                 subtitle: subtitle,
                 showBackButton: showBackButton,
@@ -99,13 +102,11 @@ const _urlPhotoHeaderAuth =
 
 class _Header extends StatelessWidget {
   const _Header({
-    required this.icon,
     required this.title,
     required this.subtitle,
     required this.showBackButton,
   });
 
-  final IconData icon;
   final String title;
   final String subtitle;
   final bool showBackButton;
@@ -119,58 +120,47 @@ class _Header extends StatelessWidget {
         bottomLeft: Radius.circular(36),
         bottomRight: Radius.circular(36),
       ),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 64),
+      child: SizedBox(
+        height: 280,
         child: Stack(
-          clipBehavior: Clip.none,
+          fit: StackFit.expand,
           children: [
-            // Photo d'arrière-plan : repli en dégradé orange (identité
-            // Sprint) si l'image réseau ne charge pas.
-            Positioned.fill(
-              child: Image.network(
-                _urlPhotoHeaderAuth,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return const _FondRepliOrange();
-                },
-                errorBuilder: (context, error, stackTrace) =>
-                    const _FondRepliOrange(),
-              ),
+            // Vraie photo plein cadre : repli en dégradé orange (identité
+            // Sprint) tant qu'elle charge, ou si elle échoue.
+            Image.network(
+              _urlPhotoHeaderAuth,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const _FondRepliOrange();
+              },
+              errorBuilder: (context, error, stackTrace) =>
+                  const _FondRepliOrange(),
             ),
-            // Filtre en dégradé noir vers orange : garde la charte Sprint
-            // et assure la lisibilité du texte blanc par-dessus la photo.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withValues(alpha: 0.72),
-                      AppColors.orangeDark.withValues(alpha: 0.55),
-                      AppColors.orange.withValues(alpha: 0.4),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+            // Filtre en dégradé noir profond -> orange Santine : sombre
+            // et mystérieux en haut pour la lisibilité du texte, laisse
+            // la photo respirer au centre, bascule chaleureusement vers
+            // l'orange de marque en bas.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.5, 1.0],
+                  colors: [
+                    AppColors.noirProfond.withValues(alpha: 0.90),
+                    AppColors.noirProfond.withValues(alpha: 0.42),
+                    AppColors.orange.withValues(alpha: 0.68),
+                  ],
                 ),
               ),
             ),
-          // Cercles décoratifs très discrets pour un rendu moins plat.
-          const Positioned(
-            top: -30,
-            right: -30,
-            child: _Cercle(taille: 120, opacite: 0.10),
-          ),
-          const Positioned(
-            top: 40,
-            right: 40,
-            child: _Cercle(taille: 50, opacite: 0.12),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (peutRevenir || ApiConfig.modeDemo)
-                Row(
+            if (peutRevenir || ApiConfig.modeDemo)
+              Positioned(
+                top: 12,
+                left: 20,
+                right: 20,
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     if (peutRevenir)
@@ -185,35 +175,41 @@ class _Header extends StatelessWidget {
                     if (ApiConfig.modeDemo) const _BadgeModeDemo(),
                   ],
                 ),
-              SizedBox(height: peutRevenir || ApiConfig.modeDemo ? 20 : 8),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: Colors.white, size: 28),
               ),
-              const SizedBox(height: 20),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
+            // Titre + sous-titre ancrés en bas du bandeau, façon affiche :
+            // la photo occupe tout l'espace au-dessus, sans être coupée
+            // par un bloc de contenu centré.
+            Positioned(
+              left: 22,
+              right: 22,
+              bottom: 30,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      height: 1.1,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 14)],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      fontSize: 14,
+                      height: 1.3,
+                      shadows: const [Shadow(color: Colors.black54, blurRadius: 10)],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+            ),
           ],
         ),
       ),
@@ -270,25 +266,6 @@ class _BadgeModeDemo extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Cercle extends StatelessWidget {
-  const _Cercle({required this.taille, required this.opacite});
-
-  final double taille;
-  final double opacite;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: taille,
-      height: taille,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: opacite),
       ),
     );
   }
