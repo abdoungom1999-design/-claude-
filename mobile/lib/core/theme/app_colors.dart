@@ -25,4 +25,8 @@ class AppColors {
   /// dominante orange (identité Sprint / Groupe Santine).
   static const Color noirProfond = Color(0xFF0E0E0E);
   static const Color noirProfondClair = Color(0xFF1C1C1C);
+
+  /// Accent doré : réservé aux touches "premium" ponctuelles sur fond
+  /// sombre (ex. bannière Forfait Aéroport), jamais un CTA principal.
+  static const Color or = Color(0xFFD4AF37);
 }
