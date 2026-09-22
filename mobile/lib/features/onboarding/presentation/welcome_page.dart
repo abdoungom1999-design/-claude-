@@ -4,12 +4,21 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/premium_dialog.dart';
 
+/// URL de la photo héros (moto noire, sportive, de profil). Libre de
+/// droits (licence Unsplash). Ce bac à sable bloque l'accès sortant vers
+/// les CDN d'images (Unsplash, Wikimedia, Pexels, Pixabay — testé et
+/// confirmé), donc cette URL précise n'a pas pu être chargée ni vérifiée
+/// depuis cet environnement. [_HeroMoto] a un `errorBuilder` de repli
+/// pour ne jamais afficher une image cassée si jamais elle ne se charge
+/// pas : changez uniquement cette constante pour la remplacer.
+const _urlPhotoHero =
+    'https://images.unsplash.com/photo-1558981806-ec527fa84c39'
+    '?auto=format&fit=crop&w=1200&q=80';
+
 /// Écran d'accueil pré-authentification : héros premium en noir profond,
-/// slogan, et les trois entrées de connexion empilées. Aucune photo de
-/// véhicule n'est utilisée (pas de banque d'images de marque disponible
-/// dans cet environnement) : une moto animée (glissement fluide en
-/// boucle, voir [_MotoAnimee]) tient lieu de visuel héros, dans le même
-/// esprit premium.
+/// slogan, et les trois entrées de connexion empilées. Photo réelle
+/// (voir [_urlPhotoHero]) avec un effet Ken Burns (zoom lent en boucle)
+/// plutôt qu'une illustration vectorielle.
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
 
@@ -24,62 +33,74 @@ class WelcomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.noirProfond,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-          child: Column(
-            children: [
-              const Spacer(),
-              const _MotoAnimee(),
-              const SizedBox(height: 36),
-              const Text(
-                'Sprint',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Votre chauffeur en quelques secondes',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 15,
-                ),
-              ),
-              const Spacer(flex: 2),
-              _BoutonAuth(
-                label: 'Continuer avec mon numéro',
-                orange: true,
-                onPressed: () => _seConnecter(context),
-              ),
-              const SizedBox(height: 12),
-              _BoutonAuth(
-                label: 'Continuer avec mon email',
-                orange: false,
-                onPressed: () => _seConnecter(context),
-              ),
-              const SizedBox(height: 12),
-              _BoutonAuth(
-                label: 'Continuer avec Apple',
-                orange: false,
-                icon: Icons.apple,
-                onPressed: () =>
-                    PremiumDialog.bientotDisponible(context, 'Connexion Apple'),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () => context.push(AppRoutes.espacePro),
-                child: Text(
-                  'Espace conducteur / admin',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-                ),
-              ),
-            ],
+      body: Column(
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.42,
+            width: double.infinity,
+            child: const _HeroMoto(),
           ),
-        ),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Sprint',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Votre chauffeur en quelques secondes',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    _BoutonAuth(
+                      label: 'Continuer avec mon numéro',
+                      orange: true,
+                      onPressed: () => _seConnecter(context),
+                    ),
+                    const SizedBox(height: 12),
+                    _BoutonAuth(
+                      label: 'Continuer avec mon email',
+                      orange: false,
+                      onPressed: () => _seConnecter(context),
+                    ),
+                    const SizedBox(height: 12),
+                    _BoutonAuth(
+                      label: 'Continuer avec Apple',
+                      orange: false,
+                      icon: Icons.apple,
+                      onPressed: () => PremiumDialog.bientotDisponible(
+                        context,
+                        'Connexion Apple',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => context.push(AppRoutes.espacePro),
+                      child: Text(
+                        'Espace conducteur / admin',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -128,34 +149,34 @@ class _BoutonAuth extends StatelessWidget {
   }
 }
 
-/// Moto animée : glissement fluide en va-et-vient (translation + très
-/// léger tangage), avec de fines lignes de vitesse qui pulsent derrière
-/// elle, pour un héros vivant sans dépendre d'une image.
-class _MotoAnimee extends StatefulWidget {
-  const _MotoAnimee();
+/// Photo héros plein cadre (voir [_urlPhotoHero]) avec un effet Ken
+/// Burns : zoom très lent et continu en boucle, pour donner de la vie à
+/// l'image sans mouvement saccadé "dessin animé". Un dégradé sombre en
+/// haut assure la lisibilité de la barre de statut, un second en bas
+/// fond l'image dans le noir profond de l'écran. Si la photo ne charge
+/// pas (réseau du visiteur, ou URL à remplacer), un repli dégradé
+/// orange/noir avec pictogramme moto s'affiche à la place — jamais
+/// d'icône d'image cassée.
+class _HeroMoto extends StatefulWidget {
+  const _HeroMoto();
 
   @override
-  State<_MotoAnimee> createState() => _MotoAnimeeState();
+  State<_HeroMoto> createState() => _HeroMotoState();
 }
 
-class _MotoAnimeeState extends State<_MotoAnimee>
-    with SingleTickerProviderStateMixin {
+class _HeroMotoState extends State<_HeroMoto> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _glissement;
-  late final Animation<double> _tangage;
+  late final Animation<double> _zoom;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(seconds: 9),
     )..repeat(reverse: true);
-    _glissement = Tween<double>(begin: -16, end: 16).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
-    _tangage = Tween<double>(begin: -3, end: 3).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    _zoom = Tween<double>(begin: 1.0, end: 1.12).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
 
@@ -167,73 +188,93 @@ class _MotoAnimeeState extends State<_MotoAnimee>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      height: 150,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final avance = _glissement.value > 0;
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              // Lignes de vitesse, du côté opposé au sens du glissement.
-              Positioned(
-                left: avance ? null : 6,
-                right: avance ? 6 : null,
-                child: Opacity(
-                  opacity: (_glissement.value.abs() / 16).clamp(0.15, 1.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(3, (i) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Container(
-                          width: 18.0 - (i * 4),
-                          height: 3,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      );
-                    }),
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) => Transform.scale(
+              scale: _zoom.value,
+              child: child,
+            ),
+            child: Image.network(
+              _urlPhotoHero,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.orange,
+                    strokeWidth: 2.5,
                   ),
-                ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) => const _HeroMotoRepli(),
+            ),
+          ),
+          // Dégradé haut : lisibilité de la barre de statut.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xB3000000), Colors.transparent],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0.0, 0.35],
               ),
-              Transform.translate(
-                offset: Offset(_glissement.value, _tangage.value),
-                child: Transform.rotate(
-                  angle: (_glissement.value / 16) * 0.05,
-                  child: Container(
-                    width: 130,
-                    height: 130,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.orange, AppColors.orangeDark],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(36),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.orange.withValues(alpha: 0.35),
-                          blurRadius: 40,
-                          offset: const Offset(0, 16),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.two_wheeler_rounded,
-                      color: Colors.white,
-                      size: 64,
-                    ),
-                  ),
-                ),
+            ),
+          ),
+          // Dégradé bas : fond l'image dans AppColors.noirProfond.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.transparent, AppColors.noirProfond],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0.55, 1.0],
               ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Repli affiché si la photo réseau ne charge pas (voir [_HeroMoto]).
+class _HeroMotoRepli extends StatelessWidget {
+  const _HeroMotoRepli();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.noirProfondClair, AppColors.noirProfond],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Container(
+        width: 110,
+        height: 110,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.orange, AppColors.orangeDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.orange.withValues(alpha: 0.35),
+              blurRadius: 32,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 54),
       ),
     );
   }
