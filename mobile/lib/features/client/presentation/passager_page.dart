@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/config/demo_coordinates.dart';
+import 'package:latlong2/latlong.dart';
+import '../../../core/maps/distance_utils.dart';
+import '../../../core/maps/geocoding_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/address_search_field.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/app_text_field.dart';
-import '../../../core/widgets/map_placeholder.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/trip_map.dart';
 import '../../courses/data/courses_repository.dart';
 
 /// Écran de réservation d'une course "Passager" (moto-taxi), connecté à
-/// l'API. La carte reste un placeholder ; les coordonnées envoyées sont
-/// des positions de démonstration à Dakar tant que le géocodage réel
-/// n'est pas intégré.
+/// l'API. Carte réelle (OpenStreetMap) et géocodage d'adresses (Nominatim)
+/// remplacent le placeholder et les coordonnées de démonstration des
+/// itérations précédentes.
 class PassagerPage extends StatefulWidget {
   const PassagerPage({super.key});
 
@@ -29,8 +31,20 @@ class _PassagerPageState extends State<PassagerPage> {
   final _adresseArriveeController = TextEditingController();
   final _coursesRepository = CoursesRepository();
 
+  AdresseSuggestion? _depart;
+  AdresseSuggestion? _arrivee;
   PaymentMethod _methodePaiement = PaymentMethod.wave;
   bool _enCours = false;
+
+  double? get _distanceKm {
+    if (_depart == null || _arrivee == null) return null;
+    return DistanceUtils.distanceKm(
+      latDepart: _depart!.latitude,
+      lngDepart: _depart!.longitude,
+      latArrivee: _arrivee!.latitude,
+      lngArrivee: _arrivee!.longitude,
+    );
+  }
 
   @override
   void dispose() {
@@ -41,6 +55,16 @@ class _PassagerPageState extends State<PassagerPage> {
 
   Future<void> _commander() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_depart == null || _arrivee == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Sélectionnez une adresse dans la liste de suggestions',
+          ),
+        ),
+      );
+      return;
+    }
 
     final token = await TokenStorage().getAccessToken();
     if (token == null) {
@@ -54,11 +78,12 @@ class _PassagerPageState extends State<PassagerPage> {
       await _coursesRepository.creerCourse({
         'type': 'PASSAGER',
         'adresseDepart': _adresseDepartController.text.trim(),
-        'latitudeDepart': DemoCoordinates.plateauLatitude,
-        'longitudeDepart': DemoCoordinates.plateauLongitude,
+        'latitudeDepart': _depart!.latitude,
+        'longitudeDepart': _depart!.longitude,
         'adresseArrivee': _adresseArriveeController.text.trim(),
-        'latitudeArrivee': DemoCoordinates.almadiesLatitude,
-        'longitudeArrivee': DemoCoordinates.almadiesLongitude,
+        'latitudeArrivee': _arrivee!.latitude,
+        'longitudeArrivee': _arrivee!.longitude,
+        'distanceKm': _distanceKm,
         'methodePaiement': _methodePaiement.apiValue,
       });
       if (!mounted) return;
@@ -77,6 +102,8 @@ class _PassagerPageState extends State<PassagerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final distance = _distanceKm;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Réserver une course')),
       body: SafeArea(
@@ -87,29 +114,34 @@ class _PassagerPageState extends State<PassagerPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const MapPlaceholder(),
+                TripMap(
+                  depart: _depart != null
+                      ? LatLng(_depart!.latitude, _depart!.longitude)
+                      : null,
+                  arrivee: _arrivee != null
+                      ? LatLng(_arrivee!.latitude, _arrivee!.longitude)
+                      : null,
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Où allez-vous ?',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
-                AppTextField(
+                AddressSearchField(
                   label: 'Adresse de départ',
                   controller: _adresseDepartController,
                   prefixIcon: Icons.my_location,
-                  validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-                      ? 'Adresse requise'
-                      : null,
+                  onSelected: (suggestion) =>
+                      setState(() => _depart = suggestion),
                 ),
                 const SizedBox(height: 12),
-                AppTextField(
+                AddressSearchField(
                   label: "Adresse d'arrivée",
                   controller: _adresseArriveeController,
                   prefixIcon: Icons.location_on_outlined,
-                  validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-                      ? 'Adresse requise'
-                      : null,
+                  onSelected: (suggestion) =>
+                      setState(() => _arrivee = suggestion),
                 ),
                 const SizedBox(height: 24),
                 AppCard(
@@ -120,12 +152,14 @@ class _PassagerPageState extends State<PassagerPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Prix estimé',
+                            'Distance estimée',
                             style: TextStyle(color: AppColors.grey),
                           ),
-                          const Text(
-                            '—',
-                            style: TextStyle(
+                          Text(
+                            distance != null
+                                ? '${distance.toStringAsFixed(1)} km'
+                                : '—',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -134,7 +168,7 @@ class _PassagerPageState extends State<PassagerPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Calculé une fois le trajet renseigné',
+                        'Prix : calcul dynamique à venir',
                         style: TextStyle(fontSize: 12, color: AppColors.grey),
                       ),
                       const SizedBox(height: 16),

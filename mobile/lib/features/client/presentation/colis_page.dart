@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/config/demo_coordinates.dart';
+import 'package:latlong2/latlong.dart';
+import '../../../core/maps/distance_utils.dart';
+import '../../../core/maps/geocoding_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/address_search_field.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../../../core/widgets/map_placeholder.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/trip_map.dart';
 import '../../courses/data/courses_repository.dart';
 
-/// Écran d'envoi d'un colis, connecté à l'API. La carte reste un
-/// placeholder ; les coordonnées envoyées sont des positions de
-/// démonstration à Dakar tant que le géocodage réel n'est pas intégré.
-/// Les champs destinataire/description restent locaux : l'API ne les
-/// persiste pas encore (hors périmètre de cette itération).
+/// Écran d'envoi d'un colis, connecté à l'API. Carte réelle
+/// (OpenStreetMap) et géocodage d'adresses (Nominatim) remplacent le
+/// placeholder et les coordonnées de démonstration des itérations
+/// précédentes. Les champs destinataire/description restent locaux :
+/// l'API ne les persiste pas encore (hors périmètre de cette itération).
 class ColisPage extends StatefulWidget {
   const ColisPage({super.key});
 
@@ -30,8 +33,20 @@ class _ColisPageState extends State<ColisPage> {
   final _adresseLivraisonController = TextEditingController();
   final _coursesRepository = CoursesRepository();
 
+  AdresseSuggestion? _retrait;
+  AdresseSuggestion? _livraison;
   PaymentMethod _methodePaiement = PaymentMethod.orangeMoney;
   bool _enCours = false;
+
+  double? get _distanceKm {
+    if (_retrait == null || _livraison == null) return null;
+    return DistanceUtils.distanceKm(
+      latDepart: _retrait!.latitude,
+      lngDepart: _retrait!.longitude,
+      latArrivee: _livraison!.latitude,
+      lngArrivee: _livraison!.longitude,
+    );
+  }
 
   @override
   void dispose() {
@@ -42,6 +57,16 @@ class _ColisPageState extends State<ColisPage> {
 
   Future<void> _envoyer() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_retrait == null || _livraison == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Sélectionnez une adresse dans la liste de suggestions',
+          ),
+        ),
+      );
+      return;
+    }
 
     final token = await TokenStorage().getAccessToken();
     if (token == null) {
@@ -55,17 +80,18 @@ class _ColisPageState extends State<ColisPage> {
       await _coursesRepository.creerCourse({
         'type': 'COLIS',
         'adresseDepart': _adresseRetraitController.text.trim(),
-        'latitudeDepart': DemoCoordinates.plateauLatitude,
-        'longitudeDepart': DemoCoordinates.plateauLongitude,
+        'latitudeDepart': _retrait!.latitude,
+        'longitudeDepart': _retrait!.longitude,
         'adresseArrivee': _adresseLivraisonController.text.trim(),
-        'latitudeArrivee': DemoCoordinates.almadiesLatitude,
-        'longitudeArrivee': DemoCoordinates.almadiesLongitude,
+        'latitudeArrivee': _livraison!.latitude,
+        'longitudeArrivee': _livraison!.longitude,
+        'distanceKm': _distanceKm,
         'methodePaiement': _methodePaiement.apiValue,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Colis envoyé avec succès !')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Colis envoyé avec succès !')));
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -78,6 +104,8 @@ class _ColisPageState extends State<ColisPage> {
 
   @override
   Widget build(BuildContext context) {
+    final distance = _distanceKm;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Envoyer un colis')),
       body: SafeArea(
@@ -88,29 +116,34 @@ class _ColisPageState extends State<ColisPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const MapPlaceholder(),
+                TripMap(
+                  depart: _retrait != null
+                      ? LatLng(_retrait!.latitude, _retrait!.longitude)
+                      : null,
+                  arrivee: _livraison != null
+                      ? LatLng(_livraison!.latitude, _livraison!.longitude)
+                      : null,
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Détails du colis',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
-                AppTextField(
+                AddressSearchField(
                   label: 'Adresse de retrait',
                   controller: _adresseRetraitController,
                   prefixIcon: Icons.my_location,
-                  validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-                      ? 'Adresse requise'
-                      : null,
+                  onSelected: (suggestion) =>
+                      setState(() => _retrait = suggestion),
                 ),
                 const SizedBox(height: 12),
-                AppTextField(
+                AddressSearchField(
                   label: 'Adresse de livraison',
                   controller: _adresseLivraisonController,
                   prefixIcon: Icons.location_on_outlined,
-                  validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-                      ? 'Adresse requise'
-                      : null,
+                  onSelected: (suggestion) =>
+                      setState(() => _livraison = suggestion),
                 ),
                 const SizedBox(height: 12),
                 const AppTextField(
@@ -139,12 +172,14 @@ class _ColisPageState extends State<ColisPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Prix estimé',
+                            'Distance estimée',
                             style: TextStyle(color: AppColors.grey),
                           ),
-                          const Text(
-                            '—',
-                            style: TextStyle(
+                          Text(
+                            distance != null
+                                ? '${distance.toStringAsFixed(1)} km'
+                                : '—',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -153,7 +188,7 @@ class _ColisPageState extends State<ColisPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Calculé une fois le trajet renseigné',
+                        'Prix : calcul dynamique à venir',
                         style: TextStyle(fontSize: 12, color: AppColors.grey),
                       ),
                       const SizedBox(height: 16),

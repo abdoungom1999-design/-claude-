@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/config/demo_coordinates.dart';
+import 'package:latlong2/latlong.dart';
+import '../../../core/location/device_location_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,12 +12,15 @@ import '../../../core/widgets/network_error_view.dart';
 import '../../../core/widgets/online_toggle_button.dart';
 import '../../../core/widgets/secondary_button.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/trip_map.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/conducteur_repository.dart';
 
 /// Tableau de bord Conducteur, connecté à l'API : profil réel, bascule
-/// En Ligne/Hors Ligne, et envoi périodique (toutes les 5s) d'une
-/// position GPS simulée à Dakar tant que le conducteur est en ligne.
+/// En Ligne/Hors Ligne, et envoi périodique (toutes les 5s) de la
+/// véritable position GPS de l'appareil tant que le conducteur est en
+/// ligne. Nécessite les permissions de localisation natives (voir la
+/// checklist de configuration fournie avec cette intégration).
 class ConducteurHomePage extends StatefulWidget {
   const ConducteurHomePage({super.key});
 
@@ -28,13 +31,14 @@ class ConducteurHomePage extends StatefulWidget {
 class _ConducteurHomePageState extends State<ConducteurHomePage> {
   final _conducteurRepository = ConducteurRepository();
   final _authRepository = AuthRepository();
+  final _locationService = DeviceLocationService();
 
   ProfilConducteur? _profil;
   bool _chargement = true;
   String? _erreurChargement;
   bool _enLigne = false;
   Timer? _minuteurPosition;
-  int _tick = 0;
+  LatLng? _dernierePosition;
   DateTime? _dernierEnvoiPosition;
 
   @override
@@ -70,6 +74,21 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
   }
 
   Future<void> _basculerStatut(bool vouloirEnLigne) async {
+    if (vouloirEnLigne) {
+      final autorise = await _locationService.permissionAccordee();
+      if (!autorise) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Autorisez la localisation pour passer en ligne',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     final nouveauStatut = vouloirEnLigne ? 'EN_LIGNE' : 'HORS_LIGNE';
     try {
       final statutConfirme = await _conducteurRepository.mettreAJourStatut(
@@ -92,11 +111,10 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
 
   void _demarrerEnvoiPosition() {
     _minuteurPosition?.cancel();
-    _tick = 0;
-    _envoyerPositionSimulee();
+    _envoyerPositionReelle();
     _minuteurPosition = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _envoyerPositionSimulee(),
+      (_) => _envoyerPositionReelle(),
     );
   }
 
@@ -105,23 +123,22 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
     _minuteurPosition = null;
   }
 
-  /// Simule un déplacement autour du Plateau (Dakar) tant qu'aucun GPS
-  /// réel n'est branché (voir MapPlaceholder, Phase 3).
-  Future<void> _envoyerPositionSimulee() async {
-    _tick++;
-    final angle = _tick * 0.3;
-    final latitude = DemoCoordinates.plateauLatitude + 0.01 * math.sin(angle);
-    final longitude =
-        DemoCoordinates.plateauLongitude + 0.01 * math.cos(angle);
+  Future<void> _envoyerPositionReelle() async {
     try {
+      final position = await _locationService.positionActuelle();
       await _conducteurRepository.mettreAJourPosition(
-        latitude: latitude,
-        longitude: longitude,
+        latitude: position.latitude,
+        longitude: position.longitude,
       );
-      if (mounted) setState(() => _dernierEnvoiPosition = DateTime.now());
-    } on ApiException catch (_) {
-      // Échec silencieux : la prochaine tentative aura lieu au tick suivant,
-      // sans interrompre l'expérience du conducteur en ligne.
+      if (!mounted) return;
+      setState(() {
+        _dernierePosition = LatLng(position.latitude, position.longitude);
+        _dernierEnvoiPosition = DateTime.now();
+      });
+    } catch (_) {
+      // Échec silencieux (API ou GPS momentanément indisponible) : la
+      // prochaine tentative aura lieu au tick suivant, sans interrompre
+      // l'expérience du conducteur en ligne.
     }
   }
 
@@ -164,15 +181,19 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
       padding: const EdgeInsets.all(20),
       children: [
         OnlineToggleButton(enLigne: _enLigne, onChanged: _basculerStatut),
-        if (_enLigne && _dernierEnvoiPosition != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Position envoyée à '
-            '${_dernierEnvoiPosition!.hour.toString().padLeft(2, '0')}:'
-            '${_dernierEnvoiPosition!.minute.toString().padLeft(2, '0')}:'
-            '${_dernierEnvoiPosition!.second.toString().padLeft(2, '0')}',
-            style: TextStyle(fontSize: 12, color: AppColors.grey),
-          ),
+        if (_enLigne && _dernierePosition != null) ...[
+          const SizedBox(height: 16),
+          TripMap(depart: _dernierePosition, height: 180),
+          if (_dernierEnvoiPosition != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Position envoyée à '
+              '${_dernierEnvoiPosition!.hour.toString().padLeft(2, '0')}:'
+              '${_dernierEnvoiPosition!.minute.toString().padLeft(2, '0')}:'
+              '${_dernierEnvoiPosition!.second.toString().padLeft(2, '0')}',
+              style: TextStyle(fontSize: 12, color: AppColors.grey),
+            ),
+          ],
         ],
         const SizedBox(height: 24),
         Row(

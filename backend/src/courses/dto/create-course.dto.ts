@@ -2,8 +2,10 @@ import {
   IsEnum,
   IsLatitude,
   IsLongitude,
+  IsNumber,
   IsOptional,
   IsString,
+  Min,
 } from 'class-validator';
 import { MethodePaiement, TypeCourse } from '../../../generated/prisma/enums';
 
@@ -28,6 +30,11 @@ export class CreateCourseDto {
 
   @IsLongitude()
   longitudeArrivee: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  distanceKm?: number;
 
   @IsOptional()
   @IsEnum(MethodePaiement)

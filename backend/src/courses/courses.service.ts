@@ -17,6 +17,7 @@ export class CoursesService {
         adresseArrivee: dto.adresseArrivee,
         latitudeArrivee: dto.latitudeArrivee,
         longitudeArrivee: dto.longitudeArrivee,
+        distanceKm: dto.distanceKm,
         methodePaiement: dto.methodePaiement,
       },
     });
