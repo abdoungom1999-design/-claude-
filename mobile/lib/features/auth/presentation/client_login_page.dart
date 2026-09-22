@@ -113,14 +113,34 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
           ],
         ),
       ),
-      footer: Center(
-        child: TextButton(
-          onPressed: _allerVersInscription,
-          child: const Text(
-            'Pas encore de compte ? Créer un compte',
-            style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w500),
+      footer: Column(
+        children: [
+          Center(
+            child: TextButton(
+              onPressed: _allerVersInscription,
+              child: const Text(
+                'Pas encore de compte ? Créer un compte',
+                style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w500),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton(
+              onPressed: () => context.push(AppRoutes.adminLogin),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.grey.withValues(alpha: 0.5),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Accès Admin',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

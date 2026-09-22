@@ -32,6 +32,7 @@ class DemoData {
       vehiculeId: 'Bajaj Boxer',
       statut: 'EN_LIGNE',
       estValide: true,
+      note: 4.8,
     ),
     ConducteurAdmin(
       id: 'demo-2',
@@ -40,6 +41,7 @@ class DemoData {
       vehiculeId: 'TVS Ntorq',
       statut: 'HORS_LIGNE',
       estValide: true,
+      note: 4.9,
     ),
     ConducteurAdmin(
       id: 'demo-3',
@@ -48,6 +50,7 @@ class DemoData {
       vehiculeId: 'Sanya 125',
       statut: 'HORS_LIGNE',
       estValide: false,
+      note: 0.0,
     ),
     ConducteurAdmin(
       id: 'demo-4',
@@ -56,6 +59,7 @@ class DemoData {
       vehiculeId: 'Bajaj RE',
       statut: 'EN_LIGNE',
       estValide: true,
+      note: 4.6,
     ),
     ConducteurAdmin(
       id: 'demo-5',
@@ -64,6 +68,7 @@ class DemoData {
       vehiculeId: 'Haojue DK150',
       statut: 'HORS_LIGNE',
       estValide: false,
+      note: 0.0,
     ),
     ConducteurAdmin(
       id: 'demo-6',
@@ -72,6 +77,8 @@ class DemoData {
       vehiculeId: 'TVS King Deluxe',
       statut: 'HORS_LIGNE',
       estValide: true,
+      note: 3.9,
+      suspendu: true,
     ),
   ];
 
@@ -88,11 +95,45 @@ class DemoData {
       vehiculeId: c.vehiculeId,
       statut: c.statut,
       estValide: true,
+      note: c.note,
+      suspendu: c.suspendu,
     );
   }
 
   static void rejeterConducteur(String id) {
     _conducteurs.removeWhere((c) => c.id == id);
+  }
+
+  static void bloquerConducteur(String id) {
+    final index = _conducteurs.indexWhere((c) => c.id == id);
+    if (index == -1) return;
+    final c = _conducteurs[index];
+    _conducteurs[index] = ConducteurAdmin(
+      id: c.id,
+      nom: c.nom,
+      telephone: c.telephone,
+      vehiculeId: c.vehiculeId,
+      statut: 'HORS_LIGNE',
+      estValide: c.estValide,
+      note: c.note,
+      suspendu: true,
+    );
+  }
+
+  static void debloquerConducteur(String id) {
+    final index = _conducteurs.indexWhere((c) => c.id == id);
+    if (index == -1) return;
+    final c = _conducteurs[index];
+    _conducteurs[index] = ConducteurAdmin(
+      id: c.id,
+      nom: c.nom,
+      telephone: c.telephone,
+      vehiculeId: c.vehiculeId,
+      statut: c.statut,
+      estValide: c.estValide,
+      note: c.note,
+      suspendu: false,
+    );
   }
 
   // --- Profil du conducteur connecté (espace Conducteur) ----------------

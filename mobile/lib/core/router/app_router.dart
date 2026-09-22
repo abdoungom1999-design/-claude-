@@ -1,6 +1,6 @@
 import 'package:go_router/go_router.dart';
 import '../../features/activite/presentation/activite_tab_page.dart';
-import '../../features/admin/presentation/admin_home_page.dart';
+import '../../features/admin/presentation/admin_dashboard_page.dart';
 import '../../features/auth/presentation/admin_login_page.dart';
 import '../../features/auth/presentation/client_login_page.dart';
 import '../../features/auth/presentation/conducteur_login_page.dart';
@@ -100,7 +100,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.admin,
-      builder: (context, state) => const AdminHomePage(),
+      builder: (context, state) => const AdminDashboardPage(),
     ),
     GoRoute(
       path: AppRoutes.adminLogin,

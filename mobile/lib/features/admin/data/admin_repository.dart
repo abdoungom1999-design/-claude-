@@ -12,6 +12,8 @@ class ConducteurAdmin {
     required this.vehiculeId,
     required this.statut,
     required this.estValide,
+    this.note = 0.0,
+    this.suspendu = false,
   });
 
   final String id;
@@ -21,6 +23,14 @@ class ConducteurAdmin {
   final String statut;
   final bool estValide;
 
+  /// Note moyenne donnée par les clients (sur 5).
+  final double note;
+
+  /// Bloqué par un administrateur (Tour de Contrôle) : distinct de
+  /// [estValide], qui ne concerne que la validation initiale des
+  /// documents.
+  final bool suspendu;
+
   factory ConducteurAdmin.depuisJson(Map<String, dynamic> json) {
     return ConducteurAdmin(
       id: json['id'] as String,
@@ -29,6 +39,8 @@ class ConducteurAdmin {
       vehiculeId: json['vehiculeId'] as String?,
       statut: json['statut'] as String,
       estValide: json['estValide'] as bool,
+      note: (json['note'] as num?)?.toDouble() ?? 0.0,
+      suspendu: json['suspendu'] as bool? ?? false,
     );
   }
 }
@@ -76,6 +88,32 @@ class AdminRepository {
     }
     try {
       await _dio.delete('/admin/conducteurs/$id');
+    } on DioException catch (e) {
+      throw ApiException.depuisDio(e);
+    }
+  }
+
+  Future<void> bloquerConducteur(String id) async {
+    if (ApiConfig.modeDemo) {
+      await _delaiDemo();
+      DemoData.bloquerConducteur(id);
+      return;
+    }
+    try {
+      await _dio.patch('/admin/conducteurs/$id/bloquer');
+    } on DioException catch (e) {
+      throw ApiException.depuisDio(e);
+    }
+  }
+
+  Future<void> debloquerConducteur(String id) async {
+    if (ApiConfig.modeDemo) {
+      await _delaiDemo();
+      DemoData.debloquerConducteur(id);
+      return;
+    }
+    try {
+      await _dio.patch('/admin/conducteurs/$id/debloquer');
     } on DioException catch (e) {
       throw ApiException.depuisDio(e);
     }
