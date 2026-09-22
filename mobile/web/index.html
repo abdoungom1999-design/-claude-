@@ -31,6 +31,18 @@
 
   <title>Sprint</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Google Maps JavaScript API, requise par google_maps_flutter sur le
+    Web. Clé PLACEHOLDER ("A_REMPLACER") tant qu'aucune clé Google Cloud
+    n'a été fournie — voir GOOGLE_MAPS_SETUP.md et
+    lib/core/config/google_maps_config.dart (même valeur à garder en
+    phase avec ce script). Inoffensif tant qu'aucun écran n'affiche
+    encore de widget GoogleMap : ce script échoue silencieusement côté
+    navigateur (bandeau "Pour un usage développeur uniquement" dans la
+    console), sans impacter le reste de l'app.
+  -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=A_REMPLACER&libraries=places" async defer></script>
 </head>
 <body>
   <!--
