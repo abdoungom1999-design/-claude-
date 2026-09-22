@@ -2,9 +2,6 @@
 /dist
 /node_modules
 
-# Lockfile régénéré via `npm install` (non versionné dans cet environnement)
-package-lock.json
-
 # Prisma generated client
 /generated/prisma
 

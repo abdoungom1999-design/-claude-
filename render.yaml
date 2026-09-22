@@ -1,0 +1,63 @@
+# Blueprint Render pour le backend Sprint (NestJS + PostgreSQL/PostGIS).
+# Utilisation : sur render.com, "New +" -> "Blueprint", connecter ce dépôt.
+# Render lit ce fichier et provisionne automatiquement le service web et
+# la base de données ci-dessous.
+#
+# Redis n'est pas défini ici (le format exact des add-ons "Key Value"
+# évolue régulièrement sur Render) : à créer séparément (Render Key Value,
+# ou un Redis gratuit externe comme Upstash) puis coller son URL dans la
+# variable REDIS_URL ci-dessous, depuis le dashboard Render.
+
+databases:
+  - name: sprint-db
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: sprint-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sprint-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: REDIS_URL
+        sync: false
+      - key: APP_PUBLIC_URL
+        sync: false
+      - key: WAVE_API_URL
+        sync: false
+      - key: WAVE_API_KEY
+        sync: false
+      - key: WAVE_WEBHOOK_SECRET
+        sync: false
+      - key: WAVE_SUCCESS_URL
+        sync: false
+      - key: WAVE_ERROR_URL
+        sync: false
+      - key: ORANGE_MONEY_AUTH_URL
+        sync: false
+      - key: ORANGE_MONEY_API_URL
+        sync: false
+      - key: ORANGE_MONEY_CLIENT_ID
+        sync: false
+      - key: ORANGE_MONEY_CLIENT_SECRET
+        sync: false
+      - key: ORANGE_MONEY_MERCHANT_KEY
+        sync: false
+      - key: ORANGE_MONEY_WEBHOOK_SECRET
+        sync: false
+      - key: ORANGE_MONEY_RETURN_URL
+        sync: false
+      - key: ORANGE_MONEY_CANCEL_URL
+        sync: false
