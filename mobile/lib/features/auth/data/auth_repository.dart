@@ -1,51 +1,84 @@
-import 'package:dio/dio.dart';
-import '../../../core/config/api_config.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/demo/demo_data.dart';
-import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
+import '../../../firebase_options.dart';
 
-/// Gère l'inscription, la connexion et la déconnexion pour les comptes
-/// Client et Conducteur, et persiste les tokens JWT reçus.
+/// Authentification Client, Conducteur et Admin.
 ///
-/// En [ApiConfig.modeDemo] (build web sans backend public configuré),
-/// l'authentification est simulée localement : aucun appel réseau n'est
-/// fait, un jeton factice est stocké pour laisser l'app naviguer
-/// normalement. Redevient un vrai flux réseau dès qu'un backend est
-/// renseigné au build (`--dart-define=API_BASE_URL=...`).
+/// Bascule automatiquement selon [DefaultFirebaseOptions.estConfigure] :
+/// - Firebase configuré (vraies clés dans `firebase_options.dart`) :
+///   vraie authentification via FirebaseAuth, profil persisté dans la
+///   collection Firestore `users` (document indexé par l'UID Firebase).
+/// - Sinon (projet Firebase pas encore créé côté Groupe Santine) :
+///   authentification simulée localement (voir [DemoData]), pour que
+///   la démo déployée continue de fonctionner sans interruption tant
+///   que ce n'est pas fait.
+///
+/// Note sur le téléphone comme identifiant : FirebaseAuth s'appuie sur
+/// email + mot de passe. Client et Conducteur s'identifient par
+/// numéro de téléphone dans l'UI (pas d'email obligatoire), donc on
+/// dérive un email synthétique stable à partir du téléphone (ex.
+/// `+221771234501@sprint-client.app`) — un contournement courant pour
+/// utiliser l'auth email/mot de passe avec un identifiant téléphone.
+/// Ce n'est PAS une vérification par SMS/OTP réelle : à ajouter à part
+/// (Firebase Phone Auth) si le Groupe Santine veut confirmer les
+/// numéros pour de vrai.
 class AuthRepository {
-  AuthRepository({Dio? dio}) : _dio = dio ?? ApiClient().dio;
-
-  final Dio _dio;
   final _tokenStorage = TokenStorage();
+
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   Future<void> inscrireClient({
     required String nom,
     required String telephone,
     required String motDePasse,
-  }) {
-    return _authentifier('/auth/client/register', {
-      'nom': nom,
-      'telephone': telephone,
-      'motDePasse': motDePasse,
-    });
+  }) async {
+    if (!DefaultFirebaseOptions.estConfigure) {
+      return _authentifierEnModeDemo();
+    }
+    try {
+      final identifiants = await _auth.createUserWithEmailAndPassword(
+        email: _emailClient(telephone),
+        password: motDePasse,
+      );
+      await _firestore.collection('users').doc(identifiants.user!.uid).set({
+        'role': 'client',
+        'nom': nom,
+        'telephone': telephone,
+        'statut': 'ACTIF',
+        'creeLe': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseAuthException catch (e) {
+      throw ApiException.depuisFirebaseAuth(e);
+    }
   }
 
   Future<void> connecterClient({
     required String telephone,
     required String motDePasse,
-  }) {
-    return _authentifier('/auth/client/login', {
-      'telephone': telephone,
-      'motDePasse': motDePasse,
-    });
+  }) async {
+    if (!DefaultFirebaseOptions.estConfigure) {
+      return _authentifierEnModeDemo();
+    }
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: _emailClient(telephone),
+        password: motDePasse,
+      );
+    } on FirebaseAuthException catch (e) {
+      throw ApiException.depuisFirebaseAuth(e);
+    }
   }
 
   /// Soumet le dossier complet d'inscription Conducteur (identité,
-  /// véhicule, pièces justificatives). En mode démo, enregistre le
-  /// profil avec `estValide: false` : le chauffeur atterrit sur
-  /// [ValidationPendingPage] tant qu'il n'a pas été validé (voir
-  /// [DemoData.soumettreDossierConducteur]).
+  /// véhicule, pièces justificatives). Le profil Firestore est créé
+  /// avec `estValide: false` : le chauffeur atterrit sur
+  /// [ValidationPendingPage] tant qu'un administrateur ne l'a pas
+  /// validé. En mode démo, la même règle est appliquée localement via
+  /// [DemoData.soumettreDossierConducteur].
   Future<void> inscrireConducteur({
     required String nom,
     required String telephone,
@@ -53,77 +86,89 @@ class AuthRepository {
     required String vehiculeId,
     required String plaqueImmatriculation,
   }) async {
-    await _authentifier('/auth/conducteur/register', {
-      'nom': nom,
-      'telephone': telephone,
-      'motDePasse': motDePasse,
-      'vehiculeId': vehiculeId,
-      'plaqueImmatriculation': plaqueImmatriculation,
-    });
-    if (ApiConfig.modeDemo) {
+    if (!DefaultFirebaseOptions.estConfigure) {
+      await _authentifierEnModeDemo();
       DemoData.soumettreDossierConducteur(
         nom: nom,
         telephone: telephone,
         vehiculeId: vehiculeId,
         plaqueImmatriculation: plaqueImmatriculation,
       );
+      return;
+    }
+    try {
+      final identifiants = await _auth.createUserWithEmailAndPassword(
+        email: _emailConducteur(telephone),
+        password: motDePasse,
+      );
+      await _firestore.collection('users').doc(identifiants.user!.uid).set({
+        'role': 'conducteur',
+        'nom': nom,
+        'telephone': telephone,
+        'vehiculeId': vehiculeId,
+        'plaqueImmatriculation': plaqueImmatriculation,
+        'statut': 'HORS_LIGNE',
+        'estValide': false,
+        'creeLe': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseAuthException catch (e) {
+      throw ApiException.depuisFirebaseAuth(e);
     }
   }
 
   Future<void> connecterConducteur({
     required String telephone,
     required String motDePasse,
-  }) {
-    return _authentifier('/auth/conducteur/login', {
-      'telephone': telephone,
-      'motDePasse': motDePasse,
-    });
+  }) async {
+    if (!DefaultFirebaseOptions.estConfigure) {
+      return _authentifierEnModeDemo();
+    }
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: _emailConducteur(telephone),
+        password: motDePasse,
+      );
+    } on FirebaseAuthException catch (e) {
+      throw ApiException.depuisFirebaseAuth(e);
+    }
   }
 
+  /// Comptes Admin créés hors application (Console Firebase ou
+  /// Firestore directement) : pas d'inscription publique, uniquement
+  /// une connexion par un vrai email.
   Future<void> connecterAdmin({
     required String email,
     required String motDePasse,
-  }) {
-    return _authentifier('/auth/admin/login', {
-      'email': email,
-      'motDePasse': motDePasse,
-    });
+  }) async {
+    if (!DefaultFirebaseOptions.estConfigure) {
+      return _authentifierEnModeDemo();
+    }
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
+    } on FirebaseAuthException catch (e) {
+      throw ApiException.depuisFirebaseAuth(e);
+    }
   }
 
   Future<void> deconnecter() async {
-    try {
-      await _dio.post('/auth/logout');
-    } catch (_) {
-      // La déconnexion locale doit réussir même si l'appel réseau échoue.
-    } finally {
-      await _tokenStorage.effacerTokens();
+    if (DefaultFirebaseOptions.estConfigure) {
+      await _auth.signOut();
     }
+    await _tokenStorage.effacerTokens();
   }
 
-  Future<void> _authentifier(
-    String chemin,
-    Map<String, dynamic> donnees,
-  ) async {
-    if (ApiConfig.modeDemo) {
-      await _authentifierEnModeDemo();
-      return;
-    }
-    try {
-      final reponse = await _dio.post(chemin, data: donnees);
-      await _tokenStorage.enregistrerTokens(
-        accessToken: reponse.data['accessToken'] as String,
-        refreshToken: reponse.data['refreshToken'] as String,
-      );
-    } on DioException catch (e) {
-      throw ApiException.depuisDio(e);
-    }
-  }
+  String _emailClient(String telephone) =>
+      '${_nettoyerTelephone(telephone)}@sprint-client.app';
+
+  String _emailConducteur(String telephone) =>
+      '${_nettoyerTelephone(telephone)}@sprint-conducteur.app';
+
+  String _nettoyerTelephone(String telephone) =>
+      telephone.trim().replaceAll(RegExp(r'\s+'), '');
 
   /// Simule un aller-retour réseau réussi (délai réaliste + jeton
-  /// factice) sans contacter de backend. Les écrans qui chargent des
-  /// données après connexion (ex : tableau de bord Admin/Conducteur)
-  /// afficheront tout de même leur propre message d'erreur réseau — seule
-  /// l'authentification elle-même est simulée ici.
+  /// factice) sans contacter Firebase. Utilisé tant que le projet
+  /// Firebase n'est pas configuré (voir [DefaultFirebaseOptions]).
   Future<void> _authentifierEnModeDemo() async {
     await Future.delayed(const Duration(milliseconds: 500));
     await _tokenStorage.enregistrerTokens(
