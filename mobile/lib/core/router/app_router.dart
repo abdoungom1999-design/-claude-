@@ -4,6 +4,7 @@ import '../../features/admin/presentation/admin_dashboard_page.dart';
 import '../../features/auth/presentation/admin_login_page.dart';
 import '../../features/auth/presentation/client_login_page.dart';
 import '../../features/auth/presentation/conducteur_login_page.dart';
+import '../../features/auth/presentation/conducteur_onboarding/conducteur_onboarding_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/client/presentation/colis_page.dart';
 import '../../features/client/presentation/passager_page.dart';
@@ -91,7 +92,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.conducteurRegister,
-      builder: (context, state) => const RegisterPage(roleInitial: 'chauffeur'),
+      builder: (context, state) => const ConducteurOnboardingPage(),
     ),
     GoRoute(
       path: AppRoutes.admin,

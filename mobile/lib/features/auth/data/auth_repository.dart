@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/demo/demo_data.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
@@ -40,19 +41,33 @@ class AuthRepository {
     });
   }
 
+  /// Soumet le dossier complet d'inscription Conducteur (identité,
+  /// véhicule, pièces justificatives). En mode démo, enregistre le
+  /// profil avec `estValide: false` : le chauffeur atterrit sur
+  /// [ValidationPendingPage] tant qu'il n'a pas été validé (voir
+  /// [DemoData.soumettreDossierConducteur]).
   Future<void> inscrireConducteur({
     required String nom,
     required String telephone,
     required String motDePasse,
-    String? vehiculeId,
-  }) {
-    return _authentifier('/auth/conducteur/register', {
+    required String vehiculeId,
+    required String plaqueImmatriculation,
+  }) async {
+    await _authentifier('/auth/conducteur/register', {
       'nom': nom,
       'telephone': telephone,
       'motDePasse': motDePasse,
-      if (vehiculeId != null && vehiculeId.trim().isNotEmpty)
-        'vehiculeId': vehiculeId.trim(),
+      'vehiculeId': vehiculeId,
+      'plaqueImmatriculation': plaqueImmatriculation,
     });
+    if (ApiConfig.modeDemo) {
+      DemoData.soumettreDossierConducteur(
+        nom: nom,
+        telephone: telephone,
+        vehiculeId: vehiculeId,
+        plaqueImmatriculation: plaqueImmatriculation,
+      );
+    }
   }
 
   Future<void> connecterConducteur({

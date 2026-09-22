@@ -15,6 +15,7 @@ import 'tabs/conducteur_accueil_tab.dart';
 import 'tabs/conducteur_compte_tab.dart';
 import 'tabs/conducteur_evaluations_tab.dart';
 import 'tabs/conducteur_gains_tab.dart';
+import 'validation_pending_page.dart';
 import 'widgets/conducteur_bottom_nav.dart';
 import 'widgets/nouvelle_course_sheet.dart';
 
@@ -163,6 +164,12 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
         backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator(color: AppColors.orange)),
       );
+    }
+
+    // Dossier pas encore validé (KYC en attente) : bloqué avant la carte
+    // et la bascule En ligne, quel que soit l'onglet visé.
+    if (!_profil!.estValide) {
+      return const ValidationPendingPage();
     }
 
     return Scaffold(

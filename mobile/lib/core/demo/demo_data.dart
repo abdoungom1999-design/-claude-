@@ -150,6 +150,29 @@ class DemoData {
 
   static ProfilConducteur monProfil() => _monProfil;
 
+  /// Enregistre le dossier d'un nouveau conducteur (formulaire
+  /// d'inscription en 3 étapes) : remplace le profil démo courant par
+  /// celui tout juste soumis, avec [ProfilConducteur.estValide] à false
+  /// tant que "l'équipe Santine" ne l'a pas validé — voir
+  /// [ValidationPendingPage], qui bloque l'accès au tableau de bord tant
+  /// que ce n'est pas le cas.
+  static void soumettreDossierConducteur({
+    required String nom,
+    required String telephone,
+    required String vehiculeId,
+    required String plaqueImmatriculation,
+  }) {
+    _monProfil = ProfilConducteur(
+      id: _monProfil.id,
+      nom: nom,
+      telephone: telephone,
+      vehiculeId: vehiculeId,
+      statut: 'HORS_LIGNE',
+      estValide: false,
+      plaqueImmatriculation: plaqueImmatriculation,
+    );
+  }
+
   static String mettreAJourStatutConducteur(String statut) {
     _monProfil = ProfilConducteur(
       id: _monProfil.id,

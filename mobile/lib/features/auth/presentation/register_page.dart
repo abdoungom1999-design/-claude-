@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -9,19 +8,13 @@ import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../data/auth_repository.dart';
 
-enum _Role { client, chauffeur }
-
-/// Écran d'inscription unifié : un sélecteur en haut choisit le rôle
-/// (Client ou Chauffeur), qui détermine à la fois les champs affichés
-/// (véhicule pour un chauffeur) et l'endpoint appelé à la validation.
-/// Remplace les anciens écrans séparés ClientRegisterPage /
-/// ConducteurRegisterPage.
+/// Écran d'inscription Client. L'inscription Chauffeur suit désormais
+/// son propre parcours d'intégration (KYC) en 3 étapes, voir
+/// [ConducteurOnboardingPage] — un chauffeur ne peut pas se créer un
+/// compte en quelques champs comme un client, ses documents et son
+/// véhicule doivent être soumis puis validés.
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key, this.roleInitial = 'client'});
-
-  /// 'client' ou 'chauffeur' — détermine le rôle pré-sélectionné selon le
-  /// point d'entrée (ex : lien "Créer un compte" côté conducteur).
-  final String roleInitial;
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -35,19 +28,11 @@ class _RegisterPageState extends State<RegisterPage> {
   final _motDePasseController = TextEditingController();
   final _confirmationController = TextEditingController();
   final _parrainageController = TextEditingController();
-  final _vehiculeController = TextEditingController();
   final _authRepository = AuthRepository();
 
-  late _Role _role;
   bool _motDePasseVisible = false;
   bool _enCours = false;
   String? _erreur;
-
-  @override
-  void initState() {
-    super.initState();
-    _role = widget.roleInitial == 'chauffeur' ? _Role.chauffeur : _Role.client;
-  }
 
   @override
   void dispose() {
@@ -57,7 +42,6 @@ class _RegisterPageState extends State<RegisterPage> {
     _motDePasseController.dispose();
     _confirmationController.dispose();
     _parrainageController.dispose();
-    _vehiculeController.dispose();
     super.dispose();
   }
 
@@ -69,32 +53,17 @@ class _RegisterPageState extends State<RegisterPage> {
       _erreur = null;
     });
     try {
-      if (_role == _Role.client) {
-        await _authRepository.inscrireClient(
-          nom: _nomController.text.trim(),
-          telephone: _telephoneController.text.trim(),
-          motDePasse: _motDePasseController.text,
-        );
-        if (!mounted) return;
-        AppSnackbar.succes(
-          context,
-          'Un email de confirmation vous a été envoyé pour valider votre compte.',
-        );
-        context.pop(true);
-      } else {
-        await _authRepository.inscrireConducteur(
-          nom: _nomController.text.trim(),
-          telephone: _telephoneController.text.trim(),
-          motDePasse: _motDePasseController.text,
-          vehiculeId: _vehiculeController.text,
-        );
-        if (!mounted) return;
-        AppSnackbar.succes(
-          context,
-          'Un email de confirmation vous a été envoyé pour valider votre compte.',
-        );
-        context.go(AppRoutes.conducteur);
-      }
+      await _authRepository.inscrireClient(
+        nom: _nomController.text.trim(),
+        telephone: _telephoneController.text.trim(),
+        motDePasse: _motDePasseController.text,
+      );
+      if (!mounted) return;
+      AppSnackbar.succes(
+        context,
+        'Un email de confirmation vous a été envoyé pour valider votre compte.',
+      );
+      context.pop(true);
     } on ApiException catch (e) {
       setState(() => _erreur = e.message);
     } finally {
@@ -107,17 +76,12 @@ class _RegisterPageState extends State<RegisterPage> {
     return AuthScaffold(
       icon: Icons.person_add_alt_1_rounded,
       title: 'Créer un compte',
-      subtitle: 'Rejoignez Sprint en tant que client ou chauffeur',
+      subtitle: 'Rejoignez Sprint pour réserver vos courses',
       form: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _SelecteurRole(
-              role: _role,
-              onChanged: (role) => setState(() => _role = role),
-            ),
-            const SizedBox(height: 18),
             AppTextField(
               label: 'Nom complet',
               controller: _nomController,
@@ -143,15 +107,6 @@ class _RegisterPageState extends State<RegisterPage> {
                   ? 'Numéro requis'
                   : null,
             ),
-            if (_role == _Role.chauffeur) ...[
-              const SizedBox(height: 14),
-              AppTextField(
-                label: 'Véhicule',
-                hint: 'Ex : Bajaj Boxer',
-                controller: _vehiculeController,
-                prefixIcon: Icons.two_wheeler_rounded,
-              ),
-            ],
             const SizedBox(height: 14),
             AppTextField(
               label: 'Mot de passe',
@@ -203,83 +158,6 @@ class _RegisterPageState extends State<RegisterPage> {
               onPressed: _sInscrire,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SelecteurRole extends StatelessWidget {
-  const _SelecteurRole({required this.role, required this.onChanged});
-
-  final _Role role;
-  final ValueChanged<_Role> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.greyLight,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: _Segment(
-            label: 'Client',
-            selectionne: role == _Role.client,
-            onTap: () => onChanged(_Role.client),
-          )),
-          Expanded(child: _Segment(
-            label: 'Chauffeur',
-            selectionne: role == _Role.chauffeur,
-            onTap: () => onChanged(_Role.chauffeur),
-          )),
-        ],
-      ),
-    );
-  }
-}
-
-class _Segment extends StatelessWidget {
-  const _Segment({
-    required this.label,
-    required this.selectionne,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selectionne;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selectionne ? AppColors.background : Colors.transparent,
-          borderRadius: BorderRadius.circular(11),
-          boxShadow: selectionne
-              ? const [
-                  BoxShadow(
-                    color: AppColors.shadowSoft,
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13.5,
-            color: selectionne ? AppColors.text : AppColors.grey,
-          ),
         ),
       ),
     );
