@@ -13,6 +13,7 @@ import { ConducteursModule } from './conducteurs/conducteurs.module';
 import { AdminModule } from './admin/admin.module';
 import { CoursesModule } from './courses/courses.module';
 import { PaymentsModule } from './payments/payments.module';
+import { PricingModule } from './pricing/pricing.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -40,6 +41,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     AdminModule,
     CoursesModule,
     PaymentsModule,
+    PricingModule,
   ],
   controllers: [AppController],
   providers: [

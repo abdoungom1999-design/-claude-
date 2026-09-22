@@ -30,4 +30,35 @@ export default () => ({
     orangeMoneyApiUrl: process.env.ORANGE_MONEY_API_URL,
     orangeMoneyWebhookSecret: process.env.ORANGE_MONEY_WEBHOOK_SECRET,
   },
+  pricing: {
+    // Vitesse moyenne retenue pour estimer la durée du trajet en
+    // l'absence d'un vrai moteur d'itinéraire (pas de clé API de routage).
+    vitesseMoyenneKmh: parseFloat(
+      process.env.PRICING_VITESSE_MOYENNE_KMH ?? '22',
+    ),
+    passager: {
+      prisEnCharge: parseInt(
+        process.env.PRICING_PASSAGER_PRISE_EN_CHARGE ?? '500',
+        10,
+      ),
+      parKm: parseInt(process.env.PRICING_PASSAGER_PAR_KM ?? '150', 10),
+      parMinute: parseInt(process.env.PRICING_PASSAGER_PAR_MINUTE ?? '50', 10),
+      prixMinimum: parseInt(
+        process.env.PRICING_PASSAGER_PRIX_MINIMUM ?? '500',
+        10,
+      ),
+    },
+    colis: {
+      prisEnCharge: parseInt(
+        process.env.PRICING_COLIS_PRISE_EN_CHARGE ?? '700',
+        10,
+      ),
+      parKm: parseInt(process.env.PRICING_COLIS_PAR_KM ?? '200', 10),
+      parMinute: parseInt(process.env.PRICING_COLIS_PAR_MINUTE ?? '40', 10),
+      prixMinimum: parseInt(
+        process.env.PRICING_COLIS_PRIX_MINIMUM ?? '700',
+        10,
+      ),
+    },
+  },
 });
