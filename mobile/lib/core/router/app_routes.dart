@@ -14,7 +14,6 @@ class AppRoutes {
   static const String conducteur = '/conducteur';
   static const String conducteurLogin = '/conducteur/connexion';
   static const String conducteurRegister = '/conducteur/inscription';
-  static const String conducteurAlerteCourse = '/conducteur/alerte-course';
   static const String admin = '/admin';
   static const String adminLogin = '/admin/connexion';
 }

@@ -12,6 +12,7 @@ class ProfilConducteur {
     required this.vehiculeId,
     required this.statut,
     required this.estValide,
+    this.plaqueImmatriculation,
   });
 
   final String id;
@@ -20,6 +21,7 @@ class ProfilConducteur {
   final String? vehiculeId;
   final String statut; // 'EN_LIGNE' | 'HORS_LIGNE'
   final bool estValide;
+  final String? plaqueImmatriculation;
 
   factory ProfilConducteur.depuisJson(Map<String, dynamic> json) {
     return ProfilConducteur(
@@ -29,6 +31,7 @@ class ProfilConducteur {
       vehiculeId: json['vehiculeId'] as String?,
       statut: json['statut'] as String,
       estValide: json['estValide'] as bool,
+      plaqueImmatriculation: json['plaqueImmatriculation'] as String?,
     );
   }
 }

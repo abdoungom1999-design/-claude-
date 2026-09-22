@@ -142,9 +142,10 @@ class DemoData {
     id: 'demo-moi',
     nom: 'Vous (compte démo)',
     telephone: '+221 77 000 00 00',
-    vehiculeId: 'Bajaj Boxer',
+    vehiculeId: 'Bajaj Boxer 125 Noir',
     statut: 'HORS_LIGNE',
     estValide: true,
+    plaqueImmatriculation: 'DK-1234-AB',
   );
 
   static ProfilConducteur monProfil() => _monProfil;
@@ -157,6 +158,7 @@ class DemoData {
       vehiculeId: _monProfil.vehiculeId,
       statut: statut,
       estValide: _monProfil.estValide,
+      plaqueImmatriculation: _monProfil.plaqueImmatriculation,
     );
     return _monProfil.statut;
   }
@@ -222,6 +224,38 @@ class DemoData {
 
   static String nouvelIdCourse() {
     return 'demo-course-${_random.nextInt(900000) + 100000}';
+  }
+
+  // --- Simulation d'arrivée de course (écran Accueil Conducteur) --------
+
+  static const List<String> _adressesSimulation = [
+    'Plateau, Dakar',
+    'Almadies, Dakar',
+    'Médina, Dakar',
+    'Ouakam, Dakar',
+    'Point E, Dakar',
+    'Yoff, Dakar',
+    'Liberté 6, Dakar',
+    'Sacré-Cœur, Dakar',
+  ];
+
+  /// Génère une fausse demande de course entrante (type, prix estimé —
+  /// via la même réplique de tarification que le reste de l'app —,
+  /// distance d'approche et adresse de départ), pour l'animation
+  /// "Nouvelle course" de l'écran Accueil Conducteur.
+  static NouvelleCourseSimulee genererNouvelleCourseConducteur() {
+    final type = _random.nextBool() ? 'VTC' : 'COLIS';
+    final distanceKm = 1 + _random.nextDouble() * 8;
+    final estimation = estimerPrix(type: type, distanceKm: distanceKm);
+    final adresse = _adressesSimulation[_random.nextInt(_adressesSimulation.length)];
+    final approcheMin = 2 + _random.nextInt(5);
+
+    return NouvelleCourseSimulee(
+      type: type == 'COLIS' ? 'Colis' : 'VTC',
+      prixFcfa: estimation.prixFcfa,
+      approcheMin: approcheMin,
+      adresseDepart: adresse,
+    );
   }
 
   // --- Historique (onglet Activité côté Client) --------------------------
@@ -356,6 +390,54 @@ class DemoData {
   static const int gainsMoisFcfa = 342000;
   static const int coursesSemaine = 34;
 
+  /// Gains par jour, Lundi -> Dimanche (somme = [gainsSemaineFcfa]), pour
+  /// le graphique à barres de l'écran Gains.
+  static const List<int> gainsParJourSemaine = [
+    11200,
+    14800,
+    9600,
+    16400,
+    18900,
+    15100,
+    10500,
+  ];
+
+  static const List<String> joursSemaineCourts = [
+    'Lun',
+    'Mar',
+    'Mer',
+    'Jeu',
+    'Ven',
+    'Sam',
+    'Dim',
+  ];
+
+  static const List<CourseTermineeConducteur> _coursesTermineesConducteur = [
+    CourseTermineeConducteur(heure: '18:42', montantFcfa: 2200, type: 'VTC'),
+    CourseTermineeConducteur(heure: '17:58', montantFcfa: 1500, type: 'VTC'),
+    CourseTermineeConducteur(heure: '17:20', montantFcfa: 3400, type: 'Colis'),
+    CourseTermineeConducteur(heure: '16:35', montantFcfa: 1800, type: 'VTC'),
+    CourseTermineeConducteur(heure: '15:50', montantFcfa: 2600, type: 'VTC'),
+    CourseTermineeConducteur(heure: '14:12', montantFcfa: 1200, type: 'VTC'),
+    CourseTermineeConducteur(heure: '13:05', montantFcfa: 4100, type: 'Colis'),
+    CourseTermineeConducteur(heure: '11:47', montantFcfa: 2000, type: 'VTC'),
+    CourseTermineeConducteur(heure: '10:22', montantFcfa: 1700, type: 'VTC'),
+    CourseTermineeConducteur(heure: '09:15', montantFcfa: 2900, type: 'VTC'),
+  ];
+
+  static List<CourseTermineeConducteur> coursesTermineesConducteur() =>
+      List.unmodifiable(_coursesTermineesConducteur);
+
+  static const List<ComplimentConducteur> _complimentsConducteur = [
+    ComplimentConducteur(label: 'Excellente conduite', compte: 28),
+    ComplimentConducteur(label: 'Voiture impeccable', compte: 19),
+    ComplimentConducteur(label: 'Bonne conversation', compte: 14),
+    ComplimentConducteur(label: 'Trajet efficace', compte: 22),
+  ];
+
+  static List<ComplimentConducteur> complimentsConducteur() =>
+      List.unmodifiable(_complimentsConducteur);
+
   // --- Messagerie (onglet Messages + Mes échanges) ------------------------
 
   static final List<Conversation> _conversations = [
@@ -476,6 +558,42 @@ class AvisClient {
   final int note;
   final String commentaire;
   final DateTime date;
+}
+
+/// Demande de course entrante simulée (écran Accueil Conducteur).
+class NouvelleCourseSimulee {
+  const NouvelleCourseSimulee({
+    required this.type,
+    required this.prixFcfa,
+    required this.approcheMin,
+    required this.adresseDepart,
+  });
+
+  final String type; // 'VTC' | 'Colis'
+  final int prixFcfa;
+  final int approcheMin;
+  final String adresseDepart;
+}
+
+/// Course terminée factice affichée dans l'écran Gains (Conducteur).
+class CourseTermineeConducteur {
+  const CourseTermineeConducteur({
+    required this.heure,
+    required this.montantFcfa,
+    required this.type,
+  });
+
+  final String heure;
+  final int montantFcfa;
+  final String type; // 'VTC' | 'Colis'
+}
+
+/// Badge de compliment reçu des clients (écran Évaluations, Conducteur).
+class ComplimentConducteur {
+  const ComplimentConducteur({required this.label, required this.compte});
+
+  final String label;
+  final int compte;
 }
 
 /// Course passée factice affichée dans l'onglet Activité > Historique.

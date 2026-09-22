@@ -8,8 +8,7 @@ import '../../features/auth/presentation/register_page.dart';
 import '../../features/client/presentation/colis_page.dart';
 import '../../features/client/presentation/passager_page.dart';
 import '../../features/compte/presentation/compte_tab_page.dart';
-import '../../features/conducteur/presentation/conducteur_home_page.dart';
-import '../../features/conducteur/presentation/course_alert_page.dart';
+import '../../features/conducteur/presentation/conducteur_shell_page.dart';
 import '../../features/home/presentation/home_tab_page.dart';
 import '../../features/messages/presentation/messages_tab_page.dart';
 import '../../features/onboarding/presentation/espace_pro_page.dart';
@@ -84,7 +83,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.conducteur,
-      builder: (context, state) => const ConducteurHomePage(),
+      builder: (context, state) => const ConducteurShellPage(),
     ),
     GoRoute(
       path: AppRoutes.conducteurLogin,
@@ -93,10 +92,6 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.conducteurRegister,
       builder: (context, state) => const RegisterPage(roleInitial: 'chauffeur'),
-    ),
-    GoRoute(
-      path: AppRoutes.conducteurAlerteCourse,
-      builder: (context, state) => const CourseAlertPage(),
     ),
     GoRoute(
       path: AppRoutes.admin,
