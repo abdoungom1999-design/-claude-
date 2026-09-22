@@ -1,5 +1,10 @@
 export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
+  app: {
+    // URL publiquement accessible de cette API, utilisée pour construire
+    // l'URL de notification (notif_url) transmise à Orange Money.
+    publicUrl: process.env.APP_PUBLIC_URL ?? 'http://localhost:3000',
+  },
   database: {
     url: process.env.DATABASE_URL,
   },
@@ -23,12 +28,29 @@ export default () => ({
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '20', 10),
   },
   payments: {
-    waveApiKey: process.env.WAVE_API_KEY,
-    waveApiUrl: process.env.WAVE_API_URL,
-    waveWebhookSecret: process.env.WAVE_WEBHOOK_SECRET,
-    orangeMoneyApiKey: process.env.ORANGE_MONEY_API_KEY,
-    orangeMoneyApiUrl: process.env.ORANGE_MONEY_API_URL,
-    orangeMoneyWebhookSecret: process.env.ORANGE_MONEY_WEBHOOK_SECRET,
+    wave: {
+      apiUrl: process.env.WAVE_API_URL ?? 'https://api.wave.com/v1',
+      apiKey: process.env.WAVE_API_KEY,
+      webhookSecret: process.env.WAVE_WEBHOOK_SECRET,
+      successUrl: process.env.WAVE_SUCCESS_URL ?? 'sprint://paiement/succes',
+      errorUrl: process.env.WAVE_ERROR_URL ?? 'sprint://paiement/echec',
+    },
+    orangeMoney: {
+      authUrl:
+        process.env.ORANGE_MONEY_AUTH_URL ??
+        'https://api.orange.com/oauth/v3/token',
+      apiUrl:
+        process.env.ORANGE_MONEY_API_URL ??
+        'https://api.orange.com/orange-money-webpay/sn/v1',
+      clientId: process.env.ORANGE_MONEY_CLIENT_ID,
+      clientSecret: process.env.ORANGE_MONEY_CLIENT_SECRET,
+      merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY,
+      webhookSecret: process.env.ORANGE_MONEY_WEBHOOK_SECRET,
+      returnUrl:
+        process.env.ORANGE_MONEY_RETURN_URL ?? 'sprint://paiement/succes',
+      cancelUrl:
+        process.env.ORANGE_MONEY_CANCEL_URL ?? 'sprint://paiement/echec',
+    },
   },
   pricing: {
     // Vitesse moyenne retenue pour estimer la durée du trajet en
