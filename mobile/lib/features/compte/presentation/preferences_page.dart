@@ -122,15 +122,23 @@ class _BlocRadio<T> extends StatelessWidget {
               ],
             ),
           ),
-          ...options.map(
-            (option) => RadioListTile<T>(
-              value: option,
-              groupValue: valeur,
-              onChanged: (v) => onChanged(v as T),
-              activeColor: AppColors.orange,
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-              title: Text('$option', style: const TextStyle(fontSize: 13.5)),
+          RadioGroup<T>(
+            groupValue: valeur,
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+            child: Column(
+              children: options
+                  .map(
+                    (option) => RadioListTile<T>(
+                      value: option,
+                      activeColor: AppColors.orange,
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                      title: Text('$option', style: const TextStyle(fontSize: 13.5)),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ],
