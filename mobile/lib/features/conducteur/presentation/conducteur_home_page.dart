@@ -3,14 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/demo/demo_data.dart';
 import '../../../core/location/device_location_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/dashboard_header.dart';
 import '../../../core/widgets/network_error_view.dart';
 import '../../../core/widgets/online_toggle_button.dart';
 import '../../../core/widgets/secondary_button.dart';
+import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/trip_map.dart';
 import '../../auth/data/auth_repository.dart';
@@ -151,27 +155,30 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tableau de bord'),
-        actions: [
-          IconButton(
-            onPressed: _seDeconnecter,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Se déconnecter',
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: _chargement
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.orange),
-              )
-            : _profil == null
-            ? NetworkErrorView(
-                message: _erreurChargement ?? 'Impossible de charger le profil',
-                onRetry: _chargerProfil,
-              )
-            : _contenu(_profil!),
+        child: Column(
+          children: [
+            DashboardHeader(
+              title: 'Tableau de bord',
+              subtitle: 'Espace Conducteur Sprint',
+              onDeconnexion: _seDeconnecter,
+            ),
+            Expanded(
+              child: _chargement
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.orange),
+                    )
+                  : _profil == null
+                  ? NetworkErrorView(
+                      message:
+                          _erreurChargement ?? 'Impossible de charger le profil',
+                      onRetry: _chargerProfil,
+                    )
+                  : _contenu(_profil!),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -196,13 +203,28 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
           ],
         ],
         const SizedBox(height: 24),
-        const Row(
+        Row(
           children: [
             Expanded(
-              child: _StatTile(label: 'Courses aujourd\'hui', valeur: '0'),
+              child: StatTile(
+                label: 'Courses aujourd\'hui',
+                valeur: ApiConfig.modeDemo
+                    ? '${DemoData.coursesAujourdHui}'
+                    : '0',
+                icon: Icons.route_outlined,
+              ),
             ),
-            SizedBox(width: 12),
-            Expanded(child: _StatTile(label: 'Gains estimés', valeur: '0 FCFA')),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StatTile(
+                label: 'Gains estimés',
+                valeur: ApiConfig.modeDemo
+                    ? '${DemoData.gainsEstimesFcfa} FCFA'
+                    : '0 FCFA',
+                icon: Icons.payments_outlined,
+                accent: Colors.green.shade600,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -251,30 +273,6 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
           onPressed: () => context.push(AppRoutes.conducteurAlerteCourse),
         ),
       ],
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.valeur});
-
-  final String label;
-  final String valeur;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            valeur,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
-        ],
-      ),
     );
   }
 }

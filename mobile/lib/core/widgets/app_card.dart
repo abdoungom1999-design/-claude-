@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-/// Carte standard Sprint : fond blanc, bordure grise fine, coins arrondis.
+/// Carte flottante standard Sprint : fond blanc, ombre douce, coins
+/// arrondis. Bordure très légère en complément de l'ombre (pas de plat).
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
@@ -21,8 +22,15 @@ class AppCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyBorder),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.greyBorder.withValues(alpha: 0.6)),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowSoft,
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: child,
     );
@@ -31,10 +39,12 @@ class AppCard extends StatelessWidget {
       return card;
     }
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: card,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        child: card,
+      ),
     );
   }
 }

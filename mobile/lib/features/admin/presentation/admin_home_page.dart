@@ -4,9 +4,11 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/dashboard_header.dart';
 import '../../../core/widgets/network_error_view.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/secondary_button.dart';
+import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/admin_repository.dart';
@@ -97,48 +99,100 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final enAttente = _conducteurs.where((c) => !c.estValide).length;
+    final enLigne = _conducteurs.where((c) => c.statut == 'EN_LIGNE').length;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Conducteurs'),
-        actions: [
-          IconButton(
-            onPressed: _seDeconnecter,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Se déconnecter',
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: _chargement
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.orange),
-              )
-            : _erreurChargement != null
-            ? NetworkErrorView(message: _erreurChargement!, onRetry: _charger)
-            : _conducteurs.isEmpty
-            ? const Center(
-                child: Text(
-                  'Aucun conducteur à afficher',
-                  style: TextStyle(color: AppColors.grey),
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: _charger,
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: _conducteurs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final conducteur = _conducteurs[index];
-                    return _ConducteurCard(
-                      conducteur: conducteur,
-                      enCours: _enCours.contains(conducteur.id),
-                      onValider: () => _valider(conducteur),
-                      onRejeter: () => _rejeter(conducteur),
-                    );
-                  },
-                ),
-              ),
+        child: Column(
+          children: [
+            DashboardHeader(
+              title: 'Espace Admin',
+              subtitle: 'Gestion des conducteurs Sprint',
+              onDeconnexion: _seDeconnecter,
+            ),
+            Expanded(
+              child: _chargement
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.orange),
+                    )
+                  : _erreurChargement != null
+                  ? NetworkErrorView(
+                      message: _erreurChargement!,
+                      onRetry: _charger,
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _charger,
+                      child: ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: StatTile(
+                                  label: 'Conducteurs',
+                                  valeur: '${_conducteurs.length}',
+                                  icon: Icons.groups_outlined,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: StatTile(
+                                  label: 'En attente',
+                                  valeur: '$enAttente',
+                                  icon: Icons.hourglass_top_rounded,
+                                  accent: Colors.amber.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: StatTile(
+                                  label: 'En ligne',
+                                  valeur: '$enLigne',
+                                  icon: Icons.bolt_rounded,
+                                  accent: Colors.green.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Tous les conducteurs',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (_conducteurs.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 40),
+                              child: Center(
+                                child: Text(
+                                  'Aucun conducteur à afficher',
+                                  style: TextStyle(color: AppColors.grey),
+                                ),
+                              ),
+                            )
+                          else
+                            ..._conducteurs.map(
+                              (conducteur) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _ConducteurCard(
+                                  conducteur: conducteur,
+                                  enCours: _enCours.contains(conducteur.id),
+                                  onValider: () => _valider(conducteur),
+                                  onRejeter: () => _rejeter(conducteur),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -157,6 +211,14 @@ class _ConducteurCard extends StatelessWidget {
   final VoidCallback onValider;
   final VoidCallback onRejeter;
 
+  String get _initiales {
+    final mots = conducteur.nom.trim().split(RegExp(r'\s+'));
+    if (mots.isEmpty) return '?';
+    final premiere = mots.first.isNotEmpty ? mots.first[0] : '';
+    final derniere = mots.length > 1 && mots.last.isNotEmpty ? mots.last[0] : '';
+    return '$premiere$derniere'.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppCard(
@@ -166,13 +228,25 @@ class _ConducteurCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: AppColors.greyLight,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [AppColors.orange, AppColors.orangeDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.person_outline, color: AppColors.grey),
+                alignment: Alignment.center,
+                child: Text(
+                  _initiales,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -191,11 +265,42 @@ class _ConducteurCard extends StatelessWidget {
                   ],
                 ),
               ),
-              StatusBadge(
-                label: conducteur.estValide ? 'Validé' : 'En attente',
-                tone: conducteur.estValide
-                    ? StatusTone.actif
-                    : StatusTone.attention,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  StatusBadge(
+                    label: conducteur.estValide ? 'Validé' : 'En attente',
+                    tone: conducteur.estValide
+                        ? StatusTone.actif
+                        : StatusTone.attention,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: conducteur.statut == 'EN_LIGNE'
+                              ? Colors.green.shade600
+                              : AppColors.greyBorder,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        conducteur.statut == 'EN_LIGNE'
+                            ? 'En ligne'
+                            : 'Hors ligne',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

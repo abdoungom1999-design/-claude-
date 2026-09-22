@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/demo/demo_data.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 
@@ -39,6 +41,10 @@ class ConducteurRepository {
   final Dio _dio;
 
   Future<ProfilConducteur> monProfil() async {
+    if (ApiConfig.modeDemo) {
+      await _delaiDemo();
+      return DemoData.monProfil();
+    }
     try {
       final reponse = await _dio.get('/conducteurs/me');
       return ProfilConducteur.depuisJson(reponse.data as Map<String, dynamic>);
@@ -48,6 +54,10 @@ class ConducteurRepository {
   }
 
   Future<String> mettreAJourStatut(String statut) async {
+    if (ApiConfig.modeDemo) {
+      await _delaiDemo();
+      return DemoData.mettreAJourStatutConducteur(statut);
+    }
     try {
       final reponse = await _dio.patch(
         '/conducteurs/me/statut',
@@ -63,6 +73,10 @@ class ConducteurRepository {
     required double latitude,
     required double longitude,
   }) async {
+    if (ApiConfig.modeDemo) {
+      // Pas de Redis à alimenter en mode démo : simple no-op silencieux.
+      return;
+    }
     try {
       await _dio.patch(
         '/conducteurs/me/position',
@@ -72,4 +86,7 @@ class ConducteurRepository {
       throw ApiException.depuisDio(e);
     }
   }
+
+  Future<void> _delaiDemo() =>
+      Future.delayed(const Duration(milliseconds: 400));
 }

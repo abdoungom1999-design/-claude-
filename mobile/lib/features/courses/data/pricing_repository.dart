@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/demo/demo_data.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 
@@ -36,6 +38,10 @@ class PricingRepository {
     required String type,
     required double distanceKm,
   }) async {
+    if (ApiConfig.modeDemo) {
+      await Future.delayed(const Duration(milliseconds: 350));
+      return DemoData.estimerPrix(type: type, distanceKm: distanceKm);
+    }
     try {
       final reponse = await _dio.post(
         '/pricing/estimer',

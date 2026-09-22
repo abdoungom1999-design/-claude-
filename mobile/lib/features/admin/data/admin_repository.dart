@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/demo/demo_data.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 
@@ -39,6 +41,10 @@ class AdminRepository {
   final Dio _dio;
 
   Future<List<ConducteurAdmin>> listerConducteurs() async {
+    if (ApiConfig.modeDemo) {
+      await _delaiDemo();
+      return DemoData.listerConducteurs();
+    }
     try {
       final reponse = await _dio.get('/admin/conducteurs');
       return (reponse.data as List)
@@ -50,6 +56,11 @@ class AdminRepository {
   }
 
   Future<void> validerConducteur(String id) async {
+    if (ApiConfig.modeDemo) {
+      await _delaiDemo();
+      DemoData.validerConducteur(id);
+      return;
+    }
     try {
       await _dio.patch('/admin/conducteurs/$id/valider');
     } on DioException catch (e) {
@@ -58,10 +69,18 @@ class AdminRepository {
   }
 
   Future<void> rejeterConducteur(String id) async {
+    if (ApiConfig.modeDemo) {
+      await _delaiDemo();
+      DemoData.rejeterConducteur(id);
+      return;
+    }
     try {
       await _dio.delete('/admin/conducteurs/$id');
     } on DioException catch (e) {
       throw ApiException.depuisDio(e);
     }
   }
+
+  Future<void> _delaiDemo() =>
+      Future.delayed(const Duration(milliseconds: 400));
 }
