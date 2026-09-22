@@ -33,7 +33,7 @@ class OnlineToggleButton extends StatelessWidget {
           boxShadow: enLigne
               ? [
                   BoxShadow(
-                    color: AppColors.orange.withOpacity(0.35),
+                    color: AppColors.orange.withValues(alpha: 0.35),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -68,7 +68,7 @@ class OnlineToggleButton extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       color: enLigne
-                          ? AppColors.background.withOpacity(0.85)
+                          ? AppColors.background.withValues(alpha: 0.85)
                           : AppColors.grey,
                     ),
                   ),

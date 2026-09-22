@@ -206,7 +206,7 @@ class _ColisPageState extends State<ColisPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'Distance estimée',
                             style: TextStyle(color: AppColors.grey),
                           ),
@@ -225,7 +225,7 @@ class _ColisPageState extends State<ColisPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'Prix estimé',
                             style: TextStyle(color: AppColors.grey),
                           ),
@@ -254,11 +254,11 @@ class _ColisPageState extends State<ColisPage> {
                         Text(
                           '≈ ${_estimation!.dureeEstimeeMin} min'
                           '${_estimation!.multiplicateurTrafic > 1 ? ' · trafic x${_estimation!.multiplicateurTrafic.toStringAsFixed(1)}' : ''}',
-                          style: TextStyle(fontSize: 12, color: AppColors.grey),
+                          style: const TextStyle(fontSize: 12, color: AppColors.grey),
                         ),
                       ],
                       const SizedBox(height: 16),
-                      Text(
+                      const Text(
                         'Méthode de paiement',
                         style: TextStyle(
                           fontSize: 13,

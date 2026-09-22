@@ -102,7 +102,7 @@ class _ConducteurLoginPageState extends State<ConducteurLoginPage> {
                 Center(
                   child: TextButton(
                     onPressed: () => context.push(AppRoutes.conducteurRegister),
-                    child: Text(
+                    child: const Text(
                       'Pas encore de compte ? Créer un compte',
                       style: TextStyle(color: AppColors.grey),
                     ),

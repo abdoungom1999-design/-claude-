@@ -27,7 +27,7 @@ class NetworkErrorView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.grey),
+              style: const TextStyle(color: AppColors.grey),
             ),
             const SizedBox(height: 20),
             SecondaryButton(label: 'Réessayer', onPressed: onRetry),

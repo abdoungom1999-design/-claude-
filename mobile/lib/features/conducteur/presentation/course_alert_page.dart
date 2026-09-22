@@ -60,11 +60,11 @@ class _CourseAlertPageState extends State<CourseAlertPage> {
                 dureeTotale: _dureeTotaleSecondes,
               ),
               const SizedBox(height: 32),
-              AppCard(
+              const AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         StatusBadge(label: 'Passager', tone: StatusTone.actif),
@@ -77,17 +77,17 @@ class _CourseAlertPageState extends State<CourseAlertPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _LigneAdresse(
                       icone: Icons.my_location,
                       texte: 'Plateau, Dakar',
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     _LigneAdresse(
                       icone: Icons.location_on_outlined,
                       texte: 'Almadies, Dakar',
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     _LigneAdresse(
                       icone: Icons.social_distance_outlined,
                       texte: '~ 6,4 km · 18 min',

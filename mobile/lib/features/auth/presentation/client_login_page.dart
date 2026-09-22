@@ -73,7 +73,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
+                const Text(
                   'Connectez-vous pour réserver une course ou envoyer un colis',
                   style: TextStyle(fontSize: 14, color: AppColors.grey),
                 ),

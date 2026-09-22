@@ -1,0 +1,66 @@
+name: Build & déployer Sprint Web
+
+# Compile l'app Flutter (dossier mobile/) en site statique et le publie
+# sur GitHub Pages, pour un aperçu cliquable dans un navigateur sans
+# simulateur ni installation locale.
+on:
+  push:
+    branches:
+      - claude/spid-vtc-livraison-2scatm
+      - main
+    paths:
+      - "mobile/**"
+      - ".github/workflows/flutter-web.yml"
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "URL du backend à utiliser (laisser vide pour la valeur par défaut)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - name: Build web (release)
+        run: |
+          flutter build web --release \
+            --base-href "/${{ github.event.repository.name }}/" \
+            --dart-define=API_BASE_URL="${{ inputs.api_base_url }}"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: mobile/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

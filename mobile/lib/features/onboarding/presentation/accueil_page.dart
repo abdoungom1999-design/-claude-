@@ -37,7 +37,7 @@ class AccueilPage extends StatelessWidget {
                 style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Que souhaitez-vous faire ?',
                 style: TextStyle(fontSize: 15, color: AppColors.grey),
               ),
@@ -56,7 +56,7 @@ class AccueilPage extends StatelessWidget {
               const SizedBox(height: 32),
               TextButton(
                 onPressed: () => context.push(AppRoutes.espacePro),
-                child: Text(
+                child: const Text(
                   'Espace conducteur / admin',
                   style: TextStyle(color: AppColors.grey),
                 ),

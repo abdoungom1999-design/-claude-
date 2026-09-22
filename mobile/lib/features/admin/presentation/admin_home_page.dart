@@ -116,7 +116,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
             : _erreurChargement != null
             ? NetworkErrorView(message: _erreurChargement!, onRetry: _charger)
             : _conducteurs.isEmpty
-            ? Center(
+            ? const Center(
                 child: Text(
                   'Aucun conducteur à afficher',
                   style: TextStyle(color: AppColors.grey),
@@ -186,7 +186,7 @@ class _ConducteurCard extends StatelessWidget {
                     Text(
                       '${conducteur.telephone} · '
                       '${conducteur.vehiculeId ?? 'Véhicule non renseigné'}',
-                      style: TextStyle(fontSize: 12, color: AppColors.grey),
+                      style: const TextStyle(fontSize: 12, color: AppColors.grey),
                     ),
                   ],
                 ),

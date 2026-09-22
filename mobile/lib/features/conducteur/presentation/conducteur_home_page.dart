@@ -191,17 +191,17 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
               '${_dernierEnvoiPosition!.hour.toString().padLeft(2, '0')}:'
               '${_dernierEnvoiPosition!.minute.toString().padLeft(2, '0')}:'
               '${_dernierEnvoiPosition!.second.toString().padLeft(2, '0')}',
-              style: TextStyle(fontSize: 12, color: AppColors.grey),
+              style: const TextStyle(fontSize: 12, color: AppColors.grey),
             ),
           ],
         ],
         const SizedBox(height: 24),
-        Row(
+        const Row(
           children: [
             Expanded(
               child: _StatTile(label: 'Courses aujourd\'hui', valeur: '0'),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(child: _StatTile(label: 'Gains estimés', valeur: '0 FCFA')),
           ],
         ),
@@ -232,7 +232,7 @@ class _ConducteurHomePageState extends State<ConducteurHomePage> {
                     ),
                     Text(
                       profil.vehiculeId ?? 'Véhicule non renseigné',
-                      style: TextStyle(fontSize: 12, color: AppColors.grey),
+                      style: const TextStyle(fontSize: 12, color: AppColors.grey),
                     ),
                   ],
                 ),
@@ -272,7 +272,7 @@ class _StatTile extends StatelessWidget {
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: AppColors.grey)),
+          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
         ],
       ),
     );
