@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/banner_carousel.dart';
+import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/reassurance_tile.dart';
 import '../../../core/widgets/trip_map.dart';
 
@@ -77,6 +78,34 @@ class HomeTabPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const _GrilleReassurance(),
+            const SizedBox(height: 32),
+            const Text(
+              'Découvrez nos univers',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Toutes les façons de vivre Sprint au quotidien.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+            ),
+            const SizedBox(height: 14),
+            _CarteUnivers(
+              titre: 'Sprint Express',
+              sousTitre: 'La livraison moto la plus rapide de Dakar',
+              imageUrl:
+                  'https://images.unsplash.com/photo-1558981806-ec527fa84c39'
+                  '?auto=format&fit=crop&w=1200&q=80',
+              onTap: () => context.push(AppRoutes.clientColis),
+            ),
+            const SizedBox(height: 14),
+            _CarteUnivers(
+              titre: 'Sprint Food',
+              sousTitre: 'Vos plats préférés, livrés chauds',
+              imageUrl:
+                  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c'
+                  '?auto=format&fit=crop&w=1200&q=80',
+              onTap: () => PremiumDialog.bientotDisponible(context, 'Sprint Food'),
+            ),
           ],
         ),
       ),
@@ -229,6 +258,128 @@ class _GrilleReassurance extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Grande carte verticale plein cadre (photo + filtre sombre + titre) de
+/// la section "Découvrez nos univers". Repli en dégradé noir si la photo
+/// ne charge pas (voir note de transparence en tête de [BannerCarousel]
+/// pour les mêmes réserves sur les URLs Unsplash utilisées ici).
+class _CarteUnivers extends StatelessWidget {
+  const _CarteUnivers({
+    required this.titre,
+    required this.sousTitre,
+    required this.imageUrl,
+    required this.onTap,
+  });
+
+  final String titre;
+  final String sousTitre;
+  final String imageUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 190,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const _RepliCarteUnivers();
+                },
+                errorBuilder: (context, error, stackTrace) =>
+                    const _RepliCarteUnivers(),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withValues(alpha: 0.05),
+                      Colors.black.withValues(alpha: 0.75),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.3, 1.0],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 18,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      titre,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      sousTitre,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_outward_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RepliCarteUnivers extends StatelessWidget {
+  const _RepliCarteUnivers();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.noirProfondClair, AppColors.noirProfond],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
     );
   }
 }

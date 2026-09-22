@@ -7,8 +7,9 @@ import 'premium_dialog.dart';
 
 /// Description d'une bannière promotionnelle. [imageUrl] est une vraie
 /// photographie (voir note en tête de [BannerCarousel] sur sa
-/// vérifiabilité) ; quand il est absent, la bannière utilise un fond en
-/// dégradé avec une icône, comme pour "Forfait Aéroport".
+/// vérifiabilité) ; les trois bannières actuelles en ont toutes une. Si
+/// jamais l'une d'elles était retirée, [icon] sert alors de repli visuel
+/// (voir [_BanniereRepli]).
 class BannerData {
   const BannerData({
     required this.titre,
@@ -60,7 +61,9 @@ class BannerCarousel extends StatefulWidget {
     const BannerData(
       titre: 'Sprint en direct',
       sousTitre: 'Forfaits transferts aéroports',
-      icon: Icons.flight_takeoff_rounded,
+      imageUrl:
+          'https://images.unsplash.com/photo-1436491865332-7a61a109cc05'
+          '?auto=format&fit=crop&w=1200&q=80',
       iconColor: AppColors.or,
       gradientColors: [AppColors.noirProfond, AppColors.noirProfondClair],
     ),
@@ -249,19 +252,6 @@ class _BanniereCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (banniere.icon != null && banniere.imageUrl != null)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(banniere.icon, color: Colors.white, size: 18),
-                      ),
-                    ),
                 ],
               ),
             ),
