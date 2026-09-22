@@ -54,6 +54,7 @@ class BannerCarousel extends StatefulWidget {
           '?auto=format&fit=crop&w=1200&q=80',
       icon: Icons.inventory_2_outlined,
       ctaLabel: 'Faire mes courses',
+      gradientColors: [AppColors.vert, AppColors.vertFonce],
       onTap: (context) => context.push(AppRoutes.clientColis),
     ),
     const BannerData(
@@ -70,6 +71,7 @@ class BannerCarousel extends StatefulWidget {
           'https://images.unsplash.com/photo-1563720223185-11003d516935'
           '?auto=format&fit=crop&w=1200&q=80',
       icon: Icons.workspace_premium_outlined,
+      gradientColors: const [AppColors.orange, AppColors.orangeDark],
       onTap: (context) => context.push(AppRoutes.clientPassager),
     ),
   ];
@@ -163,83 +165,103 @@ class _BanniereCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Structure divisée : à gauche le panneau coloré (texte + CTA), à
+    // droite la photo (ou, à défaut, un panneau icône plus sombre), les
+    // deux se fondant l'un dans l'autre via un dégradé de transition.
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: () => _onTap(context),
-        child: Stack(
-          fit: StackFit.expand,
+        child: Row(
           children: [
-            if (banniere.imageUrl != null)
-              Image.network(
-                banniere.imageUrl!,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return _BanniereRepli(banniere: banniere);
-                },
-                errorBuilder: (context, error, stackTrace) =>
-                    _BanniereRepli(banniere: banniere),
-              )
-            else
-              _BanniereRepli(banniere: banniere),
-            // Dégradé sombre pour la lisibilité du texte, plus marqué en bas.
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: banniere.imageUrl != null ? 0.75 : 0.15),
+            Expanded(
+              flex: 5,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: banniere.gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      banniere.titre,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      banniere.sousTitre,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                    if (banniere.ctaLabel != null) ...[
+                      const SizedBox(height: 12),
+                      _BoutonCta(label: banniere.ctaLabel!),
+                    ],
                   ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.25, 1.0],
                 ),
               ),
             ),
-            if (banniere.icon != null && banniere.imageUrl != null)
-              Positioned(
-                top: 14,
-                right: 14,
-                child: Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(banniere.icon, color: banniere.iconColor, size: 20),
-                ),
-              ),
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            Expanded(
+              flex: 4,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(
-                    banniere.titre,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                      shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                  if (banniere.imageUrl != null)
+                    Image.network(
+                      banniere.imageUrl!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return _BanniereRepli(banniere: banniere);
+                      },
+                      errorBuilder: (context, error, stackTrace) =>
+                          _BanniereRepli(banniere: banniere),
+                    )
+                  else
+                    _BanniereRepli(banniere: banniere),
+                  // Fondu du bord gauche de la photo vers la couleur du
+                  // panneau, pour que les deux moitiés se fondent.
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          banniere.gradientColors.first,
+                          banniere.gradientColors.first.withValues(alpha: 0),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        stops: const [0.0, 0.5],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    banniere.sousTitre,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.5,
-                      shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                  if (banniere.icon != null && banniere.imageUrl != null)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(banniere.icon, color: Colors.white, size: 18),
+                      ),
                     ),
-                  ),
-                  if (banniere.ctaLabel != null) ...[
-                    const SizedBox(height: 10),
-                    _BoutonCta(label: banniere.ctaLabel!),
-                  ],
                 ],
               ),
             ),
@@ -260,9 +282,9 @@ class _BoutonCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.orange,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
@@ -271,13 +293,13 @@ class _BoutonCta extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.text,
               fontWeight: FontWeight.w700,
-              fontSize: 12,
+              fontSize: 11.5,
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 14),
+          const Icon(Icons.arrow_forward_rounded, color: AppColors.text, size: 14),
         ],
       ),
     );
@@ -285,7 +307,8 @@ class _BoutonCta extends StatelessWidget {
 }
 
 /// Repli affiché pendant le chargement, ou si la photo réseau ne charge
-/// pas : dégradé de la bannière + icône, jamais d'image cassée.
+/// pas : panneau uni dans la couleur de la bannière + icône, jamais
+/// d'image cassée.
 class _BanniereRepli extends StatelessWidget {
   const _BanniereRepli({required this.banniere});
 
@@ -294,23 +317,13 @@ class _BanniereRepli extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: banniere.gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      color: banniere.gradientColors.last,
+      alignment: Alignment.center,
       child: banniere.icon != null
-          ? Align(
-              alignment: const Alignment(0.75, -0.15),
-              child: Icon(
-                banniere.icon,
-                color: banniere.iconColor.withValues(
-                  alpha: banniere.imageUrl != null ? 0.3 : 0.85,
-                ),
-                size: banniere.imageUrl != null ? 46 : 72,
-              ),
+          ? Icon(
+              banniere.icon,
+              color: Colors.white.withValues(alpha: 0.6),
+              size: 40,
             )
           : null,
     );

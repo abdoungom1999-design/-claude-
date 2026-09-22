@@ -29,4 +29,10 @@ class AppColors {
   /// Accent doré : réservé aux touches "premium" ponctuelles sur fond
   /// sombre (ex. bannière Forfait Aéroport), jamais un CTA principal.
   static const Color or = Color(0xFFD4AF37);
+
+  /// Accent vert : réservé aux bannières thématiques "courses/épicerie"
+  /// du carrousel Accueil, pour distinguer visuellement les catégories
+  /// de service — jamais le thème général de l'app.
+  static const Color vert = Color(0xFF1E8E5A);
+  static const Color vertFonce = Color(0xFF0F5132);
 }
