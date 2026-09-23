@@ -115,4 +115,26 @@ class ChatService {
               instantane.docs.map((doc) => {'uid': doc.id, ...doc.data()}).toList(),
         );
   }
+
+  /// Flux des conversations réelles auxquelles [monUid] participe déjà
+  /// (au moins un message échangé), du plus récemment actif au plus
+  /// ancien — utilisé par l'onglet Messages du Conducteur pour lister
+  /// les clients avec qui discuter, à la façon d'une boîte de réception
+  /// WhatsApp plutôt que d'un simple annuaire.
+  ///
+  /// Important : ce filtre (`participants` contient `monUid` + tri sur
+  /// `misAJourLe`) nécessite un index composite Firestore, comme pour
+  /// [CourseService.streamCoursesEnAttente] — Firestore renverra un
+  /// lien direct pour le créer au premier accès.
+  Stream<List<Map<String, dynamic>>> streamMesChats(String monUid) {
+    return _firestore
+        .collection('chats')
+        .where('participants', arrayContains: monUid)
+        .orderBy('misAJourLe', descending: true)
+        .snapshots()
+        .map(
+          (instantane) =>
+              instantane.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+        );
+  }
 }

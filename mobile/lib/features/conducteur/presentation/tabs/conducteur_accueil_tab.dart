@@ -1,65 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../firebase_options.dart';
 import '../widgets/bouton_en_ligne_circulaire.dart';
 
-/// Onglet Accueil du nouvel espace Conducteur : carte plein écran, statut
-/// En ligne/Hors ligne (gros bouton rond flottant + radar) et barre de
-/// gains du jour superposée. La position affichée suit le conducteur en
-/// mode démo dès qu'une vraie position GPS est disponible ; sinon,
-/// centrée sur Dakar.
+/// Onglet Accueil du nouvel espace Conducteur : fond "carte" premium et
+/// épuré (en attendant le vrai Google Maps — voir GOOGLE_MAPS_SETUP.md),
+/// statut En ligne/Hors ligne (gros bouton rond flottant "GO" + radar) et
+/// barre de gains du jour superposée. C'est ce bouton qui déclenche
+/// l'écoute de [CourseService] côté [ConducteurShellPage] — cette
+/// refonte visuelle ne touche à aucune logique de matchmaking.
 class ConducteurAccueilTab extends StatelessWidget {
   const ConducteurAccueilTab({
     super.key,
     required this.enLigne,
     required this.onBasculerStatut,
     required this.gainsJourFcfa,
-    required this.position,
     required this.onSimulerCourse,
   });
 
   final bool enLigne;
   final ValueChanged<bool> onBasculerStatut;
   final int gainsJourFcfa;
-  final LatLng? position;
   final VoidCallback onSimulerCourse;
-
-  static const _centreDakar = LatLng(14.6928, -17.4467);
 
   @override
   Widget build(BuildContext context) {
-    final centre = position ?? _centreDakar;
-
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          FlutterMap(
-            options: MapOptions(initialCenter: centre, initialZoom: 15),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'sn.groupesantine.sprint',
-              ),
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: centre,
-                    width: 54,
-                    height: 54,
-                    child: _MarqueurMoi(enLigne: enLigne),
-                  ),
-                ],
-              ),
-              const RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution('© OpenStreetMap contributors'),
-                ],
-              ),
-            ],
-          ),
+          _FondCartePremium(enLigne: enLigne),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -94,30 +64,122 @@ class ConducteurAccueilTab extends StatelessWidget {
   }
 }
 
-class _MarqueurMoi extends StatelessWidget {
-  const _MarqueurMoi({required this.enLigne});
+/// Fond de carte "placeholder" premium : dégradé doux + grille de points
+/// discrète (façon carte stylisée) et un repère central pulsant à
+/// l'emplacement du conducteur, sans dépendre d'un vrai fond de carte
+/// tant que Google Maps n'est pas branché.
+class _FondCartePremium extends StatefulWidget {
+  const _FondCartePremium({required this.enLigne});
 
   final bool enLigne;
 
   @override
+  State<_FondCartePremium> createState() => _FondCartePremiumState();
+}
+
+class _FondCartePremiumState extends State<_FondCartePremium>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 2),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: enLigne ? AppColors.orange : AppColors.noirProfond,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: (enLigne ? AppColors.orange : Colors.black).withValues(alpha: 0.4),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF7F7F7), Color(0xFFEFEFEF)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _GrillePointsPainter()),
+          ),
+          if (widget.enLigne)
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    _AnneauRadar(progression: _controller.value),
+                    _AnneauRadar(progression: (_controller.value + 0.5) % 1.0),
+                  ],
+                );
+              },
+            ),
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: widget.enLigne ? AppColors.orange : AppColors.noirProfond,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: (widget.enLigne ? AppColors.orange : Colors.black)
+                      .withValues(alpha: 0.35),
+                  blurRadius: 14,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      alignment: Alignment.center,
-      child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 24),
     );
   }
+}
+
+class _AnneauRadar extends StatelessWidget {
+  const _AnneauRadar({required this.progression});
+
+  final double progression;
+
+  @override
+  Widget build(BuildContext context) {
+    final taille = 22 + progression * 220;
+    final opacite = (1 - progression).clamp(0.0, 1.0) * 0.35;
+
+    return Container(
+      width: taille,
+      height: taille,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.orange.withValues(alpha: opacite), width: 1.5),
+      ),
+    );
+  }
+}
+
+/// Grille de points discrète évoquant une carte sans en être une —
+/// dessinée une seule fois (pas d'animation), volontairement épurée.
+class _GrillePointsPainter extends CustomPainter {
+  static const _espacement = 28.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final peinture = Paint()..color = AppColors.greyBorder.withValues(alpha: 0.7);
+    for (double y = _espacement / 2; y < size.height; y += _espacement) {
+      for (double x = _espacement / 2; x < size.width; x += _espacement) {
+        canvas.drawCircle(Offset(x, y), 1.4, peinture);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _BarreGainsJour extends StatelessWidget {
@@ -174,7 +236,7 @@ class _BarreGainsJour extends StatelessWidget {
 
 /// Puce discrète permettant de déclencher manuellement l'animation
 /// "Nouvelle course", pour ne pas dépendre uniquement du minuteur
-/// automatique lors d'une démonstration.
+/// automatique lors d'une démonstration (mode démo uniquement).
 class _PucePastille extends StatelessWidget {
   const _PucePastille({required this.onTap});
 

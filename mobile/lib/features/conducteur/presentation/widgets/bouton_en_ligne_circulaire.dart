@@ -35,8 +35,8 @@ class _BoutonEnLigneCirculaireState extends State<BoutonEnLigneCirculaire>
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 190,
-      height: 190,
+      width: 200,
+      height: 200,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -58,9 +58,10 @@ class _BoutonEnLigneCirculaireState extends State<BoutonEnLigneCirculaire>
           GestureDetector(
             onTap: widget.onTap,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 118,
-              height: 118,
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutBack,
+              width: 128,
+              height: 128,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
@@ -70,39 +71,58 @@ class _BoutonEnLigneCirculaireState extends State<BoutonEnLigneCirculaire>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                border: Border.all(color: Colors.white, width: 4),
+                border: Border.all(color: Colors.white, width: 5),
                 boxShadow: [
                   BoxShadow(
                     color: (widget.enLigne ? AppColors.orange : Colors.black)
-                        .withValues(alpha: 0.4),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
+                        .withValues(alpha: 0.45),
+                    blurRadius: 28,
+                    offset: const Offset(0, 12),
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    widget.enLigne
-                        ? Icons.bolt_rounded
-                        : Icons.power_settings_new_rounded,
-                    color: Colors.white,
-                    size: 34,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.enLigne ? 'EN LIGNE' : 'HORS LIGNE',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
+              child: widget.enLigne
+                  ? const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.bolt_rounded, color: Colors.white, size: 34),
+                        SizedBox(height: 4),
+                        Text(
+                          'EN LIGNE',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'GO',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Passer en ligne',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],

@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/location/device_location_service.dart';
 import '../../../core/network/api_exception.dart';
@@ -19,15 +18,17 @@ import 'tabs/conducteur_accueil_tab.dart';
 import 'tabs/conducteur_compte_tab.dart';
 import 'tabs/conducteur_evaluations_tab.dart';
 import 'tabs/conducteur_gains_tab.dart';
+import 'tabs/conducteur_messages_tab.dart';
 import 'validation_pending_page.dart';
 import 'widgets/conducteur_bottom_nav.dart';
 import 'widgets/nouvelle_course_reelle_sheet.dart';
 import 'widgets/nouvelle_course_sheet.dart';
 
 /// Coquille de navigation de l'espace Conducteur (Sprint Conducteur) :
-/// barre du bas à 4 onglets (Accueil, Gains, Évaluations, Compte).
-/// Porte l'état partagé entre onglets (profil, statut En ligne/Hors
-/// ligne, position) et la simulation d'arrivée de nouvelles courses.
+/// barre du bas à 5 onglets (Accueil, Messages, Gains, Évaluations,
+/// Compte). Porte l'état partagé entre onglets (profil, statut En
+/// ligne/Hors ligne) et le radar de courses en attente en temps réel
+/// (voir [CourseService]).
 class ConducteurShellPage extends StatefulWidget {
   const ConducteurShellPage({super.key});
 
@@ -45,7 +46,6 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   int _indexSelectionne = 0;
   ProfilConducteur? _profil;
   bool _enLigne = false;
-  LatLng? _dernierePosition;
   Timer? _minuteurPosition;
   Timer? _minuteurNouvelleCourse;
   StreamSubscription<List<CourseFirestore>>? _abonnementCoursesEnAttente;
@@ -135,8 +135,6 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
         latitude: position.latitude,
         longitude: position.longitude,
       );
-      if (!mounted) return;
-      setState(() => _dernierePosition = LatLng(position.latitude, position.longitude));
     } catch (_) {
       // Échec silencieux (API ou GPS momentanément indisponible) : la
       // prochaine tentative aura lieu au tick suivant.
@@ -248,9 +246,9 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
             enLigne: _enLigne,
             onBasculerStatut: _basculerStatut,
             gainsJourFcfa: DemoData.gainsEstimesFcfa,
-            position: _dernierePosition,
             onSimulerCourse: _declencherNouvelleCourseDemo,
           ),
+          const ConducteurMessagesTab(),
           const ConducteurGainsTab(),
           const ConducteurEvaluationsTab(),
           ConducteurCompteTab(profil: _profil, onDeconnexion: _seDeconnecter),

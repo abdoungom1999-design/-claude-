@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// Barre de navigation basse de l'espace Conducteur : Accueil, Gains,
-/// Évaluations, Compte.
+/// Barre de navigation basse de l'espace Conducteur : Accueil, Messages,
+/// Gains, Évaluations, Compte.
 class ConducteurBottomNav extends StatelessWidget {
   const ConducteurBottomNav({
     super.key,
@@ -15,6 +15,7 @@ class ConducteurBottomNav extends StatelessWidget {
 
   static const _onglets = [
     (icon: Icons.home_outlined, iconActif: Icons.home_rounded, label: 'Accueil'),
+    (icon: Icons.chat_bubble_outline_rounded, iconActif: Icons.chat_bubble_rounded, label: 'Messages'),
     (icon: Icons.payments_outlined, iconActif: Icons.payments_rounded, label: 'Gains'),
     (icon: Icons.star_border_rounded, iconActif: Icons.star_rounded, label: 'Évaluations'),
     (icon: Icons.person_outline_rounded, iconActif: Icons.person_rounded, label: 'Compte'),
