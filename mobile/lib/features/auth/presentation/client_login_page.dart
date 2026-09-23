@@ -5,6 +5,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_scaffold.dart';
+import '../../../core/widgets/mot_de_passe_oublie_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../data/auth_repository.dart';
 
@@ -20,7 +21,7 @@ class ClientLoginPage extends StatefulWidget {
 
 class _ClientLoginPageState extends State<ClientLoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _telephoneController = TextEditingController();
+  final _identifiantController = TextEditingController();
   final _motDePasseController = TextEditingController();
   final _authRepository = AuthRepository();
 
@@ -29,7 +30,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
 
   @override
   void dispose() {
-    _telephoneController.dispose();
+    _identifiantController.dispose();
     _motDePasseController.dispose();
     super.dispose();
   }
@@ -43,7 +44,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
     });
     try {
       await _authRepository.connecterClient(
-        telephone: _telephoneController.text.trim(),
+        identifiant: _identifiantController.text.trim(),
         motDePasse: _motDePasseController.text,
       );
       if (!mounted) return;
@@ -53,6 +54,13 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
     } finally {
       if (mounted) setState(() => _enCours = false);
     }
+  }
+
+  void _motDePasseOublie() {
+    afficherDialogueMotDePasseOublie(
+      context,
+      emailInitial: _identifiantController.text.trim(),
+    );
   }
 
   Future<void> _allerVersInscription() async {
@@ -74,12 +82,12 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppTextField(
-              label: 'Téléphone',
-              controller: _telephoneController,
-              keyboardType: TextInputType.phone,
-              prefixIcon: Icons.phone_outlined,
+              label: 'Email ou numéro de téléphone',
+              controller: _identifiantController,
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: Icons.person_outline,
               validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-                  ? 'Numéro requis'
+                  ? 'Email ou numéro requis'
                   : null,
             ),
             const SizedBox(height: 14),
@@ -92,14 +100,29 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
                   ? '8 caractères minimum'
                   : null,
             ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _motDePasseOublie,
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Mot de passe oublié ?',
+                  style: TextStyle(color: AppColors.orange, fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ),
             if (_erreur != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               Text(
                 _erreur!,
                 style: const TextStyle(color: Colors.redAccent, fontSize: 13),
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             PrimaryButton(
               label: 'Se connecter',
               isLoading: _enCours,

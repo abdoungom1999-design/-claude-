@@ -16,18 +16,20 @@ import '../../../firebase_options.dart';
 ///   la démo déployée continue de fonctionner sans interruption tant
 ///   que ce n'est pas fait.
 ///
-/// Note sur l'email : Client et Conducteur s'identifient par numéro de
-/// téléphone dans l'UI (l'écran de connexion ne demande que le
-/// téléphone), mais utilisent désormais leur VRAIE adresse email comme
-/// identifiant FirebaseAuth — nécessaire pour la vérification par
-/// email obligatoire (voir [inscrireClient]/[inscrireConducteur]).
-/// Avant cette étape, un email synthétique dérivé du téléphone était
-/// utilisé (ex. `+221771234501@sprint-client.app`) ; il a été
-/// abandonné car un lien de vérification envoyé à une adresse
-/// inventée ne peut jamais être reçu, ce qui aurait bloqué
-/// définitivement l'inscription. La connexion continue de ne demander
-/// que le téléphone : [_emailPourTelephone] retrouve la vraie adresse
-/// email associée dans Firestore avant d'appeler FirebaseAuth.
+/// Note sur l'email : Client et Conducteur utilisent leur VRAIE
+/// adresse email comme identifiant FirebaseAuth — nécessaire pour la
+/// vérification par email obligatoire (voir
+/// [inscrireClient]/[inscrireConducteur]). Avant cette étape, un email
+/// synthétique dérivé du téléphone était utilisé (ex.
+/// `+221771234501@sprint-client.app`) ; il a été abandonné car un lien
+/// de vérification envoyé à une adresse inventée ne peut jamais être
+/// reçu, ce qui aurait bloqué définitivement l'inscription.
+///
+/// L'écran de connexion accepte désormais indifféremment l'email ou le
+/// téléphone (champ mixte) : [_resoudreEmail] utilise directement la
+/// saisie si elle contient un '@', sinon la traite comme un téléphone
+/// et retrouve la vraie adresse email associée dans Firestore avant
+/// d'appeler FirebaseAuth.
 ///
 /// Important : les comptes créés avant ce changement (email
 /// synthétique, sans champ `email` dans leur document Firestore) ne
@@ -69,15 +71,17 @@ class AuthRepository {
     }
   }
 
+  /// [identifiant] : email ou numéro de téléphone, saisis
+  /// indifféremment dans le même champ (voir [_resoudreEmail]).
   Future<void> connecterClient({
-    required String telephone,
+    required String identifiant,
     required String motDePasse,
   }) async {
     if (!DefaultFirebaseOptions.estConfigure) {
       return _authentifierEnModeDemo();
     }
     try {
-      final email = await _emailPourTelephone(telephone, role: 'client');
+      final email = await _resoudreEmail(identifiant, role: 'client');
       await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
@@ -132,15 +136,17 @@ class AuthRepository {
     }
   }
 
+  /// [identifiant] : email ou numéro de téléphone, saisis
+  /// indifféremment dans le même champ (voir [_resoudreEmail]).
   Future<void> connecterConducteur({
-    required String telephone,
+    required String identifiant,
     required String motDePasse,
   }) async {
     if (!DefaultFirebaseOptions.estConfigure) {
       return _authentifierEnModeDemo();
     }
     try {
-      final email = await _emailPourTelephone(telephone, role: 'conducteur');
+      final email = await _resoudreEmail(identifiant, role: 'conducteur');
       await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
@@ -196,12 +202,36 @@ class AuthRepository {
     await _tokenStorage.effacerTokens();
   }
 
+  /// Envoie l'email de réinitialisation de mot de passe (bouton "Mot
+  /// de passe oublié ?" de l'écran de connexion). En mode démo (pas de
+  /// projet Firebase configuré), simule un aller-retour réussi sans
+  /// contacter Firebase, aucun email réel ne pouvant être envoyé.
+  Future<void> reinitialiserMotDePasse(String email) async {
+    if (!DefaultFirebaseOptions.estConfigure) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return;
+    }
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      throw ApiException.depuisFirebaseAuth(e);
+    }
+  }
+
+  /// Résout l'identifiant saisi sur l'écran de connexion (champ mixte
+  /// email/téléphone) vers un email FirebaseAuth : utilisé tel quel
+  /// s'il contient un '@', sinon traité comme un téléphone et retrouvé
+  /// via [_emailPourTelephone].
+  Future<String> _resoudreEmail(String identifiant, {required String role}) async {
+    final valeur = identifiant.trim();
+    if (valeur.contains('@')) return valeur;
+    return _emailPourTelephone(valeur, role: role);
+  }
+
   /// Retrouve l'email réel associé à un numéro de téléphone (et un
   /// rôle, pour éviter qu'un même numéro utilisé à la fois côté Client
   /// et Conducteur ne se mélange), à partir de la collection
-  /// Firestore `users` — l'écran de connexion ne demande que le
-  /// téléphone, mais FirebaseAuth a besoin d'un email pour se
-  /// connecter.
+  /// Firestore `users`.
   Future<String> _emailPourTelephone(String telephone, {required String role}) async {
     final resultat = await _firestore
         .collection('users')
