@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +15,13 @@ import '../theme/app_colors.dart';
 /// `HomeShellPage` et `ConducteurShellPage`, qui affichent cette page à
 /// la place du tableau de bord tant que
 /// `FirebaseAuth.currentUser.emailVerified` est faux.
+///
+/// Se débloque automatiquement, sans action de l'utilisateur : un
+/// polling toutes les 4 secondes interroge Firebase
+/// (`user.reload()`), et un [WidgetsBindingObserver] relance
+/// immédiatement une vérification dès que l'utilisateur revient sur
+/// l'app (après avoir cliqué le lien reçu par email dans un autre
+/// onglet/une autre app). Le bouton manuel reste disponible en repli.
 class EmailVerificationPendingPage extends StatefulWidget {
   const EmailVerificationPendingPage({
     super.key,
@@ -30,30 +39,74 @@ class EmailVerificationPendingPage extends StatefulWidget {
 }
 
 class _EmailVerificationPendingPageState
-    extends State<EmailVerificationPendingPage> {
+    extends State<EmailVerificationPendingPage> with WidgetsBindingObserver {
   final _authRepository = AuthRepository();
-  bool _enCoursVerification = false;
+  Timer? _minuteurPolling;
+  bool _verificationEnCours = false;
   bool _enCoursRenvoi = false;
   String? _message;
 
-  Future<void> _jaiVerifie() async {
-    setState(() {
-      _enCoursVerification = true;
-      _message = null;
-    });
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _minuteurPolling = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _verifierEtRedirigerSiValide(depuisPolling: true),
+    );
+  }
+
+  @override
+  void dispose() {
+    _minuteurPolling?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // L'utilisateur revient probablement de sa boîte mail (autre onglet
+    // ou autre app) après avoir cliqué le lien : on vérifie tout de
+    // suite plutôt que d'attendre le prochain tick du polling.
+    if (state == AppLifecycleState.resumed) {
+      _verifierEtRedirigerSiValide(depuisPolling: true);
+    }
+  }
+
+  /// Vérifie si l'email est désormais confirmé et redirige
+  /// automatiquement si c'est le cas. Utilisé aussi bien par le
+  /// polling/l'écouteur de cycle de vie (silencieux, sans indicateur de
+  /// chargement) que par le bouton manuel "J'ai vérifié, réessayer"
+  /// (avec indicateur et message d'échec explicite).
+  Future<void> _verifierEtRedirigerSiValide({required bool depuisPolling}) async {
+    if (_verificationEnCours) return;
+    if (!depuisPolling) {
+      setState(() {
+        _verificationEnCours = true;
+        _message = null;
+      });
+    }
     try {
       final verifie = await _authRepository.rafraichirEtVerifierEmail();
       if (!mounted) return;
       if (verifie) {
+        _minuteurPolling?.cancel();
         context.go(widget.destinationApresVerification);
-      } else {
+        return;
+      }
+      if (!depuisPolling) {
         setState(() {
           _message = "Toujours pas vérifié. Cliquez d'abord sur le lien "
-              'reçu par email, puis réessayez.';
+              'reçu par email — la page se débloquera automatiquement.';
         });
       }
+    } catch (_) {
+      // Vérification en arrière-plan : un aléa réseau ponctuel ne doit
+      // pas afficher d'erreur, le prochain tick réessaiera.
     } finally {
-      if (mounted) setState(() => _enCoursVerification = false);
+      if (mounted && !depuisPolling) {
+        setState(() => _verificationEnCours = false);
+      }
     }
   }
 
@@ -75,6 +128,7 @@ class _EmailVerificationPendingPageState
   }
 
   Future<void> _seDeconnecter() async {
+    _minuteurPolling?.cancel();
     await _authRepository.deconnecter();
     if (mounted) context.go(AppRoutes.espacePro);
   }
@@ -115,10 +169,19 @@ class _EmailVerificationPendingPageState
               Text(
                 'Un email de confirmation vous a été envoyé'
                 '${email != null && email.isNotEmpty ? ' à $email' : ''}. '
-                'Veuillez cliquer sur le lien dans votre boîte mail pour '
-                'valider votre compte, puis reconnectez-vous.',
+                'Cliquez sur le lien dans votre boîte mail : cette page se '
+                'débloquera automatiquement, sans rien faire de plus.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: AppColors.grey, height: 1.6),
+              ),
+              const SizedBox(height: 20),
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.orange),
+                ),
               ),
               if (_message != null) ...[
                 const SizedBox(height: 16),
@@ -137,14 +200,16 @@ class _EmailVerificationPendingPageState
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _enCoursVerification ? null : _jaiVerifie,
+                  onPressed: _verificationEnCours
+                      ? null
+                      : () => _verifierEtRedirigerSiValide(depuisPolling: false),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.orange,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: _enCoursVerification
+                  child: _verificationEnCours
                       ? const SizedBox(
                           width: 20,
                           height: 20,
