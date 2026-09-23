@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -14,8 +15,11 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/trip_map.dart';
+import '../../../firebase_options.dart';
+import '../../courses/data/course_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/pricing_repository.dart';
+import 'suivi_course_page.dart';
 
 /// Écran d'envoi d'un colis, connecté à l'API. Carte réelle
 /// (OpenStreetMap), géocodage d'adresses (Nominatim) et prix dynamique
@@ -36,6 +40,7 @@ class _ColisPageState extends State<ColisPage> {
   final _adresseLivraisonController = TextEditingController();
   final _coursesRepository = CoursesRepository();
   final _pricingRepository = PricingRepository();
+  final _courseService = CourseService();
 
   AdresseSuggestion? _retrait;
   AdresseSuggestion? _livraison;
@@ -96,16 +101,41 @@ class _ColisPageState extends State<ColisPage> {
       return;
     }
 
-    final token = await TokenStorage().getAccessToken();
-    if (token == null) {
-      if (!mounted) return;
-      final connecte = await context.push<bool>(AppRoutes.clientLogin);
-      if (connecte != true || !mounted) return;
-      await _rafraichirEstimation();
+    if (DefaultFirebaseOptions.estConfigure) {
+      if (FirebaseAuth.instance.currentUser == null) {
+        if (!mounted) return;
+        final connecte = await context.push<bool>(AppRoutes.clientLogin);
+        if (connecte != true || !mounted) return;
+      }
+    } else {
+      final token = await TokenStorage().getAccessToken();
+      if (token == null) {
+        if (!mounted) return;
+        final connecte = await context.push<bool>(AppRoutes.clientLogin);
+        if (connecte != true || !mounted) return;
+        await _rafraichirEstimation();
+      }
     }
 
     setState(() => _enCours = true);
     try {
+      if (DefaultFirebaseOptions.estConfigure) {
+        final estimation = _estimation ??
+            await _pricingRepository.estimer(type: 'COLIS', distanceKm: _distanceKm!);
+        final courseId = await _courseService.creerCourse(
+          clientId: FirebaseAuth.instance.currentUser!.uid,
+          type: 'COLIS',
+          adresseDepart: _adresseRetraitController.text.trim(),
+          adresseArrivee: _adresseLivraisonController.text.trim(),
+          prixFcfa: estimation.prixFcfa,
+        );
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => SuiviCoursePage(courseId: courseId)),
+        );
+        return;
+      }
+
       final course = await _coursesRepository.creerCourse({
         'type': 'COLIS',
         'adresseDepart': _adresseRetraitController.text.trim(),

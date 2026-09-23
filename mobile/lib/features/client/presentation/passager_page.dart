@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -13,8 +14,11 @@ import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/trip_map.dart';
+import '../../../firebase_options.dart';
+import '../../courses/data/course_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/pricing_repository.dart';
+import 'suivi_course_page.dart';
 
 /// Écran de réservation d'une course "Passager" (moto-taxi), connecté à
 /// l'API. Carte réelle (OpenStreetMap), géocodage d'adresses (Nominatim)
@@ -34,6 +38,7 @@ class _PassagerPageState extends State<PassagerPage> {
   final _adresseArriveeController = TextEditingController();
   final _coursesRepository = CoursesRepository();
   final _pricingRepository = PricingRepository();
+  final _courseService = CourseService();
 
   AdresseSuggestion? _depart;
   AdresseSuggestion? _arrivee;
@@ -94,16 +99,41 @@ class _PassagerPageState extends State<PassagerPage> {
       return;
     }
 
-    final token = await TokenStorage().getAccessToken();
-    if (token == null) {
-      if (!mounted) return;
-      final connecte = await context.push<bool>(AppRoutes.clientLogin);
-      if (connecte != true || !mounted) return;
-      await _rafraichirEstimation();
+    if (DefaultFirebaseOptions.estConfigure) {
+      if (FirebaseAuth.instance.currentUser == null) {
+        if (!mounted) return;
+        final connecte = await context.push<bool>(AppRoutes.clientLogin);
+        if (connecte != true || !mounted) return;
+      }
+    } else {
+      final token = await TokenStorage().getAccessToken();
+      if (token == null) {
+        if (!mounted) return;
+        final connecte = await context.push<bool>(AppRoutes.clientLogin);
+        if (connecte != true || !mounted) return;
+        await _rafraichirEstimation();
+      }
     }
 
     setState(() => _enCours = true);
     try {
+      if (DefaultFirebaseOptions.estConfigure) {
+        final estimation = _estimation ??
+            await _pricingRepository.estimer(type: 'PASSAGER', distanceKm: _distanceKm!);
+        final courseId = await _courseService.creerCourse(
+          clientId: FirebaseAuth.instance.currentUser!.uid,
+          type: 'PASSAGER',
+          adresseDepart: _adresseDepartController.text.trim(),
+          adresseArrivee: _adresseArriveeController.text.trim(),
+          prixFcfa: estimation.prixFcfa,
+        );
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => SuiviCoursePage(courseId: courseId)),
+        );
+        return;
+      }
+
       final course = await _coursesRepository.creerCourse({
         'type': 'PASSAGER',
         'adresseDepart': _adresseDepartController.text.trim(),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../firebase_options.dart';
 import '../widgets/bouton_en_ligne_circulaire.dart';
 
 /// Onglet Accueil du nouvel espace Conducteur : carte plein écran, statut
@@ -65,7 +66,7 @@ class ConducteurAccueilTab extends StatelessWidget {
               child: _BarreGainsJour(gainsFcfa: gainsJourFcfa),
             ),
           ),
-          if (enLigne)
+          if (enLigne && !DefaultFirebaseOptions.estConfigure)
             SafeArea(
               child: Align(
                 alignment: Alignment.topRight,

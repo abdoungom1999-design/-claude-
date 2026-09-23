@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/email_verification_pending_page.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../courses/data/course_service.dart';
 import '../data/conducteur_repository.dart';
 import 'tabs/conducteur_accueil_tab.dart';
 import 'tabs/conducteur_compte_tab.dart';
@@ -20,6 +21,7 @@ import 'tabs/conducteur_evaluations_tab.dart';
 import 'tabs/conducteur_gains_tab.dart';
 import 'validation_pending_page.dart';
 import 'widgets/conducteur_bottom_nav.dart';
+import 'widgets/nouvelle_course_reelle_sheet.dart';
 import 'widgets/nouvelle_course_sheet.dart';
 
 /// Coquille de navigation de l'espace Conducteur (Sprint Conducteur) :
@@ -37,6 +39,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   final _conducteurRepository = ConducteurRepository();
   final _authRepository = AuthRepository();
   final _locationService = DeviceLocationService();
+  final _courseService = CourseService();
   final _random = Random();
 
   int _indexSelectionne = 0;
@@ -45,6 +48,9 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   LatLng? _dernierePosition;
   Timer? _minuteurPosition;
   Timer? _minuteurNouvelleCourse;
+  StreamSubscription<List<CourseFirestore>>? _abonnementCoursesEnAttente;
+  final Set<String> _idsCoursesIgnorees = {};
+  bool _sheetCourseOuverte = false;
 
   @override
   void initState() {
@@ -56,6 +62,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   void dispose() {
     _minuteurPosition?.cancel();
     _minuteurNouvelleCourse?.cancel();
+    _abonnementCoursesEnAttente?.cancel();
     super.dispose();
   }
 
@@ -69,7 +76,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       });
       if (_enLigne) {
         _demarrerEnvoiPosition();
-        _programmerProchaineCourse();
+        _demarrerRadarCourses();
       }
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -96,10 +103,10 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       setState(() => _enLigne = statutConfirme == 'EN_LIGNE');
       if (_enLigne) {
         _demarrerEnvoiPosition();
-        _programmerProchaineCourse();
+        _demarrerRadarCourses();
       } else {
         _arreterEnvoiPosition();
-        _minuteurNouvelleCourse?.cancel();
+        _arreterRadarCourses();
       }
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -136,26 +143,72 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     }
   }
 
+  /// Bascule entre le vrai radar Firestore (courses réelles en attente,
+  /// voir [CourseService.streamCoursesEnAttente]) et l'ancienne
+  /// simulation par minuteur, selon que Firebase est configuré ou non
+  /// — même repli défensif qu'ailleurs dans l'app si jamais Firebase
+  /// devait être désactivé.
+  void _demarrerRadarCourses() {
+    if (DefaultFirebaseOptions.estConfigure) {
+      _abonnementCoursesEnAttente?.cancel();
+      _abonnementCoursesEnAttente =
+          _courseService.streamCoursesEnAttente().listen(_traiterCoursesEnAttente);
+    } else {
+      _programmerProchaineCourseDemo();
+    }
+  }
+
+  void _arreterRadarCourses() {
+    _abonnementCoursesEnAttente?.cancel();
+    _abonnementCoursesEnAttente = null;
+    _minuteurNouvelleCourse?.cancel();
+  }
+
+  /// Dès qu'une course en attente apparaît (et qu'aucune bottom sheet
+  /// n'est déjà affichée), propose la plus ancienne non encore refusée
+  /// par ce chauffeur pendant cette session En ligne.
+  void _traiterCoursesEnAttente(List<CourseFirestore> courses) {
+    if (!mounted || !_enLigne || _sheetCourseOuverte) return;
+    final proposables = courses.where((c) => !_idsCoursesIgnorees.contains(c.id));
+    if (proposables.isEmpty) return;
+    _proposerCourseReelle(proposables.first);
+  }
+
+  Future<void> _proposerCourseReelle(CourseFirestore course) async {
+    final chauffeurId = FirebaseAuth.instance.currentUser?.uid;
+    if (chauffeurId == null) return;
+    _sheetCourseOuverte = true;
+    final gagnee = await afficherNouvelleCourseReelleSheet(
+      context,
+      course: course,
+      courseService: _courseService,
+      chauffeurId: chauffeurId,
+    );
+    _sheetCourseOuverte = false;
+    if (!gagnee) _idsCoursesIgnorees.add(course.id);
+  }
+
   /// Programme l'apparition simulée d'une prochaine course, à un délai
   /// aléatoire (pour ne pas paraître mécanique), tant que le conducteur
-  /// reste en ligne.
-  void _programmerProchaineCourse() {
+  /// reste en ligne. Utilisé uniquement en mode démo (pas de Firebase
+  /// configuré) — voir [_demarrerRadarCourses].
+  void _programmerProchaineCourseDemo() {
     _minuteurNouvelleCourse?.cancel();
     final delai = Duration(seconds: 20 + _random.nextInt(20));
     _minuteurNouvelleCourse = Timer(delai, () {
       if (!mounted || !_enLigne) return;
-      _declencherNouvelleCourse();
+      _declencherNouvelleCourseDemo();
     });
   }
 
-  Future<void> _declencherNouvelleCourse() async {
+  Future<void> _declencherNouvelleCourseDemo() async {
     await afficherNouvelleCourseSheet(context);
-    if (mounted && _enLigne) _programmerProchaineCourse();
+    if (mounted && _enLigne) _programmerProchaineCourseDemo();
   }
 
   Future<void> _seDeconnecter() async {
     _arreterEnvoiPosition();
-    _minuteurNouvelleCourse?.cancel();
+    _arreterRadarCourses();
     await _authRepository.deconnecter();
     if (mounted) context.go(AppRoutes.espacePro);
   }
@@ -196,7 +249,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
             onBasculerStatut: _basculerStatut,
             gainsJourFcfa: DemoData.gainsEstimesFcfa,
             position: _dernierePosition,
-            onSimulerCourse: _declencherNouvelleCourse,
+            onSimulerCourse: _declencherNouvelleCourseDemo,
           ),
           const ConducteurGainsTab(),
           const ConducteurEvaluationsTab(),
