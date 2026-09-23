@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -9,6 +10,8 @@ import '../../../core/location/device_location_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/email_verification_pending_page.dart';
+import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/conducteur_repository.dart';
 import 'tabs/conducteur_accueil_tab.dart';
@@ -164,6 +167,17 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
         backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator(color: AppColors.orange)),
       );
+    }
+
+    // Email pas encore vérifié : bloqué avant même l'examen du dossier
+    // KYC, quel que soit l'onglet visé.
+    if (DefaultFirebaseOptions.estConfigure) {
+      final utilisateur = FirebaseAuth.instance.currentUser;
+      if (utilisateur != null && !utilisateur.emailVerified) {
+        return const EmailVerificationPendingPage(
+          destinationApresVerification: AppRoutes.conducteur,
+        );
+      }
     }
 
     // Dossier pas encore validé (KYC en attente) : bloqué avant la carte

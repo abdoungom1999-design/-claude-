@@ -34,6 +34,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
 
   final _prenomController = TextEditingController();
   final _nomController = TextEditingController();
+  final _emailController = TextEditingController();
   final _telephoneController = TextEditingController();
   final _motDePasseController = TextEditingController();
   final _confirmationController = TextEditingController();
@@ -57,6 +58,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
   void dispose() {
     _prenomController.dispose();
     _nomController.dispose();
+    _emailController.dispose();
     _telephoneController.dispose();
     _motDePasseController.dispose();
     _confirmationController.dispose();
@@ -86,6 +88,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
     try {
       await AuthRepository().inscrireConducteur(
         nom: '${_prenomController.text.trim()} ${_nomController.text.trim()}',
+        email: _emailController.text.trim(),
         telephone: _telephoneController.text.trim(),
         motDePasse: _motDePasseController.text,
         vehiculeId: '${_marqueController.text.trim()} ${_modeleController.text.trim()} '
@@ -142,6 +145,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
                           formKey: _formKeyInfos,
                           prenomController: _prenomController,
                           nomController: _nomController,
+                          emailController: _emailController,
                           telephoneController: _telephoneController,
                           motDePasseController: _motDePasseController,
                           confirmationController: _confirmationController,
@@ -214,6 +218,7 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
     required this.formKey,
     required this.prenomController,
     required this.nomController,
+    required this.emailController,
     required this.telephoneController,
     required this.motDePasseController,
     required this.confirmationController,
@@ -224,6 +229,7 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController prenomController;
   final TextEditingController nomController;
+  final TextEditingController emailController;
   final TextEditingController telephoneController;
   final TextEditingController motDePasseController;
   final TextEditingController confirmationController;
@@ -262,6 +268,14 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+          AppTextField(
+            label: 'Email',
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            prefixIcon: Icons.mail_outline,
+            validator: (v) => (v == null || !v.contains('@')) ? 'Email invalide' : null,
           ),
           const SizedBox(height: 14),
           AppTextField(

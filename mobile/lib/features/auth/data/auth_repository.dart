@@ -16,15 +16,25 @@ import '../../../firebase_options.dart';
 ///   la démo déployée continue de fonctionner sans interruption tant
 ///   que ce n'est pas fait.
 ///
-/// Note sur le téléphone comme identifiant : FirebaseAuth s'appuie sur
-/// email + mot de passe. Client et Conducteur s'identifient par
-/// numéro de téléphone dans l'UI (pas d'email obligatoire), donc on
-/// dérive un email synthétique stable à partir du téléphone (ex.
-/// `+221771234501@sprint-client.app`) — un contournement courant pour
-/// utiliser l'auth email/mot de passe avec un identifiant téléphone.
-/// Ce n'est PAS une vérification par SMS/OTP réelle : à ajouter à part
-/// (Firebase Phone Auth) si le Groupe Santine veut confirmer les
-/// numéros pour de vrai.
+/// Note sur l'email : Client et Conducteur s'identifient par numéro de
+/// téléphone dans l'UI (l'écran de connexion ne demande que le
+/// téléphone), mais utilisent désormais leur VRAIE adresse email comme
+/// identifiant FirebaseAuth — nécessaire pour la vérification par
+/// email obligatoire (voir [inscrireClient]/[inscrireConducteur]).
+/// Avant cette étape, un email synthétique dérivé du téléphone était
+/// utilisé (ex. `+221771234501@sprint-client.app`) ; il a été
+/// abandonné car un lien de vérification envoyé à une adresse
+/// inventée ne peut jamais être reçu, ce qui aurait bloqué
+/// définitivement l'inscription. La connexion continue de ne demander
+/// que le téléphone : [_emailPourTelephone] retrouve la vraie adresse
+/// email associée dans Firestore avant d'appeler FirebaseAuth.
+///
+/// Important : les comptes créés avant ce changement (email
+/// synthétique, sans champ `email` dans leur document Firestore) ne
+/// peuvent plus être retrouvés par [_emailPourTelephone]. Il faut les
+/// supprimer (Firebase Console > Authentication, et le document
+/// correspondant dans Firestore > `users`) et réinscrire ces comptes
+/// de test.
 class AuthRepository {
   final _tokenStorage = TokenStorage();
 
@@ -33,6 +43,7 @@ class AuthRepository {
 
   Future<void> inscrireClient({
     required String nom,
+    required String email,
     required String telephone,
     required String motDePasse,
   }) async {
@@ -41,12 +52,14 @@ class AuthRepository {
     }
     try {
       final identifiants = await _auth.createUserWithEmailAndPassword(
-        email: _emailClient(telephone),
+        email: email,
         password: motDePasse,
       );
+      await identifiants.user!.sendEmailVerification();
       await _firestore.collection('users').doc(identifiants.user!.uid).set({
         'role': 'client',
         'nom': nom,
+        'email': email,
         'telephone': telephone,
         'statut': 'ACTIF',
         'creeLe': FieldValue.serverTimestamp(),
@@ -64,10 +77,8 @@ class AuthRepository {
       return _authentifierEnModeDemo();
     }
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: _emailClient(telephone),
-        password: motDePasse,
-      );
+      final email = await _emailPourTelephone(telephone, role: 'client');
+      await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
     }
@@ -77,10 +88,13 @@ class AuthRepository {
   /// véhicule, pièces justificatives). Le profil Firestore est créé
   /// avec `estValide: false` : le chauffeur atterrit sur
   /// [ValidationPendingPage] tant qu'un administrateur ne l'a pas
-  /// validé. En mode démo, la même règle est appliquée localement via
+  /// validé (et, avant même cela, sur l'écran de vérification email
+  /// tant que son adresse n'est pas confirmée). En mode démo, la même
+  /// règle KYC est appliquée localement via
   /// [DemoData.soumettreDossierConducteur].
   Future<void> inscrireConducteur({
     required String nom,
+    required String email,
     required String telephone,
     required String motDePasse,
     required String vehiculeId,
@@ -98,12 +112,14 @@ class AuthRepository {
     }
     try {
       final identifiants = await _auth.createUserWithEmailAndPassword(
-        email: _emailConducteur(telephone),
+        email: email,
         password: motDePasse,
       );
+      await identifiants.user!.sendEmailVerification();
       await _firestore.collection('users').doc(identifiants.user!.uid).set({
         'role': 'conducteur',
         'nom': nom,
+        'email': email,
         'telephone': telephone,
         'vehiculeId': vehiculeId,
         'plaqueImmatriculation': plaqueImmatriculation,
@@ -124,10 +140,8 @@ class AuthRepository {
       return _authentifierEnModeDemo();
     }
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: _emailConducteur(telephone),
-        password: motDePasse,
-      );
+      final email = await _emailPourTelephone(telephone, role: 'conducteur');
+      await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
     }
@@ -135,7 +149,10 @@ class AuthRepository {
 
   /// Comptes Admin créés hors application (Console Firebase ou
   /// Firestore directement) : pas d'inscription publique, uniquement
-  /// une connexion par un vrai email.
+  /// une connexion par un vrai email. Volontairement pas soumis à la
+  /// vérification email obligatoire (voir [inscrireClient]) : ce sont
+  /// des comptes internes provisionnés à la main, pas une inscription
+  /// publique à sécuriser contre les faux comptes.
   Future<void> connecterAdmin({
     required String email,
     required String motDePasse,
@@ -150,6 +167,28 @@ class AuthRepository {
     }
   }
 
+  /// Renvoie l'email de vérification au compte actuellement connecté
+  /// (bouton "Renvoyer l'email" de l'écran de blocage).
+  Future<void> renvoyerEmailVerification() async {
+    final utilisateur = _auth.currentUser;
+    if (utilisateur == null) return;
+    try {
+      await utilisateur.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      throw ApiException.depuisFirebaseAuth(e);
+    }
+  }
+
+  /// Recharge l'état du compte Firebase (nécessaire : `emailVerified`
+  /// ne se met pas à jour tout seul côté client après un clic sur le
+  /// lien reçu par email) et retourne si l'email est désormais vérifié.
+  Future<bool> rafraichirEtVerifierEmail() async {
+    final utilisateur = _auth.currentUser;
+    if (utilisateur == null) return false;
+    await utilisateur.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
   Future<void> deconnecter() async {
     if (DefaultFirebaseOptions.estConfigure) {
       await _auth.signOut();
@@ -157,14 +196,25 @@ class AuthRepository {
     await _tokenStorage.effacerTokens();
   }
 
-  String _emailClient(String telephone) =>
-      '${_nettoyerTelephone(telephone)}@sprint-client.app';
+  /// Retrouve l'email réel associé à un numéro de téléphone (et un
+  /// rôle, pour éviter qu'un même numéro utilisé à la fois côté Client
+  /// et Conducteur ne se mélange), à partir de la collection
+  /// Firestore `users` — l'écran de connexion ne demande que le
+  /// téléphone, mais FirebaseAuth a besoin d'un email pour se
+  /// connecter.
+  Future<String> _emailPourTelephone(String telephone, {required String role}) async {
+    final resultat = await _firestore
+        .collection('users')
+        .where('telephone', isEqualTo: telephone.trim())
+        .where('role', isEqualTo: role)
+        .limit(1)
+        .get();
 
-  String _emailConducteur(String telephone) =>
-      '${_nettoyerTelephone(telephone)}@sprint-conducteur.app';
-
-  String _nettoyerTelephone(String telephone) =>
-      telephone.trim().replaceAll(RegExp(r'\s+'), '');
+    if (resultat.docs.isEmpty) {
+      throw ApiException('Numéro ou mot de passe incorrect.');
+    }
+    return resultat.docs.first.data()['email'] as String;
+  }
 
   /// Simule un aller-retour réseau réussi (délai réaliste + jeton
   /// factice) sans contacter Firebase. Utilisé tant que le projet

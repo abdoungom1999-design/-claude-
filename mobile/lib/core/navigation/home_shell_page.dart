@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../firebase_options.dart';
 import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
+import '../widgets/email_verification_pending_page.dart';
 import '../widgets/premium_dialog.dart';
 
 /// Coquille de navigation Client : barre du bas à 4 onglets (Accueil,
@@ -24,6 +27,15 @@ class HomeShellPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (DefaultFirebaseOptions.estConfigure) {
+      final utilisateur = FirebaseAuth.instance.currentUser;
+      if (utilisateur != null && !utilisateur.emailVerified) {
+        return const EmailVerificationPendingPage(
+          destinationApresVerification: AppRoutes.home,
+        );
+      }
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: navigationShell,

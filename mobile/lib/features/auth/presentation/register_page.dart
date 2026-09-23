@@ -55,6 +55,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       await _authRepository.inscrireClient(
         nom: _nomController.text.trim(),
+        email: _emailController.text.trim(),
         telephone: _telephoneController.text.trim(),
         motDePasse: _motDePasseController.text,
       );
@@ -96,6 +97,9 @@ class _RegisterPageState extends State<RegisterPage> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               prefixIcon: Icons.mail_outline,
+              validator: (valeur) => (valeur == null || !valeur.contains('@'))
+                  ? 'Email invalide'
+                  : null,
             ),
             const SizedBox(height: 14),
             AppTextField(
