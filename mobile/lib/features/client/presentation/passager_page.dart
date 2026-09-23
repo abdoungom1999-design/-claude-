@@ -1,17 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/maps/distance_utils.dart';
 import '../../../core/maps/geocoding_service.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../core/network/token_storage.dart';
-import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/address_search_field.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/payment_method_selector.dart';
+import '../../../core/widgets/payment_method_sheet.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/trip_map.dart';
 import '../../../firebase_options.dart';
@@ -42,7 +40,6 @@ class _PassagerPageState extends State<PassagerPage> {
 
   AdresseSuggestion? _depart;
   AdresseSuggestion? _arrivee;
-  PaymentMethod _methodePaiement = PaymentMethod.wave;
   EstimationPrix? _estimation;
   bool _estimationEnCours = false;
   bool _enCours = false;
@@ -86,6 +83,13 @@ class _PassagerPageState extends State<PassagerPage> {
     }
   }
 
+  /// La commande n'a plus de vérification de session ici : accéder à
+  /// cet écran passe forcément par le shell Client, lui-même
+  /// inaccessible sans connexion Firebase préalable (voir
+  /// `WelcomePage`) — redemander une authentification à ce stade
+  /// serait un mur redondant. À la place, valider l'adresse ouvre
+  /// directement le choix du mode de paiement, qui déclenche l'écriture
+  /// dans Firestore.
   Future<void> _commander() async {
     if (!_formKey.currentState!.validate()) return;
     if (_depart == null || _arrivee == null) {
@@ -99,33 +103,33 @@ class _PassagerPageState extends State<PassagerPage> {
       return;
     }
 
-    if (DefaultFirebaseOptions.estConfigure) {
-      if (FirebaseAuth.instance.currentUser == null) {
-        if (!mounted) return;
-        final connecte = await context.push<bool>(AppRoutes.clientLogin);
-        if (connecte != true || !mounted) return;
-      }
-    } else {
-      final token = await TokenStorage().getAccessToken();
-      if (token == null) {
-        if (!mounted) return;
-        final connecte = await context.push<bool>(AppRoutes.clientLogin);
-        if (connecte != true || !mounted) return;
-        await _rafraichirEstimation();
-      }
-    }
+    final methode = await afficherSelectionPaiementSheet(context);
+    if (methode == null || !mounted) return;
 
     setState(() => _enCours = true);
     try {
       if (DefaultFirebaseOptions.estConfigure) {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid == null) {
+          // Cas limite impossible en usage normal (voir la note de la
+          // méthode) : on évite un crash plutôt que de rouvrir un mur
+          // de connexion.
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Une erreur est survenue. Veuillez réessayer.')),
+            );
+          }
+          return;
+        }
         final estimation = _estimation ??
             await _pricingRepository.estimer(type: 'PASSAGER', distanceKm: _distanceKm!);
         final courseId = await _courseService.creerCourse(
-          clientId: FirebaseAuth.instance.currentUser!.uid,
+          clientId: uid,
           type: 'PASSAGER',
           adresseDepart: _adresseDepartController.text.trim(),
           adresseArrivee: _adresseArriveeController.text.trim(),
           prixFcfa: estimation.prixFcfa,
+          methodePaiement: methode.apiValue,
         );
         if (!mounted) return;
         await Navigator.of(context).push(
@@ -143,7 +147,7 @@ class _PassagerPageState extends State<PassagerPage> {
         'latitudeArrivee': _arrivee!.latitude,
         'longitudeArrivee': _arrivee!.longitude,
         'distanceKm': _distanceKm,
-        'methodePaiement': _methodePaiement.apiValue,
+        'methodePaiement': methode.apiValue,
       });
       if (!mounted) return;
       final prixTexte = course.prixFcfa != null
@@ -270,21 +274,6 @@ class _PassagerPageState extends State<PassagerPage> {
                           style: const TextStyle(fontSize: 12, color: AppColors.grey),
                         ),
                       ],
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Méthode de paiement',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      PaymentMethodSelector(
-                        value: _methodePaiement,
-                        onChanged: (methode) =>
-                            setState(() => _methodePaiement = methode),
-                      ),
                     ],
                   ),
                 ),

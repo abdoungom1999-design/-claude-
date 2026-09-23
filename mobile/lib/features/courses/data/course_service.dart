@@ -19,6 +19,7 @@ class CourseFirestore {
     required this.adresseDepart,
     required this.adresseArrivee,
     required this.prixFcfa,
+    required this.methodePaiement,
     required this.timestamp,
   });
 
@@ -30,6 +31,7 @@ class CourseFirestore {
   final String adresseDepart;
   final String adresseArrivee;
   final int prixFcfa;
+  final String methodePaiement;
   final DateTime timestamp;
 
   factory CourseFirestore.depuisDocument(String id, Map<String, dynamic> donnees) {
@@ -43,6 +45,7 @@ class CourseFirestore {
       adresseDepart: donnees['adresseDepart'] as String? ?? '',
       adresseArrivee: donnees['adresseArrivee'] as String? ?? '',
       prixFcfa: (donnees['prixFcfa'] as num?)?.toInt() ?? 0,
+      methodePaiement: donnees['methodePaiement'] as String? ?? '',
       // `timestamp` est un FieldValue.serverTimestamp() : encore `null`
       // côté client le temps que le serveur confirme l'écriture.
       timestamp: horodatage is Timestamp ? horodatage.toDate() : DateTime.now(),
@@ -70,6 +73,7 @@ class CourseService {
     required String adresseDepart,
     required String adresseArrivee,
     required int prixFcfa,
+    required String methodePaiement,
   }) async {
     final doc = await _courses.add({
       'clientId': clientId,
@@ -79,6 +83,7 @@ class CourseService {
       'adresseDepart': adresseDepart,
       'adresseArrivee': adresseArrivee,
       'prixFcfa': prixFcfa,
+      'methodePaiement': methodePaiement,
       'timestamp': FieldValue.serverTimestamp(),
     });
     return doc.id;
