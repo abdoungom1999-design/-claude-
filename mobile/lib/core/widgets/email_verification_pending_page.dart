@@ -101,8 +101,17 @@ class _EmailVerificationPendingPageState
         });
       }
     } catch (_) {
-      // Vérification en arrière-plan : un aléa réseau ponctuel ne doit
-      // pas afficher d'erreur, le prochain tick réessaiera.
+      // En arrière-plan (polling silencieux), un aléa réseau ponctuel
+      // ne doit pas afficher d'erreur : le prochain tick réessaiera.
+      // Sur un clic manuel en revanche, rester muet donnerait
+      // l'impression d'un bouton qui ne répond pas — on informe donc
+      // l'utilisateur explicitement.
+      if (!depuisPolling) {
+        setState(() {
+          _message = 'Impossible de vérifier pour le moment. Vérifiez votre '
+              'connexion et réessayez.';
+        });
+      }
     } finally {
       if (mounted && !depuisPolling) {
         setState(() => _verificationEnCours = false);

@@ -53,8 +53,8 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
 
     final fichier = await _imagePicker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 640,
-      imageQuality: 35,
+      maxWidth: 800,
+      imageQuality: 40,
     );
     if (fichier == null || !mounted) return;
 

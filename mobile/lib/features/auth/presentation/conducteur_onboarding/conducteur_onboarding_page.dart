@@ -8,14 +8,18 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../data/auth_repository.dart';
 import 'widgets/indicateur_etapes.dart';
-import 'widgets/zone_document.dart';
 
-/// Parcours d'inscription Chauffeur en 3 étapes (Onboarding / KYC) :
-/// informations personnelles, véhicule, puis pièces justificatives.
-/// Remplace l'ancien formulaire court (un seul champ "Véhicule") — un
-/// chauffeur ne peut plus accéder directement au tableau de bord sans
-/// soumettre un dossier complet, qui reste ensuite en attente de
-/// validation (voir [ValidationPendingPage]).
+/// Parcours d'inscription Chauffeur en 2 étapes : informations
+/// personnelles puis véhicule. Crée le compte (Firebase réel ou mode
+/// démo, voir [AuthRepository.inscrireConducteur]) puis redirige vers
+/// [ConducteurShellPage], qui enchaîne vérification email puis
+/// [ConducteurKYCPage] pour les vraies pièces justificatives.
+///
+/// Ne comporte plus d'étape "Documents" ici : cette page contenait
+/// auparavant un upload simulé (aucun vrai fichier lu, juste une barre
+/// de progression suivie d'un check vert), redondant et trompeur
+/// maintenant que [ConducteurKYCPage] collecte les vrais documents
+/// (image_picker + Firestore) juste après la création du compte.
 class ConducteurOnboardingPage extends StatefulWidget {
   const ConducteurOnboardingPage({super.key});
 
@@ -24,7 +28,7 @@ class ConducteurOnboardingPage extends StatefulWidget {
 }
 
 class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
-  static const _labelsEtapes = ['Informations', 'Véhicule', 'Documents'];
+  static const _labelsEtapes = ['Informations', 'Véhicule'];
 
   int _etape = 0;
   bool _enCours = false;
@@ -45,15 +49,6 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
   final _anneeController = TextEditingController();
   final _plaqueController = TextEditingController();
 
-  final Map<String, bool> _documents = {
-    'identite': false,
-    'permis': false,
-    'carteGrise': false,
-    'assurance': false,
-  };
-
-  bool get _tousDocumentsSoumis => _documents.values.every((v) => v);
-
   @override
   void dispose() {
     _prenomController.dispose();
@@ -71,7 +66,6 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
 
   void _etapeSuivante() {
     if (_etape == 0 && !_formKeyInfos.currentState!.validate()) return;
-    if (_etape == 1 && !_formKeyVehicule.currentState!.validate()) return;
     setState(() => _etape++);
   }
 
@@ -81,6 +75,11 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
       return;
     }
     setState(() => _etape--);
+  }
+
+  void _validerEtCreerCompte() {
+    if (!_formKeyVehicule.currentState!.validate()) return;
+    _soumettreDossier();
   }
 
   Future<void> _soumettreDossier() async {
@@ -98,7 +97,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
       if (!mounted) return;
       AppSnackbar.succes(
         context,
-        'Votre dossier a bien été soumis pour vérification.',
+        'Compte créé ! Vérifiez votre email, puis envoyez vos documents.',
         icon: Icons.folder_shared_outlined,
       );
       context.go(AppRoutes.conducteur);
@@ -153,17 +152,12 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
                           onToggleMotDePasseVisible: () =>
                               setState(() => _motDePasseVisible = !_motDePasseVisible),
                         ),
-                      1 => _EtapeVehicule(
+                      _ => _EtapeVehicule(
                           formKey: _formKeyVehicule,
                           marqueController: _marqueController,
                           modeleController: _modeleController,
                           anneeController: _anneeController,
                           plaqueController: _plaqueController,
-                        ),
-                      _ => _EtapeDocuments(
-                          documents: _documents,
-                          onStatutChange: (cle, valeur) =>
-                              setState(() => _documents[cle] = valeur),
                         ),
                     },
                   ),
@@ -196,11 +190,9 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
                   Expanded(
                     flex: 2,
                     child: PrimaryButton(
-                      label: _etape == 2 ? 'Soumettre mon dossier' : 'Suivant',
+                      label: _etape == 1 ? 'Créer mon compte' : 'Suivant',
                       isLoading: _enCours,
-                      onPressed: _etape == 2
-                          ? (_tousDocumentsSoumis ? _soumettreDossier : null)
-                          : _etapeSuivante,
+                      onPressed: _etape == 1 ? _validerEtCreerCompte : _etapeSuivante,
                     ),
                   ),
                 ],
@@ -385,55 +377,6 @@ class _EtapeVehicule extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _EtapeDocuments extends StatelessWidget {
-  const _EtapeDocuments({required this.documents, required this.onStatutChange});
-
-  final Map<String, bool> documents;
-  final void Function(String cle, bool valeur) onStatutChange;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _EnTeteEtape(
-          titre: 'Vos documents',
-          sousTitre: 'Ajoutez une photo lisible de chaque document. Ils seront vérifiés par '
-              "l'équipe du Groupe Santine.",
-        ),
-        const SizedBox(height: 22),
-        ZoneDocument(
-          titre: "Pièce d'identité",
-          description: 'CNI ou passeport en cours de validité',
-          icon: Icons.badge_outlined,
-          onStatutChange: (v) => onStatutChange('identite', v),
-        ),
-        const SizedBox(height: 12),
-        ZoneDocument(
-          titre: 'Permis de conduire',
-          description: 'Recto-verso, lisible',
-          icon: Icons.credit_card_outlined,
-          onStatutChange: (v) => onStatutChange('permis', v),
-        ),
-        const SizedBox(height: 12),
-        ZoneDocument(
-          titre: 'Carte grise du véhicule',
-          description: 'Document original, en cours de validité',
-          icon: Icons.description_outlined,
-          onStatutChange: (v) => onStatutChange('carteGrise', v),
-        ),
-        const SizedBox(height: 12),
-        ZoneDocument(
-          titre: "Attestation d'assurance",
-          description: 'Assurance en cours de validité',
-          icon: Icons.shield_outlined,
-          onStatutChange: (v) => onStatutChange('assurance', v),
-        ),
-      ],
     );
   }
 }
