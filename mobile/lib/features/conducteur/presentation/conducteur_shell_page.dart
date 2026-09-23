@@ -14,6 +14,8 @@ import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
 import '../data/conducteur_repository.dart';
+import 'conducteur_en_attente_page.dart';
+import 'conducteur_kyc_page.dart';
 import 'tabs/conducteur_accueil_tab.dart';
 import 'tabs/conducteur_compte_tab.dart';
 import 'tabs/conducteur_evaluations_tab.dart';
@@ -23,6 +25,12 @@ import 'validation_pending_page.dart';
 import 'widgets/conducteur_bottom_nav.dart';
 import 'widgets/nouvelle_course_reelle_sheet.dart';
 import 'widgets/nouvelle_course_sheet.dart';
+
+/// État du "Gardien" KYC, déterminé une seule fois à l'ouverture (juste
+/// après connexion) à partir du champ `statutValidation` du document
+/// Firestore de l'utilisateur — jamais du booléen legacy `estValide` de
+/// [ConducteurRepository] (voir [_ConducteurShellPageState._chargerProfil]).
+enum _EtapeKyc { chargement, nonEnvoye, enAttente, valide }
 
 /// Coquille de navigation de l'espace Conducteur (Sprint Conducteur) :
 /// barre du bas à 5 onglets (Accueil, Messages, Gains, Évaluations,
@@ -46,6 +54,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   int _indexSelectionne = 0;
   ProfilConducteur? _profil;
   bool _enLigne = false;
+  _EtapeKyc _etapeKyc = _EtapeKyc.chargement;
   Timer? _minuteurPosition;
   Timer? _minuteurNouvelleCourse;
   StreamSubscription<List<CourseFirestore>>? _abonnementCoursesEnAttente;
@@ -74,7 +83,10 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
         _profil = profil;
         _enLigne = profil.statut == 'EN_LIGNE';
       });
-      if (_enLigne) {
+      if (DefaultFirebaseOptions.estConfigure) {
+        await _chargerEtapeKyc();
+      }
+      if (mounted && _gateOuverte && _enLigne) {
         _demarrerEnvoiPosition();
         _demarrerRadarCourses();
       }
@@ -83,6 +95,37 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
+
+  /// Lit une fois le document Firestore de l'utilisateur connecté pour
+  /// déterminer l'étape du "Gardien" KYC — voir [_EtapeKyc]. Évaluée
+  /// juste après connexion (pas en continu) : c'est au chauffeur de
+  /// confirmer explicitement l'envoi de son dossier via
+  /// [ConducteurKYCPage.onDossierSoumis] pour avancer d'une étape,
+  /// plutôt que de basculer automatiquement dès le premier document
+  /// envoyé (ce qui le ferait quitter la page KYC avant d'avoir eu le
+  /// temps d'envoyer les deux autres).
+  Future<void> _chargerEtapeKyc() async {
+    final donnees = await _authRepository.chargerProfilUtilisateur();
+    if (!mounted) return;
+    final statutValidation = donnees?['statutValidation'] as String?;
+    setState(() {
+      _etapeKyc = switch (statutValidation) {
+        'valide' => _EtapeKyc.valide,
+        'en_attente' => _EtapeKyc.enAttente,
+        _ => _EtapeKyc.nonEnvoye,
+      };
+    });
+  }
+
+  /// Vrai une fois le dossier du chauffeur validé — condition d'accès
+  /// au tableau de bord (radar de courses compris). En Firebase réel,
+  /// se base sur le vrai champ Firestore `statutValidation` (voir
+  /// [_chargerEtapeKyc]) ; en mode démo (pas de projet Firebase
+  /// configuré), conserve l'ancien repli sur
+  /// `ProfilConducteur.estValide` de [ConducteurRepository].
+  bool get _gateOuverte => DefaultFirebaseOptions.estConfigure
+      ? _etapeKyc == _EtapeKyc.valide
+      : (_profil?.estValide ?? false);
 
   Future<void> _basculerStatut(bool vouloirEnLigne) async {
     if (vouloirEnLigne) {
@@ -231,9 +274,29 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       }
     }
 
-    // Dossier pas encore validé (KYC en attente) : bloqué avant la carte
-    // et la bascule En ligne, quel que soit l'onglet visé.
-    if (!_profil!.estValide) {
+    // Le "Gardien" KYC : bloqué avant la carte et la bascule En ligne,
+    // quel que soit l'onglet visé, tant que le dossier n'est pas validé.
+    if (DefaultFirebaseOptions.estConfigure) {
+      switch (_etapeKyc) {
+        case _EtapeKyc.chargement:
+          return const Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+          );
+        case _EtapeKyc.nonEnvoye:
+          return ConducteurKYCPage(
+            onDossierSoumis: () => setState(() => _etapeKyc = _EtapeKyc.enAttente),
+            onDeconnexion: _seDeconnecter,
+          );
+        case _EtapeKyc.enAttente:
+          return ConducteurEnAttentePage(onDeconnexion: _seDeconnecter);
+        case _EtapeKyc.valide:
+          break;
+      }
+    } else if (!_profil!.estValide) {
+      // Mode démo (pas de projet Firebase configuré) : conserve
+      // l'ancien repli, `statutValidation` n'existant pas côté
+      // [DemoData].
       return const ValidationPendingPage();
     }
 
