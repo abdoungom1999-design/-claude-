@@ -1,9 +1,13 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// Énorme bouton rond flottant pour basculer En ligne / Hors ligne,
-/// pensé pour une lecture rapide au volant : noir/gris hors ligne,
-/// orange et radar clignotant (recherche de clients) en ligne.
+/// Énorme bouton rond flottant pour basculer En ligne / Hors ligne.
+/// Hors ligne : halo orange qui respire lentement (pulsation), pour
+/// inviter au tap sans être agressif. En ligne : l'animation se
+/// transforme en radar high-tech (anneaux concentriques + balayage
+/// rotatif), pour une lecture immédiate "je cherche des clients".
 class BoutonEnLigneCirculaire extends StatefulWidget {
   const BoutonEnLigneCirculaire({
     super.key,
@@ -20,38 +24,71 @@ class BoutonEnLigneCirculaire extends StatefulWidget {
 }
 
 class _BoutonEnLigneCirculaireState extends State<BoutonEnLigneCirculaire>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
+    with TickerProviderStateMixin {
+  late final AnimationController _radarController = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 2),
   )..repeat();
 
+  late final AnimationController _glowController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat(reverse: true);
+
   @override
   void dispose() {
-    _controller.dispose();
+    _radarController.dispose();
+    _glowController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 200,
-      height: 200,
+      width: 220,
+      height: 220,
       child: Stack(
         alignment: Alignment.center,
         children: [
           if (widget.enLigne)
             AnimatedBuilder(
-              animation: _controller,
+              animation: _radarController,
               builder: (context, child) {
                 return Stack(
                   alignment: Alignment.center,
                   children: [
-                    _CercleRadar(progression: _controller.value),
-                    _CercleRadar(
-                      progression: (_controller.value + 0.5) % 1.0,
+                    Transform.rotate(
+                      angle: _radarController.value * 2 * pi,
+                      child: CustomPaint(
+                        size: const Size(210, 210),
+                        painter: _BalayageRadarPainter(),
+                      ),
                     ),
+                    _CercleRadar(progression: _radarController.value),
+                    _CercleRadar(progression: (_radarController.value + 0.33) % 1.0),
+                    _CercleRadar(progression: (_radarController.value + 0.66) % 1.0),
                   ],
+                );
+              },
+            )
+          else
+            AnimatedBuilder(
+              animation: _glowController,
+              builder: (context, child) {
+                final t = Curves.easeInOut.transform(_glowController.value);
+                return Container(
+                  width: 150 + t * 46,
+                  height: 150 + t * 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.orange.withValues(alpha: 0.16 + t * 0.28),
+                        blurRadius: 32 + t * 24,
+                        spreadRadius: 2 + t * 12,
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -153,4 +190,28 @@ class _CercleRadar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Fine ligne de balayage rotative (façon écran radar), pour renforcer
+/// l'effet "high-tech" une fois en ligne.
+class _BalayageRadarPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = size.center(Offset.zero);
+    final rayon = size.width / 2;
+    final rect = Rect.fromCircle(center: centre, radius: rayon);
+    final peinture = Paint()
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: pi / 3.5,
+        colors: [
+          AppColors.orange.withValues(alpha: 0.0),
+          AppColors.orange.withValues(alpha: 0.4),
+        ],
+      ).createShader(rect);
+    canvas.drawArc(rect, 0, pi / 3.5, true, peinture);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

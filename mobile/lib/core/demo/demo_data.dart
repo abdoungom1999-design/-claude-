@@ -191,6 +191,8 @@ class DemoData {
   static const int coursesAujourdHui = 7;
   static const int gainsEstimesFcfa = 18400;
   static const double noteMoyenneConducteur = 5.0;
+  static const double tauxAcceptationConducteur = 0.95;
+  static const int objectifJournalierFcfa = 20000;
 
   // --- Tarification (réplique exacte du backend) -------------------------
 
