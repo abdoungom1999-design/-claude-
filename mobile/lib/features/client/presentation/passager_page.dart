@@ -13,10 +13,9 @@ import '../../../core/widgets/payment_method_sheet.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/trip_map.dart';
 import '../../../firebase_options.dart';
-import '../../courses/data/course_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/pricing_repository.dart';
-import 'suivi_course_page.dart';
+import 'payment_processing_page.dart';
 
 /// Écran de réservation d'une course "Passager" (moto-taxi), connecté à
 /// l'API. Carte réelle (OpenStreetMap), géocodage d'adresses (Nominatim)
@@ -36,7 +35,6 @@ class _PassagerPageState extends State<PassagerPage> {
   final _adresseArriveeController = TextEditingController();
   final _coursesRepository = CoursesRepository();
   final _pricingRepository = PricingRepository();
-  final _courseService = CourseService();
 
   AdresseSuggestion? _depart;
   AdresseSuggestion? _arrivee;
@@ -87,9 +85,10 @@ class _PassagerPageState extends State<PassagerPage> {
   /// cet écran passe forcément par le shell Client, lui-même
   /// inaccessible sans connexion Firebase préalable (voir
   /// `WelcomePage`) — redemander une authentification à ce stade
-  /// serait un mur redondant. À la place, valider l'adresse ouvre
-  /// directement le choix du mode de paiement, qui déclenche l'écriture
-  /// dans Firestore.
+  /// serait un mur redondant. À la place, valider l'adresse ouvre le
+  /// choix du mode de paiement, puis le sas de paiement obligatoire
+  /// (voir [PaymentProcessingPage]) qui déclenche lui-même l'écriture
+  /// dans Firestore une fois la simulation de confirmation terminée.
   Future<void> _commander() async {
     if (!_formKey.currentState!.validate()) return;
     if (_depart == null || _arrivee == null) {
@@ -123,17 +122,18 @@ class _PassagerPageState extends State<PassagerPage> {
         }
         final estimation = _estimation ??
             await _pricingRepository.estimer(type: 'PASSAGER', distanceKm: _distanceKm!);
-        final courseId = await _courseService.creerCourse(
-          clientId: uid,
-          type: 'PASSAGER',
-          adresseDepart: _adresseDepartController.text.trim(),
-          adresseArrivee: _adresseArriveeController.text.trim(),
-          prixFcfa: estimation.prixFcfa,
-          methodePaiement: methode.apiValue,
-        );
         if (!mounted) return;
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => SuiviCoursePage(courseId: courseId)),
+          MaterialPageRoute(
+            builder: (_) => PaymentProcessingPage(
+              methode: methode,
+              clientId: uid,
+              type: 'PASSAGER',
+              adresseDepart: _adresseDepartController.text.trim(),
+              adresseArrivee: _adresseArriveeController.text.trim(),
+              prixFcfa: estimation.prixFcfa,
+            ),
+          ),
         );
         return;
       }

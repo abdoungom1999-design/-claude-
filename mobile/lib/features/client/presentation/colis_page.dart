@@ -14,10 +14,9 @@ import '../../../core/widgets/payment_method_sheet.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/trip_map.dart';
 import '../../../firebase_options.dart';
-import '../../courses/data/course_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/pricing_repository.dart';
-import 'suivi_course_page.dart';
+import 'payment_processing_page.dart';
 
 /// Écran d'envoi d'un colis, connecté à l'API. Carte réelle
 /// (OpenStreetMap), géocodage d'adresses (Nominatim) et prix dynamique
@@ -38,7 +37,6 @@ class _ColisPageState extends State<ColisPage> {
   final _adresseLivraisonController = TextEditingController();
   final _coursesRepository = CoursesRepository();
   final _pricingRepository = PricingRepository();
-  final _courseService = CourseService();
 
   AdresseSuggestion? _retrait;
   AdresseSuggestion? _livraison;
@@ -89,8 +87,10 @@ class _ColisPageState extends State<ColisPage> {
   /// forcément par le shell Client, lui-même inaccessible sans
   /// connexion Firebase préalable (voir `WelcomePage`) — redemander une
   /// authentification à ce stade serait un mur redondant. Valider
-  /// l'adresse ouvre directement le choix du mode de paiement, qui
-  /// déclenche l'écriture dans Firestore.
+  /// l'adresse ouvre le choix du mode de paiement, puis le sas de
+  /// paiement obligatoire (voir [PaymentProcessingPage]) qui déclenche
+  /// lui-même l'écriture dans Firestore une fois la simulation de
+  /// confirmation terminée.
   Future<void> _envoyer() async {
     if (!_formKey.currentState!.validate()) return;
     if (_retrait == null || _livraison == null) {
@@ -124,17 +124,18 @@ class _ColisPageState extends State<ColisPage> {
         }
         final estimation = _estimation ??
             await _pricingRepository.estimer(type: 'COLIS', distanceKm: _distanceKm!);
-        final courseId = await _courseService.creerCourse(
-          clientId: uid,
-          type: 'COLIS',
-          adresseDepart: _adresseRetraitController.text.trim(),
-          adresseArrivee: _adresseLivraisonController.text.trim(),
-          prixFcfa: estimation.prixFcfa,
-          methodePaiement: methode.apiValue,
-        );
         if (!mounted) return;
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => SuiviCoursePage(courseId: courseId)),
+          MaterialPageRoute(
+            builder: (_) => PaymentProcessingPage(
+              methode: methode,
+              clientId: uid,
+              type: 'COLIS',
+              adresseDepart: _adresseRetraitController.text.trim(),
+              adresseArrivee: _adresseLivraisonController.text.trim(),
+              prixFcfa: estimation.prixFcfa,
+            ),
+          ),
         );
         return;
       }

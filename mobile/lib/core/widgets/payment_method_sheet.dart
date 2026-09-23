@@ -5,11 +5,12 @@ import 'payment_method_selector.dart';
 /// Bottom sheet "Choisissez votre mode de paiement", affichée juste
 /// avant la création réelle de la course (voir `PassagerPage` /
 /// `ColisPage`) : le clic sur "Commander" ouvre cette sheet plutôt que
-/// d'écrire directement dans Firestore. Chaque option valide
-/// immédiatement le choix et referme la sheet — pas de bouton de
-/// confirmation séparé. L'encaissement réel (Wave, Orange Money) n'est
-/// pas encore intégré : le choix est pour l'instant simplement
-/// enregistré avec la course, en préparation du vrai paiement.
+/// d'écrire directement dans Firestore. Uniquement Wave et Orange
+/// Money — Groupe Santine est passé au 100% mobile money, les
+/// chauffeurs ne gèrent plus d'espèces. Chaque option valide
+/// immédiatement le choix et referme la sheet, puis ouvre le sas de
+/// paiement obligatoire (voir `PaymentProcessingPage`) avant toute
+/// écriture Firestore.
 ///
 /// Retourne `null` si l'utilisateur ferme la sheet sans choisir
 /// (glissement vers le bas, tap en dehors) : dans ce cas, aucune course
@@ -66,13 +67,6 @@ class _SelectionPaiementSheet extends StatelessWidget {
             icon: Icons.account_balance_wallet_rounded,
             couleur: AppColors.orange,
             methode: PaymentMethod.orangeMoney,
-          ),
-          const SizedBox(height: 12),
-          _OptionPaiement(
-            emoji: '💵',
-            icon: Icons.payments_rounded,
-            couleur: Colors.green.shade600,
-            methode: PaymentMethod.cash,
           ),
         ],
       ),
