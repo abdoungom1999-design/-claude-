@@ -7,6 +7,7 @@ import '../../../core/widgets/banner_carousel.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/reassurance_tile.dart';
 import '../../../core/widgets/trip_map.dart';
+import '../../compte/presentation/mes_notifications_page.dart';
 
 /// Onglet Accueil : recherche de destination, carte, bannières
 /// promotionnelles et grille de réassurance.
@@ -52,7 +53,9 @@ class HomeTabPage extends StatelessWidget {
                   children: [
                     _IconeHeader(
                       icon: Icons.notifications_outlined,
-                      onTap: () {},
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const MesNotificationsPage()),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     _IconeHeader(

@@ -71,49 +71,57 @@ class _CompteTabPageState extends State<CompteTabPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppColors.orange, AppColors.orangeDark],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    DemoData.monNomClient.isNotEmpty
-                        ? DemoData.monNomClient[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DemoData.monNomClient,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            StreamBuilder<Map<String, dynamic>?>(
+              stream: _authRepository.profilUtilisateurStream(),
+              builder: (context, snapshot) {
+                final nomFirestore = (snapshot.data?['nom'] as String?)?.trim();
+                final nomAffiche = (nomFirestore != null && nomFirestore.isNotEmpty)
+                    ? nomFirestore
+                    : DemoData.monNomClient;
+                final initiale = nomAffiche.isNotEmpty ? nomAffiche[0].toUpperCase() : '?';
+                return Row(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.orange, AppColors.orangeDark],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Client Sprint',
-                        style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                      alignment: Alignment.center,
+                      child: Text(
+                        initiale,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nomAffiche,
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Client Sprint',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 22),
             WalletCard(

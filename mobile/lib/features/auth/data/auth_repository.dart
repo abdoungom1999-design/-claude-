@@ -202,6 +202,57 @@ class AuthRepository {
     await _tokenStorage.effacerTokens();
   }
 
+  /// Flux temps réel du document Firestore `users/{uid}` de
+  /// l'utilisateur connecté (nom, email, téléphone…), pour afficher le
+  /// vrai profil sur l'onglet Compte sans données de démo en dur. Émet
+  /// `null` en mode démo (pas de projet Firebase configuré) ou si
+  /// personne n'est connecté — l'appelant retombe alors sur [DemoData].
+  Stream<Map<String, dynamic>?> profilUtilisateurStream() {
+    final uid = _auth.currentUser?.uid;
+    if (!DefaultFirebaseOptions.estConfigure || uid == null) {
+      return Stream.value(null);
+    }
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) => doc.data());
+  }
+
+  /// Charge une fois le profil Firestore de l'utilisateur connecté,
+  /// pour pré-remplir le formulaire "Informations personnelles". `null`
+  /// en mode démo ou si personne n'est connecté.
+  Future<Map<String, dynamic>?> chargerProfilUtilisateur() async {
+    final uid = _auth.currentUser?.uid;
+    if (!DefaultFirebaseOptions.estConfigure || uid == null) return null;
+    final doc = await _firestore.collection('users').doc(uid).get();
+    return doc.data();
+  }
+
+  /// Met à jour le nom et le téléphone du profil Firestore de
+  /// l'utilisateur connecté ("Informations personnelles"). Ne modifie
+  /// jamais l'email d'authentification Firebase — un changement
+  /// d'email exigerait une réauthentification et une nouvelle
+  /// vérification, hors périmètre ici. En mode démo, répercute le
+  /// changement dans [DemoData] pour garder l'expérience cohérente.
+  Future<void> mettreAJourProfil({
+    required String nom,
+    required String telephone,
+  }) async {
+    if (!DefaultFirebaseOptions.estConfigure) {
+      final parties = nom.trim().split(RegExp(r'\s+'));
+      DemoData.mettreAJourProfilClient(
+        prenom: parties.isNotEmpty ? parties.first : '',
+        nom: parties.length > 1 ? parties.sublist(1).join(' ') : '',
+        telephone: telephone,
+        email: DemoData.monEmailClient,
+      );
+      return;
+    }
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    await _firestore.collection('users').doc(uid).update({
+      'nom': nom,
+      'telephone': telephone,
+    });
+  }
+
   /// Envoie l'email de réinitialisation de mot de passe (bouton "Mot
   /// de passe oublié ?" de l'écran de connexion). En mode démo (pas de
   /// projet Firebase configuré), simule un aller-retour réussi sans
