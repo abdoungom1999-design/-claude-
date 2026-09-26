@@ -200,16 +200,16 @@ class DemoData {
 
   static const _tarifsPassager = _Tarifs(
     prisEnCharge: 500,
-    parKm: 150,
+    parKm: 300,
     parMinute: 50,
-    prixMinimum: 500,
+    prixMinimum: 1000,
   );
 
   static const _tarifsColis = _Tarifs(
-    prisEnCharge: 700,
-    parKm: 200,
+    prisEnCharge: 500,
+    parKm: 300,
     parMinute: 40,
-    prixMinimum: 700,
+    prixMinimum: 1000,
   );
 
   static EstimationPrix estimerPrix({
