@@ -89,3 +89,75 @@ Sécurité : l'URL de téléchargement enregistrée dans Firestore donne
 accès à la photo à quiconque la possède. Les règles Firestore de la
 collection `users` doivent donc réserver la lecture des documents
 chauffeur au chauffeur lui-même et à l'Admin.
+
+## 6. Sécurité Firestore et rôle Admin
+
+Les règles de sécurité sont dans `firestore.rules` (testées sur
+l'émulateur Firestore : `firestore_rules_test/`, 42 cas). Elles
+remplacent les règles "mode Test" de l'étape 3, qui laissent n'importe
+qui lire et modifier toute la base.
+
+**L'ordre compte** : l'app doit être déployée *avant* de publier les
+règles (l'ancienne version de l'app lisait des données que ces règles
+interdisent désormais).
+
+### 6.1 Te donner le rôle Admin (une seule fois)
+
+Aucun écran de l'app ne permet de devenir Admin, et les règles
+interdisent à quiconque de s'attribuer ce rôle : il se pose uniquement
+depuis la Console.
+
+1. **Authentication > Users** : repère ton compte Admin (le créer avec
+   **Ajouter un utilisateur** s'il n'existe pas) et copie son
+   **UID utilisateur**.
+2. **Firestore Database > Données** > collection `users` :
+   - si un document portant exactement cet UID existe, ouvre-le et
+     modifie le champ `role` en `admin` (type string) ;
+   - sinon, **Ajouter un document**, ID du document = l'UID copié,
+     champ `role` (string) = `admin`, champ `email` (string) = ton
+     email Admin.
+3. Connecte-toi sur `/admin/connexion` : un compte sans ce rôle est
+   désormais refusé ("Ce compte n'a pas les droits administrateur").
+
+### 6.2 Publier les règles
+
+1. Vérifie que le dernier déploiement GitHub Pages est terminé.
+2. **Firestore Database > Règles** : remplace tout le contenu par celui
+   du fichier `firestore.rules` de ce dépôt, puis **Publier**.
+3. Ouvre une fois le tableau de bord Admin : il publie automatiquement
+   le profil public (nom, téléphone) et l'entrée d'annuaire téléphone
+   de tous les comptes existants, nécessaires au chat, aux appels et à
+   la connexion par numéro de téléphone.
+
+### Ce que garantissent ces règles
+
+- `users/{uid}` (identité, pièces KYC, statuts) : lisible uniquement par
+  son propriétaire et l'Admin. À l'inscription, un utilisateur ne peut
+  créer que ses informations de base (impossible de se créer Admin,
+  validé ou avec un statut de modération). Ensuite il ne peut modifier
+  que son nom, son téléphone et ses pièces ; envoyer une pièce remet son
+  dossier "en attente", sans jamais pouvoir le passer à "validé".
+  `statutValidation` (validé / rejeté), `statutCompte`, `estValide` et
+  `role` ne sont modifiables que par l'Admin.
+- `profils_publics/{uid}` : nom, téléphone et rôle, lisibles par les
+  utilisateurs connectés ; `disponible` (chauffeur validé et non
+  sanctionné) n'est écrit que par l'Admin.
+- `annuaire_telephones` : lecture d'une entrée précise possible avant
+  connexion (connexion par téléphone), mais aucun listage possible.
+- `courses` : un client ne crée que ses propres demandes, sans pouvoir
+  s'attribuer un chauffeur ni antidater ; seuls les chauffeurs validés
+  et non sanctionnés voient et acceptent les courses en attente.
+- `chats` : lecture et écriture réservées aux deux participants, sans
+  usurpation d'expéditeur.
+- Toute autre collection : refusée.
+
+### Limites connues (à traiter avant le lancement)
+
+- Le prix et l'identifiant de paiement d'une course sont fournis par
+  l'app cliente : les règles vérifient la forme de la demande, pas le
+  montant. Un calcul et une vérification de paiement côté serveur
+  (Cloud Functions) restent nécessaires.
+- Un numéro de téléphone n'est pas garanti unique : si quelqu'un
+  revendique en premier le numéro d'un autre dans l'annuaire, ce dernier
+  ne pourra se connecter que par email (aucun accès à son compte n'est
+  donné pour autant).

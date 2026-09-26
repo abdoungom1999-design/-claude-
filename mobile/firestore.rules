@@ -1,0 +1,191 @@
+rules_version = '2';
+
+// Règles Firestore du projet Sprint VTC. À publier dans Console Firebase >
+// Firestore Database > Règles (voir FIREBASE_SETUP.md, étape 6).
+// Testées sur l'émulateur Firestore : voir firestore_rules_test/.
+//
+// Principe : tout est refusé par défaut. Chaque collection n'ouvre que
+// les accès dont l'app a réellement besoin.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function connecte() {
+      return request.auth != null;
+    }
+
+    function moi() {
+      return request.auth.uid;
+    }
+
+    function profil() {
+      return get(/databases/$(database)/documents/users/$(moi())).data;
+    }
+
+    // Le rôle admin se pose uniquement depuis la Console Firebase : aucune
+    // règle ne permet à un utilisateur de s'attribuer ce rôle.
+    function estAdmin() {
+      return connecte()
+        && exists(/databases/$(database)/documents/users/$(moi()))
+        && profil().role == 'admin';
+    }
+
+    // Chauffeur autorisé à voir et prendre des courses : dossier KYC validé
+    // par l'Admin et compte ni suspendu ni banni.
+    function conducteurActif() {
+      let p = profil();
+      return connecte()
+        && p.role == 'conducteur'
+        && p.get('statutValidation', null) == 'valide'
+        && !(p.get('statutCompte', 'actif') in ['suspendu', 'banni']);
+    }
+
+    function champsModifies() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ---------------------------------------------------------------
+    // Profil privé : identité, pièces KYC, statuts de validation et de
+    // modération. Lisible uniquement par son propriétaire et l'Admin.
+    // ---------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if connecte() && (moi() == uid || estAdmin());
+
+      // Inscription : champs de base uniquement. Impossible de se créer
+      // admin, validé, ou avec un statut de modération.
+      allow create: if connecte() && moi() == uid
+        && request.resource.data.keys().hasOnly([
+             'role', 'nom', 'email', 'telephone', 'statut', 'creeLe',
+             'vehiculeId', 'plaqueImmatriculation', 'estValide'])
+        && request.resource.data.role in ['client', 'conducteur']
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.get('estValide', false) == false;
+
+      // Le propriétaire ne peut modifier que son nom, son téléphone et ses
+      // pièces KYC ; envoyer une pièce remet le dossier "en_attente", sans
+      // jamais pouvoir le passer à "valide". statutCompte, role et
+      // estValide sont réservés à l'Admin.
+      allow update: if estAdmin()
+        || (connecte() && moi() == uid
+            && champsModifies().hasOnly(['nom', 'telephone', 'documents', 'statutValidation'])
+            && (!('statutValidation' in champsModifies())
+                || request.resource.data.statutValidation == 'en_attente'));
+
+      allow delete: if estAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Profil public : le strict nécessaire pour le chat et l'appel entre
+    // client et chauffeur (nom, téléphone, rôle). "disponible" (chauffeur
+    // validé et non sanctionné) n'est écrit que par l'Admin.
+    // ---------------------------------------------------------------
+    match /profils_publics/{uid} {
+      allow read: if connecte();
+
+      allow create: if estAdmin()
+        || (connecte() && moi() == uid
+            && request.resource.data.keys().hasOnly(['nom', 'telephone', 'role'])
+            && request.resource.data.role == profil().role);
+
+      allow update: if estAdmin()
+        || (connecte() && moi() == uid
+            && champsModifies().hasOnly(['nom', 'telephone']));
+
+      allow delete: if estAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Annuaire de connexion par téléphone : "{role}_{telephone}" -> email.
+    // Lecture unitaire publique (nécessaire avant d'être connecté), jamais
+    // de listage. Chacun ne peut publier que sa propre entrée, alignée sur
+    // le rôle et le téléphone de son profil privé ; l'Admin peut tout
+    // corriger (rattrapage des comptes existants).
+    // ---------------------------------------------------------------
+    match /annuaire_telephones/{cle} {
+      allow get: if true;
+      allow list: if false;
+
+      allow write: if estAdmin();
+
+      allow create: if connecte()
+        && request.resource.data.keys().hasOnly(['uid', 'email'])
+        && request.resource.data.uid == moi()
+        && request.resource.data.email == request.auth.token.email
+        && cle == profil().role + '_' + profil().telephone;
+
+      allow update: if connecte()
+        && resource.data.uid == moi()
+        && request.resource.data.keys().hasOnly(['uid', 'email'])
+        && request.resource.data.uid == moi()
+        && request.resource.data.email == request.auth.token.email;
+
+      allow delete: if connecte() && resource.data.uid == moi();
+    }
+
+    // ---------------------------------------------------------------
+    // Courses : créées par le client, visibles des chauffeurs actifs tant
+    // qu'elles sont en attente, acceptées par un seul chauffeur actif.
+    // ---------------------------------------------------------------
+    match /courses/{courseId} {
+      allow create: if connecte()
+        && request.resource.data.keys().hasOnly([
+             'clientId', 'chauffeurId', 'statut', 'type', 'adresseDepart',
+             'adresseArrivee', 'prixFcfa', 'methodePaiement', 'transactionId',
+             'timestamp'])
+        && request.resource.data.clientId == moi()
+        && request.resource.data.statut == 'en_attente'
+        && request.resource.data.chauffeurId == null
+        && request.resource.data.timestamp == request.time;
+
+      allow get: if connecte()
+        && (resource.data.clientId == moi()
+            || resource.data.chauffeurId == moi()
+            || estAdmin()
+            || (resource.data.statut == 'en_attente' && conducteurActif()));
+
+      // Radar des chauffeurs : uniquement les courses en attente.
+      allow list: if estAdmin()
+        || (resource.data.statut == 'en_attente' && conducteurActif());
+
+      allow update: if estAdmin()
+        // Un chauffeur actif prend une course encore libre, pour lui-même.
+        || (conducteurActif()
+            && resource.data.statut == 'en_attente'
+            && request.resource.data.statut == 'acceptee'
+            && request.resource.data.chauffeurId == moi()
+            && champsModifies().hasOnly(['statut', 'chauffeurId']))
+        // Le client annule sa propre demande tant qu'elle est en attente.
+        || (connecte()
+            && resource.data.clientId == moi()
+            && resource.data.statut == 'en_attente'
+            && request.resource.data.statut == 'annulee'
+            && champsModifies().hasOnly(['statut']));
+
+      allow delete: if estAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Messagerie : l'identifiant d'un chat est "uidA_uidB" (UID triés),
+    // l'appartenance se lit donc dans l'identifiant lui-même.
+    // ---------------------------------------------------------------
+    function membreDuChat(chatId) {
+      return connecte() && moi() in chatId.split('_');
+    }
+
+    match /chats/{chatId} {
+      allow get: if membreDuChat(chatId);
+      allow list: if connecte() && moi() in resource.data.participants;
+
+      allow create, update: if membreDuChat(chatId)
+        && chatId.split('_').size() == 2
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.participants.toSet() == chatId.split('_').toSet();
+
+      match /messages/{messageId} {
+        allow read: if membreDuChat(chatId);
+        allow create: if membreDuChat(chatId)
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'timestamp'])
+          && request.resource.data.senderId == moi();
+      }
+    }
+  }
+}

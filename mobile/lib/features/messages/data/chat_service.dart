@@ -93,22 +93,25 @@ class ChatService {
     });
   }
 
-  /// Charge le profil Firestore (nom, téléphone…) d'un utilisateur —
+  /// Charge le profil public (nom, téléphone, rôle) d'un utilisateur —
   /// utilisé pour l'en-tête du chat et pour récupérer le vrai numéro
-  /// de téléphone de l'interlocuteur avant de lancer un appel.
+  /// de téléphone de l'interlocuteur avant de lancer un appel. Lit
+  /// `profils_publics` : le document `users` d'un autre utilisateur
+  /// est privé (voir `firestore.rules`).
   Future<Map<String, dynamic>?> chargerProfil(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
+    final doc = await _firestore.collection('profils_publics').doc(uid).get();
     return doc.data();
   }
 
-  /// Chauffeurs dont le dossier a été validé, pour peupler l'onglet
+  /// Chauffeurs validés et non sanctionnés (`disponible`, tenu à jour
+  /// par l'Admin, voir `AdminKycService`), pour peupler l'onglet
   /// Messages avec de vrais interlocuteurs (au lieu d'une liste de
   /// conversations simulées).
   Stream<List<Map<String, dynamic>>> streamConducteursDisponibles() {
     return _firestore
-        .collection('users')
+        .collection('profils_publics')
         .where('role', isEqualTo: 'conducteur')
-        .where('estValide', isEqualTo: true)
+        .where('disponible', isEqualTo: true)
         .snapshots()
         .map(
           (instantane) =>

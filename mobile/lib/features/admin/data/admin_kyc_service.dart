@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/statut_compte.dart';
+import '../../auth/data/auth_repository.dart';
 
 /// Profil Conducteur tel que lu directement depuis Firestore
 /// (`users/{uid}`, `role == 'conducteur'`), pour la supervision KYC
@@ -95,8 +96,9 @@ class AdminKycService {
 
   /// Suspend, bannit ou réactive un compte ([StatutCompte]). Le chauffeur
   /// connecté est éjecté en direct (voir [ConducteurShellPage]).
-  Future<void> definirStatutCompte(String uid, String statut) {
-    return _firestore.collection('users').doc(uid).update({'statutCompte': statut});
+  Future<void> definirStatutCompte(String uid, String statut) async {
+    await _firestore.collection('users').doc(uid).update({'statutCompte': statut});
+    await _publierProfilPublic(uid);
   }
 
   /// Approuve le dossier : `statutValidation` passe à `'valide'`.
@@ -104,11 +106,12 @@ class AdminKycService {
   /// l'inscription, voir [AuthRepository.inscrireConducteur]) pour
   /// rester cohérent, même si le "Gardien" ne se base plus que sur
   /// `statutValidation` en Firebase réel.
-  Future<void> approuverConducteur(String uid) {
-    return _firestore.collection('users').doc(uid).update({
+  Future<void> approuverConducteur(String uid) async {
+    await _firestore.collection('users').doc(uid).update({
       'statutValidation': 'valide',
       'estValide': true,
     });
+    await _publierProfilPublic(uid);
   }
 
   /// Rejette le dossier : `statutValidation` passe à `'rejete'`. Côté
@@ -116,10 +119,58 @@ class AdminKycService {
   /// `'valide'` et `'en_attente'` : `'rejete'` retombe donc sur
   /// [ConducteurKYCPage] (ses documents déjà envoyés y restent
   /// visibles), lui permettant de corriger et resoumettre son dossier.
-  Future<void> rejeterConducteur(String uid) {
-    return _firestore.collection('users').doc(uid).update({
+  Future<void> rejeterConducteur(String uid) async {
+    await _firestore.collection('users').doc(uid).update({
       'statutValidation': 'rejete',
       'estValide': false,
     });
+    await _publierProfilPublic(uid);
+  }
+
+  /// Rattrapage des comptes créés avant les règles de sécurité : publie
+  /// pour chaque client et chauffeur son profil public (avec la
+  /// disponibilité des chauffeurs) et son entrée d'annuaire téléphone,
+  /// que l'utilisateur ne publie lui-même qu'à sa prochaine connexion
+  /// (voir `AuthRepository`). Idempotent, lancé à l'ouverture du tableau
+  /// de bord Admin. Retourne le nombre de comptes traités.
+  Future<int> synchroniserProfilsPublics() async {
+    final utilisateurs = await _firestore.collection('users').get();
+    var traites = 0;
+    for (final doc in utilisateurs.docs) {
+      final donnees = doc.data();
+      final role = donnees['role'];
+      if (role != 'client' && role != 'conducteur') continue;
+      await _publierProfilPublic(doc.id, donnees);
+      final email = donnees['email'];
+      final cle = AuthRepository.cleAnnuaire(role as String, donnees['telephone'] as String? ?? '');
+      if (cle != null && email is String) {
+        final entree = _firestore.collection('annuaire_telephones').doc(cle);
+        // Ne jamais réattribuer un numéro déjà revendiqué par un autre compte.
+        final existante = (await entree.get()).data();
+        if (existante == null || existante['uid'] == doc.id) {
+          await entree.set({'uid': doc.id, 'email': email});
+        }
+      }
+      traites++;
+    }
+    return traites;
+  }
+
+  /// Recopie nom, téléphone et rôle de `users/{uid}` (privé) vers
+  /// `profils_publics/{uid}`, ainsi que `disponible` pour un chauffeur :
+  /// dossier validé et compte ni suspendu ni banni. Seul l'Admin peut
+  /// écrire `disponible` (voir `firestore.rules`).
+  Future<void> _publierProfilPublic(String uid, [Map<String, dynamic>? donnees]) async {
+    donnees ??= (await _firestore.collection('users').doc(uid).get()).data();
+    if (donnees == null) return;
+    final role = donnees['role'];
+    await _firestore.collection('profils_publics').doc(uid).set({
+      'nom': donnees['nom'] as String? ?? '',
+      'telephone': donnees['telephone'] as String? ?? '',
+      'role': role,
+      if (role == 'conducteur')
+        'disponible': donnees['statutValidation'] == 'valide' &&
+            !StatutCompte.estBloque(donnees['statutCompte'] as String?),
+    }, SetOptions(merge: true));
   }
 }

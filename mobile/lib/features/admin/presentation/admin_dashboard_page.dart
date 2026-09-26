@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
+import '../data/admin_kyc_service.dart';
 import 'sections/admin_chauffeurs_section.dart';
 import 'sections/admin_clients_section.dart';
 import 'sections/admin_courses_direct_section.dart';
@@ -27,6 +29,21 @@ class AdminDashboardPage extends StatefulWidget {
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int _indexSelectionne = 0;
   final _authRepository = AuthRepository();
+
+  /// Le rattrapage des profils publics ne tourne qu'une fois par session.
+  static bool _profilsSynchronises = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (DefaultFirebaseOptions.estConfigure && !_profilsSynchronises) {
+      _profilsSynchronises = true;
+      AdminKycService().synchroniserProfilsPublics().then(
+            (n) => debugPrint('Profils publics synchronisés : $n comptes.'),
+            onError: (Object e) => debugPrint('Synchronisation des profils publics impossible : $e'),
+          );
+    }
+  }
 
   static const _sections = <Widget>[
     AdminOverviewSection(),

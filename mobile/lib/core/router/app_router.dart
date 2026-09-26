@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import '../../features/activite/presentation/activite_tab_page.dart';
 import '../../features/admin/presentation/admin_dashboard_page.dart';
+import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/admin_login_page.dart';
 import '../../features/auth/presentation/client_login_page.dart';
 import '../../features/auth/presentation/conducteur_login_page.dart';
@@ -96,6 +97,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.admin,
+      // Réservé au rôle Admin (voir AuthRepository.estAdmin). Garde
+      // d'interface uniquement : même sans elle, firestore.rules refuse
+      // toute lecture ou décision Admin à un compte sans ce rôle.
+      redirect: (context, state) async =>
+          await AuthRepository().estAdmin() ? null : AppRoutes.adminLogin,
       builder: (context, state) => const AdminDashboardPage(),
     ),
     GoRoute(
