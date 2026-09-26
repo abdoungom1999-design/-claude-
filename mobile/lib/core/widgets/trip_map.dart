@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import '../theme/app_colors.dart';
+import 'adaptive_map.dart';
 
-/// Carte OpenStreetMap (via flutter_map, sans clé API) affichant le
-/// trajet départ → arrivée, ou une position unique (ex : conducteur).
+/// Carte affichant le trajet départ → arrivée, ou une position unique
+/// (ex : conducteur). Bascule automatiquement sur un vrai widget
+/// `GoogleMap` dès qu'une clé API Google Maps réelle est configurée
+/// (voir [AdaptiveMap]) ; utilise sinon OpenStreetMap (`flutter_map`,
+/// gratuit, sans clé), exactement comme avant — l'API publique de ce
+/// widget (et donc tous ses appelants) ne change pas.
 class TripMap extends StatelessWidget {
   const TripMap({super.key, this.depart, this.arrivee, this.height = 220});
 
@@ -30,58 +33,14 @@ class TripMap extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
         height: height,
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: centre,
-            initialZoom: points.length == 2 ? 12 : 14,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'sn.groupesantine.sprint',
-            ),
-            if (depart != null && arrivee != null)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: [depart!, arrivee!],
-                    color: AppColors.orange,
-                    strokeWidth: 3,
-                  ),
-                ],
-              ),
-            MarkerLayer(
-              markers: [
-                if (depart != null)
-                  Marker(
-                    point: depart!,
-                    width: 36,
-                    height: 36,
-                    child: const Icon(
-                      Icons.trip_origin,
-                      color: AppColors.text,
-                      size: 26,
-                    ),
-                  ),
-                if (arrivee != null)
-                  Marker(
-                    point: arrivee!,
-                    width: 36,
-                    height: 36,
-                    child: const Icon(
-                      Icons.location_on,
-                      color: AppColors.orange,
-                      size: 36,
-                    ),
-                  ),
-              ],
-            ),
-            const RichAttributionWidget(
-              attributions: [
-                TextSourceAttribution('© OpenStreetMap contributors'),
-              ],
-            ),
+        child: AdaptiveMap(
+          centre: centre,
+          zoom: points.length == 2 ? 12 : 14,
+          marqueurs: [
+            if (depart != null) MarqueurCarte(type: TypeMarqueur.depart, position: depart!),
+            if (arrivee != null) MarqueurCarte(type: TypeMarqueur.arrivee, position: arrivee!),
           ],
+          polylignePoints: depart != null && arrivee != null ? [depart!, arrivee!] : null,
         ),
       ),
     );

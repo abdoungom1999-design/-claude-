@@ -2,18 +2,21 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/adaptive_map.dart';
 import '../../../../firebase_options.dart';
 import '../widgets/bouton_en_ligne_circulaire.dart';
 
-/// Onglet Accueil du nouvel espace Conducteur : Dashboard premium "dark
-/// mode" façon cockpit nocturne (en attendant le vrai Google Maps —
-/// voir GOOGLE_MAPS_SETUP.md), cartes flottantes en verre dépoli
-/// (glassmorphism) meublant l'espace autour du bouton "GO", et statut
-/// En ligne/Hors ligne. C'est ce bouton qui déclenche l'écoute de
-/// [CourseService] côté [ConducteurShellPage] — cette refonte visuelle
-/// ne touche à aucune logique de matchmaking.
+/// Onglet Accueil du nouvel espace Conducteur : carte plein écran (voir
+/// [AdaptiveMap] — OpenStreetMap tant qu'aucune clé Google Maps réelle
+/// n'est configurée, voir GOOGLE_MAPS_SETUP.md) surmontée d'un voile
+/// sombre pour la lisibilité, de cartes flottantes en verre dépoli
+/// (glassmorphism) meublant l'espace autour du bouton "GO", et du
+/// statut En ligne/Hors ligne. C'est ce bouton qui déclenche l'écoute
+/// de [CourseService] côté [ConducteurShellPage] — cette refonte
+/// visuelle ne touche à aucune logique de matchmaking.
 class ConducteurAccueilTab extends StatefulWidget {
   const ConducteurAccueilTab({
     super.key,
@@ -80,7 +83,7 @@ class _ConducteurAccueilTabState extends State<ConducteurAccueilTab> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _FondNocturnePremium(enLigne: widget.enLigne),
+          _FondCarteConducteur(enLigne: widget.enLigne),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -141,20 +144,23 @@ class _ConducteurAccueilTabState extends State<ConducteurAccueilTab> {
   }
 }
 
-/// Fond "cockpit nocturne" : dégradé noir profond, halos de lumière
-/// façon ville la nuit floutée (sans dépendre d'une image réseau —
-/// indisponible depuis ce bac à sable, voir la note de WelcomePage),
-/// grille de points façon carte nocturne, et un repère central pulsant.
-class _FondNocturnePremium extends StatefulWidget {
-  const _FondNocturnePremium({required this.enLigne});
+/// Fond plein écran du tableau de bord Conducteur : la vraie carte
+/// (voir [AdaptiveMap]), un voile sombre par-dessus pour garder le HUD
+/// en verre dépoli lisible quelle que soit la carte affichée en
+/// dessous (tuiles OSM claires aujourd'hui, Google Maps demain), et un
+/// repère central pulsant (anneaux radar quand en ligne).
+class _FondCarteConducteur extends StatefulWidget {
+  const _FondCarteConducteur({required this.enLigne});
 
   final bool enLigne;
 
+  static const _centreDakar = ll.LatLng(14.6928, -17.4467);
+
   @override
-  State<_FondNocturnePremium> createState() => _FondNocturnePremiumState();
+  State<_FondCarteConducteur> createState() => _FondCarteConducteurState();
 }
 
-class _FondNocturnePremiumState extends State<_FondNocturnePremium>
+class _FondCarteConducteurState extends State<_FondCarteConducteur>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -169,39 +175,34 @@ class _FondNocturnePremiumState extends State<_FondNocturnePremium>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF05060A), Color(0xFF12141C), Color(0xFF1A1D28)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const AdaptiveMap(
+          centre: _FondCarteConducteur._centreDakar,
+          zoom: 14,
+          interactif: false,
         ),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Halos de lumière "ville la nuit" (bokeh), en dégradés radiaux
-          // plutôt qu'une vraie image floutée.
-          const Positioned(
-            top: -80,
-            left: -60,
-            child: _HaloLumiere(couleur: AppColors.orange, taille: 320, opacite: 0.16),
+        // Voile sombre : simple dégradé (plus foncé en haut/bas, plus
+        // clair au centre) pour garantir la lisibilité du HUD blanc
+        // quelle que soit la carte réelle affichée dessous.
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0x8C000000),
+                Color(0x26000000),
+                Color(0x73000000),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: [0.0, 0.45, 1.0],
+            ),
           ),
-          const Positioned(
-            bottom: -100,
-            right: -80,
-            child: _HaloLumiere(couleur: Color(0xFF3B5BFF), taille: 380, opacite: 0.14),
-          ),
-          const Positioned(
-            top: 180,
-            right: -60,
-            child: _HaloLumiere(couleur: Color(0xFFB388FF), taille: 220, opacite: 0.10),
-          ),
-          Positioned.fill(
-            child: CustomPaint(painter: _GrillePointsPainter()),
-          ),
-          if (widget.enLigne)
-            AnimatedBuilder(
+        ),
+        if (widget.enLigne)
+          Center(
+            child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
                 return Stack(
@@ -213,7 +214,9 @@ class _FondNocturnePremiumState extends State<_FondNocturnePremium>
                 );
               },
             ),
-          Container(
+          ),
+        Center(
+          child: Container(
             width: 22,
             height: 22,
             decoration: BoxDecoration(
@@ -230,30 +233,8 @@ class _FondNocturnePremiumState extends State<_FondNocturnePremium>
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HaloLumiere extends StatelessWidget {
-  const _HaloLumiere({required this.couleur, required this.taille, required this.opacite});
-
-  final Color couleur;
-  final double taille;
-  final double opacite;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: taille,
-      height: taille,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [couleur.withValues(alpha: opacite), couleur.withValues(alpha: 0)],
         ),
-      ),
+      ],
     );
   }
 }
@@ -277,26 +258,6 @@ class _AnneauRadar extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Grille de points discrète évoquant une carte nocturne sans en être
-/// une — dessinée une seule fois (pas d'animation), volontairement
-/// épurée.
-class _GrillePointsPainter extends CustomPainter {
-  static const _espacement = 28.0;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final peinture = Paint()..color = Colors.white.withValues(alpha: 0.05);
-    for (double y = _espacement / 2; y < size.height; y += _espacement) {
-      for (double x = _espacement / 2; x < size.width; x += _espacement) {
-        canvas.drawCircle(Offset(x, y), 1.3, peinture);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Carte en verre dépoli générique (glassmorphism) : fond translucide

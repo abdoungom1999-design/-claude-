@@ -82,12 +82,23 @@ la clé en place et testée.
 - `MapService` (`lib/core/maps/map_service.dart`) : recherche
   d'adresse, géocodage direct/inverse, calcul d'itinéraire réel
   (distance, durée, tracé). Prêt à l'emploi, mais aucun écran ne
-  l'appelle encore.
+  l'appelle encore — la recherche d'adresse (Passager/Colis) utilise
+  toujours `GeocodingService` (Nominatim/OSM) et l'estimation de
+  distance à vol d'oiseau (`DistanceUtils`), exactement comme
+  aujourd'hui.
+- `AdaptiveMap` (`lib/core/widgets/adaptive_map.dart`) : le widget
+  carte lui-même est en revanche déjà "Google Maps-ready". Il affiche
+  un vrai `GoogleMap` dès que `GoogleMapsConfig.estConfigure` devient
+  vrai, et bascule sinon sur `flutter_map`/OpenStreetMap (comme avant).
+  `TripMap` (recherche de trajet Passager/Colis) et le fond de carte de
+  l'Accueil Conducteur s'appuient dessus : **aucun de ces écrans n'a
+  besoin d'être modifié** le jour où la clé sera fournie, ils
+  basculeront seuls. Volontairement PAS branché sur la carte Admin
+  "Courses en direct" (hors périmètre de cette préparation).
 - Le script Google Maps JavaScript dans `web/index.html` est en place
-  mais avec une clé placeholder — inoffensif tant qu'aucun widget
-  `GoogleMap` n'est affiché.
-- Les écrans existants (recherche de trajet, carte Accueil Conducteur,
-  carte Admin "Courses en direct") continuent d'utiliser
-  `flutter_map`/OpenStreetMap et l'estimation de distance à vol
-  d'oiseau (`DistanceUtils`) exactement comme aujourd'hui — rien ne
-  change visuellement tant que cette prochaine étape n'est pas faite.
+  mais avec une clé placeholder — un vrai widget `GoogleMap` étant
+  désormais affiché avec cette clé placeholder (voir ci-dessus), il
+  est possible que Google affiche un filigrane "For development
+  purposes only" ou un message d'erreur dans la zone de la carte tant
+  qu'aucune vraie clé n'est configurée ; le reste de l'app n'est pas
+  affecté (dégradation gracieuse, jamais un plantage).
