@@ -102,7 +102,10 @@ class _PassagerPageState extends State<PassagerPage> {
       return;
     }
 
-    final methode = await afficherSelectionPaiementSheet(context);
+    final methode = await afficherSelectionPaiementSheet(
+      context,
+      montantFcfa: _estimation?.prixFcfa,
+    );
     if (methode == null || !mounted) return;
 
     setState(() => _enCours = true);
@@ -123,7 +126,7 @@ class _PassagerPageState extends State<PassagerPage> {
         final estimation = _estimation ??
             await _pricingRepository.estimer(type: 'PASSAGER', distanceKm: _distanceKm!);
         if (!mounted) return;
-        await Navigator.of(context).push(
+        final erreurPaiement = await Navigator.of(context).push<String>(
           MaterialPageRoute(
             builder: (_) => PaymentProcessingPage(
               methode: methode,
@@ -135,6 +138,9 @@ class _PassagerPageState extends State<PassagerPage> {
             ),
           ),
         );
+        if (erreurPaiement != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erreurPaiement)));
+        }
         return;
       }
 

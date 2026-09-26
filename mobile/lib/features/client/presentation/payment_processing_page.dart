@@ -2,24 +2,21 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../courses/data/course_service.dart';
+import '../../paiement/data/paiement_service.dart';
 import 'suivi_course_page.dart';
 
 /// Sas de paiement obligatoire (100% mobile money) : s'affiche après le
-/// choix de Wave ou Orange Money dans la bottom sheet, et bloque le
-/// client (aucun retour arrière possible) le temps de simuler la
-/// confirmation réseau de l'opérateur. Ce n'est qu'une fois ce délai
-/// écoulé, et "Paiement confirmé !" affiché, que la course est
-/// réellement créée dans Firestore (voir [CourseService.creerCourse]) —
-/// ce qui réveille le radar des chauffeurs. Le client est ensuite
-/// redirigé vers [SuiviCoursePage].
+/// choix de Wave ou Orange Money, bloque le client (aucun retour
+/// arrière) pendant la demande de paiement via [PaiementService], et ne
+/// crée la course dans Firestore — ce qui réveille le radar des
+/// chauffeurs — que si la transaction est confirmée. Le client est
+/// alors redirigé vers [SuiviCoursePage].
 ///
-/// Aucun véritable encaissement n'est déclenché : il n'existe pas
-/// encore d'intégration Wave/Orange Money côté Sprint. Ce délai simule
-/// l'attente réseau réelle d'une confirmation opérateur, pour habituer
-/// l'UX à ce futur branchement sans bloquer le lancement du
-/// matchmaking en attendant.
+/// En cas d'échec ou d'annulation, aucune course n'est créée : la page
+/// se referme en renvoyant le message d'erreur à l'écran de commande,
+/// qui l'affiche.
 class PaymentProcessingPage extends StatefulWidget {
-  const PaymentProcessingPage({
+  PaymentProcessingPage({
     super.key,
     required this.methode,
     required this.clientId,
@@ -27,7 +24,10 @@ class PaymentProcessingPage extends StatefulWidget {
     required this.adresseDepart,
     required this.adresseArrivee,
     required this.prixFcfa,
-  });
+    PaiementService? paiementService,
+    CourseService? courseService,
+  })  : paiementService = paiementService ?? PaiementService.parDefaut(),
+        courseService = courseService ?? CourseService();
 
   final PaymentMethod methode;
   final String clientId;
@@ -35,6 +35,8 @@ class PaymentProcessingPage extends StatefulWidget {
   final String adresseDepart;
   final String adresseArrivee;
   final int prixFcfa;
+  final PaiementService paiementService;
+  final CourseService courseService;
 
   @override
   State<PaymentProcessingPage> createState() => _PaymentProcessingPageState();
@@ -43,7 +45,6 @@ class PaymentProcessingPage extends StatefulWidget {
 enum _EtapePaiement { enAttente, confirme }
 
 class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
-  final _courseService = CourseService();
   _EtapePaiement _etape = _EtapePaiement.enAttente;
 
   @override
@@ -53,28 +54,58 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
   }
 
   Future<void> _traiterPaiement() async {
-    // Simule l'attente de confirmation réseau de l'opérateur (Wave /
-    // Orange Money) : entre 3 et 4 secondes.
-    await Future.delayed(const Duration(milliseconds: 3500));
+    final TransactionResult transaction;
+    try {
+      transaction = await widget.paiementService.initierPaiement(
+        widget.methode,
+        widget.prixFcfa.toDouble(),
+      );
+    } catch (_) {
+      _abandonner("Le paiement ${widget.methode.label} n'a pas pu aboutir. Aucune course n'a été créée.");
+      return;
+    }
     if (!mounted) return;
+
+    if (!transaction.estReussie) {
+      _abandonner(
+        transaction.message ??
+            (transaction.statut == StatutTransaction.annule
+                ? 'Paiement annulé. Aucune course n\'a été créée.'
+                : 'Paiement ${widget.methode.label} refusé. Aucune course n\'a été créée.'),
+      );
+      return;
+    }
 
     setState(() => _etape = _EtapePaiement.confirme);
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
 
-    final courseId = await _courseService.creerCourse(
-      clientId: widget.clientId,
-      type: widget.type,
-      adresseDepart: widget.adresseDepart,
-      adresseArrivee: widget.adresseArrivee,
-      prixFcfa: widget.prixFcfa,
-      methodePaiement: widget.methode.apiValue,
-    );
+    final String courseId;
+    try {
+      courseId = await widget.courseService.creerCourse(
+        clientId: widget.clientId,
+        type: widget.type,
+        adresseDepart: widget.adresseDepart,
+        adresseArrivee: widget.adresseArrivee,
+        prixFcfa: widget.prixFcfa,
+        methodePaiement: widget.methode.apiValue,
+        transactionId: transaction.id,
+      );
+    } catch (_) {
+      _abandonner("La course n'a pas pu être créée. Veuillez réessayer.");
+      return;
+    }
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => SuiviCoursePage(courseId: courseId)),
     );
+  }
+
+  /// Referme le sas (malgré le [PopScope] qui bloque le retour manuel)
+  /// en renvoyant [message] à l'écran de commande.
+  void _abandonner(String message) {
+    if (mounted) Navigator.of(context).pop(message);
   }
 
   @override

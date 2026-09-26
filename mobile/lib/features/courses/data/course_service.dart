@@ -74,6 +74,7 @@ class CourseService {
     required String adresseArrivee,
     required int prixFcfa,
     required String methodePaiement,
+    required String transactionId,
   }) async {
     final doc = await _courses.add({
       'clientId': clientId,
@@ -84,6 +85,7 @@ class CourseService {
       'adresseArrivee': adresseArrivee,
       'prixFcfa': prixFcfa,
       'methodePaiement': methodePaiement,
+      'transactionId': transactionId,
       'timestamp': FieldValue.serverTimestamp(),
     });
     return doc.id;
