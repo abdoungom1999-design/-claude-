@@ -5,16 +5,16 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../firebase_options.dart';
 import '../../data/admin_kyc_service.dart';
 import '../../data/admin_repository.dart';
-import '../widgets/examen_dossier_dialog.dart';
+import '../widgets/dossier_chauffeur_panel.dart';
 
 /// Page "Gestion des Chauffeurs" : supervision KYC.
 ///
 /// En Firebase réel ([DefaultFirebaseOptions.estConfigure]), branchée
 /// en temps réel sur la vraie collection Firestore `users` (voir
 /// [AdminKycService]) : liste tous les chauffeurs avec leur vrai
-/// `statutValidation`, et permet d'examiner leurs documents (voir
-/// [afficherExamenDossierDialog]) pour approuver ou rejeter leur
-/// dossier.
+/// `statutValidation` et leur `statutCompte`, et ouvre leur Dossier
+/// Chauffeur (voir [ouvrirDossierChauffeur]) : pièces en plein écran,
+/// validation KYC, suspension et bannissement.
 ///
 /// En mode démo (pas de projet Firebase configuré), conserve
 /// entièrement l'ancien tableau connecté à [AdminRepository] (même
@@ -376,9 +376,7 @@ class _ChauffeursReelsSection extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: _LigneChauffeurReel(
                       conducteur: c,
-                      onExaminer: c.aDesDocuments
-                          ? () => afficherExamenDossierDialog(context, conducteur: c, service: service)
-                          : null,
+                      onOuvrirDossier: () => ouvrirDossierChauffeur(context, uid: c.id, service: service),
                     ),
                   ),
               ],
@@ -409,17 +407,18 @@ class _EnTeteTableauReel extends StatelessWidget {
         Expanded(flex: 3, child: Text('Chauffeur', style: _style)),
         Expanded(flex: 2, child: Text('Véhicule', style: _style)),
         SizedBox(width: 130, child: Text('Statut du dossier', style: _style)),
-        SizedBox(width: 170, child: Text('Actions', style: _style)),
+        SizedBox(width: 110, child: Text('Compte', style: _style)),
+        SizedBox(width: 130, child: Text('Actions', style: _style)),
       ],
     );
   }
 }
 
 class _LigneChauffeurReel extends StatelessWidget {
-  const _LigneChauffeurReel({required this.conducteur, required this.onExaminer});
+  const _LigneChauffeurReel({required this.conducteur, required this.onOuvrirDossier});
 
   final ConducteurKycAdmin conducteur;
-  final VoidCallback? onExaminer;
+  final VoidCallback onOuvrirDossier;
 
   String get _initiales {
     final mots = conducteur.nom.trim().split(RegExp(r'\s+'));
@@ -465,7 +464,17 @@ class _LigneChauffeurReel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(conducteur.nom, style: const TextStyle(fontWeight: FontWeight.w600)),
+                InkWell(
+                  onTap: onOuvrirDossier,
+                  child: Text(
+                    conducteur.nom,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.greyBorder,
+                    ),
+                  ),
+                ),
                 Text(
                   conducteur.telephone,
                   style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
@@ -479,22 +488,27 @@ class _LigneChauffeurReel extends StatelessWidget {
           ),
           SizedBox(width: 130, child: _BadgeStatutValidation(statutValidation: conducteur.statutValidation)),
           SizedBox(
-            width: 170,
-            child: onExaminer != null
-                ? OutlinedButton.icon(
-                    onPressed: onExaminer,
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const Text('Examiner', style: TextStyle(fontSize: 12.5)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      side: const BorderSide(color: AppColors.greyBorder),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  )
-                : const Text(
-                    'Aucun document',
-                    style: TextStyle(fontSize: 12, color: AppColors.grey),
-                  ),
+            width: 110,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: BadgeStatutCompte(statutCompte: conducteur.statutCompte),
+            ),
+          ),
+          SizedBox(
+            width: 130,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: onOuvrirDossier,
+                icon: const Icon(Icons.folder_open_rounded, size: 16),
+                label: const Text('Dossier', style: TextStyle(fontSize: 12.5)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  side: const BorderSide(color: AppColors.greyBorder),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
           ),
         ],
       ),

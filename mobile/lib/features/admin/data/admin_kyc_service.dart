@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/models/statut_compte.dart';
 
 /// Profil Conducteur tel que lu directement depuis Firestore
 /// (`users/{uid}`, `role == 'conducteur'`), pour la supervision KYC
@@ -13,6 +14,7 @@ class ConducteurKycAdmin {
     required this.vehiculeId,
     required this.plaqueImmatriculation,
     required this.statutValidation,
+    required this.statutCompte,
     required this.documents,
   });
 
@@ -26,9 +28,15 @@ class ConducteurKycAdmin {
   /// ou `'rejete'`.
   final String? statutValidation;
 
+  /// Modération Admin, indépendante du KYC : `'actif'` (défaut, aussi
+  /// pour les comptes créés avant ce champ), `'suspendu'` ou `'banni'`.
+  final String statutCompte;
+
+  bool get estBloque => StatutCompte.estBloque(statutCompte);
+
   /// Clés possibles : `permis`, `carteGrise`, `attestationVtc`,
-  /// `photoProfil` — chacune une data URI Base64 (voir
-  /// `ConducteurDocumentsService`) ou absente si non envoyée.
+  /// `photoProfil` — chacune une URL Firebase Storage ou une data URI
+  /// Base64 (voir `ConducteurDocumentsService`), absente si non envoyée.
   final Map<String, dynamic> documents;
 
   bool get aDesDocuments => documents.keys.any(
@@ -45,6 +53,7 @@ class ConducteurKycAdmin {
       vehiculeId: donnees['vehiculeId'] as String?,
       plaqueImmatriculation: donnees['plaqueImmatriculation'] as String?,
       statutValidation: donnees['statutValidation'] as String?,
+      statutCompte: (donnees['statutCompte'] as String?) ?? StatutCompte.actif,
       documents: (donnees['documents'] as Map<String, dynamic>?) ?? {},
     );
   }
@@ -73,6 +82,21 @@ class AdminKycService {
               .map((doc) => ConducteurKycAdmin.depuisFirestore(doc.id, doc.data()))
               .toList(),
         );
+  }
+
+  /// Suivi en temps réel d'un seul chauffeur, pour que le Dossier
+  /// Chauffeur reflète immédiatement les décisions prises dessus.
+  Stream<ConducteurKycAdmin?> streamConducteur(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) {
+      final donnees = doc.data();
+      return donnees == null ? null : ConducteurKycAdmin.depuisFirestore(doc.id, donnees);
+    });
+  }
+
+  /// Suspend, bannit ou réactive un compte ([StatutCompte]). Le chauffeur
+  /// connecté est éjecté en direct (voir [ConducteurShellPage]).
+  Future<void> definirStatutCompte(String uid, String statut) {
+    return _firestore.collection('users').doc(uid).update({'statutCompte': statut});
   }
 
   /// Approuve le dossier : `statutValidation` passe à `'valide'`.

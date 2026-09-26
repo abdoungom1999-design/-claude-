@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/location/device_location_service.dart';
+import '../../../core/models/statut_compte.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -14,6 +15,7 @@ import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
 import '../data/conducteur_repository.dart';
+import 'conducteur_compte_bloque_page.dart';
 import 'conducteur_en_attente_page.dart';
 import 'conducteur_kyc_page.dart';
 import 'tabs/conducteur_accueil_tab.dart';
@@ -58,6 +60,11 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   Timer? _minuteurPosition;
   Timer? _minuteurNouvelleCourse;
   StreamSubscription<List<CourseFirestore>>? _abonnementCoursesEnAttente;
+  StreamSubscription<Map<String, dynamic>?>? _abonnementStatutCompte;
+
+  /// `'suspendu'` ou `'banni'` dès que l'Admin sanctionne le compte :
+  /// le chauffeur est alors éjecté (voir [_ejecter]).
+  String? _statutBloque;
   final Set<String> _idsCoursesIgnorees = {};
   bool _sheetCourseOuverte = false;
 
@@ -72,6 +79,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     _minuteurPosition?.cancel();
     _minuteurNouvelleCourse?.cancel();
     _abonnementCoursesEnAttente?.cancel();
+    _abonnementStatutCompte?.cancel();
     super.dispose();
   }
 
@@ -107,6 +115,12 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   Future<void> _chargerEtapeKyc() async {
     final donnees = await _authRepository.chargerProfilUtilisateur();
     if (!mounted) return;
+    final statutCompte = donnees?['statutCompte'] as String?;
+    if (StatutCompte.estBloque(statutCompte)) {
+      await _ejecter(statutCompte!);
+      return;
+    }
+    _surveillerStatutCompte();
     final statutValidation = donnees?['statutValidation'] as String?;
     setState(() {
       _etapeKyc = switch (statutValidation) {
@@ -117,6 +131,35 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     });
   }
 
+  /// Contrairement au KYC, la sanction est surveillée en continu : un
+  /// chauffeur suspendu ou banni pendant qu'il est en ligne est éjecté
+  /// immédiatement, sans attendre sa prochaine connexion.
+  void _surveillerStatutCompte() {
+    _abonnementStatutCompte = _authRepository.profilUtilisateurStream().listen(
+      (donnees) {
+        final statut = donnees?['statutCompte'] as String?;
+        if (StatutCompte.estBloque(statut)) _ejecter(statut!);
+      },
+      onError: (_) {},
+    );
+  }
+
+  /// Coupe tout (radar, position, fenêtres ouvertes), déconnecte le
+  /// chauffeur et affiche [ConducteurCompteBloquePage].
+  Future<void> _ejecter(String statut) async {
+    if (_statutBloque != null || !mounted) return;
+    _abonnementStatutCompte?.cancel();
+    _arreterEnvoiPosition();
+    _arreterRadarCourses();
+    final routeShell = ModalRoute.of(context);
+    if (routeShell != null) Navigator.of(context).popUntil((route) => route == routeShell);
+    setState(() {
+      _statutBloque = statut;
+      _enLigne = false;
+    });
+    await _authRepository.deconnecter();
+  }
+
   /// Vrai une fois le dossier du chauffeur validé — condition d'accès
   /// au tableau de bord (radar de courses compris). En Firebase réel,
   /// se base sur le vrai champ Firestore `statutValidation` (voir
@@ -124,7 +167,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   /// configuré), conserve l'ancien repli sur
   /// `ProfilConducteur.estValide` de [ConducteurRepository].
   bool get _gateOuverte => DefaultFirebaseOptions.estConfigure
-      ? _etapeKyc == _EtapeKyc.valide
+      ? _statutBloque == null && _etapeKyc == _EtapeKyc.valide
       : (_profil?.estValide ?? false);
 
   Future<void> _basculerStatut(bool vouloirEnLigne) async {
@@ -248,6 +291,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   }
 
   Future<void> _seDeconnecter() async {
+    _abonnementStatutCompte?.cancel();
     _arreterEnvoiPosition();
     _arreterRadarCourses();
     await _authRepository.deconnecter();
@@ -256,6 +300,10 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_statutBloque != null) {
+      return ConducteurCompteBloquePage(statutCompte: _statutBloque!);
+    }
+
     if (_profil == null) {
       return const Scaffold(
         backgroundColor: AppColors.background,
