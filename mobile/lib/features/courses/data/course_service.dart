@@ -5,10 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Cycle de vie du champ [statut] : `en_attente` (créée par le client,
 /// en attente d'un chauffeur) -> `acceptee` (un chauffeur a accepté,
 /// voir [CourseService.accepterCourse]) -> `en_cours` -> `terminee`,
-/// ou `annulee` à tout moment avant `terminee`. Seules `en_attente`,
-/// `acceptee` et `annulee` sont pilotées par le code actuel ; `en_cours`
-/// et `terminee` sont prévus pour la suite du parcours (prise en
-/// charge, fin de course), pas encore déclenchés automatiquement.
+/// ou `annulee` tant qu'elle est `en_attente`. `en_cours` (client à
+/// bord) et `terminee` sont déclenchés par le chauffeur attribué (voir
+/// [CourseService.demarrerCourse] et [CourseService.terminerCourse]).
 class CourseFirestore {
   const CourseFirestore({
     required this.id,
@@ -51,6 +50,18 @@ class CourseFirestore {
       timestamp: horodatage is Timestamp ? horodatage.toDate() : DateTime.now(),
     );
   }
+}
+
+/// Valeurs du champ `statut` d'une course (voir [CourseFirestore]).
+abstract final class StatutCourse {
+  static const enAttente = 'en_attente';
+  static const acceptee = 'acceptee';
+  static const enCours = 'en_cours';
+  static const terminee = 'terminee';
+  static const annulee = 'annulee';
+
+  /// Un chauffeur est attribué et la course n'est pas finie.
+  static const actifs = [acceptee, enCours];
 }
 
 /// Matchmaking Client <-> Conducteur en temps réel, basé sur Firestore :
@@ -146,6 +157,45 @@ class CourseService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Course attribuée à ce chauffeur et pas encore terminée (`acceptee`
+  /// ou `en_cours`), la plus récente d'abord ; `null` s'il n'en a pas.
+  Stream<CourseFirestore?> streamCourseActiveChauffeur(String chauffeurId) {
+    return _courses
+        .where('chauffeurId', isEqualTo: chauffeurId)
+        .where('statut', whereIn: StatutCourse.actifs)
+        .snapshots()
+        .map((instantane) {
+      final courses = instantane.docs
+          .map((doc) => CourseFirestore.depuisDocument(doc.id, doc.data()))
+          .toList()
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return courses.isEmpty ? null : courses.first;
+    });
+  }
+
+  /// Toutes les courses en cours (`acceptee` ou `en_cours`), pour la
+  /// carte "Courses en direct" de l'Admin. Pas de tri côté Firestore :
+  /// un filtre `in` seul ne nécessite pas d'index composite.
+  Stream<List<CourseFirestore>> streamCoursesEnCours() {
+    return _courses.where('statut', whereIn: StatutCourse.actifs).snapshots().map(
+          (instantane) => instantane.docs
+              .map((doc) => CourseFirestore.depuisDocument(doc.id, doc.data()))
+              .toList()
+            ..sort((a, b) => a.timestamp.compareTo(b.timestamp)),
+        );
+  }
+
+  /// Le chauffeur a récupéré son client (ou le colis) : `acceptee` ->
+  /// `en_cours`.
+  Future<void> demarrerCourse(String courseId) {
+    return _courses.doc(courseId).update({'statut': StatutCourse.enCours});
+  }
+
+  /// Arrivée à destination : `en_cours` -> `terminee`.
+  Future<void> terminerCourse(String courseId) {
+    return _courses.doc(courseId).update({'statut': StatutCourse.terminee});
   }
 
   /// Annule une course encore en attente (bouton "Annuler la demande"

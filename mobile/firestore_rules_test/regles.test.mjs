@@ -284,6 +284,89 @@ describe('courses', () => {
   });
 });
 
+describe('courses : cycle de vie côté chauffeur', () => {
+  beforeEach(() => env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'courses', 'c2'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'acceptee', prixFcfa: 2000 })));
+
+  test('le chauffeur attribué : client à bord puis course terminée : accepté', async () => {
+    const db = en('chauffeur');
+    await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'), { statut: 'en_cours' }));
+    await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'), { statut: 'terminee' }));
+  });
+
+  test('sauter une étape, revenir en arrière ou toucher au prix : refusé', async () => {
+    const db = en('chauffeur');
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'terminee' }));
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'en_cours', prixFcfa: 99999 }));
+    await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'), { statut: 'en_cours' }));
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'acceptee' }));
+  });
+
+  test('un autre chauffeur fait avancer la course : refusé', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'users', 'chauffeur2'), { role: 'conducteur', statutValidation: 'valide' }));
+    await assertFails(updateDoc(doc(en('chauffeur2'), 'courses', 'c2'), { statut: 'en_cours' }));
+  });
+
+  test('le chauffeur liste ses courses attribuées ; pas celles des autres', async () => {
+    await assertSucceeds(getDocs(query(collection(en('chauffeur'), 'courses'),
+      where('chauffeurId', '==', 'chauffeur'), where('statut', 'in', ['acceptee', 'en_cours']))));
+    await assertFails(getDocs(query(collection(en('chauffeur'), 'courses'), where('chauffeurId', '==', 'autre'))));
+  });
+
+  test('l\'admin liste les courses en cours : accepté ; un client : refusé', async () => {
+    const enCours = (db) => getDocs(query(collection(db, 'courses'), where('statut', 'in', ['acceptee', 'en_cours'])));
+    await assertSucceeds(enCours(en('admin')));
+    await assertFails(enCours(en('client')));
+  });
+});
+
+describe('positions_chauffeurs (carte en direct)', () => {
+  const position = (extra = {}) => ({
+    latitude: 14.69, longitude: -17.44, precision: 12, cap: 90, vitesse: 8, majLe: serverTimestamp(), ...extra,
+  });
+
+  test('un chauffeur actif publie sa position ; l\'admin la lit', async () => {
+    await assertSucceeds(setDoc(doc(en('chauffeur'), 'positions_chauffeurs', 'chauffeur'), position()));
+    await assertSucceeds(getDoc(doc(en('admin'), 'positions_chauffeurs', 'chauffeur')));
+    await assertSucceeds(getDocs(collection(en('admin'), 'positions_chauffeurs')));
+  });
+
+  test('personne d\'autre que l\'admin ne lit les positions', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44 }));
+    await assertFails(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
+    await assertFails(getDoc(doc(en('chauffeur'), 'positions_chauffeurs', 'chauffeur')));
+    await assertFails(getDocs(collection(en('client'), 'positions_chauffeurs')));
+    await assertFails(getDoc(doc(anonyme(), 'positions_chauffeurs', 'chauffeur')));
+  });
+
+  test('chauffeur non validé, suspendu ou banni : publication refusée', async () => {
+    for (const uid of ['enAttente', 'suspendu', 'banni', 'client']) {
+      await assertFails(setDoc(doc(en(uid), 'positions_chauffeurs', uid), position()));
+    }
+  });
+
+  test('publier pour un autre, hors limites, date falsifiée ou champ inconnu : refusé', async () => {
+    const db = en('chauffeur');
+    await assertFails(setDoc(doc(db, 'positions_chauffeurs', 'enAttente'), position()));
+    await assertFails(setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), position({ latitude: 91 })));
+    await assertFails(setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), position({ majLe: new Date(2020, 0, 1) })));
+    await assertFails(setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), position({ enCourse: true })));
+  });
+
+  test('passer hors ligne supprime sa position ; pas celle d\'un autre', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44 });
+      await setDoc(doc(db, 'positions_chauffeurs', 'suspendu'), { latitude: 14.69, longitude: -17.44 });
+    });
+    await assertFails(deleteDoc(doc(en('chauffeur'), 'positions_chauffeurs', 'suspendu')));
+    await assertSucceeds(deleteDoc(doc(en('chauffeur'), 'positions_chauffeurs', 'chauffeur')));
+    await assertSucceeds(deleteDoc(doc(en('suspendu'), 'positions_chauffeurs', 'suspendu')));
+  });
+});
+
 describe('chats', () => {
   const chatId = ['chauffeur', 'client'].sort().join('_');
 

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../conducteur/data/position_chauffeur_service.dart';
 
 /// Profil Conducteur tel que lu directement depuis Firestore
 /// (`users/{uid}`, `role == 'conducteur'`), pour la supervision KYC
@@ -99,6 +100,10 @@ class AdminKycService {
   Future<void> definirStatutCompte(String uid, String statut) async {
     await _firestore.collection('users').doc(uid).update({'statutCompte': statut});
     await _publierProfilPublic(uid);
+    // Retire aussitôt le chauffeur sanctionné de la carte en direct.
+    if (StatutCompte.estBloque(statut)) {
+      await _firestore.collection(PositionChauffeurService.collection).doc(uid).delete();
+    }
   }
 
   /// Approuve le dossier : `statutValidation` passe à `'valide'`.

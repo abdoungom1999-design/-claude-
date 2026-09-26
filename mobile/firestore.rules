@@ -142,9 +142,11 @@ service cloud.firestore {
             || estAdmin()
             || (resource.data.statut == 'en_attente' && conducteurActif()));
 
-      // Radar des chauffeurs : uniquement les courses en attente.
+      // Radar des chauffeurs : uniquement les courses en attente. Un
+      // chauffeur retrouve aussi les courses qui lui sont attribuées.
       allow list: if estAdmin()
-        || (resource.data.statut == 'en_attente' && conducteurActif());
+        || (resource.data.statut == 'en_attente' && conducteurActif())
+        || (connecte() && resource.data.chauffeurId == moi());
 
       allow update: if estAdmin()
         // Un chauffeur actif prend une course encore libre, pour lui-même.
@@ -153,6 +155,13 @@ service cloud.firestore {
             && request.resource.data.statut == 'acceptee'
             && request.resource.data.chauffeurId == moi()
             && champsModifies().hasOnly(['statut', 'chauffeurId']))
+        // Le chauffeur attribué fait avancer sa course : client à bord
+        // (acceptee -> en_cours), puis arrivée (en_cours -> terminee).
+        || (connecte()
+            && resource.data.chauffeurId == moi()
+            && ((resource.data.statut == 'acceptee' && request.resource.data.statut == 'en_cours')
+                || (resource.data.statut == 'en_cours' && request.resource.data.statut == 'terminee'))
+            && champsModifies().hasOnly(['statut']))
         // Le client annule sa propre demande tant qu'elle est en attente.
         || (connecte()
             && resource.data.clientId == moi()
@@ -161,6 +170,27 @@ service cloud.firestore {
             && champsModifies().hasOnly(['statut']));
 
       allow delete: if estAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Position GPS des chauffeurs en ligne (carte "Courses en direct").
+    // Seul un chauffeur actif publie sa propre position ; seule l'Admin
+    // la lit. Le document est supprimé quand le chauffeur passe hors
+    // ligne : aucun historique de trajets n'est conservé.
+    // ---------------------------------------------------------------
+    match /positions_chauffeurs/{uid} {
+      allow read: if estAdmin();
+
+      allow create, update: if connecte() && moi() == uid && conducteurActif()
+        && request.resource.data.keys().hasOnly([
+             'latitude', 'longitude', 'precision', 'cap', 'vitesse', 'majLe'])
+        && request.resource.data.latitude is number
+        && request.resource.data.longitude is number
+        && request.resource.data.latitude >= -90 && request.resource.data.latitude <= 90
+        && request.resource.data.longitude >= -180 && request.resource.data.longitude <= 180
+        && request.resource.data.majLe == request.time;
+
+      allow delete: if estAdmin() || (connecte() && moi() == uid);
     }
 
     // ---------------------------------------------------------------

@@ -15,6 +15,7 @@ import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
 import '../data/conducteur_repository.dart';
+import '../data/position_chauffeur_service.dart';
 import 'conducteur_compte_bloque_page.dart';
 import 'conducteur_en_attente_page.dart';
 import 'conducteur_kyc_page.dart';
@@ -25,6 +26,7 @@ import 'tabs/conducteur_gains_tab.dart';
 import 'tabs/conducteur_messages_tab.dart';
 import 'validation_pending_page.dart';
 import 'widgets/conducteur_bottom_nav.dart';
+import 'widgets/course_active_bandeau.dart';
 import 'widgets/nouvelle_course_reelle_sheet.dart';
 import 'widgets/nouvelle_course_sheet.dart';
 
@@ -51,6 +53,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   final _authRepository = AuthRepository();
   final _locationService = DeviceLocationService();
   final _courseService = CourseService();
+  final _positionService = PositionChauffeurService();
   final _random = Random();
 
   int _indexSelectionne = 0;
@@ -61,6 +64,13 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   Timer? _minuteurNouvelleCourse;
   StreamSubscription<List<CourseFirestore>>? _abonnementCoursesEnAttente;
   StreamSubscription<Map<String, dynamic>?>? _abonnementStatutCompte;
+  StreamSubscription<CourseFirestore?>? _abonnementCourseActive;
+
+  /// Course attribuée à ce chauffeur et pas encore terminée (voir
+  /// [CourseActiveBandeau]). Tant qu'elle existe, le radar ne propose
+  /// pas d'autre course.
+  CourseFirestore? _courseActive;
+  bool _avancementCourseEnCours = false;
 
   /// `'suspendu'` ou `'banni'` dès que l'Admin sanctionne le compte :
   /// le chauffeur est alors éjecté (voir [_ejecter]).
@@ -80,6 +90,8 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     _minuteurNouvelleCourse?.cancel();
     _abonnementCoursesEnAttente?.cancel();
     _abonnementStatutCompte?.cancel();
+    _abonnementCourseActive?.cancel();
+    if (DefaultFirebaseOptions.estConfigure) unawaited(_positionService.arreter());
     super.dispose();
   }
 
@@ -93,6 +105,9 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       });
       if (DefaultFirebaseOptions.estConfigure) {
         await _chargerEtapeKyc();
+      }
+      if (mounted && _gateOuverte && DefaultFirebaseOptions.estConfigure) {
+        _surveillerCourseActive();
       }
       if (mounted && _gateOuverte && _enLigne) {
         _demarrerEnvoiPosition();
@@ -149,7 +164,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   Future<void> _ejecter(String statut) async {
     if (_statutBloque != null || !mounted) return;
     _abonnementStatutCompte?.cancel();
-    _arreterEnvoiPosition();
+    _abonnementCourseActive?.cancel();
     _arreterRadarCourses();
     final routeShell = ModalRoute.of(context);
     if (routeShell != null) Navigator.of(context).popUntil((route) => route == routeShell);
@@ -157,6 +172,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       _statutBloque = statut;
       _enLigne = false;
     });
+    await _arreterEnvoiPosition();
     await _authRepository.deconnecter();
   }
 
@@ -191,7 +207,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
         _demarrerEnvoiPosition();
         _demarrerRadarCourses();
       } else {
-        _arreterEnvoiPosition();
+        await _arreterEnvoiPosition();
         _arreterRadarCourses();
       }
     } on ApiException catch (e) {
@@ -200,7 +216,14 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     }
   }
 
+  /// En Firebase réel, la position part dans Firestore pour la carte
+  /// "Courses en direct" de l'Admin (voir [PositionChauffeurService]).
+  /// En mode démo, conserve l'ancien envoi périodique vers l'API.
   void _demarrerEnvoiPosition() {
+    if (DefaultFirebaseOptions.estConfigure) {
+      unawaited(_positionService.demarrer());
+      return;
+    }
     _minuteurPosition?.cancel();
     _envoyerPositionReelle();
     _minuteurPosition = Timer.periodic(
@@ -209,9 +232,45 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     );
   }
 
-  void _arreterEnvoiPosition() {
+  /// À attendre avant toute déconnexion : la position publiée doit être
+  /// effacée tant que le chauffeur est encore authentifié.
+  Future<void> _arreterEnvoiPosition() async {
     _minuteurPosition?.cancel();
     _minuteurPosition = null;
+    if (DefaultFirebaseOptions.estConfigure) await _positionService.arreter();
+  }
+
+  void _surveillerCourseActive() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    _abonnementCourseActive?.cancel();
+    _abonnementCourseActive = _courseService.streamCourseActiveChauffeur(uid).listen(
+      (course) {
+        if (mounted) setState(() => _courseActive = course);
+      },
+      onError: (_) {},
+    );
+  }
+
+  Future<void> _avancerCourseActive() async {
+    final course = _courseActive;
+    if (course == null) return;
+    setState(() => _avancementCourseEnCours = true);
+    try {
+      if (course.statut == StatutCourse.enCours) {
+        await _courseService.terminerCourse(course.id);
+      } else {
+        await _courseService.demarrerCourse(course.id);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mise à jour impossible. Vérifiez votre connexion.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _avancementCourseEnCours = false);
+    }
   }
 
   Future<void> _envoyerPositionReelle() async {
@@ -252,7 +311,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   /// n'est déjà affichée), propose la plus ancienne non encore refusée
   /// par ce chauffeur pendant cette session En ligne.
   void _traiterCoursesEnAttente(List<CourseFirestore> courses) {
-    if (!mounted || !_enLigne || _sheetCourseOuverte) return;
+    if (!mounted || !_enLigne || _sheetCourseOuverte || _courseActive != null) return;
     final proposables = courses.where((c) => !_idsCoursesIgnorees.contains(c.id));
     if (proposables.isEmpty) return;
     _proposerCourseReelle(proposables.first);
@@ -292,7 +351,8 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
   Future<void> _seDeconnecter() async {
     _abonnementStatutCompte?.cancel();
-    _arreterEnvoiPosition();
+    _abonnementCourseActive?.cancel();
+    await _arreterEnvoiPosition();
     _arreterRadarCourses();
     await _authRepository.deconnecter();
     if (mounted) context.go(AppRoutes.espacePro);
@@ -365,9 +425,20 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
           ConducteurCompteTab(profil: _profil, onDeconnexion: _seDeconnecter),
         ],
       ),
-      bottomNavigationBar: ConducteurBottomNav(
-        indexSelectionne: _indexSelectionne,
-        onSelection: (index) => setState(() => _indexSelectionne = index),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_courseActive != null)
+            CourseActiveBandeau(
+              course: _courseActive!,
+              enCours: _avancementCourseEnCours,
+              onAvancer: _avancerCourseActive,
+            ),
+          ConducteurBottomNav(
+            indexSelectionne: _indexSelectionne,
+            onSelection: (index) => setState(() => _indexSelectionne = index),
+          ),
+        ],
       ),
     );
   }
