@@ -1,10 +1,9 @@
-import 'dart:convert';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/image_document.dart';
 import '../../../../core/widgets/premium_dialog.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../compte/presentation/centre_aide_page.dart';
@@ -119,7 +118,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                     children: [
                       _AvatarConducteur(
                         nom: nom,
-                        photoBase64: photoProfil,
+                        photo: photoProfil,
                         enCours: _enCoursTeleversement.contains('photoProfil'),
                         onTap: () => _choisirEtTeleverser('photoProfil'),
                       ),
@@ -211,31 +210,26 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
 class _AvatarConducteur extends StatelessWidget {
   const _AvatarConducteur({
     required this.nom,
-    required this.photoBase64,
+    required this.photo,
     required this.enCours,
     required this.onTap,
   });
 
   final String nom;
-  final String? photoBase64;
+  final String? photo;
   final bool enCours;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    Widget contenu;
-    if (photoBase64 != null && photoBase64!.isNotEmpty) {
-      try {
-        final octets = base64Decode(photoBase64!.split(',').last);
-        contenu = ClipOval(
-          child: Image.memory(octets, width: 76, height: 76, fit: BoxFit.cover),
-        );
-      } catch (_) {
-        contenu = _initiale(nom);
-      }
-    } else {
-      contenu = _initiale(nom);
-    }
+    final contenu = ClipOval(
+      child: ImageDocument(
+        source: photo,
+        width: 76,
+        height: 76,
+        placeholder: _initiale(nom),
+      ),
+    );
 
     return GestureDetector(
       onTap: enCours ? null : onTap,

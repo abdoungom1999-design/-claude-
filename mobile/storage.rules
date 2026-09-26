@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// Règles Firebase Storage du projet Sprint VTC (à coller dans Console
+// Firebase > Storage > Règles). Voir FIREBASE_SETUP.md, étape 5.
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Documents KYC et photo de profil d'un chauffeur : seul le
+    // chauffeur lui-même peut écrire ou relire son propre dossier.
+    // L'Admin affiche les photos via l'URL de téléchargement enregistrée
+    // dans Firestore, qui ne passe pas par ces règles.
+    match /kyc_documents/{uid}/{fichier} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /{autre=**} {
+      allow read, write: if false;
+    }
+  }
+}

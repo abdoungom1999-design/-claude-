@@ -1,8 +1,6 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/image_document.dart';
 import '../../data/admin_kyc_service.dart';
 
 const _documentsAffiches = [
@@ -12,9 +10,9 @@ const _documentsAffiches = [
 ];
 
 /// Ouvre le panneau d'examen du dossier KYC d'un chauffeur : affiche en
-/// grand les 3 pièces justificatives envoyées (voir
-/// [ConducteurDocumentsService], même encodage Base64) et propose
-/// d'approuver ou de rejeter — voir [AdminKycService].
+/// grand les 3 pièces justificatives envoyées (URLs Firebase Storage, ou
+/// Base64 pour le repli et les anciens dossiers — voir [ImageDocument])
+/// et propose d'approuver ou de rejeter — voir [AdminKycService].
 Future<void> afficherExamenDossierDialog(
   BuildContext context, {
   required ConducteurKycAdmin conducteur,
@@ -111,7 +109,7 @@ class _ExamenDossierDialogState extends State<_ExamenDossierDialog> {
                         _CarteDocument(
                           label: label,
                           icon: icon,
-                          dataUri: c.documents[cle] as String?,
+                          source: c.documents[cle] as String?,
                         ),
                         const SizedBox(height: 14),
                       ],
@@ -178,24 +176,17 @@ class _ExamenDossierDialogState extends State<_ExamenDossierDialog> {
 }
 
 class _CarteDocument extends StatelessWidget {
-  const _CarteDocument({required this.label, required this.icon, required this.dataUri});
+  const _CarteDocument({required this.label, required this.icon, required this.source});
 
   final String label;
   final IconData icon;
-  final String? dataUri;
 
-  Uint8List? get _octets {
-    if (dataUri == null || dataUri!.isEmpty) return null;
-    try {
-      return base64Decode(dataUri!.split(',').last);
-    } catch (_) {
-      return null;
-    }
-  }
+  /// URL Firebase Storage, ou data URI Base64 (repli / anciens dossiers).
+  final String? source;
 
   @override
   Widget build(BuildContext context) {
-    final octets = _octets;
+    final envoye = source != null && source!.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
@@ -213,7 +204,7 @@ class _CarteDocument extends StatelessWidget {
               const SizedBox(width: 8),
               Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               const Spacer(),
-              if (octets == null)
+              if (!envoye)
                 const Text(
                   'Non envoyé',
                   style: TextStyle(fontSize: 11.5, color: AppColors.grey, fontWeight: FontWeight.w600),
@@ -223,15 +214,13 @@ class _CarteDocument extends StatelessWidget {
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: octets != null
-                ? Image.memory(
-                    octets,
-                    width: double.infinity,
-                    height: 220,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const _PlaceholderDocument(),
-                  )
-                : const _PlaceholderDocument(),
+            child: ImageDocument(
+              source: source,
+              width: double.infinity,
+              height: 220,
+              fit: BoxFit.contain,
+              placeholder: const _PlaceholderDocument(),
+            ),
           ),
         ],
       ),

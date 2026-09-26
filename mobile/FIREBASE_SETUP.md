@@ -62,3 +62,30 @@ Client, Conducteur, Admin) et le profil utilisateur (collection
 Firestore `users`). Les courses, les gains, la liste des chauffeurs
 côté Admin, etc. restent sur les données de démonstration
 (`DemoData`) pour l'instant — ce sera l'objet d'une prochaine étape.
+
+## 5. Activer Firebase Storage (documents KYC)
+
+Les documents chauffeur (permis, carte grise, attestation VTC, photo de
+profil) sont désormais envoyés dans Firebase Storage
+(`kyc_documents/{uid}/{document}.jpg`), et seule leur URL est gardée
+dans Firestore. **Tant que Storage n'est pas activé, l'app retombe
+automatiquement sur l'ancien stockage Base64 dans Firestore** : rien
+ne casse, mais la migration n'est pas effective.
+
+1. Menu de gauche : **Build > Storage** > **Commencer**.
+2. Firebase demande de passer au **plan Blaze** (paiement à l'usage) :
+   c'est obligatoire pour Storage. Un quota gratuit couvre la phase de
+   lancement ; pose une **alerte de budget** (Google Cloud Console >
+   Facturation > Budgets et alertes) dès l'activation.
+3. Choisis la même région que Firestore, puis mode **production**.
+4. Onglet **Règles** : remplace le contenu par celui du fichier
+   `storage.rules` de ce dépôt, puis **Publier**.
+
+Aucune modification de code n'est nécessaire ensuite : le bucket
+(`sprint-vtc.firebasestorage.app`) est déjà déclaré dans
+`lib/firebase_options.dart`.
+
+Sécurité : l'URL de téléchargement enregistrée dans Firestore donne
+accès à la photo à quiconque la possède. Les règles Firestore de la
+collection `users` doivent donc réserver la lecture des documents
+chauffeur au chauffeur lui-même et à l'Admin.

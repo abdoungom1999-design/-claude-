@@ -1,55 +1,93 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 
-/// Dépassement possible si l'image n'est pas compressée par
-/// `image_picker` sur certaines plateformes (voir [televerserDocument]).
+/// Photo trop lourde pour être acceptée (voir les plafonds de
+/// [ConducteurDocumentsService]).
 class DocumentTropVolumineuxException implements Exception {
   const DocumentTropVolumineuxException();
 }
 
-/// Solution TEMPORAIRE de stockage des documents chauffeur (KYC) :
-/// encode chaque photo en Base64 directement dans le document
-/// Firestore `users/{uid}.documents.{cle}`, en l'absence pour l'instant
-/// d'un vrai bucket Firebase Storage. À remplacer dès que Storage est
-/// activé côté Groupe Santine : Storage n'a pas la limite de 1 Mo par
-/// document de Firestore, et évite d'alourdir chaque lecture du profil
-/// avec des images encodées.
+/// Envoi des documents chauffeur (KYC + photo de profil).
 ///
-/// Sécurité de taille : Firestore refuse tout document dépassant 1 Mo
-/// au total (tous champs confondus). `image_picker` compresse déjà
-/// l'image (voir les paramètres passés à `pickImage` côté UI), mais
-/// cette compression n'est pas garantie sur toutes les plateformes
-/// (le Web, en particulier, l'ignore parfois). [televerserDocument]
-/// vérifie donc la taille avant d'écrire, et lève
-/// [DocumentTropVolumineuxException] plutôt que de risquer un document
-/// corrompu ou un échec d'écriture Firestore peu clair.
+/// Chemin principal : le fichier est téléversé dans Firebase Storage
+/// (`kyc_documents/{uid}/{cle}.jpg`), et seule son URL de
+/// téléchargement est enregistrée dans Firestore
+/// (`users/{uid}.documents.{cle}`) — plus d'image encodée qui alourdit
+/// chaque lecture du profil, ni de plafond de 1 Mo par document
+/// Firestore.
+///
+/// Repli : si Storage refuse l'envoi (service pas encore activé sur le
+/// projet, règles non déployées…), on retombe sur l'ancien stockage
+/// Base64 dans Firestore, pour ne jamais bloquer l'inscription d'un
+/// chauffeur. Les lecteurs ([ImageDocument]) acceptent les deux
+/// formats, ce qui couvre aussi les documents envoyés avant cette
+/// migration.
 class ConducteurDocumentsService {
-  /// Limite volontairement prudente : plusieurs documents doivent
-  /// pouvoir cohabiter dans le même document `users/{uid}` (bien en
-  /// dessous du 1 Mo total de Firestore).
-  static const int limiteOctetsParDocument = 700 * 1024;
+  /// Plafond côté Storage : large, mais évite qu'une photo brute non
+  /// compressée (le Web ignore parfois la compression d'`image_picker`)
+  /// ne consomme inutilement stockage et bande passante.
+  static const int limiteOctetsStorage = 5 * 1024 * 1024;
+
+  /// Plafond du repli Base64 : plusieurs documents doivent tenir dans le
+  /// même document `users/{uid}`, bien en dessous du 1 Mo de Firestore.
+  static const int limiteOctetsBase64 = 700 * 1024;
+
+  /// Mémorise, pour la session, qu'une tentative Storage a échoué :
+  /// évite de refaire à chaque document un aller-retour voué à l'échec.
+  static bool _storageIndisponible = false;
 
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
-  /// Encode [octets] en Base64 (data URI) et l'enregistre sous
-  /// `users/{uid}.documents.{cle}`, en ne touchant à aucun autre champ
-  /// (dont les autres documents déjà téléversés). Marque aussi
-  /// `statutValidation: 'en_attente'` : tout nouveau document remet le
-  /// dossier en file d'attente de vérification côté Admin.
+  /// Enregistre [octets] sous la clé [cle] ('permis', 'carteGrise',
+  /// 'attestationVtc' ou 'photoProfil') sans toucher aux autres
+  /// documents, et remet le dossier en file d'attente de vérification
+  /// Admin (`statutValidation: 'en_attente'`).
   Future<void> televerserDocument({
     required String uid,
     required String cle,
     required Uint8List octets,
   }) async {
-    if (octets.lengthInBytes > limiteOctetsParDocument) {
+    if (octets.lengthInBytes > limiteOctetsStorage) {
       throw const DocumentTropVolumineuxException();
     }
-    final donneesBase64 = 'data:image/jpeg;base64,${base64Encode(octets)}';
+
+    final valeur = await _televerserVersStorage(uid: uid, cle: cle, octets: octets) ??
+        _encoderEnBase64(octets);
+
     await _firestore.collection('users').doc(uid).update({
-      'documents.$cle': donneesBase64,
+      'documents.$cle': valeur,
       'statutValidation': 'en_attente',
     });
+  }
+
+  /// Renvoie l'URL de téléchargement, ou `null` si Storage est
+  /// indisponible (l'appelant bascule alors sur le Base64).
+  Future<String?> _televerserVersStorage({
+    required String uid,
+    required String cle,
+    required Uint8List octets,
+  }) async {
+    if (_storageIndisponible) return null;
+    try {
+      final storage = FirebaseStorage.instance
+        ..setMaxUploadRetryTime(const Duration(seconds: 20));
+      final reference = storage.ref('kyc_documents/$uid/$cle.jpg');
+      await reference.putData(octets, SettableMetadata(contentType: 'image/jpeg'));
+      return await reference.getDownloadURL();
+    } on FirebaseException catch (e) {
+      debugPrint('Firebase Storage indisponible (${e.code}) : repli Base64.');
+      _storageIndisponible = true;
+      return null;
+    }
+  }
+
+  String _encoderEnBase64(Uint8List octets) {
+    if (octets.lengthInBytes > limiteOctetsBase64) {
+      throw const DocumentTropVolumineuxException();
+    }
+    return 'data:image/jpeg;base64,${base64Encode(octets)}';
   }
 }
