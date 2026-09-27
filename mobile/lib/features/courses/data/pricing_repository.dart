@@ -10,6 +10,7 @@ class EstimationPrix {
     required this.dureeEstimeeMin,
     required this.multiplicateurTrafic,
     required this.prixFcfa,
+    this.motifMajoration,
   });
 
   final double distanceKm;
@@ -17,12 +18,17 @@ class EstimationPrix {
   final double multiplicateurTrafic;
   final int prixFcfa;
 
+  /// "Heure de pointe", "Tarif de nuit"… ; `null` sans majoration ou si
+  /// la source (API) ne le précise pas.
+  final String? motifMajoration;
+
   factory EstimationPrix.depuisJson(Map<String, dynamic> json) {
     return EstimationPrix(
       distanceKm: (json['distanceKm'] as num).toDouble(),
       dureeEstimeeMin: json['dureeEstimeeMin'] as int,
       multiplicateurTrafic: (json['multiplicateurTrafic'] as num).toDouble(),
       prixFcfa: json['prixFcfa'] as int,
+      motifMajoration: json['motifMajoration'] as String?,
     );
   }
 }

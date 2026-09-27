@@ -74,7 +74,7 @@ void main() {
     test('15 km : 300 + 15 x 200 = 3 300 FCFA, sans facturation à la minute', () {
       expect(prix(15, heureCreuse), 3300);
       expect(prix(15, heureCreuse, type: 'COLIS'), 3300);
-      expect(prix(15, heurePointe), 4600);
+      expect(prix(15, heurePointe), 4000);
       expect(prix(15, nuit), 4000);
     });
 
@@ -85,7 +85,18 @@ void main() {
         latArrivee: _almadies.latitude,
         lngArrivee: _almadies.longitude,
       );
+      // 300 + 13,1 x 200 = 2 920 -> 3 000 ; x1,2 = 3 504 -> 3 500.
       expect(prix(km, heureCreuse), 3000);
+      expect(prix(km, heurePointe), 3500);
+      expect(prix(km, nuit), 3500);
+    });
+
+    test('motif de la majoration affiché au client', () {
+      String? motif(DateTime quand) =>
+          DemoData.estimerPrix(type: 'PASSAGER', distanceKm: 5, maintenant: quand).motifMajoration;
+      expect(motif(heureCreuse), isNull);
+      expect(motif(heurePointe), 'Heure de pointe');
+      expect(motif(nuit), 'Tarif de nuit');
     });
 
     test('minimum de course 1 000 FCFA ; arrondi à la centaine', () {

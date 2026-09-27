@@ -198,8 +198,8 @@ class DemoData {
   //
   // Grille alignée sur le marché dakarois de la moto-taxi : prise en
   // charge + kilomètres, sans facturation à la minute (le temps n'est payé
-  // qu'à travers la majoration heure de pointe / nuit). Ex. : 15 km hors
-  // pointe = 300 + 15 x 200 = 3 300 FCFA.
+  // qu'à travers la majoration heure de pointe / nuit, x1,2 dans les deux
+  // cas). Ex. : 15 km hors pointe = 300 + 15 x 200 = 3 300 FCFA.
 
   static const double _vitesseMoyenneKmh = 22;
 
@@ -228,7 +228,9 @@ class DemoData {
     // Durée affichée au client ; facturée seulement si parMinute > 0.
     final dureeEstimeeMin = ((distance / _vitesseMoyenneKmh) * 60).round();
     final tarifs = type == 'COLIS' ? _tarifsColis : _tarifsPassager;
-    final multiplicateurTrafic = _multiplicateurTrafic(maintenant ?? DateTime.now());
+    final heure = (maintenant ?? DateTime.now()).toUtc().hour;
+    final motifMajoration = _motifMajoration(heure);
+    final multiplicateurTrafic = motifMajoration == null ? 1.0 : 1.2;
 
     final montantBrut =
         (tarifs.prisEnCharge +
@@ -244,16 +246,15 @@ class DemoData {
       dureeEstimeeMin: dureeEstimeeMin,
       multiplicateurTrafic: multiplicateurTrafic,
       prixFcfa: prixFcfa,
+      motifMajoration: motifMajoration,
     );
   }
 
-  static double _multiplicateurTrafic(DateTime maintenant) {
-    final heure = maintenant.toUtc().hour;
-    final heurePointe = (heure >= 7 && heure < 10) || (heure >= 17 && heure < 20);
-    final heureNuit = heure >= 22 || heure < 5;
-    if (heurePointe) return 1.4;
-    if (heureNuit) return 1.2;
-    return 1.0;
+  /// Dakar est en UTC+0 toute l'année : l'heure UTC est l'heure locale.
+  static String? _motifMajoration(int heureUtc) {
+    if ((heureUtc >= 7 && heureUtc < 10) || (heureUtc >= 17 && heureUtc < 20)) return 'Heure de pointe';
+    if (heureUtc >= 22 || heureUtc < 5) return 'Tarif de nuit';
+    return null;
   }
 
   static String nouvelIdCourse() {

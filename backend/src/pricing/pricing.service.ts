@@ -70,7 +70,8 @@ export class PricingService {
       (heure >= 7 && heure < 10) || (heure >= 17 && heure < 20);
     const heureNuit = heure >= 22 || heure < 5;
 
-    if (heurePointe) return 1.4;
+    // Même majoration en pointe et la nuit (grille alignée sur l'app).
+    if (heurePointe) return 1.2;
     if (heureNuit) return 1.2;
     return 1.0;
   }

@@ -105,7 +105,7 @@ class _Prix extends StatelessWidget {
             if (majoration > 1)
               _Pastille(
                 icone: Icons.trending_up_rounded,
-                texte: '${majoration >= 1.4 ? 'Heure de pointe' : 'Tarif de nuit'} ×${majoration.toStringAsFixed(1).replaceAll('.', ',')}',
+                texte: '${estimation.motifMajoration ?? 'Majoration'} ×${majoration.toStringAsFixed(1).replaceAll('.', ',')}',
               ),
           ],
         ),
