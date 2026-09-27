@@ -10,12 +10,16 @@ class AdminKpiCard extends StatelessWidget {
     required this.valeur,
     required this.label,
     this.accent = AppColors.orange,
+    this.detail,
   });
 
   final IconData icon;
   final String valeur;
   final String label;
   final Color accent;
+
+  /// Précision sous le libellé (ex. "12 cette semaine").
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +44,10 @@ class AdminKpiCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
+          if (detail != null) ...[
+            const SizedBox(height: 6),
+            Text(detail!, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: accent)),
+          ],
         ],
       ),
     );

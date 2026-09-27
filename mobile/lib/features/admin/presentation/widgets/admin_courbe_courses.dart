@@ -28,14 +28,16 @@ class AdminCourbeCourses extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: labels
-              .map(
-                (jour) => Text(
-                  jour,
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
-                ),
-              )
-              .toList(),
+          children: [
+            for (var i = 0; i < labels.length; i++)
+              Column(
+                children: [
+                  Text(labels[i], style: const TextStyle(fontSize: 11.5, color: AppColors.grey)),
+                  if (i < valeurs.length)
+                    Text('${valeurs[i]}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ],
+              ),
+          ],
         ),
       ],
     );
@@ -52,7 +54,8 @@ class _CourbePainter extends CustomPainter {
     if (valeurs.isEmpty) return;
 
     final maxValeur = valeurs.reduce((a, b) => a > b ? a : b).toDouble();
-    final minValeur = valeurs.reduce((a, b) => a < b ? a : b).toDouble();
+    // Échelle à partir de zéro : une journée sans course reste en bas.
+    const minValeur = 0.0;
     final ecart = (maxValeur - minValeur).clamp(1, double.infinity);
 
     final stepX = valeurs.length > 1 ? size.width / (valeurs.length - 1) : 0.0;

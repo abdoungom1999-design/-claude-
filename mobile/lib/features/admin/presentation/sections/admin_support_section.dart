@@ -2,13 +2,37 @@ import 'package:flutter/material.dart';
 import '../../../../core/demo/admin_demo_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../firebase_options.dart';
 
-/// Page "Support" : file des tickets clients à traiter.
+/// Page "Support" : file des tickets clients à traiter. Il n'existe pas
+/// encore de système de tickets dans l'application : en Firebase réel,
+/// la page le dit au lieu d'afficher les tickets de la maquette.
 class AdminSupportSection extends StatelessWidget {
-  const AdminSupportSection({super.key});
+  const AdminSupportSection({super.key, this.demo});
+
+  /// Force la version démo ou réelle (tests) ; par défaut, selon Firebase.
+  final bool? demo;
 
   @override
   Widget build(BuildContext context) {
+    if (!(demo ?? !DefaultFirebaseOptions.estConfigure)) {
+      return const AppCard(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tickets support', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            SizedBox(height: 12),
+            Text(
+              "Aucun ticket : l'application ne permet pas encore aux clients d'ouvrir une "
+              'demande de support. Les tickets de démonstration ont été retirés pour que '
+              "cette page n'affiche que des données réelles.",
+              style: TextStyle(fontSize: 13, color: AppColors.grey, height: 1.5),
+            ),
+          ],
+        ),
+      );
+    }
     final tickets = AdminDemoData.tickets();
     final ouverts = tickets.where((t) => t.statut != StatutTicket.resolu).length;
 

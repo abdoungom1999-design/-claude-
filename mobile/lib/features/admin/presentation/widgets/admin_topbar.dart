@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// En-tête de la Tour de Contrôle : recherche globale (visuelle),
-/// notifications et profil Admin.
+/// En-tête de la Tour de Contrôle : titre de la page et profil Admin.
+/// En mode démo seulement : recherche globale et notifications
+/// (visuelles, sans données réelles derrière).
 class AdminTopbar extends StatelessWidget {
-  const AdminTopbar({super.key, required this.titreSection});
+  const AdminTopbar({super.key, required this.titreSection, this.compteAdmin});
 
   final String titreSection;
+
+  /// Email du compte Admin connecté ; `null` en mode démo.
+  final String? compteAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -24,35 +28,40 @@ class AdminTopbar extends StatelessWidget {
             style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 32),
-          Expanded(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.greyLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.search, size: 19, color: AppColors.grey),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Rechercher une course, un chauffeur, un client…',
-                        style: TextStyle(fontSize: 13, color: AppColors.grey),
+          if (compteAdmin != null)
+            const Spacer()
+          else
+            Expanded(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.greyLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.search, size: 19, color: AppColors.grey),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Rechercher une course, un chauffeur, un client…',
+                          style: TextStyle(fontSize: 13, color: AppColors.grey),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 20),
-          const _BoutonIcone(icon: Icons.notifications_outlined, badge: true),
+          if (compteAdmin == null) ...[
+            const SizedBox(width: 20),
+            const _BoutonIcone(icon: Icons.notifications_outlined, badge: true),
+          ],
           const SizedBox(width: 14),
-          const _ProfilAdmin(),
+          _ProfilAdmin(compte: compteAdmin),
         ],
       ),
     );
@@ -99,7 +108,9 @@ class _BoutonIcone extends StatelessWidget {
 }
 
 class _ProfilAdmin extends StatelessWidget {
-  const _ProfilAdmin();
+  const _ProfilAdmin({this.compte});
+
+  final String? compte;
 
   @override
   Widget build(BuildContext context) {
@@ -127,16 +138,16 @@ class _ProfilAdmin extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        const Column(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Admin Santine',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
             Text(
-              'Super administrateur',
-              style: TextStyle(fontSize: 11, color: AppColors.grey),
+              compte ?? 'Super administrateur',
+              style: const TextStyle(fontSize: 11, color: AppColors.grey),
             ),
           ],
         ),

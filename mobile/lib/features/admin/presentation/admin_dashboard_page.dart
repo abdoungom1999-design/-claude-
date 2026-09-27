@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
@@ -16,9 +17,9 @@ import 'widgets/admin_sidebar.dart';
 import 'widgets/admin_topbar.dart';
 
 /// Tour de Contrôle du Groupe Santine : tableau de bord Administrateur,
-/// pensé pour un affichage Desktop (`/admin`). Entièrement piloté par des
-/// données factices (voir [AdminDemoData] et [DemoData]/[AdminRepository]
-/// pour la page Chauffeurs), pour naviguer sans backend.
+/// pensé pour un affichage Desktop (`/admin`). En Firebase réel, chaque
+/// page ne montre que des données Firestore ; sans Firebase, les données
+/// de démonstration ([AdminDemoData]) permettent de naviguer.
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -77,6 +78,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               children: [
                 AdminTopbar(
                   titreSection: adminSections[_indexSelectionne].label,
+                  compteAdmin: DefaultFirebaseOptions.estConfigure
+                      ? FirebaseAuth.instance.currentUser?.email ?? 'Compte Admin'
+                      : null,
                 ),
                 Expanded(
                   child: SingleChildScrollView(

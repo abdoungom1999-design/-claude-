@@ -14,6 +14,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -342,6 +344,17 @@ describe('courses : cycle de vie côté chauffeur', () => {
     const enCours = (db) => getDocs(query(collection(db, 'courses'), where('statut', 'in', ['acceptee', 'en_cours'])));
     await assertSucceeds(enCours(en('admin')));
     await assertFails(enCours(en('client')));
+  });
+
+  test('Dashboard admin : dernières courses et liste des clients ; refusé à un client ou un chauffeur', async () => {
+    const dernieres = (db) => getDocs(query(collection(db, 'courses'), orderBy('timestamp', 'desc'), limit(10)));
+    const clients = (db) => getDocs(query(collection(db, 'users'), where('role', '==', 'client')));
+    await assertSucceeds(dernieres(en('admin')));
+    await assertSucceeds(clients(en('admin')));
+    for (const uid of ['client', 'chauffeur']) {
+      await assertFails(dernieres(en(uid)));
+      await assertFails(clients(en(uid)));
+    }
   });
 });
 

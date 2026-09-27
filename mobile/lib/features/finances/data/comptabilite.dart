@@ -13,6 +13,7 @@ class LigneCourse {
     required this.commissionFcfa,
     required this.date,
     this.methodePaiement,
+    this.clientId = '',
   });
 
   factory LigneCourse.depuisCourse(CourseFirestore course) => LigneCourse(
@@ -22,11 +23,13 @@ class LigneCourse {
         // Courses terminées avant la gestion financière : même formule.
         commissionFcfa: course.commissionFcfa ?? Commission.de(course.prixFcfa),
         methodePaiement: course.methodePaiement,
+        clientId: course.clientId,
         date: course.termineeLe ?? course.timestamp,
       );
 
   final String courseId;
   final String chauffeurId;
+  final String clientId;
   final int prixFcfa;
   final int commissionFcfa;
   final DateTime date;
