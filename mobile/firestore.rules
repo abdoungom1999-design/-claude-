@@ -93,7 +93,10 @@ service cloud.firestore {
 
       allow update: if estAdmin()
         || (connecte() && moi() == uid
-            && champsModifies().hasOnly(['nom', 'telephone']));
+            && champsModifies().hasOnly(['nom', 'telephone']))
+        // Note moyenne : un client ajoute SA note, dans la même écriture
+        // que son évaluation (voir /evaluations).
+        || (connecte() && evaluationAjoutee(uid));
 
       allow delete: if estAdmin();
     }
@@ -221,6 +224,62 @@ service cloud.firestore {
         && request.resource.data.majLe == request.time;
 
       allow delete: if estAdmin() || (connecte() && moi() == uid);
+    }
+
+    // ---------------------------------------------------------------
+    // Évaluations : une par course (identifiant = courseId), laissée par
+    // le client de la course une fois terminée, jamais modifiable. La note
+    // moyenne du chauffeur (noteSomme / noteNombre dans son profil public)
+    // est mise à jour dans la même écriture : l'une ne va pas sans l'autre.
+    // ---------------------------------------------------------------
+    function evaluationAjoutee(chauffeurUid) {
+      let courseId = request.resource.data.get('derniereEvaluation', null);
+      return courseId is string
+        && champsModifies().hasOnly(['noteSomme', 'noteNombre', 'derniereEvaluation'])
+        && !exists(/databases/$(database)/documents/evaluations/$(courseId))
+        && notesAjoutees(getAfter(/databases/$(database)/documents/evaluations/$(courseId)).data, chauffeurUid);
+    }
+
+    function notesAjoutees(evaluation, chauffeurUid) {
+      return evaluation.chauffeurId == chauffeurUid
+        && evaluation.clientId == moi()
+        && request.resource.data.noteNombre == resource.data.get('noteNombre', 0) + 1
+        && request.resource.data.noteSomme == resource.data.get('noteSomme', 0) + evaluation.note;
+    }
+
+    function courseTermineeDuClient(courseId, chauffeurUid) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return course.clientId == moi()
+        && course.chauffeurId == chauffeurUid
+        && course.statut == 'terminee';
+    }
+
+    match /evaluations/{courseId} {
+      allow get: if connecte()
+        && (resource == null
+            || resource.data.clientId == moi()
+            || resource.data.chauffeurId == moi()
+            || estAdmin());
+      allow list: if connecte()
+        && (resource.data.clientId == moi() || resource.data.chauffeurId == moi() || estAdmin());
+
+      allow create: if connecte()
+        && request.resource.data.keys().hasOnly([
+             'courseId', 'chauffeurId', 'clientId', 'note', 'commentaire', 'creeLe'])
+        && request.resource.data.courseId == courseId
+        && request.resource.data.clientId == moi()
+        && request.resource.data.note is int
+        && request.resource.data.note >= 1 && request.resource.data.note <= 5
+        && (!('commentaire' in request.resource.data)
+            || (request.resource.data.commentaire is string
+                && request.resource.data.commentaire.size() <= 500))
+        && request.resource.data.creeLe == request.time
+        && courseTermineeDuClient(courseId, request.resource.data.chauffeurId)
+        && getAfter(/databases/$(database)/documents/profils_publics/$(request.resource.data.chauffeurId))
+             .data.get('derniereEvaluation', null) == courseId;
+
+      allow update: if false;
+      allow delete: if estAdmin();
     }
 
     // ---------------------------------------------------------------

@@ -3,6 +3,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/coming_soon_view.dart';
 import '../../../firebase_options.dart';
+import '../../evaluations/data/evaluation_service.dart';
+import '../../evaluations/presentation/evaluation_course.dart';
 import '../data/chat_service.dart';
 import 'messagerie_chat_page.dart';
 
@@ -114,9 +116,9 @@ class _MessagesTabPageState extends State<MessagesTabPage> {
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        const Text(
-                                          'Chauffeur Sprint · Disponible',
-                                          style: TextStyle(fontSize: 12, color: AppColors.grey),
+                                        BadgeNoteChauffeur(
+                                          note: NoteChauffeur.depuisProfil(conducteur),
+                                          taille: 12,
                                         ),
                                       ],
                                     ),

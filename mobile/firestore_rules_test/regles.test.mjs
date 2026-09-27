@@ -20,6 +20,8 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
+  increment,
 } from 'firebase/firestore';
 
 let env;
@@ -418,6 +420,83 @@ describe('suivi d\'approche (client)', () => {
   test('véhicule du profil public : écrit par l\'admin, pas par le chauffeur', async () => {
     await assertFails(updateDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'), { plaqueImmatriculation: 'DK-0000-ZZ' }));
     await assertSucceeds(updateDoc(doc(en('admin'), 'profils_publics', 'chauffeur'), { vehiculeId: 'Yamaha', plaqueImmatriculation: 'DK-1234-AB' }));
+  });
+});
+
+describe('evaluations et note moyenne', () => {
+  beforeEach(() => env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'courses', 'fin'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee' });
+    await setDoc(doc(db, 'courses', 'fin2'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee' });
+    await setDoc(doc(db, 'courses', 'route'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'en_cours' });
+    await setDoc(doc(db, 'courses', 'autre'), { clientId: 'autreClient', chauffeurId: 'chauffeur', statut: 'terminee' });
+    await setDoc(doc(db, 'profils_publics', 'chauffeur'),
+      { nom: 'Moussa', telephone: TEL_CHAUFFEUR, role: 'conducteur', disponible: true, noteSomme: 9, noteNombre: 2 });
+  }));
+
+  const evaluation = (courseId, extra = {}) => ({
+    courseId, chauffeurId: 'chauffeur', clientId: 'client', note: 5, commentaire: 'Très bien', creeLe: serverTimestamp(), ...extra,
+  });
+
+  const evaluer = (uid, courseId, { note = 5, extra = {}, profil } = {}) => {
+    const db = en(uid);
+    const lot = writeBatch(db);
+    lot.set(doc(db, 'evaluations', courseId), evaluation(courseId, { note, ...extra }));
+    lot.update(doc(db, 'profils_publics', 'chauffeur'),
+      profil ?? { noteSomme: increment(note), noteNombre: increment(1), derniereEvaluation: courseId });
+    return lot.commit();
+  };
+
+  test('le client note sa course terminée et la moyenne est mise à jour', async () => {
+    await assertSucceeds(evaluer('client', 'fin', { note: 4 }));
+    let profil;
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      profil = (await getDoc(doc(ctx.firestore(), 'profils_publics', 'chauffeur'))).data();
+    });
+    if (profil.noteSomme !== 13 || profil.noteNombre !== 3) throw new Error(JSON.stringify(profil));
+  });
+
+  test('une seule évaluation par course, jamais modifiable', async () => {
+    await assertSucceeds(evaluer('client', 'fin'));
+    await assertFails(evaluer('client', 'fin'));
+    await assertFails(updateDoc(doc(en('client'), 'evaluations', 'fin'), { note: 1 }));
+  });
+
+  test('évaluation sans mise à jour de la moyenne, ou moyenne sans évaluation : refusé', async () => {
+    await assertFails(setDoc(doc(en('client'), 'evaluations', 'fin'), evaluation('fin')));
+    await assertFails(updateDoc(doc(en('client'), 'profils_publics', 'chauffeur'),
+      { noteSomme: increment(5), noteNombre: increment(1), derniereEvaluation: 'fin' }));
+  });
+
+  test('gonfler la moyenne (mauvais total, plusieurs avis d\'un coup) : refusé', async () => {
+    await assertFails(evaluer('client', 'fin', { note: 1, profil: { noteSomme: increment(5), noteNombre: increment(1), derniereEvaluation: 'fin' } }));
+    await assertFails(evaluer('client', 'fin', { profil: { noteSomme: increment(10), noteNombre: increment(2), derniereEvaluation: 'fin' } }));
+    await assertFails(evaluer('client', 'fin', { profil: { noteSomme: increment(5), noteNombre: increment(1), derniereEvaluation: 'fin', disponible: false } }));
+  });
+
+  test('note hors 1-5, non entière ou commentaire trop long : refusé', async () => {
+    await assertFails(evaluer('client', 'fin', { note: 6 }));
+    await assertFails(evaluer('client', 'fin', { note: 0 }));
+    await assertFails(evaluer('client', 'fin', { note: 4.5 }));
+    await assertFails(evaluer('client', 'fin', { extra: { commentaire: 'x'.repeat(501) } }));
+  });
+
+  test('course pas terminée, course d\'un autre, ou chauffeur qui se note lui-même : refusé', async () => {
+    await assertFails(evaluer('client', 'route'));
+    await assertFails(evaluer('client', 'autre'));
+    await assertFails(evaluer('chauffeur', 'fin', { extra: { clientId: 'chauffeur' } }));
+  });
+
+  test('lecture : le client et le chauffeur concernés, pas les autres', async () => {
+    await assertSucceeds(evaluer('client', 'fin'));
+    await assertSucceeds(getDoc(doc(en('client'), 'evaluations', 'fin')));
+    await assertSucceeds(getDocs(query(collection(en('chauffeur'), 'evaluations'), where('chauffeurId', '==', 'chauffeur'))));
+    await assertFails(getDoc(doc(en('autreClient'), 'evaluations', 'fin')));
+    await assertSucceeds(getDoc(doc(en('client'), 'evaluations', 'fin2'))); // pas encore notée : document vide
+  });
+
+  test('le chauffeur ne peut pas toucher à sa propre note', async () => {
+    await assertFails(updateDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'), { noteSomme: 50, noteNombre: 10 }));
   });
 });
 

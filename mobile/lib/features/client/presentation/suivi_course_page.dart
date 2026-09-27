@@ -4,6 +4,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../courses/data/course_service.dart';
 import '../../messages/data/chat_service.dart';
 import '../../courses/data/position_chauffeur.dart';
+import '../../evaluations/data/evaluation_service.dart';
+import '../../evaluations/presentation/evaluation_course.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
 import 'widgets/suivi_approche.dart';
 
@@ -61,7 +63,8 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
                   onAnnuler: _annuler,
                 );
               case 'terminee':
-                return _EtatTerminee(onRetour: () => Navigator.of(context).pop());
+                // Fin de course : le client note son chauffeur.
+                return _EtatTerminee(course: course, onRetour: () => Navigator.of(context).pop());
               default:
                 // 'acceptee' et 'en_cours' : un chauffeur est assigné.
                 return _EtatChauffeurAssigne(course: course);
@@ -250,6 +253,10 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
                       const SizedBox(height: 2),
                       Text(vehicule, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
                     ],
+                    if (_profilChauffeur != null) ...[
+                      const SizedBox(height: 4),
+                      BadgeNoteChauffeur(note: NoteChauffeur.depuisProfil(_profilChauffeur)),
+                    ],
                   ],
                 ),
               ),
@@ -368,30 +375,42 @@ class _EtatAnnulee extends StatelessWidget {
   }
 }
 
-class _EtatTerminee extends StatelessWidget {
-  const _EtatTerminee({required this.onRetour});
+class _EtatTerminee extends StatefulWidget {
+  const _EtatTerminee({required this.course, required this.onRetour});
 
+  final CourseFirestore course;
   final VoidCallback onRetour;
 
   @override
+  State<_EtatTerminee> createState() => _EtatTermineeState();
+}
+
+class _EtatTermineeState extends State<_EtatTerminee> {
+  String? _nomChauffeur;
+
+  @override
+  void initState() {
+    super.initState();
+    _chargerNom();
+  }
+
+  Future<void> _chargerNom() async {
+    final chauffeurId = widget.course.chauffeurId;
+    if (chauffeurId == null) return;
+    try {
+      final profil = await ChatService().chargerProfil(chauffeurId);
+      if (mounted) setState(() => _nomChauffeur = profil?['nom'] as String?);
+    } catch (_) {
+      // Le nom n'est qu'un confort d'affichage.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle_outline_rounded, size: 48, color: Colors.green),
-            const SizedBox(height: 16),
-            const Text(
-              'Course terminée, merci !',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton(onPressed: onRetour, child: const Text('Retour à l\'accueil')),
-          ],
-        ),
-      ),
+    return EvaluationCourse(
+      course: widget.course,
+      nomChauffeur: _nomChauffeur,
+      onTerminer: widget.onRetour,
     );
   }
 }
