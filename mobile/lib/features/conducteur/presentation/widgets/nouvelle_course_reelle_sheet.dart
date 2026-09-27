@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/format_fcfa.dart';
 import '../../../courses/data/course_service.dart';
 
 /// Affiche la bottom sheet "Nouvelle course disponible !" pour une
@@ -153,7 +154,7 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${widget.course.prixFcfa} FCFA',
+                      formaterFcfa(widget.course.prixFcfa),
                       style: const TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.bold,
@@ -161,9 +162,13 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Prix de la course',
-                      style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                    Text(
+                      widget.course.libellePaiement,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: widget.course.payeeEnEspeces ? FontWeight.w700 : FontWeight.w400,
+                        color: widget.course.payeeEnEspeces ? AppColors.vert : AppColors.grey,
+                      ),
                     ),
                   ],
                 ),

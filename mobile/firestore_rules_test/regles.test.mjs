@@ -214,7 +214,7 @@ describe('annuaire_telephones (connexion par téléphone)', () => {
 describe('courses', () => {
   const nouvelleCourse = (clientId, extra = {}) => ({
     clientId, chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', prixFcfa: 2100,
-    timestamp: serverTimestamp(), ...extra,
+    methodePaiement: 'WAVE', timestamp: serverTimestamp(), ...extra,
   });
 
   test('un client crée sa course : accepté', async () => {
@@ -293,7 +293,8 @@ describe('courses : cycle de vie côté chauffeur', () => {
   test('le chauffeur attribué : client à bord puis course terminée : accepté', async () => {
     const db = en('chauffeur');
     await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'), { statut: 'en_cours' }));
-    await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'), { statut: 'terminee' }));
+    await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'),
+      { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: 300 }));
   });
 
   test('sauter une étape, revenir en arrière ou toucher au prix : refusé', async () => {
@@ -432,7 +433,7 @@ describe('suivi d\'approche (client)', () => {
   });
 
   test('coordonnées de prise en charge enregistrées avec la course', async () => {
-    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', prixFcfa: 3000, timestamp: serverTimestamp() };
+    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', prixFcfa: 3000, methodePaiement: 'ESPECES', timestamp: serverTimestamp() };
     await assertSucceeds(addDoc(collection(en('client'), 'courses'),
       { ...base, latitudeDepart: 14.668, longitudeDepart: -17.438, latitudeArrivee: 14.745, longitudeArrivee: -17.517 }));
     await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, latitudeDepart: 'Plateau' }));
@@ -528,6 +529,57 @@ describe('evaluations et note moyenne', () => {
 
   test('le chauffeur ne peut pas toucher à sa propre note', async () => {
     await assertFails(updateDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'), { noteSomme: 50, noteNombre: 10 }));
+  });
+});
+
+describe('finances', () => {
+  beforeEach(() => env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'courses', 'f1'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'en_cours', prixFcfa: 3100 })));
+
+  const terminer = (commission, extra = {}) =>
+    updateDoc(doc(en('chauffeur'), 'courses', 'f1'), { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: commission, ...extra });
+
+  test('fin de course : commission = 15 % arrondi à l\'inférieur (3 100 -> 465)', async () => {
+    await assertSucceeds(terminer(465));
+  });
+
+  test('commission sous-évaluée, absente, ou prix modifié à la fin : refusé', async () => {
+    await assertFails(terminer(0));
+    await assertFails(terminer(464));
+    await assertFails(updateDoc(doc(en('chauffeur'), 'courses', 'f1'), { statut: 'terminee', termineeLe: serverTimestamp() }));
+    await assertFails(terminer(465, { prixFcfa: 100 }));
+  });
+
+  test('création de course : mode de paiement et prix valides obligatoires', async () => {
+    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', timestamp: serverTimestamp() };
+    await assertSucceeds(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'ESPECES' }));
+    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'CARTE' }));
+    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 0, methodePaiement: 'ESPECES' }));
+  });
+
+  test('règlements : saisis par l\'admin, lus par le chauffeur concerné seulement', async () => {
+    const reglement = { chauffeurId: 'chauffeur', montantFcfa: 5000, sens: 'chauffeur_vers_plateforme', note: 'Versement Wave', creeLe: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(en('admin'), 'reglements', 'r1'), reglement));
+    await assertFails(setDoc(doc(en('chauffeur'), 'reglements', 'r2'), reglement));
+    await assertSucceeds(getDocs(query(collection(en('chauffeur'), 'reglements'), where('chauffeurId', '==', 'chauffeur'))));
+    await assertFails(getDocs(query(collection(en('client'), 'reglements'), where('chauffeurId', '==', 'chauffeur'))));
+    await assertFails(updateDoc(doc(en('admin'), 'reglements', 'r1'), { montantFcfa: 1 }));
+    await assertFails(setDoc(doc(en('admin'), 'reglements', 'r3'), { ...reglement, montantFcfa: -100 }));
+  });
+
+  test('temps en ligne : +60 s par minute, pour soi, pas de rafale', async () => {
+    const db = en('chauffeur');
+    const ref = doc(db, 'temps_en_ligne', 'chauffeur_2026-09-27');
+    await assertSucceeds(setDoc(ref, { chauffeurId: 'chauffeur', date: '2026-09-27', secondes: 60, majLe: serverTimestamp() }));
+    // Seconde écriture immédiate : trop tôt (moins de 50 s).
+    await assertFails(updateDoc(ref, { secondes: increment(60), majLe: serverTimestamp() }));
+    await env.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), 'temps_en_ligne', 'chauffeur_2026-09-27'), { majLe: new Date(Date.now() - 120000) }));
+    await assertFails(updateDoc(ref, { secondes: increment(3600), majLe: serverTimestamp() }));
+    await assertSucceeds(updateDoc(ref, { secondes: increment(60), majLe: serverTimestamp() }));
+    await assertFails(setDoc(doc(en('chauffeur'), 'temps_en_ligne', 'suspendu_2026-09-27'),
+      { chauffeurId: 'suspendu', date: '2026-09-27', secondes: 60, majLe: serverTimestamp() }));
+    await assertFails(getDoc(doc(en('client'), 'temps_en_ligne', 'chauffeur_2026-09-27')));
   });
 });
 

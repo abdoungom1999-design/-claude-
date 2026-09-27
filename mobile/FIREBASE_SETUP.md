@@ -93,7 +93,7 @@ chauffeur au chauffeur lui-même et à l'Admin.
 ## 6. Sécurité Firestore et rôle Admin
 
 Les règles de sécurité sont dans `firestore.rules` (testées sur
-l'émulateur Firestore : `firestore_rules_test/`, 70 cas). Elles
+l'émulateur Firestore : `firestore_rules_test/`, 75 cas). Elles
 remplacent les règles "mode Test" de l'étape 3, qui laissent n'importe
 qui lire et modifier toute la base.
 
@@ -161,6 +161,11 @@ depuis la Console.
   course terminée), sans pouvoir sauter d'étape ni toucher au prix. Il
   peut aussi l'annuler avec un motif (client introuvable, panne, autre),
   montré au client.
+- Finances : à la fin d'une course, la commission de la plateforme (15 %
+  du prix) est figée et vérifiée par les règles. Les règlements entre un
+  chauffeur et la plateforme (`reglements`) ne sont saisis que par
+  l'Admin ; le temps en ligne (`temps_en_ligne`) ne peut augmenter que
+  d'une minute par minute.
 - Toute autre collection : refusée.
 
 ### Limites connues (à traiter avant le lancement)
@@ -174,7 +179,7 @@ depuis la Console.
 
 - Le prix et l'identifiant de paiement d'une course sont fournis par
   l'app cliente : les règles vérifient la forme de la demande, pas le
-  montant. Un calcul et une vérification de paiement côté serveur
+  montant. La commission (15 % de ce prix) en dépend donc aussi. Un calcul et une vérification de paiement côté serveur
   (Cloud Functions) restent nécessaires.
 - Un numéro de téléphone n'est pas garanti unique : si quelqu'un
   revendique en premier le numéro d'un autre dans l'annuaire, ce dernier

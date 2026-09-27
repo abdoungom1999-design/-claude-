@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/format_fcfa.dart';
 import '../../../courses/data/course_service.dart';
 
 /// Bandeau de la course en cours du chauffeur, affiché au-dessus de la
@@ -73,6 +74,15 @@ class CourseActiveBandeau extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                        // Rappel à l'arrivée : ce que le chauffeur doit encaisser.
+                        Text(
+                          course.payeeEnEspeces
+                              ? 'Espèces : ${formaterFcfa(course.prixFcfa)} à encaisser'
+                              : course.libellePaiement,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),

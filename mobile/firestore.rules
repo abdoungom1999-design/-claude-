@@ -140,6 +140,9 @@ service cloud.firestore {
              'adresseArrivee', 'prixFcfa', 'methodePaiement', 'transactionId',
              'timestamp', 'latitudeDepart', 'longitudeDepart',
              'latitudeArrivee', 'longitudeArrivee'])
+        && request.resource.data.methodePaiement in ['ESPECES', 'WAVE', 'ORANGE_MONEY']
+        && request.resource.data.prixFcfa is int
+        && request.resource.data.prixFcfa > 0
         && nombreOuAbsent(request.resource.data, 'latitudeDepart')
         && nombreOuAbsent(request.resource.data, 'longitudeDepart')
         && nombreOuAbsent(request.resource.data, 'latitudeArrivee')
@@ -174,9 +177,19 @@ service cloud.firestore {
         // (acceptee -> en_cours), puis arrivée (en_cours -> terminee).
         || (connecte()
             && resource.data.chauffeurId == moi()
-            && ((resource.data.statut == 'acceptee' && request.resource.data.statut == 'en_cours')
-                || (resource.data.statut == 'en_cours' && request.resource.data.statut == 'terminee'))
+            && resource.data.statut == 'acceptee'
+            && request.resource.data.statut == 'en_cours'
             && champsModifies().hasOnly(['statut']))
+        // À l'arrivée, la commission de la plateforme (15 % du prix,
+        // arrondi à l'inférieur) est figée sur la course, avec l'heure de
+        // fin : le chauffeur ne peut pas la choisir.
+        || (connecte()
+            && resource.data.chauffeurId == moi()
+            && resource.data.statut == 'en_cours'
+            && request.resource.data.statut == 'terminee'
+            && request.resource.data.termineeLe == request.time
+            && request.resource.data.commissionFcfa == math.floor(resource.data.prixFcfa * 15 / 100)
+            && champsModifies().hasOnly(['statut', 'termineeLe', 'commissionFcfa']))
         // Le chauffeur attribué annule sa course (client introuvable,
         // panne…), avec un motif montré au client ; il redevient libre.
         || (connecte()
@@ -290,6 +303,50 @@ service cloud.firestore {
              .data.get('derniereEvaluation', null) == courseId;
 
       allow update: if false;
+      allow delete: if estAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Finances. Règlements entre un chauffeur et la plateforme (le
+    // chauffeur verse sa commission des courses en espèces, ou la
+    // plateforme lui reverse sa part des courses payées en mobile money) :
+    // saisis par l'Admin seul, visibles du chauffeur concerné.
+    // ---------------------------------------------------------------
+    match /reglements/{reglementId} {
+      allow read: if connecte() && (resource.data.chauffeurId == moi() || estAdmin());
+
+      allow create: if estAdmin()
+        && request.resource.data.keys().hasOnly(['chauffeurId', 'montantFcfa', 'sens', 'note', 'creeLe'])
+        && request.resource.data.chauffeurId is string
+        && request.resource.data.montantFcfa is int
+        && request.resource.data.montantFcfa > 0
+        && request.resource.data.sens in ['chauffeur_vers_plateforme', 'plateforme_vers_chauffeur']
+        && request.resource.data.creeLe == request.time;
+
+      allow update: if false;
+      allow delete: if estAdmin();
+    }
+
+    // Temps en ligne du chauffeur, par jour ("{uid}_{AAAA-MM-JJ}") : +60 s
+    // par minute passée en ligne, au plus une fois toutes les 50 s.
+    match /temps_en_ligne/{jourId} {
+      allow read: if connecte() && (resource.data.chauffeurId == moi() || estAdmin());
+
+      allow create: if connecte()
+        && jourId == moi() + '_' + request.resource.data.date
+        && request.resource.data.keys().hasOnly(['chauffeurId', 'date', 'secondes', 'majLe'])
+        && request.resource.data.chauffeurId == moi()
+        && request.resource.data.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && request.resource.data.secondes == 60
+        && request.resource.data.majLe == request.time;
+
+      allow update: if connecte()
+        && resource.data.chauffeurId == moi()
+        && champsModifies().hasOnly(['secondes', 'majLe'])
+        && request.resource.data.secondes == resource.data.secondes + 60
+        && request.resource.data.majLe == request.time
+        && request.time > resource.data.majLe + duration.value(50, 's');
+
       allow delete: if estAdmin();
     }
 

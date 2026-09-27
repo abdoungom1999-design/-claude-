@@ -42,6 +42,9 @@ extension PaiementParMethode on PaiementService {
         return initierPaiementWave(montant);
       case PaymentMethod.orangeMoney:
         return initierPaiementOrangeMoney(montant);
+      case PaymentMethod.especes:
+        // Rien à encaisser dans l'app : le client paie le chauffeur.
+        return Future.value(const TransactionResult(statut: StatutTransaction.succes, id: ''));
     }
   }
 }

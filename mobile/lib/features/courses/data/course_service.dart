@@ -25,6 +25,8 @@ class CourseFirestore {
     this.points,
     this.annuleePar,
     this.motifAnnulation,
+    this.termineeLe,
+    this.commissionFcfa,
   });
 
   final String id;
@@ -49,6 +51,24 @@ class CourseFirestore {
   /// Voir [MotifAnnulation].
   final String? motifAnnulation;
 
+  /// Heure d'arrivée (courses terminées depuis la gestion financière).
+  final DateTime? termineeLe;
+
+  /// Commission de la plateforme figée à la fin de la course (voir
+  /// `Commission`) ; `null` pour les courses terminées avant.
+  final int? commissionFcfa;
+
+  /// Le client paie le chauffeur en espèces à l'arrivée.
+  bool get payeeEnEspeces => methodePaiement == 'ESPECES';
+
+  /// "À encaisser en espèces" / "Déjà payé par Wave"…
+  String get libellePaiement => switch (methodePaiement) {
+        'ESPECES' => 'À encaisser en espèces',
+        'WAVE' => 'Déjà payé par Wave',
+        'ORANGE_MONEY' => 'Déjà payé par Orange Money',
+        _ => 'Paiement dans l\'app',
+      };
+
   factory CourseFirestore.depuisDocument(String id, Map<String, dynamic> donnees) {
     final horodatage = donnees['timestamp'];
     return CourseFirestore(
@@ -67,6 +87,8 @@ class CourseFirestore {
       points: PointsCourse.depuisDocument(donnees),
       annuleePar: donnees['annuleePar'] as String?,
       motifAnnulation: donnees['motifAnnulation'] as String?,
+      termineeLe: donnees['termineeLe'] is Timestamp ? (donnees['termineeLe'] as Timestamp).toDate() : null,
+      commissionFcfa: (donnees['commissionFcfa'] as num?)?.toInt(),
     );
   }
 }
@@ -120,6 +142,15 @@ abstract final class StatutCourse {
 
   /// Un chauffeur est attribué et la course n'est pas finie.
   static const actifs = [acceptee, enCours];
+}
+
+/// Commission de la plateforme sur chaque course terminée : 15 % du
+/// prix, arrondi à l'inférieur. Même formule que `firestore.rules`
+/// (`math.floor(prixFcfa * 15 / 100)`), qui la fait respecter.
+abstract final class Commission {
+  static const pourcentage = 15;
+
+  static int de(int prixFcfa) => (prixFcfa * pourcentage) ~/ 100;
 }
 
 /// Motif d'annulation d'une course par le chauffeur (valeurs acceptées
@@ -293,9 +324,15 @@ class CourseService {
     return _courses.doc(courseId).update({'statut': StatutCourse.enCours});
   }
 
-  /// Arrivée à destination : `en_cours` -> `terminee`.
-  Future<void> terminerCourse(String courseId) {
-    return _courses.doc(courseId).update({'statut': StatutCourse.terminee});
+  /// Arrivée à destination : `en_cours` -> `terminee`, avec l'heure de
+  /// fin et la commission de la plateforme figée (les règles Firestore
+  /// vérifient qu'elle vaut exactement [Commission.de] du prix).
+  Future<void> terminerCourse(CourseFirestore course) {
+    return _courses.doc(course.id).update({
+      'statut': StatutCourse.terminee,
+      'termineeLe': FieldValue.serverTimestamp(),
+      'commissionFcfa': Commission.de(course.prixFcfa),
+    });
   }
 
   /// Le chauffeur attribué annule sa course (client introuvable,

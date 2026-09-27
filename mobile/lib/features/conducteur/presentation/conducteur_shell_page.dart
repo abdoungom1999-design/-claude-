@@ -17,6 +17,7 @@ import '../../../core/widgets/email_verification_pending_page.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
+import '../../finances/data/finance_service.dart';
 import '../../messages/data/chat_service.dart';
 import '../../messages/data/detecteur_nouveaux_messages.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
@@ -61,6 +62,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   final _locationService = DeviceLocationService();
   final _courseService = CourseService();
   final _positionService = PositionChauffeurService();
+  final _tempsEnLigne = TempsEnLigneService();
   final _random = Random();
 
   int _indexSelectionne = 0;
@@ -108,6 +110,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     _abonnementStatutCompte?.cancel();
     _abonnementCourseActive?.cancel();
     _abonnementMessages?.cancel();
+    _tempsEnLigne.arreter();
     if (DefaultFirebaseOptions.estConfigure) unawaited(_positionService.arreter());
     super.dispose();
   }
@@ -243,6 +246,8 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   void _demarrerEnvoiPosition() {
     if (DefaultFirebaseOptions.estConfigure) {
       unawaited(_positionService.demarrer());
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) _tempsEnLigne.demarrer(uid);
       return;
     }
     _minuteurPosition?.cancel();
@@ -258,6 +263,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   Future<void> _arreterEnvoiPosition() async {
     _minuteurPosition?.cancel();
     _minuteurPosition = null;
+    _tempsEnLigne.arreter();
     if (DefaultFirebaseOptions.estConfigure) await _positionService.arreter();
   }
 
@@ -414,7 +420,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     setState(() => _avancementCourseEnCours = true);
     try {
       if (course.statut == StatutCourse.enCours) {
-        await _courseService.terminerCourse(course.id);
+        await _courseService.terminerCourse(course);
       } else {
         await _courseService.demarrerCourse(course.id);
       }
