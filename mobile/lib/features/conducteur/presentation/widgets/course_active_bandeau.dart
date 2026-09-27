@@ -6,8 +6,10 @@ import '../../../courses/data/course_service.dart';
 /// barre de navigation tant qu'une course lui est attribuée : un bouton
 /// qui fait avancer la course ("Client à bord" (`acceptee` ->
 /// `en_cours`), puis "Terminer la course" (`en_cours` -> `terminee`)),
-/// et, comme côté client, "Appeler" et "Message" pour joindre le client
-/// (badge tant qu'un message du client n'a pas été lu).
+/// "Naviguer" (Google Maps ou Waze vers le client, puis vers la
+/// destination), et, comme côté client, "Appeler" et "Message" (badge
+/// tant qu'un message du client n'a pas été lu). "Annuler la course" en
+/// dernier recours (client introuvable, panne).
 class CourseActiveBandeau extends StatelessWidget {
   const CourseActiveBandeau({
     super.key,
@@ -16,6 +18,8 @@ class CourseActiveBandeau extends StatelessWidget {
     required this.onAvancer,
     required this.onAppeler,
     required this.onMessage,
+    required this.onNaviguer,
+    required this.onAnnuler,
     this.messageNonLu = false,
   });
 
@@ -26,6 +30,8 @@ class CourseActiveBandeau extends StatelessWidget {
   final VoidCallback onAvancer;
   final VoidCallback onAppeler;
   final VoidCallback onMessage;
+  final VoidCallback onNaviguer;
+  final VoidCallback onAnnuler;
   final bool messageNonLu;
 
   bool get _clientABord => course.statut == StatutCourse.enCours;
@@ -96,9 +102,18 @@ class CourseActiveBandeau extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
+                    child: _BoutonContact(
+                      icone: Icons.navigation_rounded,
+                      libelle: 'Naviguer',
+                      onPressed: onNaviguer,
+                      plein: true,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: _BoutonContact(icone: Icons.call_rounded, libelle: 'Appeler', onPressed: onAppeler),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _BoutonContact(
                       icone: Icons.chat_bubble_outline_rounded,
@@ -108,6 +123,21 @@ class CourseActiveBandeau extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: enCours ? null : onAnnuler,
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  label: const Text(
+                    'Annuler la course',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
               ),
             ],
           ),
@@ -123,6 +153,7 @@ class _BoutonContact extends StatelessWidget {
     required this.libelle,
     required this.onPressed,
     this.badge = false,
+    this.plein = false,
   });
 
   final IconData icone;
@@ -130,13 +161,17 @@ class _BoutonContact extends StatelessWidget {
   final VoidCallback onPressed;
   final bool badge;
 
+  /// Bouton principal (fond blanc) : "Naviguer".
+  final bool plein;
+
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: badge ? Colors.white.withValues(alpha: 0.18) : null,
+        foregroundColor: plein ? AppColors.orange : Colors.white,
+        backgroundColor: plein ? Colors.white : (badge ? Colors.white.withValues(alpha: 0.18) : null),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         side: const BorderSide(color: Colors.white70),
         minimumSize: const Size.fromHeight(40),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -150,7 +185,7 @@ class _BoutonContact extends StatelessWidget {
             backgroundColor: Colors.white,
             child: Icon(icone, size: 18),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Flexible(
             child: Text(
               libelle,

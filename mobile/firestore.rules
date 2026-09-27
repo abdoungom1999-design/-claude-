@@ -177,6 +177,15 @@ service cloud.firestore {
             && ((resource.data.statut == 'acceptee' && request.resource.data.statut == 'en_cours')
                 || (resource.data.statut == 'en_cours' && request.resource.data.statut == 'terminee'))
             && champsModifies().hasOnly(['statut']))
+        // Le chauffeur attribué annule sa course (client introuvable,
+        // panne…), avec un motif montré au client ; il redevient libre.
+        || (connecte()
+            && resource.data.chauffeurId == moi()
+            && resource.data.statut in ['acceptee', 'en_cours']
+            && request.resource.data.statut == 'annulee'
+            && request.resource.data.annuleePar == 'chauffeur'
+            && request.resource.data.motifAnnulation in ['client_introuvable', 'panne', 'autre']
+            && champsModifies().hasOnly(['statut', 'annuleePar', 'motifAnnulation']))
         // Le client annule sa propre demande tant qu'elle est en attente.
         || (connecte()
             && resource.data.clientId == moi()

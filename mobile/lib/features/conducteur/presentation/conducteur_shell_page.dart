@@ -5,8 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/alertes/alerte_sonore.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/location/device_location_service.dart';
+import '../../../core/maps/navigation_gps.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
@@ -29,6 +31,7 @@ import 'tabs/conducteur_evaluations_tab.dart';
 import 'tabs/conducteur_gains_tab.dart';
 import 'tabs/conducteur_messages_tab.dart';
 import 'validation_pending_page.dart';
+import 'widgets/actions_course_active.dart';
 import 'widgets/conducteur_bottom_nav.dart';
 import 'widgets/course_active_bandeau.dart';
 import 'widgets/nouvelle_course_reelle_sheet.dart';
@@ -202,6 +205,9 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       : (_profil?.estValide ?? false);
 
   Future<void> _basculerStatut(bool vouloirEnLigne) async {
+    // Geste de l'utilisateur : autorise le navigateur à jouer la
+    // sonnerie des nouvelles courses (voir [AlerteSonore]).
+    if (vouloirEnLigne) AlerteSonore.preparer();
     if (vouloirEnLigne) {
       final autorise = await _locationService.permissionAccordee();
       if (!autorise) {
@@ -354,6 +360,54 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     }
   }
 
+  /// Guidage vers le client (course acceptée), puis vers la destination
+  /// (client à bord), dans Google Maps ou Waze.
+  Future<void> _naviguer() async {
+    final course = _courseActive;
+    if (course == null) return;
+    final versDestination = course.statut == StatutCourse.enCours;
+    final points = course.points;
+    final adresse = versDestination ? course.adresseArrivee : course.adresseDepart;
+    final app = await choisirAppNavigation(context, destination: adresse);
+    if (app == null || !mounted) return;
+    final lien = NavigationGps.lien(
+      app,
+      latitude: points == null ? null : (versDestination ? points.latitudeArrivee : points.latitudeDepart),
+      longitude: points == null ? null : (versDestination ? points.longitudeArrivee : points.longitudeDepart),
+      adresse: adresse,
+    );
+    final ouvert = await NavigationGps.ouvrir(lien);
+    if (!ouvert && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Impossible d'ouvrir l'application de navigation.")),
+      );
+    }
+  }
+
+  Future<void> _annulerCourseActive() async {
+    final course = _courseActive;
+    if (course == null) return;
+    final motif = await demanderMotifAnnulation(context);
+    if (motif == null || !mounted) return;
+    setState(() => _avancementCourseEnCours = true);
+    try {
+      await _courseService.annulerParChauffeur(course.id, motif);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Course annulée. Vous pouvez recevoir de nouvelles demandes.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("L'annulation a échoué. Vérifiez votre connexion.")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _avancementCourseEnCours = false);
+    }
+  }
+
   Future<void> _avancerCourseActive() async {
     final course = _courseActive;
     if (course == null) return;
@@ -423,14 +477,23 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     final chauffeurId = FirebaseAuth.instance.currentUser?.uid;
     if (chauffeurId == null) return;
     _sheetCourseOuverte = true;
+    final sonnerie = _sonner();
     final gagnee = await afficherNouvelleCourseReelleSheet(
       context,
       course: course,
       courseService: _courseService,
       chauffeurId: chauffeurId,
     );
+    sonnerie.cancel();
     _sheetCourseOuverte = false;
     if (!gagnee) _idsCoursesIgnorees.add(course.id);
+  }
+
+  /// Sonnerie "Nouvelle course" : tout de suite, puis toutes les 4 s tant
+  /// que la proposition est affichée (le chauffeur regarde la route).
+  Timer _sonner() {
+    AlerteSonore.nouvelleCourse();
+    return Timer.periodic(const Duration(seconds: 4), (_) => AlerteSonore.nouvelleCourse());
   }
 
   /// Programme l'apparition simulée d'une prochaine course, à un délai
@@ -447,7 +510,9 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   }
 
   Future<void> _declencherNouvelleCourseDemo() async {
+    final sonnerie = _sonner();
     await afficherNouvelleCourseSheet(context);
+    sonnerie.cancel();
     if (mounted && _enLigne) _programmerProchaineCourseDemo();
   }
 
@@ -511,6 +576,16 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       return const ValidationPendingPage();
     }
 
+    // Tout appui débloque le son du navigateur pour la sonnerie des
+    // nouvelles courses (le chauffeur peut être déjà "En ligne" au
+    // rechargement de la page, sans repasser par le bouton).
+    return Listener(
+      onPointerDown: (_) => AlerteSonore.preparer(),
+      child: _tableauDeBord(),
+    );
+  }
+
+  Widget _tableauDeBord() {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: IndexedStack(
@@ -538,6 +613,8 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
               onAvancer: _avancerCourseActive,
               onAppeler: _appelerClient,
               onMessage: _ouvrirChatClient,
+              onNaviguer: _naviguer,
+              onAnnuler: _annulerCourseActive,
               messageNonLu: _detecteurMessages?.nonLu ?? false,
             ),
           ConducteurBottomNav(

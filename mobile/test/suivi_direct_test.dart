@@ -155,6 +155,8 @@ void main() {
             onAvancer: () => appels.add(bouton),
             onAppeler: () => appels.add('appel'),
             onMessage: () => appels.add('message'),
+            onNaviguer: () => appels.add('naviguer'),
+            onAnnuler: () => appels.add('annuler'),
           ),
         ),
       ));

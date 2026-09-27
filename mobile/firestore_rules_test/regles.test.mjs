@@ -304,6 +304,27 @@ describe('courses : cycle de vie côté chauffeur', () => {
     await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'acceptee' }));
   });
 
+  test('le chauffeur attribué annule sa course (client introuvable, panne) : accepté', async () => {
+    const annuler = (motif) => ({ statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: motif });
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'courses', 'c2'), annuler('client_introuvable')));
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'courses', 'c3'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'en_cours', prixFcfa: 2000 }));
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'courses', 'c3'), annuler('panne')));
+  });
+
+  test('annulation : sans motif valide, sur course terminée, par un autre, ou en touchant au prix : refusé', async () => {
+    const db = en('chauffeur');
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'annulee' }));
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'flemme' }));
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'),
+      { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'panne', prixFcfa: 0 }));
+    await assertFails(updateDoc(doc(en('client'), 'courses', 'c2'),
+      { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'panne' }));
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'courses', 'c4'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee', prixFcfa: 2000 }));
+    await assertFails(updateDoc(doc(db, 'courses', 'c4'), { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'panne' }));
+  });
+
   test('un autre chauffeur fait avancer la course : refusé', async () => {
     await env.withSecurityRulesDisabled((ctx) =>
       setDoc(doc(ctx.firestore(), 'users', 'chauffeur2'), { role: 'conducteur', statutValidation: 'valide' }));

@@ -23,6 +23,8 @@ class CourseFirestore {
     required this.methodePaiement,
     required this.timestamp,
     this.points,
+    this.annuleePar,
+    this.motifAnnulation,
   });
 
   final String id;
@@ -40,6 +42,13 @@ class CourseFirestore {
   /// créées avant leur enregistrement (pas de temps d'approche alors).
   final PointsCourse? points;
 
+  /// `'chauffeur'` quand le chauffeur a annulé (voir
+  /// [CourseService.annulerParChauffeur]) ; `null` sinon.
+  final String? annuleePar;
+
+  /// Voir [MotifAnnulation].
+  final String? motifAnnulation;
+
   factory CourseFirestore.depuisDocument(String id, Map<String, dynamic> donnees) {
     final horodatage = donnees['timestamp'];
     return CourseFirestore(
@@ -56,6 +65,8 @@ class CourseFirestore {
       // côté client le temps que le serveur confirme l'écriture.
       timestamp: horodatage is Timestamp ? horodatage.toDate() : DateTime.now(),
       points: PointsCourse.depuisDocument(donnees),
+      annuleePar: donnees['annuleePar'] as String?,
+      motifAnnulation: donnees['motifAnnulation'] as String?,
     );
   }
 }
@@ -109,6 +120,30 @@ abstract final class StatutCourse {
 
   /// Un chauffeur est attribué et la course n'est pas finie.
   static const actifs = [acceptee, enCours];
+}
+
+/// Motif d'annulation d'une course par le chauffeur (valeurs acceptées
+/// par `firestore.rules`).
+abstract final class MotifAnnulation {
+  static const clientIntrouvable = 'client_introuvable';
+  static const panne = 'panne';
+  static const autre = 'autre';
+
+  static const tous = [clientIntrouvable, panne, autre];
+
+  /// Libellé pour le chauffeur.
+  static String libelle(String motif) => switch (motif) {
+        clientIntrouvable => 'Client introuvable',
+        panne => 'Panne ou problème de véhicule',
+        _ => 'Autre raison',
+      };
+
+  /// Explication montrée au client.
+  static String pourLeClient(String? motif) => switch (motif) {
+        clientIntrouvable => 'Votre chauffeur ne vous a pas trouvé au point de départ et a annulé la course.',
+        panne => 'Votre chauffeur a eu un problème avec son véhicule et a dû annuler la course.',
+        _ => 'Votre chauffeur a dû annuler la course.',
+      };
 }
 
 /// Matchmaking Client <-> Conducteur en temps réel, basé sur Firestore :
@@ -261,6 +296,17 @@ class CourseService {
   /// Arrivée à destination : `en_cours` -> `terminee`.
   Future<void> terminerCourse(String courseId) {
     return _courses.doc(courseId).update({'statut': StatutCourse.terminee});
+  }
+
+  /// Le chauffeur attribué annule sa course (client introuvable,
+  /// panne…) : elle quitte son bandeau de course active et il peut de
+  /// nouveau recevoir des demandes ; le client voit le motif.
+  Future<void> annulerParChauffeur(String courseId, String motif) {
+    return _courses.doc(courseId).update({
+      'statut': StatutCourse.annulee,
+      'annuleePar': 'chauffeur',
+      'motifAnnulation': motif,
+    });
   }
 
   /// Annule une course encore en attente (bouton "Annuler la demande"

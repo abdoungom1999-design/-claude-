@@ -71,7 +71,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
             }
             final course = snapshot.data;
             if (course == null || course.statut == 'annulee') {
-              return _EtatAnnulee(onRetour: () => Navigator.of(context).pop());
+              return _EtatAnnulee(course: course, onRetour: () => Navigator.of(context).pop());
             }
             switch (course.statut) {
               case 'en_attente':
@@ -445,8 +445,9 @@ class _LigneAdresse extends StatelessWidget {
 }
 
 class _EtatAnnulee extends StatelessWidget {
-  const _EtatAnnulee({required this.onRetour});
+  const _EtatAnnulee({required this.course, required this.onRetour});
 
+  final CourseFirestore? course;
   final VoidCallback onRetour;
 
   @override
@@ -463,6 +464,15 @@ class _EtatAnnulee extends StatelessWidget {
               'Course annulée',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
+            if (course?.annuleePar == 'chauffeur') ...[
+              const SizedBox(height: 10),
+              Text(
+                '${MotifAnnulation.pourLeClient(course?.motifAnnulation)} '
+                'Vous pouvez commander une nouvelle course.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.5),
+              ),
+            ],
             const SizedBox(height: 20),
             OutlinedButton(onPressed: onRetour, child: const Text('Retour')),
           ],

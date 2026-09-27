@@ -93,7 +93,7 @@ chauffeur au chauffeur lui-même et à l'Admin.
 ## 6. Sécurité Firestore et rôle Admin
 
 Les règles de sécurité sont dans `firestore.rules` (testées sur
-l'émulateur Firestore : `firestore_rules_test/`, 68 cas). Elles
+l'émulateur Firestore : `firestore_rules_test/`, 70 cas). Elles
 remplacent les règles "mode Test" de l'étape 3, qui laissent n'importe
 qui lire et modifier toute la base.
 
@@ -158,7 +158,9 @@ depuis la Console.
   en direct") et par le client uniquement pendant SA course avec ce
   chauffeur (suivi d'approche) ; effacée quand il passe hors ligne.
 - Seul le chauffeur attribué fait avancer sa course (client à bord, puis
-  course terminée), sans pouvoir sauter d'étape ni toucher au prix.
+  course terminée), sans pouvoir sauter d'étape ni toucher au prix. Il
+  peut aussi l'annuler avec un motif (client introuvable, panne, autre),
+  montré au client.
 - Toute autre collection : refusée.
 
 ### Limites connues (à traiter avant le lancement)
