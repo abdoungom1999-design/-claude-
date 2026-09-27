@@ -12,6 +12,7 @@ import '../../../core/widgets/payment_method_sheet.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/trip_map.dart';
 import '../../../firebase_options.dart';
+import '../../courses/data/course_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/estimation_course_controller.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
@@ -93,6 +94,12 @@ class _ColisPageState extends State<ColisPage> {
               adresseDepart: _adresseRetraitController.text.trim(),
               adresseArrivee: _adresseLivraisonController.text.trim(),
               prixFcfa: estimation.prixFcfa,
+              points: PointsCourse(
+                latitudeDepart: depart.latitude,
+                longitudeDepart: depart.longitude,
+                latitudeArrivee: arrivee.latitude,
+                longitudeArrivee: arrivee.longitude,
+              ),
             ),
           ),
         );

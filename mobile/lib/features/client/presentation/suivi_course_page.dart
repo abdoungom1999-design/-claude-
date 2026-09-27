@@ -3,14 +3,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../courses/data/course_service.dart';
 import '../../messages/data/chat_service.dart';
+import '../../courses/data/position_chauffeur.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
+import 'widgets/suivi_approche.dart';
 
 /// Suivi temps réel d'une course, depuis sa création jusqu'à
 /// l'acceptation par un chauffeur : un `StreamBuilder` unique, branché
 /// sur [CourseService.streamCourse], bascule automatiquement entre
 /// l'écran "Recherche d'un chauffeur" (`statut: en_attente`) et l'écran
 /// "Votre chauffeur arrive" (`statut: acceptee`) dès que le document
-/// Firestore change — aucune action de l'utilisateur nécessaire.
+/// Firestore change — aucune action de l'utilisateur nécessaire. Une
+/// fois le chauffeur attribué, sa position s'affiche en temps réel avec
+/// le temps d'attente estimé (voir [SuiviApproche]).
 class SuiviCoursePage extends StatefulWidget {
   const SuiviCoursePage({super.key, required this.courseId});
 
@@ -137,18 +141,27 @@ class _EtatChauffeurAssigne extends StatefulWidget {
 
 class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
   final _chatService = ChatService();
+  final _courseService = CourseService();
   Map<String, dynamic>? _profilChauffeur;
+  late Stream<PositionChauffeurDirect?> _positions;
 
   @override
   void initState() {
     super.initState();
+    _positions = _streamPositions();
     _chargerChauffeur();
+  }
+
+  Stream<PositionChauffeurDirect?> _streamPositions() {
+    final chauffeurId = widget.course.chauffeurId;
+    return chauffeurId == null ? const Stream.empty() : _courseService.streamPositionChauffeur(chauffeurId);
   }
 
   @override
   void didUpdateWidget(covariant _EtatChauffeurAssigne oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.course.chauffeurId != widget.course.chauffeurId) {
+      _positions = _streamPositions();
       _chargerChauffeur();
     }
   }
@@ -191,42 +204,69 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
     final vehicule = _profilChauffeur?['vehiculeId'] as String?;
     final plaque = _profilChauffeur?['plaqueImmatriculation'] as String?;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    final clientABord = widget.course.statut == StatutCourse.enCours;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 88,
-            height: 88,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.orange, AppColors.orangeDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              nom.isNotEmpty ? nom[0].toUpperCase() : '?',
-              style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.bold),
-            ),
+          SuiviApproche(
+            key: ValueKey(widget.course.chauffeurId),
+            course: widget.course,
+            positions: _positions,
           ),
           const SizedBox(height: 18),
-          const Text(
-            'Votre chauffeur arrive',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.orange, AppColors.orangeDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  nom.isNotEmpty ? nom[0].toUpperCase() : '?',
+                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      clientABord ? 'Course en cours' : 'Votre chauffeur arrive',
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.grey, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(nom, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                    if (vehicule != null && vehicule.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(vehicule, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
+                    ],
+                  ],
+                ),
+              ),
+              if (plaque != null && plaque.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.text, width: 1.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    plaque,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(nom, style: const TextStyle(fontSize: 15, color: AppColors.grey)),
-          if (vehicule != null && vehicule.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              plaque != null && plaque.isNotEmpty ? '$vehicule · $plaque' : vehicule,
-              style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
-            ),
-          ],
           const SizedBox(height: 24),
           Row(
             children: [

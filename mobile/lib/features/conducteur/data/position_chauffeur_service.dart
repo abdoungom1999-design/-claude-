@@ -53,6 +53,20 @@ class PositionChauffeurService {
   Position? _derniere;
   String? _uid;
 
+  /// Course en cours du chauffeur : publiée avec sa position pour que
+  /// SON client puisse le suivre (voir `firestore.rules`).
+  String? _courseId;
+
+  /// À appeler à chaque changement de course active (`null` quand il
+  /// n'en a plus). Republie aussitôt la position pour ouvrir ou fermer
+  /// le suivi côté client sans attendre le prochain déplacement.
+  void definirCourse(String? courseId) {
+    if (courseId == _courseId) return;
+    _courseId = courseId;
+    final position = _derniere;
+    if (position != null) _envoyer(position, DateTime.now());
+  }
+
   Future<void> demarrer() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -133,6 +147,7 @@ class PositionChauffeurService {
         'cap': _nombre(position.heading),
         'vitesse': _nombre(position.speed),
         'majLe': FieldValue.serverTimestamp(),
+        if (_courseId != null) 'courseId': _courseId,
       });
     } on FirebaseException {
       // Réseau coupé : le prochain envoi réessaiera.

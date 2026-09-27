@@ -173,9 +173,14 @@ class AdminKycService {
       'nom': donnees['nom'] as String? ?? '',
       'telephone': donnees['telephone'] as String? ?? '',
       'role': role,
-      if (role == 'conducteur')
+      if (role == 'conducteur') ...{
         'disponible': donnees['statutValidation'] == 'valide' &&
             !StatutCompte.estBloque(donnees['statutCompte'] as String?),
+        // Montré au client qui attend son chauffeur (vérifié par l'Admin
+        // avec la carte grise ; le chauffeur ne peut pas le modifier).
+        'vehiculeId': donnees['vehiculeId'] as String? ?? '',
+        'plaqueImmatriculation': donnees['plaqueImmatriculation'] as String? ?? '',
+      },
     }, SetOptions(merge: true));
   }
 }

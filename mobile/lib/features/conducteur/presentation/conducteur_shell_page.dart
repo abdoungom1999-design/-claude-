@@ -246,6 +246,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     _abonnementCourseActive?.cancel();
     _abonnementCourseActive = _courseService.streamCourseActiveChauffeur(uid).listen(
       (course) {
+        _positionService.definirCourse(course?.id);
         if (mounted) setState(() => _courseActive = course);
       },
       onError: (_) {},

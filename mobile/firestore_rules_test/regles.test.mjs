@@ -367,6 +367,60 @@ describe('positions_chauffeurs (carte en direct)', () => {
   });
 });
 
+describe('suivi d\'approche (client)', () => {
+  // c2 : course du client, attribuée au chauffeur, en approche.
+  beforeEach(() => env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'courses', 'c2'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'acceptee' });
+    await setDoc(doc(db, 'courses', 'c3'), { clientId: 'autreClient', chauffeurId: 'chauffeur', statut: 'terminee' });
+    await setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44, courseId: 'c2' });
+  }));
+
+  test('le client de la course voit la position de son chauffeur', async () => {
+    await assertSucceeds(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
+  });
+
+  test('un autre client, même en changeant courseId, ne la voit pas', async () => {
+    await assertFails(getDoc(doc(en('autreClient'), 'positions_chauffeurs', 'chauffeur')));
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44, courseId: 'c3' }));
+    await assertFails(getDoc(doc(en('autreClient'), 'positions_chauffeurs', 'chauffeur')));
+  });
+
+  test('course terminée ou position sans course : plus de suivi', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'courses', 'c2'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee' }));
+    await assertFails(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44 }));
+    await assertFails(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
+  });
+
+  test('position pas encore publiée : lecture possible (document vide), pas de listage', async () => {
+    await assertSucceeds(getDoc(doc(en('client'), 'positions_chauffeurs', 'inconnu')));
+    await assertFails(getDocs(collection(en('client'), 'positions_chauffeurs')));
+  });
+
+  test('le chauffeur rattache sa position à sa course', async () => {
+    await assertSucceeds(setDoc(doc(en('chauffeur'), 'positions_chauffeurs', 'chauffeur'),
+      { latitude: 14.7, longitude: -17.45, majLe: serverTimestamp(), courseId: 'c2' }));
+    await assertFails(setDoc(doc(en('chauffeur'), 'positions_chauffeurs', 'chauffeur'),
+      { latitude: 14.7, longitude: -17.45, majLe: serverTimestamp(), courseId: 42 }));
+  });
+
+  test('coordonnées de prise en charge enregistrées avec la course', async () => {
+    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', prixFcfa: 3000, timestamp: serverTimestamp() };
+    await assertSucceeds(addDoc(collection(en('client'), 'courses'),
+      { ...base, latitudeDepart: 14.668, longitudeDepart: -17.438, latitudeArrivee: 14.745, longitudeArrivee: -17.517 }));
+    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, latitudeDepart: 'Plateau' }));
+  });
+
+  test('véhicule du profil public : écrit par l\'admin, pas par le chauffeur', async () => {
+    await assertFails(updateDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'), { plaqueImmatriculation: 'DK-0000-ZZ' }));
+    await assertSucceeds(updateDoc(doc(en('admin'), 'profils_publics', 'chauffeur'), { vehiculeId: 'Yamaha', plaqueImmatriculation: 'DK-1234-AB' }));
+  });
+});
+
 describe('chats', () => {
   const chatId = ['chauffeur', 'client'].sort().join('_');
 

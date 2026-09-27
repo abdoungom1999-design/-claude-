@@ -17,6 +17,7 @@ class _PaiementRefuse implements PaiementService {
 
 class _CourseServiceEspion extends CourseService {
   String? transactionIdRecu;
+  PointsCourse? pointsRecus;
 
   @override
   Future<String> creerCourse({
@@ -27,8 +28,10 @@ class _CourseServiceEspion extends CourseService {
     required int prixFcfa,
     required String methodePaiement,
     required String transactionId,
+    PointsCourse? points,
   }) async {
     transactionIdRecu = transactionId;
+    pointsRecus = points;
     return 'course-test';
   }
 }
@@ -55,6 +58,12 @@ Future<String?> _ouvrirSas(
                   adresseDepart: 'Plateau',
                   adresseArrivee: 'Almadies',
                   prixFcfa: 2100,
+                  points: const PointsCourse(
+                    latitudeDepart: 14.668,
+                    longitudeDepart: -17.438,
+                    latitudeArrivee: 14.745,
+                    longitudeArrivee: -17.517,
+                  ),
                   paiementService: paiement,
                   courseService: courses,
                 ),
@@ -105,6 +114,9 @@ void main() {
     );
 
     expect(courses.transactionIdRecu, startsWith('TXN-WAVE-DEMO'));
+    // Coordonnées du point de prise en charge enregistrées pour le suivi
+    // d'approche côté client.
+    expect(courses.pointsRecus?.latitudeDepart, 14.668);
     // L'écran suivant (SuiviCoursePage) écoute Firestore, indisponible
     // dans les tests : l'erreur attendue est absorbée ici.
     tester.takeException();

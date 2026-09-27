@@ -39,6 +39,10 @@ service cloud.firestore {
         && !(p.get('statutCompte', 'actif') in ['suspendu', 'banni']);
     }
 
+    function nombreOuAbsent(donnees, cle) {
+      return !(cle in donnees) || donnees[cle] is number;
+    }
+
     function champsModifies() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -76,7 +80,8 @@ service cloud.firestore {
     // ---------------------------------------------------------------
     // Profil public : le strict nécessaire pour le chat et l'appel entre
     // client et chauffeur (nom, téléphone, rôle). "disponible" (chauffeur
-    // validé et non sanctionné) n'est écrit que par l'Admin.
+    // validé et non sanctionné) et le véhicule du chauffeur (modèle,
+    // plaque, vérifiés avec sa carte grise) ne sont écrits que par l'Admin.
     // ---------------------------------------------------------------
     match /profils_publics/{uid} {
       allow read: if connecte();
@@ -130,7 +135,12 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'clientId', 'chauffeurId', 'statut', 'type', 'adresseDepart',
              'adresseArrivee', 'prixFcfa', 'methodePaiement', 'transactionId',
-             'timestamp'])
+             'timestamp', 'latitudeDepart', 'longitudeDepart',
+             'latitudeArrivee', 'longitudeArrivee'])
+        && nombreOuAbsent(request.resource.data, 'latitudeDepart')
+        && nombreOuAbsent(request.resource.data, 'longitudeDepart')
+        && nombreOuAbsent(request.resource.data, 'latitudeArrivee')
+        && nombreOuAbsent(request.resource.data, 'longitudeArrivee')
         && request.resource.data.clientId == moi()
         && request.resource.data.statut == 'en_attente'
         && request.resource.data.chauffeurId == null
@@ -173,17 +183,37 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // Position GPS des chauffeurs en ligne (carte "Courses en direct").
-    // Seul un chauffeur actif publie sa propre position ; seule l'Admin
-    // la lit. Le document est supprimé quand le chauffeur passe hors
-    // ligne : aucun historique de trajets n'est conservé.
+    // Position GPS des chauffeurs en ligne. Seul un chauffeur actif
+    // publie sa propre position. L'Admin la lit (carte "Courses en
+    // direct") ; le client la lit uniquement pendant SA course avec ce
+    // chauffeur (suivi d'approche), via le champ courseId. Le document est
+    // supprimé quand le chauffeur passe hors ligne : aucun historique de
+    // trajets n'est conservé.
     // ---------------------------------------------------------------
+    function clientSuitChauffeur(chauffeurUid) {
+      let courseId = resource.data.get('courseId', null);
+      return courseId is string && coursePermetSuivi(courseId, chauffeurUid);
+    }
+
+    function coursePermetSuivi(courseId, chauffeurUid) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return course.clientId == moi()
+        && course.chauffeurId == chauffeurUid
+        && course.statut in ['acceptee', 'en_cours'];
+    }
+
     match /positions_chauffeurs/{uid} {
-      allow read: if estAdmin();
+      allow list: if estAdmin();
+
+      // resource == null : position pas encore publiée (le client peut
+      // attendre qu'elle apparaisse, sans rien apprendre de plus).
+      allow get: if estAdmin()
+        || (connecte() && (resource == null || clientSuitChauffeur(uid)));
 
       allow create, update: if connecte() && moi() == uid && conducteurActif()
         && request.resource.data.keys().hasOnly([
-             'latitude', 'longitude', 'precision', 'cap', 'vitesse', 'majLe'])
+             'latitude', 'longitude', 'precision', 'cap', 'vitesse', 'majLe', 'courseId'])
+        && (!('courseId' in request.resource.data) || request.resource.data.courseId is string)
         && request.resource.data.latitude is number
         && request.resource.data.longitude is number
         && request.resource.data.latitude >= -90 && request.resource.data.latitude <= 90

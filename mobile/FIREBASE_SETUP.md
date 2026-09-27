@@ -93,7 +93,7 @@ chauffeur au chauffeur lui-même et à l'Admin.
 ## 6. Sécurité Firestore et rôle Admin
 
 Les règles de sécurité sont dans `firestore.rules` (testées sur
-l'émulateur Firestore : `firestore_rules_test/`, 52 cas). Elles
+l'émulateur Firestore : `firestore_rules_test/`, 59 cas). Elles
 remplacent les règles "mode Test" de l'étape 3, qui laissent n'importe
 qui lire et modifier toute la base.
 
@@ -150,8 +150,9 @@ depuis la Console.
 - `chats` : lecture et écriture réservées aux deux participants, sans
   usurpation d'expéditeur.
 - `positions_chauffeurs` : position GPS des chauffeurs en ligne, publiée
-  par le chauffeur validé lui-même, lisible uniquement par l'Admin
-  (carte "Courses en direct"), effacée quand il passe hors ligne.
+  par le chauffeur validé lui-même, lisible par l'Admin (carte "Courses
+  en direct") et par le client uniquement pendant SA course avec ce
+  chauffeur (suivi d'approche) ; effacée quand il passe hors ligne.
 - Seul le chauffeur attribué fait avancer sa course (client à bord, puis
   course terminée), sans pouvoir sauter d'étape ni toucher au prix.
 - Toute autre collection : refusée.

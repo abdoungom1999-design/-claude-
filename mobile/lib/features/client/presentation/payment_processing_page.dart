@@ -24,6 +24,7 @@ class PaymentProcessingPage extends StatefulWidget {
     required this.adresseDepart,
     required this.adresseArrivee,
     required this.prixFcfa,
+    this.points,
     PaiementService? paiementService,
     CourseService? courseService,
   })  : paiementService = paiementService ?? PaiementService.parDefaut(),
@@ -35,6 +36,10 @@ class PaymentProcessingPage extends StatefulWidget {
   final String adresseDepart;
   final String adresseArrivee;
   final int prixFcfa;
+
+  /// Coordonnées du trajet, enregistrées avec la course (suivi
+  /// d'approche côté client).
+  final PointsCourse? points;
   final PaiementService paiementService;
   final CourseService courseService;
 
@@ -90,6 +95,7 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
         prixFcfa: widget.prixFcfa,
         methodePaiement: widget.methode.apiValue,
         transactionId: transaction.id,
+        points: widget.points,
       );
     } catch (_) {
       _abandonner("La course n'a pas pu être créée. Veuillez réessayer.");

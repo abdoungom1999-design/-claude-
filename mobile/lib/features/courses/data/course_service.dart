@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../conducteur/data/position_chauffeur_service.dart';
+import 'position_chauffeur.dart';
 
 /// Une course telle que stockée dans Firestore (collection `courses`).
 ///
@@ -20,6 +22,7 @@ class CourseFirestore {
     required this.prixFcfa,
     required this.methodePaiement,
     required this.timestamp,
+    this.points,
   });
 
   final String id;
@@ -32,6 +35,10 @@ class CourseFirestore {
   final int prixFcfa;
   final String methodePaiement;
   final DateTime timestamp;
+
+  /// Coordonnées GPS du départ et de l'arrivée ; `null` pour les courses
+  /// créées avant leur enregistrement (pas de temps d'approche alors).
+  final PointsCourse? points;
 
   factory CourseFirestore.depuisDocument(String id, Map<String, dynamic> donnees) {
     final horodatage = donnees['timestamp'];
@@ -48,6 +55,46 @@ class CourseFirestore {
       // `timestamp` est un FieldValue.serverTimestamp() : encore `null`
       // côté client le temps que le serveur confirme l'écriture.
       timestamp: horodatage is Timestamp ? horodatage.toDate() : DateTime.now(),
+      points: PointsCourse.depuisDocument(donnees),
+    );
+  }
+}
+
+/// Coordonnées GPS du trajet, enregistrées à la création de la course
+/// pour le suivi d'approche côté client.
+class PointsCourse {
+  const PointsCourse({
+    required this.latitudeDepart,
+    required this.longitudeDepart,
+    required this.latitudeArrivee,
+    required this.longitudeArrivee,
+  });
+
+  final double latitudeDepart;
+  final double longitudeDepart;
+  final double latitudeArrivee;
+  final double longitudeArrivee;
+
+  Map<String, double> versDocument() => {
+        'latitudeDepart': latitudeDepart,
+        'longitudeDepart': longitudeDepart,
+        'latitudeArrivee': latitudeArrivee,
+        'longitudeArrivee': longitudeArrivee,
+      };
+
+  static PointsCourse? depuisDocument(Map<String, dynamic> donnees) {
+    final valeurs = [
+      donnees['latitudeDepart'],
+      donnees['longitudeDepart'],
+      donnees['latitudeArrivee'],
+      donnees['longitudeArrivee'],
+    ];
+    if (valeurs.any((v) => v is! num)) return null;
+    return PointsCourse(
+      latitudeDepart: (valeurs[0] as num).toDouble(),
+      longitudeDepart: (valeurs[1] as num).toDouble(),
+      latitudeArrivee: (valeurs[2] as num).toDouble(),
+      longitudeArrivee: (valeurs[3] as num).toDouble(),
     );
   }
 }
@@ -86,8 +133,10 @@ class CourseService {
     required int prixFcfa,
     required String methodePaiement,
     required String transactionId,
+    PointsCourse? points,
   }) async {
     final doc = await _courses.add({
+      ...?points?.versDocument(),
       'clientId': clientId,
       'chauffeurId': null,
       'statut': 'en_attente',
@@ -185,6 +234,22 @@ class CourseService {
               .toList()
             ..sort((a, b) => a.timestamp.compareTo(b.timestamp)),
         );
+  }
+
+  /// Position en temps réel du chauffeur attribué, pour le client
+  /// pendant sa course (suivi d'approche). `null` tant que le chauffeur
+  /// n'a rien publié ou s'il est passé hors ligne. Les règles Firestore
+  /// ne l'autorisent qu'au client d'une course `acceptee` ou `en_cours`
+  /// avec ce chauffeur.
+  Stream<PositionChauffeurDirect?> streamPositionChauffeur(String chauffeurId) {
+    return _firestore
+        .collection(PositionChauffeurService.collection)
+        .doc(chauffeurId)
+        .snapshots()
+        .map((doc) {
+      final donnees = doc.data();
+      return donnees == null ? null : PositionChauffeurDirect.depuisDocument(doc.id, donnees);
+    });
   }
 
   /// Le chauffeur a récupéré son client (ou le colis) : `acceptee` ->
