@@ -161,10 +161,13 @@ depuis la Console.
   course terminée), sans pouvoir sauter d'étape ni toucher au prix. Il
   peut aussi l'annuler avec un motif (client introuvable, panne, autre),
   montré au client.
+- Paiement 100 % mobile money : une course ne peut être créée qu'avec
+  Wave ou Orange Money (aucune course en espèces).
 - Finances : à la fin d'une course, la commission de la plateforme (15 %
-  du prix) est figée et vérifiée par les règles. Les règlements entre un
-  chauffeur et la plateforme (`reglements`) ne sont saisis que par
-  l'Admin ; le temps en ligne (`temps_en_ligne`) ne peut augmenter que
+  du prix) est figée et vérifiée par les règles. Sprint encaisse chaque
+  course et doit au chauffeur sa part (85 %) ; les versements de Sprint
+  au chauffeur (`reglements`) ne sont saisis que par l'Admin, dans ce
+  seul sens. Le temps en ligne (`temps_en_ligne`) ne peut augmenter que
   d'une minute par minute.
 - Toute autre collection : refusée.
 

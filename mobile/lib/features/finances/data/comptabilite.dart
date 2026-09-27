@@ -1,27 +1,18 @@
 import '../../courses/data/course_service.dart';
 
-/// Sens d'un règlement entre un chauffeur et la plateforme.
-abstract final class SensReglement {
-  /// Le chauffeur verse les commissions de ses courses en espèces.
-  static const chauffeurVersPlateforme = 'chauffeur_vers_plateforme';
-
-  /// La plateforme reverse au chauffeur sa part des courses mobile money.
-  static const plateformeVersChauffeur = 'plateforme_vers_chauffeur';
-}
-
 /// Écriture comptable d'une course terminée.
 ///
-/// Convention de signe du solde, partout dans l'app : positif = la
-/// plateforme doit de l'argent au chauffeur ; négatif = le chauffeur doit
-/// de l'argent à la plateforme.
+/// 100 % mobile money : la plateforme encaisse chaque course (Wave /
+/// Orange Money) et doit au chauffeur sa part, le prix moins la
+/// commission. Le chauffeur ne doit jamais rien à la plateforme.
 class LigneCourse {
   const LigneCourse({
     required this.courseId,
     required this.chauffeurId,
     required this.prixFcfa,
     required this.commissionFcfa,
-    required this.especes,
     required this.date,
+    this.methodePaiement,
   });
 
   factory LigneCourse.depuisCourse(CourseFirestore course) => LigneCourse(
@@ -30,7 +21,7 @@ class LigneCourse {
         prixFcfa: course.prixFcfa,
         // Courses terminées avant la gestion financière : même formule.
         commissionFcfa: course.commissionFcfa ?? Commission.de(course.prixFcfa),
-        especes: course.methodePaiement == 'ESPECES',
+        methodePaiement: course.methodePaiement,
         date: course.termineeLe ?? course.timestamp,
       );
 
@@ -38,41 +29,39 @@ class LigneCourse {
   final String chauffeurId;
   final int prixFcfa;
   final int commissionFcfa;
-
-  /// Payée en espèces au chauffeur (sinon Wave / Orange Money, encaissé
-  /// par la plateforme).
-  final bool especes;
   final DateTime date;
 
+  /// "WAVE" / "ORANGE_MONEY" (affichage seulement).
+  final String? methodePaiement;
+
+  /// Ce que Sprint doit au chauffeur pour cette course.
   int get partChauffeurFcfa => prixFcfa - commissionFcfa;
 
-  /// Espèces : le chauffeur a tout encaissé, il doit la commission.
-  /// Mobile money : la plateforme a tout encaissé, elle doit sa part.
-  int get effetSoldeFcfa => especes ? -commissionFcfa : partChauffeurFcfa;
+  String get libelleMethode => switch (methodePaiement) {
+        'WAVE' => 'Wave',
+        'ORANGE_MONEY' => 'Orange Money',
+        _ => 'Mobile money',
+      };
 }
 
+/// Versement de Sprint au chauffeur, saisi par l'Admin.
 class Reglement {
   const Reglement({
     required this.id,
     required this.chauffeurId,
     required this.montantFcfa,
-    required this.sens,
     required this.date,
     this.note,
   });
 
+  /// Seul sens accepté par `firestore.rules`.
+  static const sensVersement = 'plateforme_vers_chauffeur';
+
   final String id;
   final String chauffeurId;
   final int montantFcfa;
-  final String sens;
   final DateTime date;
   final String? note;
-
-  bool get versPlateforme => sens == SensReglement.chauffeurVersPlateforme;
-
-  /// Un versement du chauffeur réduit sa dette ; un reversement de la
-  /// plateforme réduit ce qu'elle lui doit.
-  int get effetSoldeFcfa => versPlateforme ? montantFcfa : -montantFcfa;
 }
 
 /// Compte d'un chauffeur (ou de toute la plateforme) sur une période.
@@ -85,23 +74,18 @@ class Compte {
   int get nombreCourses => courses.length;
   int get chiffreAffairesFcfa => _somme(courses.map((c) => c.prixFcfa));
   int get commissionsFcfa => _somme(courses.map((c) => c.commissionFcfa));
+
+  /// Part des chauffeurs (85 %) : ce que Sprint leur doit sur ces courses.
   int get gainsNetsFcfa => chiffreAffairesFcfa - commissionsFcfa;
-  int get especesFcfa => _somme(courses.where((c) => c.especes).map((c) => c.prixFcfa));
-  int get mobileMoneyFcfa => chiffreAffairesFcfa - especesFcfa;
 
-  /// Commissions dues par le chauffeur sur ses courses en espèces.
-  int get commissionsEspecesFcfa => _somme(courses.where((c) => c.especes).map((c) => c.commissionFcfa));
+  /// Déjà versé par Sprint.
+  int get versementsFcfa => _somme(reglements.map((r) => r.montantFcfa));
 
-  /// Part du chauffeur sur les courses encaissées par la plateforme.
-  int get partMobileMoneyFcfa => _somme(courses.where((c) => !c.especes).map((c) => c.partChauffeurFcfa));
+  /// Reste à verser par Sprint au chauffeur (jamais l'inverse).
+  int get soldeFcfa => gainsNetsFcfa - versementsFcfa;
 
-  /// Solde net après compensation et règlements : positif = la plateforme
-  /// doit au chauffeur, négatif = le chauffeur doit à la plateforme.
-  int get soldeFcfa =>
-      _somme(courses.map((c) => c.effetSoldeFcfa)) + _somme(reglements.map((r) => r.effetSoldeFcfa));
-
-  /// Lignes à partir de [debut] (les règlements ne sont pas filtrés : le
-  /// solde est toujours cumulé depuis le premier jour).
+  /// Lignes à partir de [debut] (les règlements ne sont pas filtrés :
+  /// utiliser [soldeFcfa] sur le compte complet).
   Compte depuis(DateTime debut) =>
       Compte(courses: [for (final c in courses) if (!c.date.isBefore(debut)) c], reglements: reglements);
 
@@ -132,12 +116,3 @@ abstract final class Periodes {
     return '${utc.year.toString().padLeft(4, '0')}-${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')}';
   }
 }
-
-/// "Sprint vous doit 12 750 FCFA" / "Vous devez 450 FCFA à Sprint".
-enum SensSolde { plateformeDoit, chauffeurDoit, equilibre }
-
-SensSolde sensDuSolde(int soldeFcfa) => soldeFcfa > 0
-    ? SensSolde.plateformeDoit
-    : soldeFcfa < 0
-        ? SensSolde.chauffeurDoit
-        : SensSolde.equilibre;

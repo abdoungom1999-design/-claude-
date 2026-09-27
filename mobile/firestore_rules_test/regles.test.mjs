@@ -433,7 +433,7 @@ describe('suivi d\'approche (client)', () => {
   });
 
   test('coordonnées de prise en charge enregistrées avec la course', async () => {
-    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', prixFcfa: 3000, methodePaiement: 'ESPECES', timestamp: serverTimestamp() };
+    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', prixFcfa: 3000, methodePaiement: 'ORANGE_MONEY', timestamp: serverTimestamp() };
     await assertSucceeds(addDoc(collection(en('client'), 'courses'),
       { ...base, latitudeDepart: 14.668, longitudeDepart: -17.438, latitudeArrivee: 14.745, longitudeArrivee: -17.517 }));
     await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, latitudeDepart: 'Plateau' }));
@@ -550,21 +550,25 @@ describe('finances', () => {
     await assertFails(terminer(465, { prixFcfa: 100 }));
   });
 
-  test('création de course : mode de paiement et prix valides obligatoires', async () => {
+  test('création de course : 100 % mobile money, prix valide obligatoire', async () => {
     const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', timestamp: serverTimestamp() };
-    await assertSucceeds(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'ESPECES' }));
+    await assertSucceeds(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'WAVE' }));
+    await assertSucceeds(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'ORANGE_MONEY' }));
+    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'ESPECES' }));
     await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'CARTE' }));
-    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 0, methodePaiement: 'ESPECES' }));
+    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 0, methodePaiement: 'WAVE' }));
   });
 
-  test('règlements : saisis par l\'admin, lus par le chauffeur concerné seulement', async () => {
-    const reglement = { chauffeurId: 'chauffeur', montantFcfa: 5000, sens: 'chauffeur_vers_plateforme', note: 'Versement Wave', creeLe: serverTimestamp() };
+  test('versements : saisis par l\'admin, lus par le chauffeur concerné seulement', async () => {
+    const reglement = { chauffeurId: 'chauffeur', montantFcfa: 5000, sens: 'plateforme_vers_chauffeur', note: 'Virement Wave', creeLe: serverTimestamp() };
     await assertSucceeds(setDoc(doc(en('admin'), 'reglements', 'r1'), reglement));
     await assertFails(setDoc(doc(en('chauffeur'), 'reglements', 'r2'), reglement));
     await assertSucceeds(getDocs(query(collection(en('chauffeur'), 'reglements'), where('chauffeurId', '==', 'chauffeur'))));
     await assertFails(getDocs(query(collection(en('client'), 'reglements'), where('chauffeurId', '==', 'chauffeur'))));
     await assertFails(updateDoc(doc(en('admin'), 'reglements', 'r1'), { montantFcfa: 1 }));
     await assertFails(setDoc(doc(en('admin'), 'reglements', 'r3'), { ...reglement, montantFcfa: -100 }));
+    // Plus de dette du chauffeur envers la plateforme.
+    await assertFails(setDoc(doc(en('admin'), 'reglements', 'r4'), { ...reglement, sens: 'chauffeur_vers_plateforme' }));
   });
 
   test('temps en ligne : +60 s par minute, pour soi, pas de rafale', async () => {

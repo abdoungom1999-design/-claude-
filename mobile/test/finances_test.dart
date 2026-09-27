@@ -16,37 +16,42 @@ import 'package:sprint/features/paiement/data/paiement_service.dart';
 // Dimanche 27/09/2026, 15 h (Dakar = UTC) ; la semaine commence le lundi 21.
 final _maintenant = DateTime.utc(2026, 9, 27, 15);
 
-LigneCourse _ligne(String id, String chauffeur, int prix, {required bool especes, required DateTime date}) =>
+LigneCourse _ligne(String id, String chauffeur, int prix, {required String methode, required DateTime date}) =>
     LigneCourse(
       courseId: id,
       chauffeurId: chauffeur,
       prixFcfa: prix,
       commissionFcfa: Commission.de(prix),
-      especes: especes,
+      methodePaiement: methode,
       date: date,
     );
 
-Reglement _reglement(String chauffeur, int montant, String sens) =>
-    Reglement(id: 'r', chauffeurId: chauffeur, montantFcfa: montant, sens: sens, date: _maintenant);
+Reglement _versement(String chauffeur, int montant) =>
+    Reglement(id: 'r', chauffeurId: chauffeur, montantFcfa: montant, date: _maintenant);
 
+// Parts chauffeur (85 %) : 2 550, 1 700, 8 500 et 3 400.
 final _courses = [
-  _ligne('a', 'moussa', 3000, especes: true, date: DateTime.utc(2026, 9, 27, 9)), // aujourd'hui
-  _ligne('b', 'moussa', 2000, especes: false, date: DateTime.utc(2026, 9, 27, 11)), // aujourd'hui
-  _ligne('c', 'moussa', 10000, especes: true, date: DateTime.utc(2026, 9, 18, 10)), // semaine dernière
-  _ligne('d', 'awa', 4000, especes: false, date: DateTime.utc(2026, 9, 22, 10)), // mardi, même semaine
+  _ligne('a', 'moussa', 3000, methode: 'WAVE', date: DateTime.utc(2026, 9, 27, 9)), // aujourd'hui
+  _ligne('b', 'moussa', 2000, methode: 'ORANGE_MONEY', date: DateTime.utc(2026, 9, 27, 11)), // aujourd'hui
+  _ligne('c', 'moussa', 10000, methode: 'WAVE', date: DateTime.utc(2026, 9, 18, 10)), // semaine dernière
+  _ligne('d', 'awa', 4000, methode: 'ORANGE_MONEY', date: DateTime.utc(2026, 9, 22, 10)), // mardi, même semaine
 ];
 
 class _FinanceFactice extends FinanceService {
-  final reglements = <Reglement>[_reglement('moussa', 1000, SensReglement.chauffeurVersPlateforme)];
-  final enregistres = <(String, int, String)>[];
+  final reglements = <Reglement>[_versement('moussa', 10000)];
+  final enregistres = <(String, int)>[];
 
   @override
-  Stream<List<LigneCourse>> streamCoursesChauffeur(String chauffeurId) =>
-      Stream.value([for (final c in _courses) if (c.chauffeurId == chauffeurId) c]);
+  Stream<List<LigneCourse>> streamCoursesChauffeur(String chauffeurId) => Stream.value([
+        for (final c in _courses)
+          if (c.chauffeurId == chauffeurId) c
+      ]);
 
   @override
-  Stream<List<Reglement>> streamReglementsChauffeur(String chauffeurId) =>
-      Stream.value([for (final r in reglements) if (r.chauffeurId == chauffeurId) r]);
+  Stream<List<Reglement>> streamReglementsChauffeur(String chauffeurId) => Stream.value([
+        for (final r in reglements)
+          if (r.chauffeurId == chauffeurId) r
+      ]);
 
   @override
   Stream<Map<String, int>> streamTempsEnLigne(String chauffeurId) =>
@@ -59,42 +64,37 @@ class _FinanceFactice extends FinanceService {
   Stream<List<Reglement>> streamTousReglements() => Stream.value(reglements);
 
   @override
-  Future<void> enregistrerReglement({
+  Future<void> enregistrerVersement({
     required String chauffeurId,
     required int montantFcfa,
-    required String sens,
     String? note,
   }) async =>
-      enregistres.add((chauffeurId, montantFcfa, sens));
+      enregistres.add((chauffeurId, montantFcfa));
 }
 
 void main() {
-  group('Comptabilité', () {
+  group('Comptabilité (100 % mobile money)', () {
     test('commission 15 % arrondie à l\'inférieur, comme les règles Firestore', () {
       expect(Commission.de(3000), 450);
       expect(Commission.de(3100), 465);
       expect(Commission.de(1010), 151); // 151,5
     });
 
-    test('espèces : le chauffeur doit la commission ; mobile money : la plateforme doit 85 %', () {
-      expect(_courses[0].effetSoldeFcfa, -450);
-      expect(_courses[1].effetSoldeFcfa, 1700);
+    test('chaque course : Sprint doit 85 % au chauffeur', () {
+      expect(_courses[0].partChauffeurFcfa, 2550);
+      expect(_courses[1].partChauffeurFcfa, 1700);
     });
 
-    test('solde net après compensation et règlements', () {
-      final moussa = Compte(courses: _courses, reglements: [_reglement('moussa', 1000, SensReglement.chauffeurVersPlateforme)])
-          .duChauffeur('moussa');
-      // -450 + 1 700 - 1 500 + 1 000 (versement du chauffeur)
-      expect(moussa.soldeFcfa, 750);
-      expect(sensDuSolde(moussa.soldeFcfa), SensSolde.plateformeDoit);
+    test('ce que Sprint doit : part des courses moins les versements', () {
+      final moussa = Compte(courses: _courses, reglements: [_versement('moussa', 10000)]).duChauffeur('moussa');
       expect(moussa.chiffreAffairesFcfa, 15000);
       expect(moussa.commissionsFcfa, 450 + 300 + 1500);
-      expect(moussa.gainsNetsFcfa, 15000 - 2250);
-      expect(moussa.especesFcfa, 13000);
-      expect(moussa.mobileMoneyFcfa, 2000);
+      expect(moussa.gainsNetsFcfa, 12750);
+      expect(moussa.versementsFcfa, 10000);
+      expect(moussa.soldeFcfa, 2750);
 
-      final remboursement = Compte(courses: [_courses[1]], reglements: [_reglement('moussa', 1700, SensReglement.plateformeVersChauffeur)]);
-      expect(sensDuSolde(remboursement.soldeFcfa), SensSolde.equilibre);
+      final solde = Compte(courses: [_courses[1]], reglements: [_versement('moussa', 1700)]);
+      expect(solde.soldeFcfa, 0);
     });
 
     test('périodes : jour et semaine (lundi) à l\'heure de Dakar', () {
@@ -106,22 +106,29 @@ void main() {
       expect(compte.depuis(Periodes.debutSemaine(_maintenant)).chiffreAffairesFcfa, 5000);
     });
 
+    CourseFirestore ancienne(String methode) => CourseFirestore(
+          id: 'x',
+          clientId: 'c',
+          chauffeurId: 'moussa',
+          statut: StatutCourse.terminee,
+          type: 'PASSAGER',
+          adresseDepart: 'A',
+          adresseArrivee: 'B',
+          prixFcfa: 2500,
+          methodePaiement: methode,
+          timestamp: DateTime.utc(2026, 9, 1),
+        );
+
     test('course terminée avant la gestion financière : même commission', () {
-      final ancienne = LigneCourse.depuisCourse(CourseFirestore(
-        id: 'x',
-        clientId: 'c',
-        chauffeurId: 'moussa',
-        statut: StatutCourse.terminee,
-        type: 'PASSAGER',
-        adresseDepart: 'A',
-        adresseArrivee: 'B',
-        prixFcfa: 2500,
-        methodePaiement: 'WAVE',
-        timestamp: DateTime.utc(2026, 9, 1),
-      ));
-      expect(ancienne.commissionFcfa, 375);
-      expect(ancienne.especes, isFalse);
-      expect(ancienne.date, DateTime.utc(2026, 9, 1));
+      final ligne = LigneCourse.depuisCourse(ancienne('WAVE'));
+      expect(ligne.commissionFcfa, 375);
+      expect(ligne.partChauffeurFcfa, 2125);
+      expect(ligne.libelleMethode, 'Wave');
+      expect(ligne.date, DateTime.utc(2026, 9, 1));
+    });
+
+    test('ancienne course de test "ESPECES" : comptée comme due au chauffeur', () {
+      expect(LigneCourse.depuisCourse(ancienne('ESPECES')).partChauffeurFcfa, 2125);
     });
 
     test('temps en ligne lisible', () {
@@ -131,14 +138,13 @@ void main() {
     });
   });
 
-  group('Client : paiement en espèces', () {
-    test('rien à encaisser dans l\'app', () async {
-      final resultat = await const PaiementServiceSandbox(delai: Duration.zero).initierPaiement(PaymentMethod.especes, 3000);
-      expect(resultat.estReussie, isTrue);
-      expect(PaymentMethod.especes.apiValue, 'ESPECES');
+  group('Client : Wave ou Orange Money uniquement', () {
+    test('aucun mode de paiement en espèces', () {
+      expect(PaymentMethod.values, [PaymentMethod.wave, PaymentMethod.orangeMoney]);
+      expect(PaymentMethod.values.map((m) => m.apiValue), ['WAVE', 'ORANGE_MONEY']);
     });
 
-    testWidgets('choix "Espèces" proposé avec Wave et Orange Money', (tester) async {
+    testWidgets('la sheet ne propose que Wave et Orange Money', (tester) async {
       PaymentMethod? choix;
       await tester.pumpWidget(MaterialApp(
         home: Builder(
@@ -152,56 +158,40 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Payer avec Wave'), findsOneWidget);
       expect(find.text('Payer avec Orange Money'), findsOneWidget);
-      await tester.tap(find.text('Payer en espèces au chauffeur'));
+      expect(find.textContaining('espèces', findRichText: true), findsNothing);
+      expect(find.textContaining('Espèces', findRichText: true), findsNothing);
+      await tester.tap(find.text('Payer avec Orange Money'));
       await tester.pumpAndSettle();
-      expect(choix, PaymentMethod.especes);
+      expect(choix, PaymentMethod.orangeMoney);
     });
 
-    testWidgets('commande en espèces : course créée avec ESPECES, sans paiement', (tester) async {
+    testWidgets('course créée seulement après confirmation du paiement', (tester) async {
       final courses = _CourseServiceEspion();
       await tester.pumpWidget(MaterialApp(
         home: PaymentProcessingPage(
-          methode: PaymentMethod.especes,
+          methode: PaymentMethod.wave,
           clientId: 'awa',
           type: 'PASSAGER',
           adresseDepart: 'Plateau',
           adresseArrivee: 'Almadies',
           prixFcfa: 3000,
+          paiementService: const PaiementServiceSandbox(delai: Duration.zero),
           courseService: courses,
         ),
       ));
-      await tester.pump();
-      await tester.pump();
-      expect(find.text('Commande confirmée !'), findsOneWidget);
-      expect(find.text('Vous réglerez ${formaterFcfa(3000)} en espèces au chauffeur.'), findsOneWidget);
+      expect(find.text('En attente de la confirmation de\nvotre paiement Wave…'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 10)); // délai simulé de l'opérateur
+      expect(find.text('Paiement confirmé !'), findsOneWidget);
+      expect(courses.methode, isNull);
       await tester.pump(const Duration(seconds: 1));
-      expect(courses.methode, 'ESPECES');
+      expect(courses.methode, 'WAVE');
       // L'écran suivant (SuiviCoursePage) écoute Firestore, absent des tests.
       tester.takeException();
     });
   });
 
   group('Chauffeur : onglet Gains', () {
-    testWidgets('CA du jour et de la semaine, temps en ligne, solde et détail', (tester) async {
-      tester.view.physicalSize = const Size(430, 2400);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(MaterialApp(
-        home: ConducteurGainsTab(service: _FinanceFactice(), chauffeurId: 'moussa', maintenant: _maintenant),
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.text(formaterFcfa(5000)), findsWidgets); // CA du jour
-      expect(find.text('2 courses · 1 h 02 en ligne'), findsOneWidget);
-      expect(find.text('${formaterFcfa(5000)} · 2 courses · 3 h 02 en ligne'), findsOneWidget); // + 2 h le mardi
-      expect(find.text('Sprint vous doit ${formaterFcfa(750)}'), findsOneWidget);
-      expect(find.text('− ${formaterFcfa(750)}'), findsOneWidget); // commission de la semaine
-      expect(find.text(formaterFcfa(4250)), findsOneWidget); // gains nets de la semaine
-      expect(find.textContaining('Versé à Sprint'), findsOneWidget);
-    });
-
-    testWidgets('chauffeur qui doit de l\'argent', (tester) async {
-      final service = _FinanceFactice()..reglements.clear();
+    Future<void> afficher(WidgetTester tester, _FinanceFactice service) async {
       tester.view.physicalSize = const Size(430, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -209,24 +199,47 @@ void main() {
         home: ConducteurGainsTab(service: service, chauffeurId: 'moussa', maintenant: _maintenant),
       ));
       await tester.pumpAndSettle();
-      // -450 + 1 700 - 1 500
-      expect(find.text('Vous devez ${formaterFcfa(250)} à Sprint'), findsOneWidget);
+    }
+
+    testWidgets('ce que Sprint doit, gains du jour et de la semaine, versements', (tester) async {
+      await afficher(tester, _FinanceFactice());
+
+      expect(find.text('Sprint vous doit'), findsOneWidget);
+      expect(find.text(formaterFcfa(2750)), findsOneWidget); // 12 750 - 10 000 versés
+      expect(find.text('2 courses · 1 h 02 en ligne'), findsOneWidget); // aujourd'hui
+      expect(find.text('2 courses · 3 h 02 en ligne'), findsOneWidget); // semaine : + 2 h le mardi
+      expect(find.text(formaterFcfa(4250)), findsNWidgets(2)); // gains du jour et de la semaine
+      expect(find.text(formaterFcfa(5000)), findsOneWidget); // payé par les clients (semaine)
+      expect(find.text('− ${formaterFcfa(750)}'), findsOneWidget); // commission de la semaine
+      expect(find.text('+${formaterFcfa(2550)}'), findsOneWidget); // part d'une course
+      expect(find.text('Payée par Orange Money'), findsOneWidget);
+      expect(find.text('27/09 · Reçu de Sprint'), findsOneWidget);
+      expect(find.textContaining('Vous devez'), findsNothing);
+      expect(find.textContaining('spèces'), findsNothing);
+    });
+
+    testWidgets('tout versé : aucune somme en attente, jamais de dette', (tester) async {
+      final service = _FinanceFactice()..reglements.add(_versement('moussa', 2750));
+      await afficher(tester, service);
+      expect(find.text(formaterFcfa(0)), findsOneWidget);
+      expect(find.text('Aucune somme en attente : tout vous a été versé.'), findsOneWidget);
+      expect(find.textContaining('Vous devez'), findsNothing);
     });
 
     testWidgets('semaine sans recette : le graphique ne plante pas', (tester) async {
       await tester.pumpWidget(const MaterialApp(
-        home: Scaffold(body: GainsBarresChart(valeurs: [0, 0, 0, 0, 0, 0, 0], labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'])),
+        home: Scaffold(
+            body: GainsBarresChart(valeurs: [0, 0, 0, 0, 0, 0, 0], labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'])),
       ));
       expect(tester.takeException(), isNull);
     });
   });
 
   group('Admin : Finances', () {
-    testWidgets('CA de la plateforme, soldes par chauffeur et saisie d\'un règlement', (tester) async {
+    Future<void> afficher(WidgetTester tester, _FinanceFactice service) async {
       tester.view.physicalSize = const Size(1400, 1200);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      final service = _FinanceFactice();
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
@@ -239,24 +252,48 @@ void main() {
         ),
       ));
       await tester.pumpAndSettle();
+    }
+
+    testWidgets('CA, commissions, reste à verser et saisie d\'un versement plafonné', (tester) async {
+      final service = _FinanceFactice();
+      await afficher(tester, service);
 
       expect(find.text(formaterFcfa(19000)), findsOneWidget); // CA total
       expect(find.text(formaterFcfa(9000)), findsOneWidget); // CA semaine
       expect(find.text(formaterFcfa(2850)), findsOneWidget); // commissions totales
-      expect(find.text('À reverser ${formaterFcfa(3400)}'), findsOneWidget); // Awa : 4 000 - 600
-      expect(find.text('À reverser ${formaterFcfa(750)}'), findsOneWidget); // Moussa
+      expect(find.text(formaterFcfa(10000)), findsOneWidget); // versé aux chauffeurs
+      expect(find.text(formaterFcfa(6150)), findsOneWidget); // reste à verser : 3 400 + 2 750
+      expect(find.text(formaterFcfa(3400)), findsOneWidget); // Awa
+      expect(find.text(formaterFcfa(2750)), findsOneWidget); // Moussa
+      expect(find.textContaining('Dû par'), findsNothing);
+      expect(find.textContaining('spèces'), findsNothing);
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Règlement').first);
+      // Awa en tête (Sprint lui doit le plus).
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Verser').first);
       await tester.pumpAndSettle();
-      expect(find.text('Règlement : Awa Ndiaye'), findsOneWidget);
+      expect(find.text('Versement à Awa Ndiaye'), findsOneWidget);
+      await tester.enterText(find.widgetWithText(TextField, '3400'), '5000');
       await tester.tap(find.text('Enregistrer'));
       await tester.pumpAndSettle();
-      expect(service.enregistres, [('awa', 3400, SensReglement.plateformeVersChauffeur)]);
-      expect(find.text('Règlement enregistré pour Awa Ndiaye.'), findsOneWidget);
+      expect(find.text('Sprint ne doit que ${formaterFcfa(3400)} à Awa Ndiaye.'), findsOneWidget);
+      expect(service.enregistres, isEmpty);
+
+      await tester.enterText(find.widgetWithText(TextField, '5000'), '3400');
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pumpAndSettle();
+      expect(service.enregistres, [('awa', 3400)]);
+      expect(find.text('Versement enregistré pour Awa Ndiaye.'), findsOneWidget);
+    });
+
+    testWidgets('chauffeur entièrement payé : "À jour", pas de bouton Verser', (tester) async {
+      final service = _FinanceFactice()..reglements.add(_versement('awa', 3400));
+      await afficher(tester, service);
+      expect(find.text('À jour'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Verser'), findsOneWidget); // Moussa seulement
     });
   });
 
-  testWidgets('bandeau : rappel du montant à encaisser en espèces', (tester) async {
+  testWidgets('bandeau : course déjà payée, rien à encaisser', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         bottomNavigationBar: CourseActiveBandeau(
@@ -269,7 +306,7 @@ void main() {
             adresseDepart: 'Plateau',
             adresseArrivee: 'Almadies',
             prixFcfa: 3000,
-            methodePaiement: 'ESPECES',
+            methodePaiement: 'WAVE',
             timestamp: _maintenant,
           ),
           enCours: false,
@@ -281,7 +318,8 @@ void main() {
         ),
       ),
     ));
-    expect(find.text('Espèces : ${formaterFcfa(3000)} à encaisser'), findsOneWidget);
+    expect(find.text('Déjà payé par Wave'), findsOneWidget);
+    expect(find.textContaining('encaisser'), findsNothing);
   });
 }
 

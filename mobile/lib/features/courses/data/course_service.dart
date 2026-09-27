@@ -58,12 +58,9 @@ class CourseFirestore {
   /// `Commission`) ; `null` pour les courses terminées avant.
   final int? commissionFcfa;
 
-  /// Le client paie le chauffeur en espèces à l'arrivée.
-  bool get payeeEnEspeces => methodePaiement == 'ESPECES';
-
-  /// "À encaisser en espèces" / "Déjà payé par Wave"…
+  /// "Déjà payé par Wave" / "Déjà payé par Orange Money" : 100 % mobile
+  /// money, le chauffeur n'encaisse jamais rien.
   String get libellePaiement => switch (methodePaiement) {
-        'ESPECES' => 'À encaisser en espèces',
         'WAVE' => 'Déjà payé par Wave',
         'ORANGE_MONEY' => 'Déjà payé par Orange Money',
         _ => 'Paiement dans l\'app',

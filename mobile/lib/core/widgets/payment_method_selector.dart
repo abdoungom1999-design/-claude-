@@ -1,9 +1,7 @@
-/// Modes de paiement d'une course (voir `payment_method_sheet.dart` et
-/// `PaymentProcessingPage`). Espèces : le client paie le chauffeur, qui
-/// doit la commission à la plateforme. Wave / Orange Money : la
-/// plateforme encaisse et reverse sa part au chauffeur (voir
-/// `CompteChauffeur`).
-enum PaymentMethod { wave, orangeMoney, especes }
+/// Groupe Santine est passé au 100% mobile money : les chauffeurs ne
+/// gèrent plus d'espèces, seuls Wave et Orange Money sont acceptés
+/// (voir `payment_method_sheet.dart` et `PaymentProcessingPage`).
+enum PaymentMethod { wave, orangeMoney }
 
 extension PaymentMethodLabel on PaymentMethod {
   String get label {
@@ -12,8 +10,6 @@ extension PaymentMethodLabel on PaymentMethod {
         return 'Wave';
       case PaymentMethod.orangeMoney:
         return 'Orange Money';
-      case PaymentMethod.especes:
-        return 'Espèces';
     }
   }
 }
@@ -26,8 +22,6 @@ extension PaymentMethodApi on PaymentMethod {
         return 'WAVE';
       case PaymentMethod.orangeMoney:
         return 'ORANGE_MONEY';
-      case PaymentMethod.especes:
-        return 'ESPECES';
     }
   }
 }

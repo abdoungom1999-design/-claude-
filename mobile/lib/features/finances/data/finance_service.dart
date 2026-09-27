@@ -5,7 +5,7 @@ import '../../courses/data/course_service.dart';
 import 'comptabilite.dart';
 
 /// Lecture des flux financiers réels (courses terminées, règlements,
-/// temps en ligne) et saisie des règlements par l'Admin. Tout est calculé
+/// temps en ligne) et saisie des versements par l'Admin. Tout est calculé
 /// dans l'app à partir de données que les règles Firestore protègent :
 /// aucun solde stocké qu'un chauffeur pourrait modifier.
 class FinanceService {
@@ -40,16 +40,15 @@ class FinanceService {
 
   Stream<List<Reglement>> streamTousReglements() => _reglements(_firestore.collection('reglements'));
 
-  Future<void> enregistrerReglement({
+  Future<void> enregistrerVersement({
     required String chauffeurId,
     required int montantFcfa,
-    required String sens,
     String? note,
   }) {
     return _firestore.collection('reglements').add({
       'chauffeurId': chauffeurId,
       'montantFcfa': montantFcfa,
-      'sens': sens,
+      'sens': Reglement.sensVersement,
       if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
       'creeLe': FieldValue.serverTimestamp(),
     });
@@ -64,12 +63,13 @@ class FinanceService {
   Stream<List<Reglement>> _reglements(Query<Map<String, dynamic>> requete) => requete.snapshots().map(
         (instantane) => [
           for (final doc in instantane.docs)
-            if (doc.data()['montantFcfa'] is num)
+            // Seuls les versements de Sprint au chauffeur comptent.
+            if (doc.data()['montantFcfa'] is num &&
+                (doc.data()['sens'] ?? Reglement.sensVersement) == Reglement.sensVersement)
               Reglement(
                 id: doc.id,
                 chauffeurId: doc.data()['chauffeurId'] as String? ?? '',
                 montantFcfa: (doc.data()['montantFcfa'] as num).toInt(),
-                sens: doc.data()['sens'] as String? ?? SensReglement.chauffeurVersPlateforme,
                 note: doc.data()['note'] as String?,
                 date: doc.data()['creeLe'] is Timestamp ? (doc.data()['creeLe'] as Timestamp).toDate() : DateTime.now(),
               ),

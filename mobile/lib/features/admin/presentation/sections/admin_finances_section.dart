@@ -12,10 +12,10 @@ import '../../../finances/data/comptabilite.dart';
 import '../../../finances/data/finance_service.dart';
 import '../../data/suivi_direct_service.dart';
 
-/// Page "Finances" de l'Admin. En Firebase réel : chiffre d'affaires de
-/// la plateforme, commissions, et solde de chaque chauffeur (qui doit
-/// combien à qui après compensation espèces / mobile money), avec
-/// saisie des règlements. En mode démo : ancien formulaire de réglages,
+/// Page "Finances" de l'Admin. En Firebase réel (100 % mobile money :
+/// Sprint encaisse chaque course) : chiffre d'affaires, commissions, et
+/// ce que Sprint doit à chaque chauffeur (sa part de 85 %, moins les
+/// versements déjà faits), avec saisie des versements. En mode démo : ancien formulaire de réglages,
 /// simulé ([AdminDemoData]).
 class AdminFinancesSection extends StatelessWidget {
   const AdminFinancesSection({super.key, this.service, this.noms, this.maintenant});
@@ -54,11 +54,11 @@ class _FinancesReellesState extends State<_FinancesReelles> {
   Future<void> _regler(String chauffeurId, String nom, int soldeFcfa) async {
     final enregistre = await showDialog<bool>(
       context: context,
-      builder: (_) => _DialogReglement(service: widget.service, chauffeurId: chauffeurId, nom: nom, soldeFcfa: soldeFcfa),
+      builder: (_) => _DialogVersement(service: widget.service, chauffeurId: chauffeurId, nom: nom, soldeFcfa: soldeFcfa),
     );
     if (enregistre == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Règlement enregistré pour $nom.')),
+        SnackBar(content: Text('Versement enregistré pour $nom.')),
       );
     }
   }
@@ -117,8 +117,7 @@ class _VueFinances extends StatelessWidget {
       for (final r in compte.reglements) r.chauffeurId,
     }..remove('');
     final comptes = [for (final id in ids) (id, compte.duChauffeur(id))]
-      ..sort((a, b) => b.$2.soldeFcfa.abs().compareTo(a.$2.soldeFcfa.abs()));
-    final duParChauffeurs = comptes.fold(0, (t, e) => e.$2.soldeFcfa < 0 ? t - e.$2.soldeFcfa : t);
+      ..sort((a, b) => b.$2.soldeFcfa.compareTo(a.$2.soldeFcfa));
     final duAuxChauffeurs = comptes.fold(0, (t, e) => e.$2.soldeFcfa > 0 ? t + e.$2.soldeFcfa : t);
 
     Widget tuile(String libelle, int montant, IconData icone, {Color accent = AppColors.orange}) => SizedBox(
@@ -137,16 +136,16 @@ class _VueFinances extends StatelessWidget {
             tuile('CA cette semaine', semaine.chiffreAffairesFcfa, Icons.date_range_outlined),
             tuile('CA total', compte.chiffreAffairesFcfa, Icons.account_balance_outlined),
             tuile('Commissions Sprint (total)', compte.commissionsFcfa, Icons.percent_rounded, accent: AppColors.vert),
-            tuile('Dû par les chauffeurs', duParChauffeurs, Icons.call_received_rounded, accent: Colors.red.shade700),
-            tuile('Dû aux chauffeurs', duAuxChauffeurs, Icons.call_made_rounded, accent: Colors.blue.shade700),
+            tuile('Versé aux chauffeurs', compte.versementsFcfa, Icons.check_circle_outline_rounded),
+            tuile('Reste à verser aux chauffeurs', duAuxChauffeurs, Icons.call_made_rounded, accent: Colors.blue.shade700),
           ],
         ),
         const SizedBox(height: 10),
         Text(
           'Commission : ${Commission.pourcentage} % de chaque course terminée, figée à la fin de la course '
-          '(imposée par les règles Firestore). ${compte.nombreCourses} courses terminées au total, dont '
-          '${formaterFcfa(compte.especesFcfa)} en espèces et ${formaterFcfa(compte.mobileMoneyFcfa)} '
-          'par Wave / Orange Money (encore en mode test : aucun argent réellement encaissé).',
+          '(imposée par les règles Firestore). ${compte.nombreCourses} courses terminées au total, toutes '
+          'payées par Wave / Orange Money et encaissées par Sprint, qui reverse ${100 - Commission.pourcentage} % '
+          'au chauffeur (paiements encore en mode test : aucun argent réellement encaissé).',
           style: const TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
         ),
         const SizedBox(height: 22),
@@ -155,14 +154,14 @@ class _VueFinances extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Soldes des chauffeurs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              const Text('À verser aux chauffeurs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
               const SizedBox(height: 14),
               if (comptes.isEmpty)
                 const Text('Aucune course terminée pour le moment.', style: TextStyle(color: AppColors.grey))
               else ...[
                 const _LigneTableau(
                   entete: true,
-                  cellules: ['Chauffeur', 'Courses', 'CA', 'Commission', 'Solde', ''],
+                  cellules: ['Chauffeur', 'Courses', 'CA', 'Commission', 'Sprint doit', ''],
                 ),
                 const Divider(color: AppColors.greyBorder),
                 for (final (id, c) in comptes)
@@ -176,7 +175,7 @@ class _VueFinances extends StatelessWidget {
                       '',
                     ],
                     solde: c.soldeFcfa,
-                    onRegler: () => onRegler(id, noms[id] ?? 'ce chauffeur', c.soldeFcfa),
+                    onRegler: c.soldeFcfa > 0 ? () => onRegler(id, noms[id] ?? 'ce chauffeur', c.soldeFcfa) : null,
                   ),
               ],
             ],
@@ -215,18 +214,10 @@ class _LigneTableau extends StatelessWidget {
             child: solde == null
                 ? Text(cellules[4], style: style)
                 : Text(
-                    switch (sensDuSolde(solde)) {
-                      SensSolde.chauffeurDoit => 'Doit ${formaterFcfa(-solde)}',
-                      SensSolde.plateformeDoit => 'À reverser ${formaterFcfa(solde)}',
-                      SensSolde.equilibre => 'À jour',
-                    },
+                    solde > 0 ? formaterFcfa(solde) : 'À jour',
                     style: style.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: switch (sensDuSolde(solde)) {
-                        SensSolde.chauffeurDoit => Colors.red.shade700,
-                        SensSolde.plateformeDoit => Colors.blue.shade700,
-                        SensSolde.equilibre => AppColors.grey,
-                      },
+                      color: solde > 0 ? Colors.blue.shade700 : AppColors.grey,
                     ),
                   ),
           ),
@@ -236,7 +227,7 @@ class _LigneTableau extends StatelessWidget {
                 ? Text(cellules[5], style: style)
                 : Align(
                     alignment: Alignment.centerRight,
-                    child: OutlinedButton(onPressed: onRegler, child: const Text('Règlement')),
+                    child: OutlinedButton(onPressed: onRegler, child: const Text('Verser')),
                   ),
           ),
         ],
@@ -245,10 +236,11 @@ class _LigneTableau extends StatelessWidget {
   }
 }
 
-/// Saisie d'un règlement : le sens et le montant sont préremplis d'après
-/// le solde (montant qui le remet à zéro), modifiables.
-class _DialogReglement extends StatefulWidget {
-  const _DialogReglement({required this.service, required this.chauffeurId, required this.nom, required this.soldeFcfa});
+/// Saisie d'un versement de Sprint au chauffeur : montant prérempli avec
+/// ce que Sprint lui doit, modifiable à la baisse (versement partiel),
+/// jamais au-delà.
+class _DialogVersement extends StatefulWidget {
+  const _DialogVersement({required this.service, required this.chauffeurId, required this.nom, required this.soldeFcfa});
 
   final FinanceService service;
   final String chauffeurId;
@@ -256,13 +248,11 @@ class _DialogReglement extends StatefulWidget {
   final int soldeFcfa;
 
   @override
-  State<_DialogReglement> createState() => _DialogReglementState();
+  State<_DialogVersement> createState() => _DialogVersementState();
 }
 
-class _DialogReglementState extends State<_DialogReglement> {
-  late String _sens =
-      widget.soldeFcfa > 0 ? SensReglement.plateformeVersChauffeur : SensReglement.chauffeurVersPlateforme;
-  late final _montant = TextEditingController(text: widget.soldeFcfa == 0 ? '' : '${widget.soldeFcfa.abs()}');
+class _DialogVersementState extends State<_DialogVersement> {
+  late final _montant = TextEditingController(text: '${widget.soldeFcfa}');
   final _note = TextEditingController();
   bool _envoi = false;
   String? _erreur;
@@ -280,15 +270,18 @@ class _DialogReglementState extends State<_DialogReglement> {
       setState(() => _erreur = 'Montant invalide.');
       return;
     }
+    if (montant > widget.soldeFcfa) {
+      setState(() => _erreur = 'Sprint ne doit que ${formaterFcfa(widget.soldeFcfa)} à ${widget.nom}.');
+      return;
+    }
     setState(() {
       _envoi = true;
       _erreur = null;
     });
     try {
-      await widget.service.enregistrerReglement(
+      await widget.service.enregistrerVersement(
         chauffeurId: widget.chauffeurId,
         montantFcfa: montant,
-        sens: _sens,
         note: _note.text,
       );
       if (mounted) Navigator.of(context).pop(true);
@@ -305,34 +298,19 @@ class _DialogReglementState extends State<_DialogReglement> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Règlement : ${widget.nom}'),
+      title: Text('Versement à ${widget.nom}'),
       content: SizedBox(
         width: 420,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            RadioGroup<String>(
-              groupValue: _sens,
-              onChanged: (sens) => setState(() => _sens = sens ?? _sens),
-              child: const Column(
-                children: [
-                  RadioListTile<String>(
-                    value: SensReglement.chauffeurVersPlateforme,
-                    title: Text('Le chauffeur a versé sa commission à Sprint'),
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  RadioListTile<String>(
-                    value: SensReglement.plateformeVersChauffeur,
-                    title: Text('Sprint a reversé sa part au chauffeur'),
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
+            Text(
+              'Sprint doit ${formaterFcfa(widget.soldeFcfa)} à ${widget.nom}. Enregistrez ici un '
+              'versement déjà effectué (Wave, Orange Money…).',
+              style: const TextStyle(fontSize: 13, color: AppColors.grey, height: 1.4),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             TextField(
               controller: _montant,
               keyboardType: TextInputType.number,

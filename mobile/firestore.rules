@@ -140,7 +140,8 @@ service cloud.firestore {
              'adresseArrivee', 'prixFcfa', 'methodePaiement', 'transactionId',
              'timestamp', 'latitudeDepart', 'longitudeDepart',
              'latitudeArrivee', 'longitudeArrivee'])
-        && request.resource.data.methodePaiement in ['ESPECES', 'WAVE', 'ORANGE_MONEY']
+        // 100 % mobile money : la plateforme encaisse chaque course.
+        && request.resource.data.methodePaiement in ['WAVE', 'ORANGE_MONEY']
         && request.resource.data.prixFcfa is int
         && request.resource.data.prixFcfa > 0
         && nombreOuAbsent(request.resource.data, 'latitudeDepart')
@@ -307,10 +308,10 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // Finances. Règlements entre un chauffeur et la plateforme (le
-    // chauffeur verse sa commission des courses en espèces, ou la
-    // plateforme lui reverse sa part des courses payées en mobile money) :
-    // saisis par l'Admin seul, visibles du chauffeur concerné.
+    // Finances. La plateforme encaisse toutes les courses (Wave / Orange
+    // Money) et reverse au chauffeur sa part (85 %). Les versements sont
+    // saisis par l'Admin seul, visibles du chauffeur concerné ; un
+    // chauffeur ne doit jamais rien à la plateforme.
     // ---------------------------------------------------------------
     match /reglements/{reglementId} {
       allow read: if connecte() && (resource.data.chauffeurId == moi() || estAdmin());
@@ -320,7 +321,7 @@ service cloud.firestore {
         && request.resource.data.chauffeurId is string
         && request.resource.data.montantFcfa is int
         && request.resource.data.montantFcfa > 0
-        && request.resource.data.sens in ['chauffeur_vers_plateforme', 'plateforme_vers_chauffeur']
+        && request.resource.data.sens == 'plateforme_vers_chauffeur'
         && request.resource.data.creeLe == request.time;
 
       allow update: if false;

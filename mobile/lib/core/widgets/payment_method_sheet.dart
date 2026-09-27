@@ -5,12 +5,11 @@ import 'payment_method_selector.dart';
 
 const _bleuWave = Color(0xFF1DC8F2);
 const _orangeOrangeMoney = Color(0xFFFF7900);
-const _vertEspeces = Color(0xFF1E8E5A);
 
 /// Bottom sheet "Choisissez votre mode de paiement", affichée après la
 /// confirmation du prix et avant toute création de course (voir
-/// `PassagerPage` / `ColisPage`). Wave, Orange Money ou espèces
-/// (remises au chauffeur à l'arrivée). Le choix referme la
+/// `PassagerPage` / `ColisPage`). Uniquement Wave et Orange Money —
+/// Groupe Santine est passé au 100% mobile money. Le choix referme la
 /// sheet puis ouvre le sas de paiement (`PaymentProcessingPage`), seul
 /// habilité à créer la course une fois le paiement confirmé.
 ///
@@ -94,13 +93,6 @@ class _SelectionPaiementSheet extends StatelessWidget {
             couleurTexte: _orangeOrangeMoney,
             icone: Icons.account_balance_wallet_rounded,
           ),
-          const SizedBox(height: 12),
-          const _BoutonPaiement(
-            methode: PaymentMethod.especes,
-            fond: _vertEspeces,
-            couleurTexte: Colors.white,
-            icone: Icons.payments_rounded,
-          ),
           const SizedBox(height: 14),
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -157,7 +149,7 @@ class _BoutonPaiement extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  methode == PaymentMethod.especes ? 'Payer en espèces au chauffeur' : 'Payer avec ${methode.label}',
+                  'Payer avec ${methode.label}',
                   style: TextStyle(
                     color: couleurTexte,
                     fontSize: 16,

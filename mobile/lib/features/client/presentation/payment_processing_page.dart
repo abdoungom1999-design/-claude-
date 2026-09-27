@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../courses/data/course_service.dart';
 import '../../paiement/data/paiement_service.dart';
 import 'suivi_course_page.dart';
 
-/// Sas de commande (Wave, Orange Money ou espèces) : s'affiche après le
+/// Sas de paiement obligatoire (100% mobile money) : s'affiche après le
 /// choix de Wave ou Orange Money, bloque le client (aucun retour
 /// arrière) pendant la demande de paiement via [PaiementService], et ne
 /// crée la course dans Firestore — ce qui réveille le radar des
@@ -128,7 +127,7 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
             duration: const Duration(milliseconds: 300),
             child: _etape == _EtapePaiement.enAttente
                 ? _VueEnAttente(methode: widget.methode)
-                : _VueConfirmee(methode: widget.methode, prixFcfa: widget.prixFcfa),
+                : const _VueConfirmee(),
           ),
         ),
       ),
@@ -156,9 +155,7 @@ class _VueEnAttente extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           Text(
-            methode == PaymentMethod.especes
-                ? 'Envoi de votre demande…'
-                : 'En attente de la confirmation de\nvotre paiement ${methode.label}…',
+            'En attente de la confirmation de\nvotre paiement ${methode.label}…',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
@@ -175,10 +172,7 @@ class _VueEnAttente extends StatelessWidget {
 }
 
 class _VueConfirmee extends StatelessWidget {
-  const _VueConfirmee({required this.methode, required this.prixFcfa});
-
-  final PaymentMethod methode;
-  final int prixFcfa;
+  const _VueConfirmee();
 
   @override
   Widget build(BuildContext context) {
@@ -199,18 +193,10 @@ class _VueConfirmee extends StatelessWidget {
             child: Icon(Icons.check_circle_rounded, color: Colors.green.shade600, size: 44),
           ),
           const SizedBox(height: 24),
-          Text(
-            methode == PaymentMethod.especes ? 'Commande confirmée !' : 'Paiement confirmé !',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const Text(
+            'Paiement confirmé !',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          if (methode == PaymentMethod.especes) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Vous réglerez ${formaterFcfa(prixFcfa)} en espèces au chauffeur.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13.5, color: AppColors.grey),
-            ),
-          ],
         ],
       ),
     );

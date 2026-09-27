@@ -45,8 +45,8 @@ class ConditionsUtilisationPage extends StatelessWidget {
           'Le Client s\'engage à utiliser l\'application de bonne foi, à se '
               'présenter au point de prise en charge indiqué, à adopter un '
               'comportement respectueux envers le Conducteur et à régler le '
-              'prix de la course selon le mode de paiement choisi (espèces, '
-              'Wave, Orange Money ou solde Sprint). Toute utilisation '
+              'prix de la course selon le mode de paiement choisi (Wave, '
+              'Orange Money ou solde Sprint). Toute utilisation '
               'frauduleuse, abusive ou portant atteinte à la sécurité d\'autrui '
               'peut entraîner la suspension immédiate du compte.',
         ),
