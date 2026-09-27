@@ -12,18 +12,25 @@ import '../../../messages/presentation/messagerie_chat_page.dart';
 /// discuter. Chaque ligne ouvre le même [MessagerieChatPage] temps réel
 /// que côté client (StreamBuilder Firestore, bouton d'appel compris).
 class ConducteurMessagesTab extends StatefulWidget {
-  const ConducteurMessagesTab({super.key});
+  const ConducteurMessagesTab({super.key, this.chatService, this.monUid});
+
+  /// Injectables pour les tests.
+  final ChatService? chatService;
+  final String? monUid;
 
   @override
   State<ConducteurMessagesTab> createState() => _ConducteurMessagesTabState();
 }
 
 class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
-  final _chatService = ChatService();
+  late final ChatService _chatService = widget.chatService ?? ChatService();
+  late final String? _monUid = widget.monUid ?? FirebaseAuth.instance.currentUser?.uid;
+  late final Stream<List<Map<String, dynamic>>>? _chats =
+      _monUid == null ? null : _chatService.streamMesChats(_monUid);
 
   @override
   Widget build(BuildContext context) {
-    final monUid = FirebaseAuth.instance.currentUser?.uid;
+    final monUid = _monUid;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -48,8 +55,15 @@ class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
                       message: 'Reconnectez-vous pour accéder à vos conversations.',
                     )
                   : StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _chatService.streamMesChats(monUid),
+                      stream: _chats,
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return const ComingSoonView(
+                            icon: Icons.cloud_off_rounded,
+                            titre: 'Conversations indisponibles',
+                            message: 'Impossible de charger vos messages. Vérifiez votre connexion.',
+                          );
+                        }
                         if (snapshot.connectionState == ConnectionState.waiting) {
                           return const Center(
                             child: CircularProgressIndicator(color: AppColors.orange),

@@ -8,15 +8,18 @@ class ChatMessageFirestore {
     required this.senderId,
     required this.text,
     required this.timestamp,
+    this.id = '',
   });
 
+  final String id;
   final String senderId;
   final String text;
   final DateTime timestamp;
 
-  factory ChatMessageFirestore.depuisDocument(Map<String, dynamic> donnees) {
+  factory ChatMessageFirestore.depuisDocument(Map<String, dynamic> donnees, {String id = ''}) {
     final horodatage = donnees['timestamp'];
     return ChatMessageFirestore(
+      id: id,
       senderId: donnees['senderId'] as String? ?? '',
       text: donnees['text'] as String? ?? '',
       // `timestamp` est un FieldValue.serverTimestamp() : encore `null`
@@ -61,9 +64,28 @@ class ChatService {
         .snapshots()
         .map(
           (instantane) => instantane.docs
-              .map((doc) => ChatMessageFirestore.depuisDocument(doc.data()))
+              .map((doc) => ChatMessageFirestore.depuisDocument(doc.data(), id: doc.id))
               .toList(),
         );
+  }
+
+  /// Dernier message d'un chat (`null` s'il est vide), pour prévenir le
+  /// chauffeur qu'un message du client est arrivé alors que la
+  /// conversation n'est pas ouverte. Tri sur un seul champ : index
+  /// automatique, rien à créer.
+  Stream<ChatMessageFirestore?> streamDernierMessage(String chatId) {
+    return _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .snapshots()
+        .map((instantane) {
+      if (instantane.docs.isEmpty) return null;
+      final doc = instantane.docs.first;
+      return ChatMessageFirestore.depuisDocument(doc.data(), id: doc.id);
+    });
   }
 
   /// Envoie un message : ajoute le document dans la sous-collection
@@ -125,19 +147,29 @@ class ChatService {
   /// les clients avec qui discuter, à la façon d'une boîte de réception
   /// WhatsApp plutôt que d'un simple annuaire.
   ///
-  /// Important : ce filtre (`participants` contient `monUid` + tri sur
-  /// `misAJourLe`) nécessite un index composite Firestore, comme pour
-  /// [CourseService.streamCoursesEnAttente] — Firestore renverra un
-  /// lien direct pour le créer au premier accès.
+  /// Tri fait ici plutôt que par Firestore : un `orderBy` combiné au
+  /// filtre `participants` exigeait un index composite qui, tant qu'il
+  /// n'était pas créé dans la Console, faisait échouer la requête — et
+  /// la boîte de réception du chauffeur restait vide.
   Stream<List<Map<String, dynamic>>> streamMesChats(String monUid) {
     return _firestore
         .collection('chats')
         .where('participants', arrayContains: monUid)
-        .orderBy('misAJourLe', descending: true)
         .snapshots()
-        .map(
-          (instantane) =>
-              instantane.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
-        );
+        .map((instantane) => trierParActivite([
+              for (final doc in instantane.docs) {'id': doc.id, ...doc.data()},
+            ]));
+  }
+
+  /// Conversation la plus récemment active en premier ; celle dont
+  /// l'horodatage serveur est encore en attente (message tout juste
+  /// envoyé) passe devant.
+  static List<Map<String, dynamic>> trierParActivite(List<Map<String, dynamic>> chats) {
+    DateTime date(Map<String, dynamic> chat) {
+      final valeur = chat['misAJourLe'];
+      return valeur is Timestamp ? valeur.toDate() : DateTime(9999);
+    }
+
+    return chats..sort((a, b) => date(b).compareTo(date(a)));
   }
 }

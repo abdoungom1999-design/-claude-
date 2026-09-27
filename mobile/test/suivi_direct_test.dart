@@ -149,7 +149,13 @@ void main() {
       final appels = <String>[];
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-          bottomNavigationBar: CourseActiveBandeau(course: course, enCours: false, onAvancer: () => appels.add(bouton)),
+          bottomNavigationBar: CourseActiveBandeau(
+            course: course,
+            enCours: false,
+            onAvancer: () => appels.add(bouton),
+            onAppeler: () => appels.add('appel'),
+            onMessage: () => appels.add('message'),
+          ),
         ),
       ));
       await tester.tap(find.text(bouton));

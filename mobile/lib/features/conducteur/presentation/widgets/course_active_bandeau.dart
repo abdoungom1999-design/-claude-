@@ -3,15 +3,20 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../courses/data/course_service.dart';
 
 /// Bandeau de la course en cours du chauffeur, affiché au-dessus de la
-/// barre de navigation tant qu'une course lui est attribuée. Un seul
-/// bouton, qui fait avancer la course : "Client à bord" (`acceptee` ->
-/// `en_cours`), puis "Terminer la course" (`en_cours` -> `terminee`).
+/// barre de navigation tant qu'une course lui est attribuée : un bouton
+/// qui fait avancer la course ("Client à bord" (`acceptee` ->
+/// `en_cours`), puis "Terminer la course" (`en_cours` -> `terminee`)),
+/// et, comme côté client, "Appeler" et "Message" pour joindre le client
+/// (badge tant qu'un message du client n'a pas été lu).
 class CourseActiveBandeau extends StatelessWidget {
   const CourseActiveBandeau({
     super.key,
     required this.course,
     required this.enCours,
     required this.onAvancer,
+    required this.onAppeler,
+    required this.onMessage,
+    this.messageNonLu = false,
   });
 
   final CourseFirestore course;
@@ -19,6 +24,9 @@ class CourseActiveBandeau extends StatelessWidget {
   /// Mise à jour Firestore en cours : bouton désactivé.
   final bool enCours;
   final VoidCallback onAvancer;
+  final VoidCallback onAppeler;
+  final VoidCallback onMessage;
+  final bool messageNonLu;
 
   bool get _clientABord => course.statut == StatutCourse.enCours;
 
@@ -31,57 +39,126 @@ class CourseActiveBandeau extends StatelessWidget {
         top: false,
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                colis ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _clientABord
-                          ? (colis ? 'Livraison en cours' : 'Course en cours')
-                          : (colis ? 'Récupérez le colis' : 'Rejoignez votre client'),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5),
+              Row(
+                children: [
+                  Icon(
+                    colis ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _clientABord
+                              ? (colis ? 'Livraison en cours' : 'Course en cours')
+                              : (colis ? 'Récupérez le colis' : 'Rejoignez votre client'),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _clientABord ? 'Vers ${course.adresseArrivee}' : 'Départ : ${course.adresseDepart}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _clientABord ? 'Vers ${course.adresseArrivee}' : 'Départ : ${course.adresseDepart}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    onPressed: enCours ? null : onAvancer,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.orange,
+                      disabledBackgroundColor: Colors.white70,
                     ),
-                  ],
-                ),
+                    child: enCours
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange),
+                          )
+                        : Text(
+                            _clientABord ? 'Terminer la course' : (colis ? 'Colis récupéré' : 'Client à bord'),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              FilledButton(
-                onPressed: enCours ? null : onAvancer,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.orange,
-                  disabledBackgroundColor: Colors.white70,
-                ),
-                child: enCours
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange),
-                      )
-                    : Text(
-                        _clientABord ? 'Terminer la course' : (colis ? 'Colis récupéré' : 'Client à bord'),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _BoutonContact(icone: Icons.call_rounded, libelle: 'Appeler', onPressed: onAppeler),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _BoutonContact(
+                      icone: Icons.chat_bubble_outline_rounded,
+                      libelle: 'Message',
+                      onPressed: onMessage,
+                      badge: messageNonLu,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _BoutonContact extends StatelessWidget {
+  const _BoutonContact({
+    required this.icone,
+    required this.libelle,
+    required this.onPressed,
+    this.badge = false,
+  });
+
+  final IconData icone;
+  final String libelle;
+  final VoidCallback onPressed;
+  final bool badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: badge ? Colors.white.withValues(alpha: 0.18) : null,
+        side: const BorderSide(color: Colors.white70),
+        minimumSize: const Size.fromHeight(40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Badge(
+            isLabelVisible: badge,
+            smallSize: 9,
+            backgroundColor: Colors.white,
+            child: Icon(icone, size: 18),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              libelle,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -33,6 +33,10 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
   late final String _moiUid = FirebaseAuth.instance.currentUser?.uid ?? '';
   late final String _chatId = _chatService.chatIdEntre(_moiUid, widget.interlocuteurUid);
 
+  /// Créé une fois : un nouveau flux à chaque reconstruction relancerait
+  /// l'écoute Firestore (et l'indicateur de chargement) à chaque frappe.
+  late final Stream<List<ChatMessageFirestore>> _messages = _chatService.streamMessages(_chatId);
+
   String? _telephoneInterlocuteur;
   bool _telephoneCharge = false;
 
@@ -127,8 +131,20 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
           children: [
             Expanded(
               child: StreamBuilder<List<ChatMessageFirestore>>(
-                stream: _chatService.streamMessages(_chatId),
+                stream: _messages,
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                          'Impossible de charger la conversation. Vérifiez votre connexion.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.grey),
+                        ),
+                      ),
+                    );
+                  }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(color: AppColors.orange),

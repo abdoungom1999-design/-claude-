@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/location/device_location_service.dart';
 import '../../../core/models/statut_compte.dart';
@@ -14,6 +15,9 @@ import '../../../core/widgets/email_verification_pending_page.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
+import '../../messages/data/chat_service.dart';
+import '../../messages/data/detecteur_nouveaux_messages.dart';
+import '../../messages/presentation/messagerie_chat_page.dart';
 import '../data/conducteur_repository.dart';
 import '../data/position_chauffeur_service.dart';
 import 'conducteur_compte_bloque_page.dart';
@@ -72,6 +76,15 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   CourseFirestore? _courseActive;
   bool _avancementCourseEnCours = false;
 
+  // Communication avec le client de la course active (voir
+  // [_suivreClient]) : profil (nom, téléphone), dernier message reçu.
+  final _chatService = ChatService();
+  String? _clientSuivi;
+  Map<String, dynamic>? _profilClient;
+  DetecteurNouveauxMessages? _detecteurMessages;
+  StreamSubscription<ChatMessageFirestore?>? _abonnementMessages;
+  bool _chatClientOuvert = false;
+
   /// `'suspendu'` ou `'banni'` dès que l'Admin sanctionne le compte :
   /// le chauffeur est alors éjecté (voir [_ejecter]).
   String? _statutBloque;
@@ -91,6 +104,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     _abonnementCoursesEnAttente?.cancel();
     _abonnementStatutCompte?.cancel();
     _abonnementCourseActive?.cancel();
+    _abonnementMessages?.cancel();
     if (DefaultFirebaseOptions.estConfigure) unawaited(_positionService.arreter());
     super.dispose();
   }
@@ -165,6 +179,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     if (_statutBloque != null || !mounted) return;
     _abonnementStatutCompte?.cancel();
     _abonnementCourseActive?.cancel();
+    _abonnementMessages?.cancel();
     _arreterRadarCourses();
     final routeShell = ModalRoute.of(context);
     if (routeShell != null) Navigator.of(context).popUntil((route) => route == routeShell);
@@ -248,9 +263,95 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       (course) {
         _positionService.definirCourse(course?.id);
         if (mounted) setState(() => _courseActive = course);
+        _suivreClient(course?.clientId);
       },
       onError: (_) {},
     );
+  }
+
+  /// Pendant une course, écoute la conversation avec le client : un
+  /// message reçu alors que le chat n'est pas ouvert allume le badge du
+  /// bouton "Message" et s'affiche aussitôt ("Répondre" ouvre le chat).
+  void _suivreClient(String? clientId) {
+    final id = (clientId?.isEmpty ?? true) ? null : clientId;
+    if (id == _clientSuivi) return;
+    _clientSuivi = id;
+    _abonnementMessages?.cancel();
+    _abonnementMessages = null;
+    _profilClient = null;
+    _detecteurMessages = null;
+    final monUid = FirebaseAuth.instance.currentUser?.uid;
+    if (id == null || monUid == null) return;
+
+    _chatService.chargerProfil(id).then((profil) {
+      if (mounted && _clientSuivi == id) setState(() => _profilClient = profil);
+    }).catchError((_) {});
+
+    final detecteur = DetecteurNouveauxMessages(interlocuteurUid: id);
+    _detecteurMessages = detecteur;
+    _abonnementMessages = _chatService.streamDernierMessage(_chatService.chatIdEntre(monUid, id)).listen(
+      (message) {
+        final alerter = detecteur.recevoir(message);
+        if (_chatClientOuvert) detecteur.marquerLu();
+        if (!mounted) return;
+        setState(() {});
+        if (alerter && !_chatClientOuvert && message != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$_nomClient : ${message.text}', maxLines: 2, overflow: TextOverflow.ellipsis),
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(label: 'Répondre', onPressed: _ouvrirChatClient),
+            ),
+          );
+        }
+      },
+      onError: (_) {},
+    );
+  }
+
+  String get _nomClient {
+    final nom = (_profilClient?['nom'] as String?)?.trim();
+    return nom == null || nom.isEmpty ? 'Votre client' : nom;
+  }
+
+  Future<void> _ouvrirChatClient() async {
+    final clientId = _clientSuivi;
+    if (clientId == null || _chatClientOuvert) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    setState(() {
+      _chatClientOuvert = true;
+      _detecteurMessages?.marquerLu();
+    });
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MessagerieChatPage(
+          interlocuteurUid: clientId,
+          interlocuteurNom: _nomClient,
+          interlocuteurSousTitre: 'Client Sprint',
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _chatClientOuvert = false;
+      _detecteurMessages?.marquerLu();
+    });
+  }
+
+  Future<void> _appelerClient() async {
+    final telephone = (_profilClient?['telephone'] as String?)?.trim();
+    if (telephone == null || telephone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Numéro du client indisponible. Écrivez-lui un message.')),
+      );
+      return;
+    }
+    final lance = await launchUrl(Uri(scheme: 'tel', path: telephone));
+    if (!lance && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Impossible de lancer l'appel.")),
+      );
+    }
   }
 
   Future<void> _avancerCourseActive() async {
@@ -353,6 +454,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   Future<void> _seDeconnecter() async {
     _abonnementStatutCompte?.cancel();
     _abonnementCourseActive?.cancel();
+    _abonnementMessages?.cancel();
     await _arreterEnvoiPosition();
     _arreterRadarCourses();
     await _authRepository.deconnecter();
@@ -434,6 +536,9 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
               course: _courseActive!,
               enCours: _avancementCourseEnCours,
               onAvancer: _avancerCourseActive,
+              onAppeler: _appelerClient,
+              onMessage: _ouvrirChatClient,
+              messageNonLu: _detecteurMessages?.nonLu ?? false,
             ),
           ConducteurBottomNav(
             indexSelectionne: _indexSelectionne,
