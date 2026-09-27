@@ -194,32 +194,41 @@ class DemoData {
   static const double tauxAcceptationConducteur = 0.95;
   static const int objectifJournalierFcfa = 20000;
 
-  // --- Tarification (réplique exacte du backend) -------------------------
+  // --- Tarification (mêmes valeurs par défaut que le backend) -----------
+  //
+  // Grille alignée sur le marché dakarois de la moto-taxi : prise en
+  // charge + kilomètres, sans facturation à la minute (le temps n'est payé
+  // qu'à travers la majoration heure de pointe / nuit). Ex. : 15 km hors
+  // pointe = 300 + 15 x 200 = 3 300 FCFA.
 
   static const double _vitesseMoyenneKmh = 22;
 
   static const _tarifsPassager = _Tarifs(
-    prisEnCharge: 500,
-    parKm: 300,
-    parMinute: 50,
+    prisEnCharge: 300,
+    parKm: 200,
+    parMinute: 0,
     prixMinimum: 1000,
   );
 
   static const _tarifsColis = _Tarifs(
-    prisEnCharge: 500,
-    parKm: 300,
-    parMinute: 40,
+    prisEnCharge: 300,
+    parKm: 200,
+    parMinute: 0,
     prixMinimum: 1000,
   );
 
+  /// [maintenant] : pour les tests (majoration selon l'heure) ; par
+  /// défaut, l'heure actuelle.
   static EstimationPrix estimerPrix({
     required String type,
     required double distanceKm,
+    DateTime? maintenant,
   }) {
     final distance = distanceKm < 0 ? 0.0 : distanceKm;
+    // Durée affichée au client ; facturée seulement si parMinute > 0.
     final dureeEstimeeMin = ((distance / _vitesseMoyenneKmh) * 60).round();
     final tarifs = type == 'COLIS' ? _tarifsColis : _tarifsPassager;
-    final multiplicateurTrafic = _multiplicateurTraficActuel();
+    final multiplicateurTrafic = _multiplicateurTrafic(maintenant ?? DateTime.now());
 
     final montantBrut =
         (tarifs.prisEnCharge +
@@ -238,8 +247,8 @@ class DemoData {
     );
   }
 
-  static double _multiplicateurTraficActuel() {
-    final heure = DateTime.now().toUtc().hour;
+  static double _multiplicateurTrafic(DateTime maintenant) {
+    final heure = maintenant.toUtc().hour;
     final heurePointe = (heure >= 7 && heure < 10) || (heure >= 17 && heure < 20);
     final heureNuit = heure >= 22 || heure < 5;
     if (heurePointe) return 1.4;

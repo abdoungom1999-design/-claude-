@@ -53,6 +53,9 @@ export default () => ({
     },
   },
   pricing: {
+    // Grille par défaut alignée sur l'app (DemoData.estimerPrix) : prise
+    // en charge + kilomètres, pas de facturation à la minute ; le temps
+    // n'est payé qu'à travers la majoration heure de pointe / nuit.
     // Vitesse moyenne retenue pour estimer la durée du trajet en
     // l'absence d'un vrai moteur d'itinéraire (pas de clé API de routage).
     vitesseMoyenneKmh: parseFloat(
@@ -60,25 +63,25 @@ export default () => ({
     ),
     passager: {
       prisEnCharge: parseInt(
-        process.env.PRICING_PASSAGER_PRISE_EN_CHARGE ?? '500',
+        process.env.PRICING_PASSAGER_PRISE_EN_CHARGE ?? '300',
         10,
       ),
-      parKm: parseInt(process.env.PRICING_PASSAGER_PAR_KM ?? '150', 10),
-      parMinute: parseInt(process.env.PRICING_PASSAGER_PAR_MINUTE ?? '50', 10),
+      parKm: parseInt(process.env.PRICING_PASSAGER_PAR_KM ?? '200', 10),
+      parMinute: parseInt(process.env.PRICING_PASSAGER_PAR_MINUTE ?? '0', 10),
       prixMinimum: parseInt(
-        process.env.PRICING_PASSAGER_PRIX_MINIMUM ?? '500',
+        process.env.PRICING_PASSAGER_PRIX_MINIMUM ?? '1000',
         10,
       ),
     },
     colis: {
       prisEnCharge: parseInt(
-        process.env.PRICING_COLIS_PRISE_EN_CHARGE ?? '700',
+        process.env.PRICING_COLIS_PRISE_EN_CHARGE ?? '300',
         10,
       ),
       parKm: parseInt(process.env.PRICING_COLIS_PAR_KM ?? '200', 10),
-      parMinute: parseInt(process.env.PRICING_COLIS_PAR_MINUTE ?? '40', 10),
+      parMinute: parseInt(process.env.PRICING_COLIS_PAR_MINUTE ?? '0', 10),
       prixMinimum: parseInt(
-        process.env.PRICING_COLIS_PRIX_MINIMUM ?? '700',
+        process.env.PRICING_COLIS_PRIX_MINIMUM ?? '1000',
         10,
       ),
     },

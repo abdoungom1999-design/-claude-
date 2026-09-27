@@ -47,7 +47,7 @@ void main() {
   });
 
   group('Distance et formule de prix', () {
-    test('distance par la route = vol d\'oiseau x 1,3', () {
+    test('distance par la route = vol d\'oiseau x 1,1', () {
       final volOiseau = DistanceUtils.distanceKm(
         latDepart: _plateau.latitude,
         lngDepart: _plateau.longitude,
@@ -61,18 +61,38 @@ void main() {
         lngArrivee: _almadies.longitude,
       );
       expect(volOiseau, closeTo(12, 1));
-      expect(route, closeTo(volOiseau * 1.3, 1e-9));
+      expect(route, closeTo(volOiseau * 1.1, 1e-9));
     });
 
-    test('prise en charge + kilomètres + temps, arrondi à 100, jamais sous le minimum', () {
-      final court = DemoData.estimerPrix(type: 'PASSAGER', distanceKm: 0.3);
-      expect(court.prixFcfa, greaterThanOrEqualTo(1000));
+    // Dakar est en UTC+0 : 10 h = heure creuse, 8 h = pointe, 23 h = nuit.
+    final heureCreuse = DateTime.utc(2026, 9, 28, 10);
+    final heurePointe = DateTime.utc(2026, 9, 28, 8);
+    final nuit = DateTime.utc(2026, 9, 28, 23);
+    int prix(double km, DateTime quand, {String type = 'PASSAGER'}) =>
+        DemoData.estimerPrix(type: type, distanceKm: km, maintenant: quand).prixFcfa;
 
-      final estimation = DemoData.estimerPrix(type: 'PASSAGER', distanceKm: 10);
-      final sansMajoration = 500 + 10 * 300 + estimation.dureeEstimeeMin * 50;
-      final attendu = ((sansMajoration * estimation.multiplicateurTrafic) / 100).round() * 100;
-      expect(estimation.prixFcfa, attendu);
-      expect(estimation.prixFcfa % 100, 0);
+    test('15 km : 300 + 15 x 200 = 3 300 FCFA, sans facturation à la minute', () {
+      expect(prix(15, heureCreuse), 3300);
+      expect(prix(15, heureCreuse, type: 'COLIS'), 3300);
+      expect(prix(15, heurePointe), 4600);
+      expect(prix(15, nuit), 4000);
+    });
+
+    test('Plateau -> Almadies (~13,3 km par la route) : ~3 000 FCFA hors pointe', () {
+      final km = DistanceUtils.distanceRouteEstimeeKm(
+        latDepart: _plateau.latitude,
+        lngDepart: _plateau.longitude,
+        latArrivee: _almadies.latitude,
+        lngArrivee: _almadies.longitude,
+      );
+      expect(prix(km, heureCreuse), 3000);
+    });
+
+    test('minimum de course 1 000 FCFA ; arrondi à la centaine', () {
+      expect(prix(0.5, heureCreuse), 1000);
+      expect(prix(3, heureCreuse), 1000);
+      expect(prix(4, heureCreuse), 1100);
+      expect(prix(7.3, heureCreuse) % 100, 0);
     });
   });
 
