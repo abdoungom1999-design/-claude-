@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../utils/format_fcfa.dart';
 import 'payment_method_selector.dart';
 
 const _bleuWave = Color(0xFF1DC8F2);
@@ -71,7 +72,7 @@ class _SelectionPaiementSheet extends StatelessWidget {
                   const Text('Montant à payer', style: TextStyle(color: AppColors.grey)),
                   const Spacer(),
                   Text(
-                    '$montantFcfa FCFA',
+                    formaterFcfa(montantFcfa!),
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                   ),
                 ],

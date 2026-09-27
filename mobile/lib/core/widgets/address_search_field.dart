@@ -16,12 +16,17 @@ class AddressSearchField extends StatefulWidget {
     required this.label,
     required this.controller,
     required this.onSelected,
+    this.onEdited,
     this.prefixIcon,
   });
 
   final String label;
   final TextEditingController controller;
   final ValueChanged<AdresseSuggestion> onSelected;
+
+  /// Appelé dès que l'utilisateur modifie le texte à la main : l'adresse
+  /// précédemment choisie ne correspond plus, l'appelant doit l'oublier.
+  final VoidCallback? onEdited;
   final IconData? prefixIcon;
 
   @override
@@ -41,6 +46,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
   }
 
   void _surChangement(String texte) {
+    widget.onEdited?.call();
     _debounce?.cancel();
     _debounce = Timer(
       const Duration(milliseconds: 500),

@@ -1,12 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../core/maps/distance_utils.dart';
-import '../../../core/maps/geocoding_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/address_search_field.dart';
-import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/payment_method_selector.dart';
@@ -15,13 +13,14 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/trip_map.dart';
 import '../../../firebase_options.dart';
 import '../../courses/data/courses_repository.dart';
-import '../../courses/data/pricing_repository.dart';
+import '../../courses/data/estimation_course_controller.dart';
+import '../../courses/presentation/estimation_prix_card.dart';
 import 'payment_processing_page.dart';
 
 /// Écran d'envoi d'un colis, connecté à l'API. Carte réelle
-/// (OpenStreetMap), géocodage d'adresses (Nominatim) et prix dynamique
-/// (distance + temps + multiplicateur de trafic, calculé côté serveur)
-/// remplacent les placeholders des itérations précédentes. Les champs
+/// (OpenStreetMap), géocodage d'adresses (Nominatim) et prix estimé
+/// affiché avant l'envoi, qui reste impossible tant qu'il n'est pas
+/// calculé (voir [EstimationCourseController]). Les champs
 /// destinataire/description restent locaux : l'API ne les persiste pas
 /// encore (hors périmètre de cette itération).
 class ColisPage extends StatefulWidget {
@@ -36,51 +35,15 @@ class _ColisPageState extends State<ColisPage> {
   final _adresseRetraitController = TextEditingController();
   final _adresseLivraisonController = TextEditingController();
   final _coursesRepository = CoursesRepository();
-  final _pricingRepository = PricingRepository();
-
-  AdresseSuggestion? _retrait;
-  AdresseSuggestion? _livraison;
-  EstimationPrix? _estimation;
-  bool _estimationEnCours = false;
+  final _estimation = EstimationCourseController(type: 'COLIS');
   bool _enCours = false;
-
-  double? get _distanceKm {
-    if (_retrait == null || _livraison == null) return null;
-    return DistanceUtils.distanceKm(
-      latDepart: _retrait!.latitude,
-      lngDepart: _retrait!.longitude,
-      latArrivee: _livraison!.latitude,
-      lngArrivee: _livraison!.longitude,
-    );
-  }
 
   @override
   void dispose() {
     _adresseRetraitController.dispose();
     _adresseLivraisonController.dispose();
+    _estimation.dispose();
     super.dispose();
-  }
-
-  Future<void> _rafraichirEstimation() async {
-    final distance = _distanceKm;
-    if (distance == null) return;
-
-    setState(() {
-      _estimationEnCours = true;
-      _estimation = null;
-    });
-    try {
-      final estimation = await _pricingRepository.estimer(
-        type: 'COLIS',
-        distanceKm: distance,
-      );
-      if (mounted) setState(() => _estimation = estimation);
-    } on ApiException catch (_) {
-      // Prévisualisation optionnelle : en cas d'échec (ex : non connecté),
-      // le prix sera de toute façon confirmé au moment de l'envoi.
-    } finally {
-      if (mounted) setState(() => _estimationEnCours = false);
-    }
   }
 
   /// Pas de vérification de session ici : accéder à cet écran passe
@@ -93,20 +56,16 @@ class _ColisPageState extends State<ColisPage> {
   /// confirmation terminée.
   Future<void> _envoyer() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_retrait == null || _livraison == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Sélectionnez une adresse dans la liste de suggestions',
-          ),
-        ),
-      );
-      return;
-    }
+    // Le bouton est désactivé tant que le prix n'est pas calculé ; ce
+    // garde-fou couvre un appel qui passerait malgré tout.
+    final estimation = _estimation.estimation;
+    final depart = _estimation.depart;
+    final arrivee = _estimation.arrivee;
+    if (!_estimation.peutCommander || estimation == null || depart == null || arrivee == null) return;
 
     final methode = await afficherSelectionPaiementSheet(
       context,
-      montantFcfa: _estimation?.prixFcfa,
+      montantFcfa: estimation.prixFcfa,
     );
     if (methode == null || !mounted) return;
 
@@ -125,9 +84,6 @@ class _ColisPageState extends State<ColisPage> {
           }
           return;
         }
-        final estimation = _estimation ??
-            await _pricingRepository.estimer(type: 'COLIS', distanceKm: _distanceKm!);
-        if (!mounted) return;
         final erreurPaiement = await Navigator.of(context).push<String>(
           MaterialPageRoute(
             builder: (_) => PaymentProcessingPage(
@@ -149,17 +105,17 @@ class _ColisPageState extends State<ColisPage> {
       final course = await _coursesRepository.creerCourse({
         'type': 'COLIS',
         'adresseDepart': _adresseRetraitController.text.trim(),
-        'latitudeDepart': _retrait!.latitude,
-        'longitudeDepart': _retrait!.longitude,
+        'latitudeDepart': depart.latitude,
+        'longitudeDepart': depart.longitude,
         'adresseArrivee': _adresseLivraisonController.text.trim(),
-        'latitudeArrivee': _livraison!.latitude,
-        'longitudeArrivee': _livraison!.longitude,
-        'distanceKm': _distanceKm,
+        'latitudeArrivee': arrivee.latitude,
+        'longitudeArrivee': arrivee.longitude,
+        'distanceKm': _estimation.distanceKm,
         'methodePaiement': methode.apiValue,
       });
       if (!mounted) return;
       final prixTexte = course.prixFcfa != null
-          ? ' Prix estimé : ${course.prixFcfa} FCFA.'
+          ? ' Prix estimé : ${formaterFcfa(course.prixFcfa!)}.'
           : '';
       AppSnackbar.succes(
         context,
@@ -178,8 +134,6 @@ class _ColisPageState extends State<ColisPage> {
 
   @override
   Widget build(BuildContext context) {
-    final distance = _distanceKm;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Envoyer un colis')),
       body: SafeArea(
@@ -190,13 +144,16 @@ class _ColisPageState extends State<ColisPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TripMap(
-                  depart: _retrait != null
-                      ? LatLng(_retrait!.latitude, _retrait!.longitude)
-                      : null,
-                  arrivee: _livraison != null
-                      ? LatLng(_livraison!.latitude, _livraison!.longitude)
-                      : null,
+                ListenableBuilder(
+                  listenable: _estimation,
+                  builder: (context, _) {
+                    final depart = _estimation.depart;
+                    final arrivee = _estimation.arrivee;
+                    return TripMap(
+                      depart: depart != null ? LatLng(depart.latitude, depart.longitude) : null,
+                      arrivee: arrivee != null ? LatLng(arrivee.latitude, arrivee.longitude) : null,
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -208,20 +165,16 @@ class _ColisPageState extends State<ColisPage> {
                   label: 'Adresse de retrait',
                   controller: _adresseRetraitController,
                   prefixIcon: Icons.my_location,
-                  onSelected: (suggestion) {
-                    setState(() => _retrait = suggestion);
-                    _rafraichirEstimation();
-                  },
+                  onSelected: _estimation.definirDepart,
+                  onEdited: _estimation.oublierDepart,
                 ),
                 const SizedBox(height: 12),
                 AddressSearchField(
                   label: 'Adresse de livraison',
                   controller: _adresseLivraisonController,
                   prefixIcon: Icons.location_on_outlined,
-                  onSelected: (suggestion) {
-                    setState(() => _livraison = suggestion);
-                    _rafraichirEstimation();
-                  },
+                  onSelected: _estimation.definirArrivee,
+                  onEdited: _estimation.oublierArrivee,
                 ),
                 const SizedBox(height: 12),
                 const AppTextField(
@@ -242,73 +195,31 @@ class _ColisPageState extends State<ColisPage> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
-                AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                EstimationPrixCard(controller: _estimation),
+                const SizedBox(height: 24),
+                ListenableBuilder(
+                  listenable: _estimation,
+                  builder: (context, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Distance estimée',
-                            style: TextStyle(color: AppColors.grey),
-                          ),
-                          Text(
-                            distance != null
-                                ? '${distance.toStringAsFixed(1)} km'
-                                : '—',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      PrimaryButton(
+                        label: 'Envoyer le colis',
+                        icon: Icons.inventory_2_outlined,
+                        isLoading: _enCours,
+                        onPressed: _estimation.peutCommander ? _envoyer : null,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Prix estimé',
-                            style: TextStyle(color: AppColors.grey),
-                          ),
-                          _estimationEnCours
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _estimation != null
-                                      ? '${_estimation!.prixFcfa} FCFA'
-                                      : '—',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.orange,
-                                  ),
-                                ),
-                        ],
-                      ),
-                      if (_estimation != null) ...[
-                        const SizedBox(height: 2),
+                      if (!_estimation.peutCommander) ...[
+                        const SizedBox(height: 8),
                         Text(
-                          '≈ ${_estimation!.dureeEstimeeMin} min'
-                          '${_estimation!.multiplicateurTrafic > 1 ? ' · trafic x${_estimation!.multiplicateurTrafic.toStringAsFixed(1)}' : ''}',
+                          _estimation.etat == EtatEstimation.calcul
+                              ? 'Calcul du prix en cours…'
+                              : 'Le prix doit être calculé avant de commander.',
+                          textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 12, color: AppColors.grey),
                         ),
                       ],
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-                PrimaryButton(
-                  label: 'Envoyer le colis',
-                  icon: Icons.inventory_2_outlined,
-                  isLoading: _enCours,
-                  onPressed: _envoyer,
                 ),
                 const SizedBox(height: 12),
               ],

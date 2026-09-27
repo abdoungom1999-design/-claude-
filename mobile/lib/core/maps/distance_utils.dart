@@ -8,6 +8,29 @@ class DistanceUtils {
 
   static const _rayonTerreKm = 6371.0;
 
+  /// Rapport moyen entre la distance par la route et la distance à vol
+  /// d'oiseau en ville (détours, sens uniques, corniche…). Valeur usuelle
+  /// pour un réseau urbain, à ajuster quand un calcul d'itinéraire réel
+  /// sera branché (voir `MapService.calculerItineraire`).
+  static const coefficientDetour = 1.3;
+
+  /// Distance estimée par la route : vol d'oiseau x [coefficientDetour].
+  /// C'est elle qui sert au calcul du prix.
+  static double distanceRouteEstimeeKm({
+    required double latDepart,
+    required double lngDepart,
+    required double latArrivee,
+    required double lngArrivee,
+  }) {
+    return distanceKm(
+          latDepart: latDepart,
+          lngDepart: lngDepart,
+          latArrivee: latArrivee,
+          lngArrivee: lngArrivee,
+        ) *
+        coefficientDetour;
+  }
+
   static double distanceKm({
     required double latDepart,
     required double lngDepart,
