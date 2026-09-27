@@ -156,10 +156,12 @@ service cloud.firestore {
             || (resource.data.statut == 'en_attente' && conducteurActif()));
 
       // Radar des chauffeurs : uniquement les courses en attente. Un
-      // chauffeur retrouve aussi les courses qui lui sont attribuées.
+      // chauffeur retrouve aussi les courses qui lui sont attribuées, et
+      // un client ses propres courses (ex. "Courses à noter").
       allow list: if estAdmin()
         || (resource.data.statut == 'en_attente' && conducteurActif())
-        || (connecte() && resource.data.chauffeurId == moi());
+        || (connecte() && resource.data.chauffeurId == moi())
+        || (connecte() && resource.data.clientId == moi());
 
       allow update: if estAdmin()
         // Un chauffeur actif prend une course encore libre, pour lui-même.

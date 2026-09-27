@@ -1,12 +1,270 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../firebase_options.dart';
+import '../../../evaluations/data/evaluation_service.dart';
 
-/// Onglet Évaluations : grosse note centrale, badges de compliments
-/// (façon Uber) et avis récents des clients.
+/// Onglet Évaluations du chauffeur. En Firebase réel : sa note moyenne
+/// officielle (celle que voient les clients), la répartition des notes
+/// et les avis reçus, tirés de la collection `evaluations` (anonymes).
+/// En mode démo (pas de projet Firebase configuré) : données de
+/// [DemoData], avec badges de compliments façon Uber.
 class ConducteurEvaluationsTab extends StatelessWidget {
-  const ConducteurEvaluationsTab({super.key});
+  const ConducteurEvaluationsTab({super.key, this.service, this.chauffeurId});
+
+  /// Injectables pour les tests.
+  final EvaluationService? service;
+  final String? chauffeurId;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!DefaultFirebaseOptions.estConfigure && service == null) {
+      return const _EvaluationsDemo();
+    }
+    final uid = chauffeurId ?? FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+    return _EvaluationsReelles(service: service ?? EvaluationService(), chauffeurId: uid);
+  }
+}
+
+class _EvaluationsReelles extends StatefulWidget {
+  const _EvaluationsReelles({required this.service, required this.chauffeurId});
+
+  final EvaluationService service;
+  final String chauffeurId;
+
+  @override
+  State<_EvaluationsReelles> createState() => _EvaluationsReellesState();
+}
+
+class _EvaluationsReellesState extends State<_EvaluationsReelles> {
+  late final Stream<NoteChauffeur> _note = widget.service.streamNoteChauffeur(widget.chauffeurId);
+  late final Stream<List<EvaluationRecue>> _avis = widget.service.streamEvaluationsRecues(widget.chauffeurId);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: StreamBuilder<NoteChauffeur>(
+          stream: _note,
+          builder: (context, note) => StreamBuilder<List<EvaluationRecue>>(
+            stream: _avis,
+            builder: (context, avis) {
+              if (note.hasError || avis.hasError) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text(
+                      'Impossible de charger vos évaluations pour le moment.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.grey),
+                    ),
+                  ),
+                );
+              }
+              if (!note.hasData || !avis.hasData) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+              }
+              return _VueEvaluations(note: note.data!, avis: avis.data!);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VueEvaluations extends StatelessWidget {
+  const _VueEvaluations({required this.note, required this.avis});
+
+  final NoteChauffeur note;
+  final List<EvaluationRecue> avis;
+
+  @override
+  Widget build(BuildContext context) {
+    final moyenne = note.moyenne;
+    final repartition = List.filled(5, 0);
+    for (final a in avis) {
+      repartition[a.note - 1]++;
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const Text('Évaluations', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 18),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.noirProfond, AppColors.noirProfondClair],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            children: [
+              Text(
+                moyenne == null ? '—' : note.moyenneTexte,
+                style: const TextStyle(color: Colors.white, fontSize: 46, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _Etoiles(valeur: moyenne ?? 0, taille: 22, couleurVide: Colors.white24),
+              const SizedBox(height: 8),
+              Text(
+                note.aDesAvis
+                    ? 'Basé sur ${note.nombreTexte}'
+                    : 'Pas encore d\'avis : vos premières notes apparaîtront ici après vos courses.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.6)),
+              ),
+            ],
+          ),
+        ),
+        if (avis.isNotEmpty) ...[
+          const SizedBox(height: 26),
+          const Text('Répartition des notes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          for (var etoiles = 5; etoiles >= 1; etoiles--)
+            _LigneRepartition(etoiles: etoiles, nombre: repartition[etoiles - 1], total: avis.length),
+          const SizedBox(height: 26),
+          const Text('Avis récents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          for (final a in avis.take(50))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _CarteAvis(avis: a),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Étoiles pleines, demi-étoile au-delà de ,25 et ,75 arrondi au-dessus.
+class _Etoiles extends StatelessWidget {
+  const _Etoiles({required this.valeur, required this.taille, this.couleurVide});
+
+  final double valeur;
+  final double taille;
+  final Color? couleurVide;
+
+  @override
+  Widget build(BuildContext context) {
+    const or = Color(0xFFFFC94D);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          Icon(
+            valeur >= i - 0.25
+                ? Icons.star_rounded
+                : valeur >= i - 0.75
+                    ? Icons.star_half_rounded
+                    : Icons.star_outline_rounded,
+            color: valeur >= i - 0.75 ? or : (couleurVide ?? AppColors.greyBorder),
+            size: taille,
+          ),
+      ],
+    );
+  }
+}
+
+class _LigneRepartition extends StatelessWidget {
+  const _LigneRepartition({required this.etoiles, required this.nombre, required this.total});
+
+  final int etoiles;
+  final int nombre;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 34,
+            child: Row(
+              children: [
+                Text('$etoiles', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 2),
+                const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFC94D)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: total == 0 ? 0 : nombre / total,
+                minHeight: 8,
+                backgroundColor: AppColors.greyLight,
+                color: AppColors.orange,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 34,
+            child: Text('$nombre', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CarteAvis extends StatelessWidget {
+  const _CarteAvis({required this.avis});
+
+  final EvaluationRecue avis;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = avis.creeLe;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Client Sprint', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              _Etoiles(valeur: avis.note.toDouble(), taille: 15),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            avis.commentaire ?? 'Note sans commentaire.',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AppColors.grey,
+              height: 1.4,
+              fontStyle: avis.commentaire == null ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
+          if (date != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
+              style: const TextStyle(fontSize: 11, color: AppColors.grey),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Version démo (sans Firebase), inchangée.
+class _EvaluationsDemo extends StatelessWidget {
+  const _EvaluationsDemo();
 
   static const _iconesCompliments = {
     'Excellente conduite': Icons.thumb_up_alt_outlined,

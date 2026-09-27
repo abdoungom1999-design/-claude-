@@ -93,7 +93,7 @@ chauffeur au chauffeur lui-même et à l'Admin.
 ## 6. Sécurité Firestore et rôle Admin
 
 Les règles de sécurité sont dans `firestore.rules` (testées sur
-l'émulateur Firestore : `firestore_rules_test/`, 67 cas). Elles
+l'émulateur Firestore : `firestore_rules_test/`, 68 cas). Elles
 remplacent les règles "mode Test" de l'étape 3, qui laissent n'importe
 qui lire et modifier toute la base.
 
@@ -144,8 +144,8 @@ depuis la Console.
   sanctionné) n'est écrit que par l'Admin.
 - `annuaire_telephones` : lecture d'une entrée précise possible avant
   connexion (connexion par téléphone), mais aucun listage possible.
-- `courses` : un client ne crée que ses propres demandes, sans pouvoir
-  s'attribuer un chauffeur ni antidater ; seuls les chauffeurs validés
+- `courses` : un client ne crée et ne liste que ses propres demandes,
+  sans pouvoir s'attribuer un chauffeur ni antidater ; seuls les chauffeurs validés
   et non sanctionnés voient et acceptent les courses en attente.
 - `chats` : lecture et écriture réservées aux deux participants, sans
   usurpation d'expéditeur.

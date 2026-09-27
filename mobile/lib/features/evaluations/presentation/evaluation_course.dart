@@ -13,6 +13,9 @@ class EvaluationCourse extends StatefulWidget {
     required this.nomChauffeur,
     required this.onTerminer,
     this.service,
+    this.titre = 'Vous êtes arrivé !',
+    this.libelleIgnorer = 'Ignorer',
+    this.libelleRetour = "Retour à l'accueil",
   });
 
   final CourseFirestore course;
@@ -23,6 +26,10 @@ class EvaluationCourse extends StatefulWidget {
 
   /// Injectable pour les tests.
   final EvaluationService? service;
+
+  final String titre;
+  final String libelleIgnorer;
+  final String libelleRetour;
 
   @override
   State<EvaluationCourse> createState() => _EvaluationCourseState();
@@ -80,7 +87,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
   Widget build(BuildContext context) {
     return switch (_etape) {
       _Etape.verification => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
-      _Etape.merci => _Merci(onTerminer: widget.onTerminer),
+      _Etape.merci => _Merci(onTerminer: widget.onTerminer, libelle: widget.libelleRetour),
       _ => _saisie(context),
     };
   }
@@ -96,10 +103,10 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
         children: [
           const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.vert),
           const SizedBox(height: 14),
-          const Text(
-            'Vous êtes arrivé !',
+          Text(
+            widget.titre,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
@@ -170,7 +177,10 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
           const SizedBox(height: 4),
           TextButton(
             onPressed: envoi ? null : widget.onTerminer,
-            child: const Text('Ignorer', style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600)),
+            child: Text(
+              widget.libelleIgnorer,
+              style: const TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -179,9 +189,10 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
 }
 
 class _Merci extends StatelessWidget {
-  const _Merci({required this.onTerminer});
+  const _Merci({required this.onTerminer, required this.libelle});
 
   final VoidCallback onTerminer;
+  final String libelle;
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +215,7 @@ class _Merci extends StatelessWidget {
               style: TextStyle(fontSize: 13.5, color: AppColors.grey),
             ),
             const SizedBox(height: 24),
-            OutlinedButton(onPressed: onTerminer, child: const Text("Retour à l'accueil")),
+            OutlinedButton(onPressed: onTerminer, child: Text(libelle)),
           ],
         ),
       ),

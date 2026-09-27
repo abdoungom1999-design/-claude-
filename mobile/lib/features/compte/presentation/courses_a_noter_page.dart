@@ -1,20 +1,258 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/stat_tile.dart';
+import '../../../firebase_options.dart';
+import '../../evaluations/data/evaluation_service.dart';
+import '../../evaluations/presentation/evaluation_course.dart';
 
-/// Courses terminées non encore notées par le client.
-class CoursesANoterPage extends StatefulWidget {
-  const CoursesANoterPage({super.key});
+/// Courses terminées non encore notées par le client, avec notation en
+/// retard. En Firebase réel : courses `terminee` du client sans entrée
+/// dans `evaluations` (voir [EvaluationService.coursesANoter]). En mode
+/// démo (pas de projet Firebase configuré) : historique de [DemoData].
+class CoursesANoterPage extends StatelessWidget {
+  const CoursesANoterPage({super.key, this.service, this.clientId});
+
+  /// Injectables pour les tests.
+  final EvaluationService? service;
+  final String? clientId;
 
   @override
-  State<CoursesANoterPage> createState() => _CoursesANoterPageState();
+  Widget build(BuildContext context) {
+    if (!DefaultFirebaseOptions.estConfigure && service == null) {
+      return const _CoursesANoterDemo();
+    }
+    return _CoursesANoterReelles(
+      service: service ?? EvaluationService(),
+      clientId: clientId ?? FirebaseAuth.instance.currentUser?.uid,
+    );
+  }
 }
 
-class _CoursesANoterPageState extends State<CoursesANoterPage> {
+class _CoursesANoterReelles extends StatefulWidget {
+  const _CoursesANoterReelles({required this.service, required this.clientId});
+
+  final EvaluationService service;
+  final String? clientId;
+
+  @override
+  State<_CoursesANoterReelles> createState() => _CoursesANoterReellesState();
+}
+
+class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
+  late Future<List<CourseANoter>> _courses = _charger();
+
+  Future<List<CourseANoter>> _charger() {
+    final clientId = widget.clientId;
+    if (clientId == null) return Future.value(const []);
+    return widget.service.coursesANoter(clientId);
+  }
+
+  Future<void> _recharger() async {
+    final courses = _charger();
+    setState(() {
+      _courses = courses;
+    });
+    await _courses.catchError((_) => <CourseANoter>[]);
+  }
+
+  Future<void> _noter(CourseANoter aNoter) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (pageContext) => Scaffold(
+          appBar: AppBar(title: const Text('Noter la course')),
+          body: EvaluationCourse(
+            course: aNoter.course,
+            nomChauffeur: aNoter.nomChauffeur,
+            service: widget.service,
+            titre: 'Noter votre course',
+            libelleIgnorer: 'Plus tard',
+            libelleRetour: 'Retour à la liste',
+            onTerminer: () => Navigator.of(pageContext).pop(),
+          ),
+        ),
+      ),
+    );
+    // Une course notée disparaît de la liste.
+    if (mounted) await _recharger();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Courses à noter')),
+      body: SafeArea(
+        child: FutureBuilder<List<CourseANoter>>(
+          future: _courses,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+            }
+            if (snapshot.hasError) {
+              return _Erreur(onReessayer: _recharger);
+            }
+            final courses = snapshot.data ?? const [];
+            return RefreshIndicator(
+              color: AppColors.orange,
+              onRefresh: _recharger,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _CompteurAvis(nombre: courses.length),
+                  const SizedBox(height: 20),
+                  if (courses.isEmpty)
+                    const _ToutEstNote()
+                  else
+                    for (final aNoter in courses)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _CarteCourseANoter(
+                          depart: aNoter.course.adresseDepart,
+                          arrivee: aNoter.course.adresseArrivee,
+                          detail: [
+                            formaterFcfa(aNoter.course.prixFcfa),
+                            _date(aNoter.course.timestamp),
+                            if (aNoter.nomChauffeur?.trim().isNotEmpty == true) 'avec ${aNoter.nomChauffeur!.trim()}',
+                          ].join(' · '),
+                          onNoter: () => _noter(aNoter),
+                        ),
+                      ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+String _date(DateTime date) =>
+    '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+
+class _CompteurAvis extends StatelessWidget {
+  const _CompteurAvis({required this.nombre});
+
+  final int nombre;
+
+  @override
+  Widget build(BuildContext context) {
+    return StatTile(
+      label: 'Avis en attente',
+      valeur: '$nombre',
+      icon: Icons.star_border_rounded,
+      accent: nombre == 0 ? Colors.green.shade600 : AppColors.orange,
+    );
+  }
+}
+
+class _ToutEstNote extends StatelessWidget {
+  const _ToutEstNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppCard(
+      child: Column(
+        children: [
+          Text('😊', style: TextStyle(fontSize: 40)),
+          SizedBox(height: 12),
+          Text(
+            'Tout est noté !',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Merci de partager vos retours sur vos dernières courses.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CarteCourseANoter extends StatelessWidget {
+  const _CarteCourseANoter({
+    required this.depart,
+    required this.arrivee,
+    required this.detail,
+    required this.onNoter,
+  });
+
+  final String depart;
+  final String arrivee;
+  final String detail;
+  final VoidCallback onNoter;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$depart → $arrivee',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          Text(detail, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+          const SizedBox(height: 12),
+          PrimaryButton(
+            label: 'Noter cette course',
+            icon: Icons.star_border_rounded,
+            onPressed: onNoter,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Erreur extends StatelessWidget {
+  const _Erreur({required this.onReessayer});
+
+  final VoidCallback onReessayer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 44, color: AppColors.grey),
+            const SizedBox(height: 12),
+            const Text(
+              'Impossible de charger vos courses.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: onReessayer, child: const Text('Réessayer')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Version démo (sans Firebase), inchangée.
+class _CoursesANoterDemo extends StatefulWidget {
+  const _CoursesANoterDemo();
+
+  @override
+  State<_CoursesANoterDemo> createState() => _CoursesANoterDemoState();
+}
+
+class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
   List<CourseHistorique> get _aNoter =>
       DemoData.historique().where((c) => c.noteDonnee == null).toList();
 

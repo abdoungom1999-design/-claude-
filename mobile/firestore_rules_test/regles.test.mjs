@@ -495,6 +495,16 @@ describe('evaluations et note moyenne', () => {
     await assertSucceeds(getDoc(doc(en('client'), 'evaluations', 'fin2'))); // pas encore notée : document vide
   });
 
+  test('"Courses à noter" : le client liste ses courses terminées et ses évaluations, pas celles des autres', async () => {
+    const db = en('client');
+    await assertSucceeds(getDocs(query(collection(db, 'courses'),
+      where('clientId', '==', 'client'), where('statut', '==', 'terminee'))));
+    await assertSucceeds(getDocs(query(collection(db, 'evaluations'), where('clientId', '==', 'client'))));
+    await assertFails(getDocs(query(collection(db, 'courses'),
+      where('clientId', '==', 'autreClient'), where('statut', '==', 'terminee'))));
+    await assertFails(getDocs(query(collection(db, 'evaluations'), where('clientId', '==', 'autreClient'))));
+  });
+
   test('le chauffeur ne peut pas toucher à sa propre note', async () => {
     await assertFails(updateDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'), { noteSomme: 50, noteNombre: 10 }));
   });
