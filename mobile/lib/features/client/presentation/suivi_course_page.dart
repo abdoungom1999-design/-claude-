@@ -1,11 +1,15 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../courses/data/course_service.dart';
-import '../../messages/data/chat_service.dart';
 import '../../courses/data/position_chauffeur.dart';
 import '../../evaluations/data/evaluation_service.dart';
 import '../../evaluations/presentation/evaluation_course.dart';
+import '../../messages/data/chat_service.dart';
+import '../../messages/data/detecteur_nouveaux_messages.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
 import 'widgets/suivi_approche.dart';
 
@@ -16,18 +20,32 @@ import 'widgets/suivi_approche.dart';
 /// "Votre chauffeur arrive" (`statut: acceptee`) dès que le document
 /// Firestore change — aucune action de l'utilisateur nécessaire. Une
 /// fois le chauffeur attribué, sa position s'affiche en temps réel avec
-/// le temps d'attente estimé (voir [SuiviApproche]).
+/// le temps d'attente estimé (voir [SuiviApproche]), et un message du
+/// chauffeur arrivé pendant que le client regarde la carte s'affiche
+/// aussitôt, avec un badge sur "Discuter" jusqu'à sa lecture.
 class SuiviCoursePage extends StatefulWidget {
-  const SuiviCoursePage({super.key, required this.courseId});
+  const SuiviCoursePage({
+    super.key,
+    required this.courseId,
+    this.courseService,
+    this.chatService,
+    this.monUid,
+  });
 
   final String courseId;
+
+  /// Injectables pour les tests.
+  final CourseService? courseService;
+  final ChatService? chatService;
+  final String? monUid;
 
   @override
   State<SuiviCoursePage> createState() => _SuiviCoursePageState();
 }
 
 class _SuiviCoursePageState extends State<SuiviCoursePage> {
-  final _courseService = CourseService();
+  late final CourseService _courseService = widget.courseService ?? CourseService();
+  late final Stream<CourseFirestore?> _course = _courseService.streamCourse(widget.courseId);
   bool _annulationEnCours = false;
 
   Future<void> _annuler() async {
@@ -46,7 +64,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
       appBar: AppBar(title: const Text('Votre course')),
       body: SafeArea(
         child: StreamBuilder<CourseFirestore?>(
-          stream: _courseService.streamCourse(widget.courseId),
+          stream: _course,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator(color: AppColors.orange));
@@ -67,7 +85,12 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
                 return _EtatTerminee(course: course, onRetour: () => Navigator.of(context).pop());
               default:
                 // 'acceptee' et 'en_cours' : un chauffeur est assigné.
-                return _EtatChauffeurAssigne(course: course);
+                return _EtatChauffeurAssigne(
+                  course: course,
+                  courseService: _courseService,
+                  chatService: widget.chatService ?? ChatService(),
+                  monUid: widget.monUid ?? FirebaseAuth.instance.currentUser?.uid,
+                );
             }
           },
         ),
@@ -134,25 +157,83 @@ class _EtatRecherche extends StatelessWidget {
 }
 
 class _EtatChauffeurAssigne extends StatefulWidget {
-  const _EtatChauffeurAssigne({required this.course});
+  const _EtatChauffeurAssigne({
+    required this.course,
+    required this.courseService,
+    required this.chatService,
+    required this.monUid,
+  });
 
   final CourseFirestore course;
+  final CourseService courseService;
+  final ChatService chatService;
+  final String? monUid;
 
   @override
   State<_EtatChauffeurAssigne> createState() => _EtatChauffeurAssigneState();
 }
 
 class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
-  final _chatService = ChatService();
-  final _courseService = CourseService();
+  ChatService get _chatService => widget.chatService;
+  CourseService get _courseService => widget.courseService;
   Map<String, dynamic>? _profilChauffeur;
   late Stream<PositionChauffeurDirect?> _positions;
+
+  // Messages du chauffeur reçus pendant que le client regarde la carte.
+  DetecteurNouveauxMessages? _detecteurMessages;
+  StreamSubscription<ChatMessageFirestore?>? _abonnementMessages;
+  bool _chatOuvert = false;
 
   @override
   void initState() {
     super.initState();
     _positions = _streamPositions();
     _chargerChauffeur();
+    _suivreMessages();
+  }
+
+  @override
+  void dispose() {
+    _abonnementMessages?.cancel();
+    super.dispose();
+  }
+
+  /// Même mécanisme que côté chauffeur : un message du chauffeur arrivé
+  /// alors que la conversation n'est pas ouverte s'affiche aussitôt
+  /// ("Répondre" ouvre le chat) et allume un badge sur "Discuter".
+  void _suivreMessages() {
+    _abonnementMessages?.cancel();
+    _abonnementMessages = null;
+    _detecteurMessages = null;
+    final chauffeurId = widget.course.chauffeurId;
+    final monUid = widget.monUid;
+    if (chauffeurId == null || monUid == null) return;
+
+    final detecteur = DetecteurNouveauxMessages(interlocuteurUid: chauffeurId);
+    _detecteurMessages = detecteur;
+    _abonnementMessages = _chatService.streamDernierMessage(_chatService.chatIdEntre(monUid, chauffeurId)).listen(
+      (message) {
+        final alerter = detecteur.recevoir(message);
+        if (_chatOuvert) detecteur.marquerLu();
+        if (!mounted) return;
+        setState(() {});
+        if (alerter && !_chatOuvert && message != null) {
+          final nom = (_profilChauffeur?['nom'] as String?)?.trim();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${nom == null || nom.isEmpty ? 'Votre chauffeur' : nom} : ${message.text}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(label: 'Répondre', onPressed: _discuter),
+            ),
+          );
+        }
+      },
+      onError: (_) {},
+    );
   }
 
   Stream<PositionChauffeurDirect?> _streamPositions() {
@@ -166,6 +247,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
     if (oldWidget.course.chauffeurId != widget.course.chauffeurId) {
       _positions = _streamPositions();
       _chargerChauffeur();
+      _suivreMessages();
     }
   }
 
@@ -187,10 +269,15 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
     await launchUrl(Uri(scheme: 'tel', path: telephone));
   }
 
-  void _discuter() {
+  Future<void> _discuter() async {
     final chauffeurId = widget.course.chauffeurId;
-    if (chauffeurId == null) return;
-    Navigator.of(context).push(
+    if (chauffeurId == null || _chatOuvert) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    setState(() {
+      _chatOuvert = true;
+      _detecteurMessages?.marquerLu();
+    });
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MessagerieChatPage(
           interlocuteurUid: chauffeurId,
@@ -199,6 +286,11 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
         ),
       ),
     );
+    if (!mounted) return;
+    setState(() {
+      _chatOuvert = false;
+      _detecteurMessages?.marquerLu();
+    });
   }
 
   @override
@@ -293,7 +385,12 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _discuter,
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.orange),
+                  icon: Badge(
+                    isLabelVisible: _detecteurMessages?.nonLu ?? false,
+                    smallSize: 9,
+                    backgroundColor: AppColors.orange,
+                    child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.orange),
+                  ),
                   label: const Text('Discuter'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
