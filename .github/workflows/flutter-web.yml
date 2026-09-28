@@ -140,6 +140,32 @@ jobs:
         if: steps.secret.outputs.present == 'true'
         run: npx --yes firebase-tools@15 deploy --only functions --project sprint-vtc --non-interactive --force
 
+      # Les fonctions sont appelées depuis le navigateur : l'accès réseau
+      # doit être public (Cloud Run "allUsers"), l'identité étant vérifiée
+      # dans chaque fonction (Firebase Auth). Réappliqué à chaque
+      # déploiement, car une création interrompue peut l'avoir omis.
+      - name: Autoriser l'appel des fonctions depuis l'app
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          for service in estimerprix creercourse; do
+            gcloud run services add-iam-policy-binding "$service" \
+              --project=sprint-vtc --region=europe-west1 \
+              --member=allUsers --role=roles/run.invoker --quiet > /dev/null
+            echo "Accès public : $service"
+          done
+
+      # Vérification réelle : sans connexion, chaque fonction doit répondre
+      # elle-même "UNAUTHENTICATED" (et non être bloquée par Google).
+      - name: Vérifier que les fonctions répondent
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          for fonction in estimerPrix creerCourse; do
+            reponse=$(curl -s -X POST "https://europe-west1-sprint-vtc.cloudfunctions.net/$fonction" \
+              -H 'Content-Type: application/json' -d '{"data":{}}')
+            echo "$fonction : $reponse"
+            echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }
+          done
+
       - name: Publier les règles Firestore
         if: steps.secret.outputs.present == 'true'
         run: npx --yes firebase-tools@15 deploy --only firestore:rules --project sprint-vtc --non-interactive

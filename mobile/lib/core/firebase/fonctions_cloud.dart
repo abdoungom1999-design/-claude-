@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import '../network/api_exception.dart';
 
 /// Accès aux Cloud Functions de Sprint (dossier `functions/`), déployées
@@ -17,6 +18,8 @@ abstract final class FonctionsCloud {
   /// Message affichable pour une erreur d'appel : les messages de
   /// validation du serveur sont déjà rédigés pour le client.
   static ApiException versApiException(FirebaseFunctionsException e) {
+    // Code technique visible dans la console du navigateur (diagnostic).
+    debugPrint('Cloud Function : ${e.code} ${e.message ?? ''}');
     switch (e.code) {
       case 'invalid-argument':
       case 'permission-denied':
