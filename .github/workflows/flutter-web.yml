@@ -1,8 +1,10 @@
 name: Build & déployer Sprint Web
 
-# Compile l'app Flutter (dossier mobile/) en site statique et le publie
-# sur GitHub Pages, pour un aperçu cliquable dans un navigateur sans
-# simulateur ni installation locale.
+# À chaque push : compile l'app Flutter (dossier mobile/) en site
+# statique, teste le backend (Cloud Functions et règles Firestore sur
+# émulateur), déploie le backend sur Firebase (fonctions puis règles),
+# puis publie l'app sur GitHub Pages. Rien n'est déployé si un test
+# échoue.
 on:
   push:
     branches:
@@ -55,14 +57,13 @@ jobs:
         with:
           path: mobile/build/web
 
-  # Cloud Functions (mobile/functions) : compilation TypeScript et tests
-  # du moteur de prix. Le déploiement Firebase reste manuel (voir
-  # mobile/FIREBASE_SETUP.md, étape 7).
-  functions:
+  # Tests du backend : moteur de prix et création des courses (Cloud
+  # Functions, dont émulateur Firestore) et règles de sécurité Firestore.
+  backend:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: mobile/functions
+        working-directory: mobile
     steps:
       - uses: actions/checkout@v4
 
@@ -70,14 +71,81 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            mobile/functions/package-lock.json
+            mobile/firestore_rules_test/package-lock.json
+
+      # L'émulateur Firestore est une application Java.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci --prefix functions
+
+      - run: npm ci --prefix firestore_rules_test
+
+      - name: Cloud Functions (moteur de prix, validation)
+        run: npm test --prefix functions
+
+      - name: Cloud Functions (création des courses, émulateur)
+        run: npm run test:emulateur --prefix functions
+
+      - name: Règles Firestore (émulateur)
+        run: npm test --prefix firestore_rules_test
+
+  # Déploiement Firebase : Cloud Functions d'abord, puis règles Firestore
+  # (qui interdisent la création directe des courses). Nécessite le
+  # secret FIREBASE_SERVICE_ACCOUNT (voir mobile/FIREBASE_SETUP.md,
+  # étape 7) ; sans lui, l'étape est sautée avec un avertissement.
+  firebase:
+    needs: [build, backend]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
+        id: secret
+        env:
+          COMPTE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$COMPTE_SERVICE" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Firebase non déployé::Secret FIREBASE_SERVICE_ACCOUNT absent : Cloud Functions et règles Firestore NON déployées (voir mobile/FIREBASE_SETUP.md, étape 7)."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.secret.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
           cache-dependency-path: mobile/functions/package-lock.json
 
-      - run: npm ci
+      - if: steps.secret.outputs.present == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - run: npm test
+      - if: steps.secret.outputs.present == 'true'
+        run: npm ci --prefix functions
+
+      # --force : accepte sans question la politique de nettoyage des
+      # images de build (Artifact Registry).
+      - name: Déployer les Cloud Functions
+        if: steps.secret.outputs.present == 'true'
+        run: npx --yes firebase-tools@15 deploy --only functions --project sprint-vtc --non-interactive --force
+
+      - name: Publier les règles Firestore
+        if: steps.secret.outputs.present == 'true'
+        run: npx --yes firebase-tools@15 deploy --only firestore:rules --project sprint-vtc --non-interactive
 
   deploy:
-    needs: [build, functions]
+    needs: [build, firebase]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

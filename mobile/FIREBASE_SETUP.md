@@ -207,32 +207,56 @@ en `europe-west1` (même région que Firestore `eur3`) :
   créé et l'app affiche le nouveau prix. Une commande envoyée deux fois
   (double clic, réseau coupé) ne crée qu'une course.
 
-### 7.1 Déployer (depuis un ordinateur)
+### 7.1 Déploiement automatique (GitHub Actions)
 
-Prérequis : Node.js 22 et la dernière version du CLI Firebase (**15 ou
-plus** : les versions 13 et antérieures ne savent pas charger ces
-fonctions).
+À chaque push, GitHub Actions teste le backend puis déploie les Cloud
+Functions, **puis** les règles Firestore (l'ordre compte : les règles
+interdisent la création directe des courses), et enfin l'app web. Si un
+test échoue, rien n'est déployé.
 
-```bash
-npm install -g firebase-tools@latest
-firebase login
-cd mobile                      # dossier qui contient firebase.json
-npm --prefix functions install
-firebase deploy --only functions --project sprint-vtc
-firebase deploy --only firestore:rules --project sprint-vtc
-```
+Pour cela, GitHub a besoin d'une clé de **compte de service** Google,
+rangée dans un secret du dépôt. À faire une seule fois, entièrement
+depuis le navigateur, connecté avec le compte Google du projet Firebase :
 
-**L'ordre compte** : les fonctions d'abord, puis les règles (qui
-interdisent la création directe des courses). Le premier déploiement
-active quelques services Google Cloud (Cloud Functions, Cloud Build,
-Artifact Registry, Cloud Run) et peut prendre plusieurs minutes ; le
-CLI demande parfois une confirmation. Pour ne pas conserver
-indéfiniment les images de build, accepter la politique de nettoyage
-qu'il propose.
+1. Ouvrir
+   https://console.cloud.google.com/iam-admin/serviceaccounts?project=sprint-vtc
+   puis **+ Créer un compte de service**. Nom : `github-deploy`, puis
+   **Créer et continuer**.
+2. **Rôles** (bouton **+ Ajouter un autre rôle** pour chacun), puis
+   **Continuer** et **OK** :
+   - Administrateur Firebase (*Firebase Admin*)
+   - Administrateur Cloud Functions (*Cloud Functions Admin*)
+   - Administrateur Cloud Run (*Cloud Run Admin*)
+   - Utilisateur du compte de service (*Service Account User*)
+   - Administrateur Artifact Registry (*Artifact Registry Administrator*)
+   - Administrateur Service Usage (*Service Usage Admin*)
+3. Cliquer sur le compte `github-deploy` créé, onglet **Clés** >
+   **Ajouter une clé** > **Créer une clé** > **JSON** > **Créer** : un
+   fichier `.json` est téléchargé.
+4. Sur GitHub : dépôt > **Settings** > **Secrets and variables** >
+   **Actions** > **New repository secret**. Name :
+   `FIREBASE_SERVICE_ACCOUNT` ; Secret : **tout** le contenu du fichier
+   `.json` (l'ouvrir avec le Bloc-notes, tout sélectionner, copier,
+   coller). **Add secret**.
+5. Supprimer le fichier `.json` de l'ordinateur. Ne jamais l'envoyer par
+   message : quiconque le possède peut déployer sur le projet.
+6. Relancer le déploiement : onglet **Actions** > **Build & déployer
+   Sprint Web** > **Run workflow** (ou pousser un commit).
 
-Tant que les fonctions ne sont pas déployées, la version en ligne de
-l'app ne peut ni afficher de prix ni commander (message "Impossible de
-contacter le serveur").
+Tant que le secret n'existe pas, le pipeline publie l'app web mais
+affiche l'avertissement "Firebase non déployé" : les fonctions et les
+règles ne sont alors pas mises à jour.
+
+Le premier déploiement active quelques services Google Cloud (Cloud
+Functions, Cloud Build, Artifact Registry, Cloud Run) et peut prendre
+plusieurs minutes. S'il échoue avec une erreur de permission, le journal
+de GitHub Actions nomme la permission manquante : ajouter le rôle
+correspondant au compte `github-deploy` (page **IAM**), puis relancer.
+
+Alternative sans GitHub (depuis un ordinateur, CLI Firebase 15 ou plus) :
+`cd mobile && npm --prefix functions install && firebase deploy --only
+functions --project sprint-vtc && firebase deploy --only firestore:rules
+--project sprint-vtc`.
 
 ### 7.2 Tests
 
