@@ -10,6 +10,7 @@ import 'package:sprint/core/network/api_exception.dart';
 import 'package:sprint/core/utils/format_fcfa.dart';
 import 'package:sprint/core/widgets/primary_button.dart';
 import 'package:sprint/features/client/presentation/passager_page.dart';
+import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/courses/data/estimation_course_controller.dart';
 import 'package:sprint/features/courses/data/pricing_repository.dart';
 import 'package:sprint/features/courses/presentation/estimation_prix_card.dart';
@@ -24,9 +25,11 @@ class _TarificationFactice extends PricingRepository {
   _TarificationFactice() : super(dio: Dio());
 
   final demandes = <(double, Completer<EstimationPrix>)>[];
+  final trajets = <PointsCourse?>[];
 
   @override
-  Future<EstimationPrix> estimer({required String type, required double distanceKm}) {
+  Future<EstimationPrix> estimer({required String type, required double distanceKm, PointsCourse? trajet}) {
+    trajets.add(trajet);
     final reponse = Completer<EstimationPrix>();
     demandes.add((distanceKm, reponse));
     return reponse.future;
@@ -121,6 +124,13 @@ void main() {
       expect(controller.etat, EtatEstimation.calcul);
       expect(controller.peutCommander, isFalse);
       expect(tarification.demandes.single.$1, closeTo(controller.distanceKm!, 1e-9));
+      // Le serveur reçoit les coordonnées et recalcule la distance lui-même.
+      final trajet = tarification.trajets.single!;
+      expect((trajet.latitudeDepart, trajet.longitudeArrivee), (_plateau.latitude, _almadies.longitude));
+      expect(trajet.versServeur(), {
+        'depart': {'latitude': _plateau.latitude, 'longitude': _plateau.longitude},
+        'arrivee': {'latitude': _almadies.latitude, 'longitude': _almadies.longitude},
+      });
 
       tarification.repondre(0, 4800);
       await Future<void>.delayed(Duration.zero);
@@ -225,6 +235,6 @@ class _TarificationScriptee extends PricingRepository {
   final int Function() _prix;
 
   @override
-  Future<EstimationPrix> estimer({required String type, required double distanceKm}) async =>
+  Future<EstimationPrix> estimer({required String type, required double distanceKm, PointsCourse? trajet}) async =>
       EstimationPrix(distanceKm: distanceKm, dureeEstimeeMin: 15, multiplicateurTrafic: 1, prixFcfa: _prix());
 }

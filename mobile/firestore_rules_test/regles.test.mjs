@@ -219,21 +219,20 @@ describe('courses', () => {
     methodePaiement: 'WAVE', timestamp: serverTimestamp(), ...extra,
   });
 
-  test('un client crée sa course : accepté', async () => {
-    await assertSucceeds(addDoc(collection(en('client'), 'courses'), nouvelleCourse('client')));
+  test('créer une course depuis l\'app, même parfaitement formée : refusé à tous (Cloud Function seule)', async () => {
+    for (const uid of ['client', 'chauffeur', 'admin']) {
+      await assertFails(addDoc(collection(en(uid), 'courses'), nouvelleCourse(uid)));
+      await assertFails(setDoc(doc(en(uid), 'courses', `x-${uid}`), nouvelleCourse(uid)));
+    }
+    await assertFails(addDoc(collection(en('client'), 'courses'), nouvelleCourse('client', { prixFcfa: 100 })));
   });
 
-  test('créer une course au nom d\'un autre, déjà acceptée ou déjà attribuée : refusé', async () => {
+  test('le client ne modifie jamais sa course ni son prix, même en attente', async () => {
     const db = en('client');
-    await assertFails(addDoc(collection(db, 'courses'), nouvelleCourse('autreClient')));
-    await assertFails(addDoc(collection(db, 'courses'), nouvelleCourse('client', { statut: 'acceptee' })));
-    await assertFails(addDoc(collection(db, 'courses'), nouvelleCourse('client', { chauffeurId: 'chauffeur' })));
-  });
-
-  test('créer une course avec un champ inconnu ou une date falsifiée : refusé', async () => {
-    const db = en('client');
-    await assertFails(addDoc(collection(db, 'courses'), nouvelleCourse('client', { paiementConfirme: true })));
-    await assertFails(addDoc(collection(db, 'courses'), nouvelleCourse('client', { timestamp: new Date(2020, 0, 1) })));
+    await assertFails(updateDoc(doc(db, 'courses', 'c1'), { prixFcfa: 100 }));
+    await assertFails(updateDoc(doc(db, 'courses', 'c1'), { statut: 'annulee', prixFcfa: 100 }));
+    await assertFails(updateDoc(doc(db, 'courses', 'c1'), { adresseArrivee: 'Ailleurs' }));
+    await assertFails(setDoc(doc(db, 'courses', 'c1'), { clientId: 'client', chauffeurId: null, statut: 'en_attente', prixFcfa: 100 }));
   });
 
   test('radar : un chauffeur actif voit les courses en attente', async () => {
@@ -445,13 +444,6 @@ describe('suivi d\'approche (client)', () => {
       { latitude: 14.7, longitude: -17.45, majLe: serverTimestamp(), courseId: 42 }));
   });
 
-  test('coordonnées de prise en charge enregistrées avec la course', async () => {
-    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', prixFcfa: 3000, methodePaiement: 'ORANGE_MONEY', timestamp: serverTimestamp() };
-    await assertSucceeds(addDoc(collection(en('client'), 'courses'),
-      { ...base, latitudeDepart: 14.668, longitudeDepart: -17.438, latitudeArrivee: 14.745, longitudeArrivee: -17.517 }));
-    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, latitudeDepart: 'Plateau' }));
-  });
-
   test('véhicule du profil public : écrit par l\'admin, pas par le chauffeur', async () => {
     await assertFails(updateDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'), { plaqueImmatriculation: 'DK-0000-ZZ' }));
     await assertSucceeds(updateDoc(doc(en('admin'), 'profils_publics', 'chauffeur'), { vehiculeId: 'Yamaha', plaqueImmatriculation: 'DK-1234-AB' }));
@@ -561,15 +553,6 @@ describe('finances', () => {
     await assertFails(terminer(464));
     await assertFails(updateDoc(doc(en('chauffeur'), 'courses', 'f1'), { statut: 'terminee', termineeLe: serverTimestamp() }));
     await assertFails(terminer(465, { prixFcfa: 100 }));
-  });
-
-  test('création de course : 100 % mobile money, prix valide obligatoire', async () => {
-    const base = { clientId: 'client', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER', timestamp: serverTimestamp() };
-    await assertSucceeds(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'WAVE' }));
-    await assertSucceeds(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'ORANGE_MONEY' }));
-    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'ESPECES' }));
-    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 3000, methodePaiement: 'CARTE' }));
-    await assertFails(addDoc(collection(en('client'), 'courses'), { ...base, prixFcfa: 0, methodePaiement: 'WAVE' }));
   });
 
   test('versements : saisis par l\'admin, lus par le chauffeur concerné seulement', async () => {

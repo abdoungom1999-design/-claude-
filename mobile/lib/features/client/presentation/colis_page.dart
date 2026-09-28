@@ -89,7 +89,6 @@ class _ColisPageState extends State<ColisPage> {
           MaterialPageRoute(
             builder: (_) => PaymentProcessingPage(
               methode: methode,
-              clientId: uid,
               type: 'COLIS',
               adresseDepart: _adresseRetraitController.text.trim(),
               adresseArrivee: _adresseLivraisonController.text.trim(),
@@ -105,6 +104,8 @@ class _ColisPageState extends State<ColisPage> {
         );
         if (erreurPaiement != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erreurPaiement)));
+          // Le prix a pu changer (heure de pointe, nuit) : on le recalcule.
+          _estimation.reessayer();
         }
         return;
       }

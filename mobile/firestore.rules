@@ -39,10 +39,6 @@ service cloud.firestore {
         && !(p.get('statutCompte', 'actif') in ['suspendu', 'banni']);
     }
 
-    function nombreOuAbsent(donnees, cle) {
-      return !(cle in donnees) || donnees[cle] is number;
-    }
-
     function champsModifies() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -130,28 +126,17 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // Courses : créées par le client, visibles des chauffeurs actifs tant
-    // qu'elles sont en attente, acceptées par un seul chauffeur actif.
+    // Courses : créées par le serveur (Cloud Function), visibles des
+    // chauffeurs actifs tant qu'elles sont en attente, acceptées par un
+    // seul chauffeur actif. Le prix n'est jamais modifiable depuis l'app,
+    // sauf par l'Admin.
     // ---------------------------------------------------------------
     match /courses/{courseId} {
-      allow create: if connecte()
-        && request.resource.data.keys().hasOnly([
-             'clientId', 'chauffeurId', 'statut', 'type', 'adresseDepart',
-             'adresseArrivee', 'prixFcfa', 'methodePaiement', 'transactionId',
-             'timestamp', 'latitudeDepart', 'longitudeDepart',
-             'latitudeArrivee', 'longitudeArrivee'])
-        // 100 % mobile money : la plateforme encaisse chaque course.
-        && request.resource.data.methodePaiement in ['WAVE', 'ORANGE_MONEY']
-        && request.resource.data.prixFcfa is int
-        && request.resource.data.prixFcfa > 0
-        && nombreOuAbsent(request.resource.data, 'latitudeDepart')
-        && nombreOuAbsent(request.resource.data, 'longitudeDepart')
-        && nombreOuAbsent(request.resource.data, 'latitudeArrivee')
-        && nombreOuAbsent(request.resource.data, 'longitudeArrivee')
-        && request.resource.data.clientId == moi()
-        && request.resource.data.statut == 'en_attente'
-        && request.resource.data.chauffeurId == null
-        && request.resource.data.timestamp == request.time;
+      // Création réservée à la Cloud Function "creerCourse" (qui écrit
+      // avec les droits serveur, hors règles) : elle calcule elle-même le
+      // prix à partir des coordonnées. Aucun utilisateur, même Admin, ne
+      // crée une course depuis l'app, donc personne ne choisit son prix.
+      allow create: if false;
 
       allow get: if connecte()
         && (resource.data.clientId == moi()

@@ -1,0 +1,22 @@
+{
+  "name": "sprint-functions",
+  "private": true,
+  "description": "Cloud Functions de Sprint VTC : prix calculé par le serveur et création des courses.",
+  "main": "lib/src/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test lib/test/tarification.test.js lib/test/validation.test.js",
+    "test:emulateur": "npm run build && ../firestore_rules_test/node_modules/.bin/firebase emulators:exec --only firestore --project demo-sprint \"node --test lib/test/commandes.emulateur.test.js\""
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "^5.9.3"
+  }
+}

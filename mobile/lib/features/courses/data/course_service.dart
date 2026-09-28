@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import '../../../core/firebase/fonctions_cloud.dart';
 import '../../conducteur/data/position_chauffeur_service.dart';
 import 'position_chauffeur.dart';
 
@@ -105,6 +107,12 @@ class PointsCourse {
   final double latitudeArrivee;
   final double longitudeArrivee;
 
+  /// Départ et arrivée au format attendu par les Cloud Functions.
+  Map<String, dynamic> versServeur() => {
+        'depart': {'latitude': latitudeDepart, 'longitude': longitudeDepart},
+        'arrivee': {'latitude': latitudeArrivee, 'longitude': longitudeArrivee},
+      };
+
   Map<String, double> versDocument() => {
         'latitudeDepart': latitudeDepart,
         'longitudeDepart': longitudeDepart,
@@ -139,6 +147,14 @@ abstract final class StatutCourse {
 
   /// Un chauffeur est attribué et la course n'est pas finie.
   static const actifs = [acceptee, enCours];
+}
+
+/// Le serveur a refusé la commande : le prix du trajet a changé depuis
+/// son affichage (passage en heure de pointe ou en tarif de nuit).
+class PrixModifie implements Exception {
+  const PrixModifie(this.nouveauPrixFcfa);
+
+  final int nouveauPrixFcfa;
 }
 
 /// Commission de la plateforme sur chaque course terminée : 15 % du
@@ -187,31 +203,37 @@ class CourseService {
   CollectionReference<Map<String, dynamic>> get _courses => _firestore.collection('courses');
 
   /// Crée une nouvelle demande de course (`statut: en_attente`,
-  /// `chauffeurId: null`) et retourne son id.
+  /// `chauffeurId: null`) et retourne son id. C'est le serveur (Cloud
+  /// Function `creerCourse`) qui l'écrit, avec le prix qu'il recalcule
+  /// lui-même : [prixFcfa] (le prix montré au client) ne sert qu'à
+  /// vérifier qu'il n'a pas changé entre-temps, sinon [PrixModifie].
   Future<String> creerCourse({
-    required String clientId,
     required String type,
     required String adresseDepart,
     required String adresseArrivee,
     required int prixFcfa,
     required String methodePaiement,
     required String transactionId,
-    PointsCourse? points,
+    required PointsCourse points,
   }) async {
-    final doc = await _courses.add({
-      ...?points?.versDocument(),
-      'clientId': clientId,
-      'chauffeurId': null,
-      'statut': 'en_attente',
-      'type': type,
-      'adresseDepart': adresseDepart,
-      'adresseArrivee': adresseArrivee,
-      'prixFcfa': prixFcfa,
-      'methodePaiement': methodePaiement,
-      'transactionId': transactionId,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-    return doc.id;
+    try {
+      final resultat = await FonctionsCloud.appeler('creerCourse', {
+        'type': type,
+        ...points.versServeur(),
+        'adresseDepart': adresseDepart,
+        'adresseArrivee': adresseArrivee,
+        'methodePaiement': methodePaiement,
+        'transactionId': transactionId,
+        'prixAttendu': prixFcfa,
+      });
+      return resultat['courseId'] as String;
+    } on FirebaseFunctionsException catch (e) {
+      final details = e.details;
+      if (e.code == 'failed-precondition' && details is Map && details['raison'] == 'prix-modifie') {
+        throw PrixModifie((details['prixFcfa'] as num).toInt());
+      }
+      throw FonctionsCloud.versApiException(e);
+    }
   }
 
   /// Flux temps réel d'une course précise (écran client "Recherche

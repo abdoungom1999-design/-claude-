@@ -55,8 +55,29 @@ jobs:
         with:
           path: mobile/build/web
 
+  # Cloud Functions (mobile/functions) : compilation TypeScript et tests
+  # du moteur de prix. Le déploiement Firebase reste manuel (voir
+  # mobile/FIREBASE_SETUP.md, étape 7).
+  functions:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile/functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/functions/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
   deploy:
-    needs: build
+    needs: [build, functions]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/maps/distance_utils.dart';
 import '../../../core/maps/geocoding_service.dart';
 import '../../../core/network/api_exception.dart';
+import 'course_service.dart';
 import 'pricing_repository.dart';
 
 enum EtatEstimation {
@@ -18,10 +19,10 @@ enum EtatEstimation {
 /// pour commander ([peutCommander]).
 ///
 /// Distance : estimation par la route à partir des coordonnées GPS des
-/// adresses ([DistanceUtils.distanceRouteEstimeeKm]). Prix : moteur de
-/// tarification existant ([PricingRepository]) — prise en charge, prix
-/// au kilomètre, temps estimé, majoration heure de pointe ou nuit, prix
-/// minimum.
+/// adresses ([DistanceUtils.distanceRouteEstimeeKm]). Prix : calculé par
+/// le serveur ([PricingRepository], Cloud Function `estimerPrix`) —
+/// prise en charge, prix au kilomètre, majoration heure de pointe ou
+/// nuit, prix minimum.
 class EstimationCourseController extends ChangeNotifier {
   EstimationCourseController({required this.type, PricingRepository? pricingRepository})
       : _pricingRepository = pricingRepository ?? PricingRepository();
@@ -57,6 +58,19 @@ class EstimationCourseController extends ChangeNotifier {
   }
 
   bool get peutCommander => etat == EtatEstimation.prete;
+
+  /// Coordonnées du trajet choisi, envoyées au serveur.
+  PointsCourse? get trajet {
+    final depart = _depart;
+    final arrivee = _arrivee;
+    if (depart == null || arrivee == null) return null;
+    return PointsCourse(
+      latitudeDepart: depart.latitude,
+      longitudeDepart: depart.longitude,
+      latitudeArrivee: arrivee.latitude,
+      longitudeArrivee: arrivee.longitude,
+    );
+  }
 
   double? get distanceKm {
     final depart = _depart;
@@ -116,7 +130,7 @@ class EstimationCourseController extends ChangeNotifier {
     EstimationPrix? estimation;
     String? erreur;
     try {
-      estimation = await _pricingRepository.estimer(type: type, distanceKm: distance);
+      estimation = await _pricingRepository.estimer(type: type, distanceKm: distance, trajet: trajet);
       if (estimation.prixFcfa <= 0) {
         estimation = null;
         erreur = 'Le prix de ce trajet n\'a pas pu être calculé.';

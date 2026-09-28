@@ -170,11 +170,16 @@ void main() {
       await tester.pumpWidget(MaterialApp(
         home: PaymentProcessingPage(
           methode: PaymentMethod.wave,
-          clientId: 'awa',
           type: 'PASSAGER',
           adresseDepart: 'Plateau',
           adresseArrivee: 'Almadies',
           prixFcfa: 3000,
+          points: const PointsCourse(
+            latitudeDepart: 14.668,
+            longitudeDepart: -17.438,
+            latitudeArrivee: 14.745,
+            longitudeArrivee: -17.517,
+          ),
           paiementService: const PaiementServiceSandbox(delai: Duration.zero),
           courseService: courses,
         ),
@@ -328,14 +333,13 @@ class _CourseServiceEspion extends CourseService {
 
   @override
   Future<String> creerCourse({
-    required String clientId,
     required String type,
     required String adresseDepart,
     required String adresseArrivee,
     required int prixFcfa,
     required String methodePaiement,
     required String transactionId,
-    PointsCourse? points,
+    required PointsCourse points,
   }) async {
     methode = methodePaiement;
     return 'course-test';

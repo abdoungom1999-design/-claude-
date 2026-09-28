@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../courses/data/course_service.dart';
 import '../../paiement/data/paiement_service.dart';
@@ -8,8 +10,9 @@ import 'suivi_course_page.dart';
 /// Sas de paiement obligatoire (100% mobile money) : s'affiche après le
 /// choix de Wave ou Orange Money, bloque le client (aucun retour
 /// arrière) pendant la demande de paiement via [PaiementService], et ne
-/// crée la course dans Firestore — ce qui réveille le radar des
-/// chauffeurs — que si la transaction est confirmée. Le client est
+/// fait créer la course — par le serveur, qui recalcule son prix, ce qui
+/// réveille le radar des chauffeurs — que si la transaction est
+/// confirmée. Le client est
 /// alors redirigé vers [SuiviCoursePage].
 ///
 /// En cas d'échec ou d'annulation, aucune course n'est créée : la page
@@ -19,27 +22,25 @@ class PaymentProcessingPage extends StatefulWidget {
   PaymentProcessingPage({
     super.key,
     required this.methode,
-    required this.clientId,
     required this.type,
     required this.adresseDepart,
     required this.adresseArrivee,
     required this.prixFcfa,
-    this.points,
+    required this.points,
     PaiementService? paiementService,
     CourseService? courseService,
   })  : paiementService = paiementService ?? PaiementService.parDefaut(),
         courseService = courseService ?? CourseService();
 
   final PaymentMethod methode;
-  final String clientId;
   final String type;
   final String adresseDepart;
   final String adresseArrivee;
   final int prixFcfa;
 
-  /// Coordonnées du trajet, enregistrées avec la course (suivi
-  /// d'approche côté client).
-  final PointsCourse? points;
+  /// Coordonnées du trajet : le serveur en déduit la distance et le prix,
+  /// et les enregistre avec la course (suivi d'approche côté client).
+  final PointsCourse points;
   final PaiementService paiementService;
   final CourseService courseService;
 
@@ -88,7 +89,6 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
     final String courseId;
     try {
       courseId = await widget.courseService.creerCourse(
-        clientId: widget.clientId,
         type: widget.type,
         adresseDepart: widget.adresseDepart,
         adresseArrivee: widget.adresseArrivee,
@@ -97,6 +97,15 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
         transactionId: transaction.id,
         points: widget.points,
       );
+    } on PrixModifie catch (e) {
+      _abandonner(
+        'Le prix de ce trajet vient de changer : ${formaterFcfa(e.nouveauPrixFcfa)}. '
+        "Aucune course n'a été créée : vérifiez le nouveau prix avant de commander.",
+      );
+      return;
+    } on ApiException catch (e) {
+      _abandonner("${e.message} Aucune course n'a été créée.");
+      return;
     } catch (_) {
       _abandonner("La course n'a pas pu être créée. Veuillez réessayer.");
       return;

@@ -14,3 +14,6 @@ ios/
 linux/
 macos/
 windows/
+
+# Journaux des émulateurs Firebase
+*-debug.log

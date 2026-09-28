@@ -93,7 +93,7 @@ chauffeur au chauffeur lui-même et à l'Admin.
 ## 6. Sécurité Firestore et rôle Admin
 
 Les règles de sécurité sont dans `firestore.rules` (testées sur
-l'émulateur Firestore : `firestore_rules_test/`, 76 cas). Elles
+l'émulateur Firestore : `firestore_rules_test/`, 73 cas). Elles
 remplacent les règles "mode Test" de l'étape 3, qui laissent n'importe
 qui lire et modifier toute la base.
 
@@ -161,8 +161,11 @@ depuis la Console.
   course terminée), sans pouvoir sauter d'étape ni toucher au prix. Il
   peut aussi l'annuler avec un motif (client introuvable, panne, autre),
   montré au client.
-- Paiement 100 % mobile money : une course ne peut être créée qu'avec
-  Wave ou Orange Money (aucune course en espèces).
+- Courses : aucune course ne peut être créée depuis l'app, même par
+  l'Admin. Seule la Cloud Function `creerCourse` (étape 7) les crée,
+  avec le prix qu'elle calcule elle-même ; le client ne peut ensuite
+  qu'annuler sa demande tant qu'elle est en attente, sans jamais toucher
+  au prix. Paiement 100 % mobile money (Wave ou Orange Money).
 - Finances : à la fin d'une course, la commission de la plateforme (15 %
   du prix) est figée et vérifiée par les règles. Sprint encaisse chaque
   course et doit au chauffeur sa part (85 %) ; les versements de Sprint
@@ -180,11 +183,62 @@ depuis la Console.
   bout de 2 minutes sans nouvelle. Un vrai suivi en arrière-plan exige
   l'application Android native.
 
-- Le prix et l'identifiant de paiement d'une course sont fournis par
-  l'app cliente : les règles vérifient la forme de la demande, pas le
-  montant. La commission (15 % de ce prix) en dépend donc aussi. Un calcul et une vérification de paiement côté serveur
-  (Cloud Functions) restent nécessaires.
+- Paiement en mode test : le prix est désormais calculé par le serveur,
+  mais le paiement Wave / Orange Money est encore simulé dans l'app ; la
+  Cloud Function enregistre l'identifiant de transaction sans pouvoir le
+  vérifier auprès de l'opérateur (`modePaiement: "test"` sur la course).
+  Avec les vraies clés, le serveur ouvrira lui-même le paiement et ne
+  créera la course qu'à la confirmation de l'opérateur.
 - Un numéro de téléphone n'est pas garanti unique : si quelqu'un
   revendique en premier le numéro d'un autre dans l'annuaire, ce dernier
   ne pourra se connecter que par email (aucun accès à son compte n'est
   donné pour autant).
+
+## 7. Cloud Functions : prix et création des courses (plan Blaze)
+
+Le dossier `functions/` (TypeScript) contient deux fonctions, déployées
+en `europe-west1` (même région que Firestore `eur3`) :
+
+- `estimerPrix` : calcule le prix d'un trajet à partir des coordonnées
+  (distance, majoration heure de pointe / nuit, minimum). C'est lui que
+  l'app affiche avant la commande.
+- `creerCourse` : recalcule ce prix et crée la course. Si le prix a
+  changé depuis son affichage (passage en heure de pointe…), rien n'est
+  créé et l'app affiche le nouveau prix. Une commande envoyée deux fois
+  (double clic, réseau coupé) ne crée qu'une course.
+
+### 7.1 Déployer (depuis un ordinateur)
+
+Prérequis : Node.js 22 et la dernière version du CLI Firebase (**15 ou
+plus** : les versions 13 et antérieures ne savent pas charger ces
+fonctions).
+
+```bash
+npm install -g firebase-tools@latest
+firebase login
+cd mobile                      # dossier qui contient firebase.json
+npm --prefix functions install
+firebase deploy --only functions --project sprint-vtc
+firebase deploy --only firestore:rules --project sprint-vtc
+```
+
+**L'ordre compte** : les fonctions d'abord, puis les règles (qui
+interdisent la création directe des courses). Le premier déploiement
+active quelques services Google Cloud (Cloud Functions, Cloud Build,
+Artifact Registry, Cloud Run) et peut prendre plusieurs minutes ; le
+CLI demande parfois une confirmation. Pour ne pas conserver
+indéfiniment les images de build, accepter la politique de nettoyage
+qu'il propose.
+
+Tant que les fonctions ne sont pas déployées, la version en ligne de
+l'app ne peut ni afficher de prix ni commander (message "Impossible de
+contacter le serveur").
+
+### 7.2 Tests
+
+```bash
+cd mobile/functions
+npm test                  # moteur de prix (dont parité avec l'app) et validation
+npm run test:emulateur    # création des courses sur l'émulateur Firestore
+```
+

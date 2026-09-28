@@ -86,7 +86,6 @@ class _PassagerPageState extends State<PassagerPage> {
           MaterialPageRoute(
             builder: (_) => PaymentProcessingPage(
               methode: methode,
-              clientId: uid,
               type: 'PASSAGER',
               adresseDepart: _adresseDepartController.text.trim(),
               adresseArrivee: _adresseArriveeController.text.trim(),
@@ -102,6 +101,8 @@ class _PassagerPageState extends State<PassagerPage> {
         );
         if (erreurPaiement != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erreurPaiement)));
+          // Le prix a pu changer (heure de pointe, nuit) : on le recalcule.
+          _estimation.reessayer();
         }
         return;
       }

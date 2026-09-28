@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sprint/core/network/api_exception.dart';
+import 'package:sprint/core/utils/format_fcfa.dart';
 import 'package:sprint/core/widgets/payment_method_selector.dart';
 import 'package:sprint/features/client/presentation/payment_processing_page.dart';
 import 'package:sprint/features/courses/data/course_service.dart';
@@ -16,22 +18,28 @@ class _PaiementRefuse implements PaiementService {
 }
 
 class _CourseServiceEspion extends CourseService {
+  _CourseServiceEspion({this.refus});
+
+  /// Erreur renvoyée par le serveur à la création, le cas échéant.
+  final Exception? refus;
   String? transactionIdRecu;
   PointsCourse? pointsRecus;
+  int? prixRecu;
 
   @override
   Future<String> creerCourse({
-    required String clientId,
     required String type,
     required String adresseDepart,
     required String adresseArrivee,
     required int prixFcfa,
     required String methodePaiement,
     required String transactionId,
-    PointsCourse? points,
+    required PointsCourse points,
   }) async {
     transactionIdRecu = transactionId;
     pointsRecus = points;
+    prixRecu = prixFcfa;
+    if (refus case final erreur?) throw erreur;
     return 'course-test';
   }
 }
@@ -53,7 +61,6 @@ Future<String?> _ouvrirSas(
               MaterialPageRoute(
                 builder: (_) => PaymentProcessingPage(
                   methode: PaymentMethod.wave,
-                  clientId: 'client-test',
                   type: 'PASSAGER',
                   adresseDepart: 'Plateau',
                   adresseArrivee: 'Almadies',
@@ -120,5 +127,36 @@ void main() {
     // L'écran suivant (SuiviCoursePage) écoute Firestore, indisponible
     // dans les tests : l'erreur attendue est absorbée ici.
     tester.takeException();
+  });
+
+  testWidgets('Prix changé côté serveur : aucune course, le nouveau prix est annoncé', (tester) async {
+    final courses = _CourseServiceEspion(refus: const PrixModifie(2600));
+
+    final retour = await _ouvrirSas(
+      tester,
+      paiement: const PaiementServiceSandbox(delai: Duration.zero),
+      courses: courses,
+    );
+
+    // Le prix vu par le client est envoyé au serveur, pour contrôle.
+    expect(courses.prixRecu, 2100);
+    expect(
+      retour,
+      'Le prix de ce trajet vient de changer : ${formaterFcfa(2600)}. '
+      "Aucune course n'a été créée : vérifiez le nouveau prix avant de commander.",
+    );
+    expect(find.text('Commander'), findsOneWidget);
+  });
+
+  testWidgets('Commande refusée par le serveur : son message est affiché', (tester) async {
+    final courses = _CourseServiceEspion(refus: ApiException('Votre compte ne permet pas de commander une course.'));
+
+    final retour = await _ouvrirSas(
+      tester,
+      paiement: const PaiementServiceSandbox(delai: Duration.zero),
+      courses: courses,
+    );
+
+    expect(retour, "Votre compte ne permet pas de commander une course. Aucune course n'a été créée.");
   });
 }
