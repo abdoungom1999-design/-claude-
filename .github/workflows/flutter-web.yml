@@ -47,11 +47,17 @@ jobs:
 
       - run: flutter analyze
 
+      # Clé Google du fond de carte (Map Tiles API), restreinte au site :
+      # visible dans le navigateur comme toute clé de carte web. Sans elle,
+      # la carte reste sur OpenStreetMap.
       - name: Build web (release)
+        env:
+          GOOGLE_MAPS_WEB_KEY: ${{ secrets.GOOGLE_MAPS_WEB_KEY }}
         run: |
           flutter build web --release \
             --base-href "/${{ github.event.repository.name }}/" \
-            --dart-define=API_BASE_URL="${{ inputs.api_base_url }}"
+            --dart-define=API_BASE_URL="${{ inputs.api_base_url }}" \
+            --dart-define=GOOGLE_MAPS_WEB_KEY="$GOOGLE_MAPS_WEB_KEY"
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,9 +1,16 @@
-> **Mise à jour :** la recherche d'adresses (Places API New) et la
-> distance par la route (Routes API) passent désormais par les Cloud
-> Functions, avec une clé serveur rangée dans Secret Manager
-> (`GOOGLE_MAPS_API_KEY`, voir FIREBASE_SETUP.md, étape 7). Le reste de
-> ce document concerne l'affichage de la carte Google (Maps JavaScript
-> API), pas encore activé : la carte affichée reste OpenStreetMap.
+> **Mise à jour :**
+> - Recherche d'adresses (Places API New) et distance par la route
+>   (Routes API) : via les Cloud Functions, clé serveur dans Secret
+>   Manager (`GOOGLE_MAPS_API_KEY`, voir FIREBASE_SETUP.md, étape 7).
+> - Fond de carte : images Google (**Map Tiles API**) dans les cartes de
+>   l'app (`lib/core/maps/fond_carte.dart`), avec une clé web distincte
+>   (`sprint-carte-web`, restreinte au site
+>   `https://abdoungom1999-design.github.io/*` et à Map Tiles API),
+>   fournie à la compilation par le secret GitHub `GOOGLE_MAPS_WEB_KEY`.
+>   Sans cette clé, ou si Google ne répond pas, la carte reste sur
+>   OpenStreetMap. Les mentions Google sont affichées sur chaque carte.
+> - Le composant Google Maps officiel (Maps JavaScript API, décrit
+>   ci-dessous) n'est pas utilisé.
 
 # Configuration Google Maps Platform — projet Sprint
 

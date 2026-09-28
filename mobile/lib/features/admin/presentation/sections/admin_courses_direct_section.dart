@@ -1,3 +1,4 @@
+import '../../../../core/maps/fond_carte.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -185,10 +186,7 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
                         initialZoom: 12.5,
                       ),
                       children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'sn.groupesantine.sprint',
-                        ),
+                        const CoucheFondCarte(),
                         MarkerLayer(
                           markers: [
                             for (final p in visibles)
@@ -205,11 +203,7 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
                               ),
                           ],
                         ),
-                        const RichAttributionWidget(
-                          attributions: [
-                            TextSourceAttribution('© OpenStreetMap contributors'),
-                          ],
-                        ),
+                        const MentionsFondCarte(),
                       ],
                     ),
                     Positioned(

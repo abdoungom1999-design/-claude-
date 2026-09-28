@@ -1,3 +1,4 @@
+import '../../../../core/maps/fond_carte.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -164,10 +165,7 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
                 },
               ),
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'sn.groupesantine.sprint',
-                ),
+                const CoucheFondCarte(),
                 MarkerLayer(
                   markers: [
                     if (cible != null)
@@ -190,9 +188,7 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
                       ),
                   ],
                 ),
-                const RichAttributionWidget(
-                  attributions: [TextSourceAttribution('© OpenStreetMap contributors')],
-                ),
+                const MentionsFondCarte(),
               ],
             ),
             Positioned(

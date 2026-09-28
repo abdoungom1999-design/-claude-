@@ -1,3 +1,4 @@
+import '../maps/fond_carte.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as osm;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -103,10 +104,7 @@ class AdaptiveMap extends StatelessWidget {
         ),
       ),
       children: [
-        osm.TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'sn.groupesantine.sprint',
-        ),
+        const CoucheFondCarte(),
         if (polylignePoints != null)
           osm.PolylineLayer(
             polylines: [
@@ -131,9 +129,7 @@ class AdaptiveMap extends StatelessWidget {
               )
               .toList(),
         ),
-        const osm.RichAttributionWidget(
-          attributions: [osm.TextSourceAttribution('© OpenStreetMap contributors')],
-        ),
+        const MentionsFondCarte(),
       ],
     );
   }

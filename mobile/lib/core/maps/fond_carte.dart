@@ -1,0 +1,209 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+
+/// Fond de carte de toute l'app : images Google Maps (Map Tiles API) dès
+/// qu'une clé web est fournie à la compilation
+/// (`--dart-define=GOOGLE_MAPS_WEB_KEY=…`, secret GitHub du même nom),
+/// sinon OpenStreetMap (mode démo, développement local).
+///
+/// La clé web est visible dans le navigateur, comme pour toute carte en
+/// ligne : elle est restreinte au site (référents HTTP) et à la seule
+/// Map Tiles API dans Google Cloud.
+///
+/// Secours : si Google ne répond pas (session refusée, quota, images en
+/// erreur), la carte repasse sur OpenStreetMap plutôt que de rester vide.
+class FondCarte {
+  FondCarte({required String cle, Dio? dio, DateTime Function()? maintenant})
+      : _cle = cle,
+        _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 8))),
+        _maintenant = maintenant ?? DateTime.now;
+
+  static const cleCompilation = String.fromEnvironment('GOOGLE_MAPS_WEB_KEY');
+
+  /// Instance partagée par toutes les cartes (une seule session Google).
+  static final instance = FondCarte(cle: cleCompilation);
+
+  static const urlOpenStreetMap = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  static const urlGoogle = 'https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session={session}&key={key}';
+
+  /// Au-delà, les images Google en erreur font repasser sur OpenStreetMap.
+  static const erreursToleres = 6;
+
+  final String _cle;
+  final Dio _dio;
+  final DateTime Function() _maintenant;
+
+  bool get googleConfigure => _cle.isNotEmpty;
+
+  SessionTuiles? _session;
+  Future<SessionTuiles?>? _enCours;
+  int _erreurs = 0;
+
+  /// Passe à `true` quand Google est abandonné pour cette visite.
+  final secours = ValueNotifier<bool>(false);
+
+  /// Session Google valide (créée au premier besoin, renouvelée une heure
+  /// avant son expiration), ou `null` : il faut alors OpenStreetMap.
+  Future<SessionTuiles?> session() {
+    if (!googleConfigure || secours.value) return Future.value(null);
+    final actuelle = _session;
+    if (actuelle != null && actuelle.expire.isAfter(_maintenant().add(const Duration(hours: 1)))) {
+      return Future.value(actuelle);
+    }
+    return _enCours ??= _creerSession().whenComplete(() => _enCours = null);
+  }
+
+  Future<SessionTuiles?> _creerSession() async {
+    try {
+      final reponse = await _dio.post<Map<String, dynamic>>(
+        'https://tile.googleapis.com/v1/createSession',
+        queryParameters: {'key': _cle},
+        data: {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN'},
+      );
+      final donnees = reponse.data ?? const {};
+      final jeton = donnees['session'];
+      final expiration = int.tryParse('${donnees['expiry']}');
+      if (jeton is! String || jeton.isEmpty || expiration == null) {
+        throw const FormatException('Session Google invalide');
+      }
+      return _session = SessionTuiles(
+        jeton: jeton,
+        expire: DateTime.fromMillisecondsSinceEpoch(expiration * 1000, isUtc: true),
+      );
+    } catch (e) {
+      debugPrint('Fond de carte Google indisponible ($e) : OpenStreetMap.');
+      secours.value = true;
+      return null;
+    }
+  }
+
+  /// Une image Google en erreur (clé refusée, quota…) : au-delà de
+  /// [erreursToleres], on repasse sur OpenStreetMap.
+  void signalerErreur() {
+    if (++_erreurs >= erreursToleres && !secours.value) {
+      debugPrint('Images Google en erreur : OpenStreetMap.');
+      secours.value = true;
+    }
+  }
+
+  Map<String, String> optionsGoogle(SessionTuiles session) => {'session': session.jeton, 'key': _cle};
+}
+
+class SessionTuiles {
+  const SessionTuiles({required this.jeton, required this.expire});
+
+  final String jeton;
+  final DateTime expire;
+}
+
+/// Couche de fond à placer en premier dans `FlutterMap(children: …)`.
+class CoucheFondCarte extends StatefulWidget {
+  const CoucheFondCarte({super.key, this.fond});
+
+  /// Injectable pour les tests ; par défaut [FondCarte.instance].
+  final FondCarte? fond;
+
+  @override
+  State<CoucheFondCarte> createState() => _CoucheFondCarteState();
+}
+
+class _CoucheFondCarteState extends State<CoucheFondCarte> {
+  late final FondCarte _fond = widget.fond ?? FondCarte.instance;
+  SessionTuiles? _session;
+  bool _pret = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fond.secours.addListener(_actualiser);
+    _charger();
+  }
+
+  Future<void> _charger() async {
+    final session = await _fond.session();
+    if (!mounted) return;
+    setState(() {
+      _session = session;
+      _pret = true;
+    });
+  }
+
+  void _actualiser() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _fond.secours.removeListener(_actualiser);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = _session;
+    // Session Google en cours de création : rien d'affiché (évite de
+    // charger puis jeter des images OpenStreetMap).
+    if (!_pret && _fond.googleConfigure && !_fond.secours.value) return const SizedBox.shrink();
+    if (session == null || _fond.secours.value) {
+      return TileLayer(
+        urlTemplate: FondCarte.urlOpenStreetMap,
+        userAgentPackageName: 'sn.groupesantine.sprint',
+      );
+    }
+    return TileLayer(
+      key: ValueKey(session.jeton),
+      urlTemplate: FondCarte.urlGoogle,
+      additionalOptions: _fond.optionsGoogle(session),
+      userAgentPackageName: 'sn.groupesantine.sprint',
+      maxNativeZoom: 20,
+      errorTileCallback: (tuile, erreur, pile) => _fond.signalerErreur(),
+    );
+  }
+}
+
+/// Mentions obligatoires du fond de carte (Google ou OpenStreetMap), à
+/// placer en dernier dans `FlutterMap(children: …)`.
+class MentionsFondCarte extends StatelessWidget {
+  const MentionsFondCarte({super.key, this.fond});
+
+  final FondCarte? fond;
+
+  @override
+  Widget build(BuildContext context) {
+    final f = fond ?? FondCarte.instance;
+    return ValueListenableBuilder<bool>(
+      valueListenable: f.secours,
+      builder: (context, secours, _) {
+        final google = f.googleConfigure && !secours;
+        return Align(
+          alignment: Alignment.bottomLeft,
+          child: IgnorePointer(
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text.rich(
+                google
+                    ? TextSpan(children: [
+                        const TextSpan(
+                          text: 'Google',
+                          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.2),
+                        ),
+                        TextSpan(text: '  Données cartographiques ©${DateTime.now().year} Google'),
+                      ])
+                    : const TextSpan(text: '© OpenStreetMap contributors'),
+                style: const TextStyle(fontSize: 10, color: Color(0xFF444444)),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
