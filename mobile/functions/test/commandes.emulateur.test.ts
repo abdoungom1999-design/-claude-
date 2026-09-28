@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
-import { creerCourse, idCourse } from '../src/commandes';
+import { creerCourse as creerCourseCore, idCourse } from '../src/commandes';
+import { calculDistance, cleTrajet } from '../src/distances';
+import type { ClientGoogle } from '../src/google';
 
 const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
 const ALMADIES = { latitude: 14.7456, longitude: -17.5134 };
@@ -27,6 +29,18 @@ const commande = (extra: Record<string, unknown> = {}) => ({
 let app: App;
 let db: Firestore;
 
+/** Google simulé : 10,2 km par la route ; compte ses appels. */
+let appelsRoutes = 0;
+const googleFactice = {
+  itineraire: async () => {
+    appelsRoutes++;
+    return { distanceKm: 10.2 };
+  },
+} as unknown as ClientGoogle;
+
+const creerCourse = (base: Firestore, uid: string | undefined, donnees: unknown, quand: Date) =>
+  creerCourseCore(base, calculDistance(base, googleFactice, () => quand), uid, donnees, quand);
+
 before(() => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'à lancer via npm run test:emulateur');
   app = initializeApp({ projectId: 'demo-sprint' });
@@ -36,7 +50,8 @@ before(() => {
 after(() => deleteApp(app));
 
 beforeEach(async () => {
-  for (const nom of ['users', 'courses']) {
+  appelsRoutes = 0;
+  for (const nom of ['users', 'courses', 'distances']) {
     const docs = await db.collection(nom).listDocuments();
     await Promise.all(docs.map((d) => d.delete()));
   }
@@ -68,6 +83,7 @@ test('course créée par le serveur, avec le prix du serveur', async () => {
   assert.equal(course.modePaiement, 'test');
   assert.equal(course.latitudeArrivee, ALMADIES.latitude);
   assert.equal(course.distanceKm, 10.2);
+  assert.equal(course.sourceDistance, 'route');
   assert.ok(course.timestamp instanceof Timestamp);
 });
 
@@ -96,4 +112,28 @@ test('non connecté, sans profil ou compte banni : refusé', async () => {
   await refuse(creerCourse(db, 'inconnu', commande(), midi), 'permission-denied');
   await refuse(creerCourse(db, 'banni', commande(), midi), 'permission-denied');
   assert.equal((await db.collection('courses').get()).size, 0);
+});
+
+test('distance par la route mise en cache : Google appelé une seule fois par trajet', async () => {
+  await creerCourse(db, 'awa', commande({ transactionId: 'TXN-1' }), midi);
+  await creerCourse(db, 'awa', commande({ transactionId: 'TXN-2' }), midi);
+  assert.equal(appelsRoutes, 1);
+  const cache = await db.doc(`distances/${cleTrajet(PLATEAU, ALMADIES)}`).get();
+  assert.equal(cache.get('distanceKm'), 10.2);
+});
+
+test('cache périmé (plus de 30 jours) : distance recalculée', async () => {
+  await creerCourse(db, 'awa', commande({ transactionId: 'TXN-1' }), midi);
+  const plusTard = new Date(midi.getTime() + 31 * 24 * 3600 * 1000);
+  await creerCourse(db, 'awa', commande({ transactionId: 'TXN-2' }), plusTard);
+  assert.equal(appelsRoutes, 2);
+});
+
+test('Google en panne : la commande passe au prix estimé (vol d\'oiseau x 1,1), sans cache', async () => {
+  const enPanne = { itineraire: async () => { throw new Error('503'); } } as unknown as ClientGoogle;
+  const resultat = await creerCourseCore(db, calculDistance(db, enPanne, () => midi), 'awa', commande(), midi);
+  assert.equal(resultat.prixFcfa, 2300);
+  const course = (await db.doc(`courses/${resultat.courseId}`).get()).data()!;
+  assert.equal(course.sourceDistance, 'estimation');
+  assert.equal((await db.doc(`distances/${cleTrajet(PLATEAU, ALMADIES)}`).get()).exists, false);
 });

@@ -5,7 +5,8 @@ import '../maps/geocoding_service.dart';
 import '../theme/app_colors.dart';
 import 'app_text_field.dart';
 
-/// Champ d'adresse avec autocomplétion géocodée (Nominatim/OSM). La
+/// Champ d'adresse avec autocomplétion (Google Places en Firebase réel,
+/// Nominatim/OSM en démo ou en secours, voir [ServiceAdresses]). La
 /// sélection d'une suggestion résout l'adresse en coordonnées GPS
 /// nécessaires pour créer une course ; tant qu'aucune suggestion n'est
 /// choisie, [onSelected] n'a pas été appelé et l'appelant ne dispose pas
@@ -18,6 +19,7 @@ class AddressSearchField extends StatefulWidget {
     required this.onSelected,
     this.onEdited,
     this.prefixIcon,
+    this.service,
   });
 
   final String label;
@@ -29,15 +31,23 @@ class AddressSearchField extends StatefulWidget {
   final VoidCallback? onEdited;
   final IconData? prefixIcon;
 
+  /// Injectable pour les tests ; par défaut [ServiceAdresses.parDefaut].
+  final ServiceAdresses? service;
+
   @override
   State<AddressSearchField> createState() => _AddressSearchFieldState();
 }
 
 class _AddressSearchFieldState extends State<AddressSearchField> {
-  final _geocodingService = GeocodingService();
+  late final ServiceAdresses _service = widget.service ?? ServiceAdresses.parDefaut();
   Timer? _debounce;
-  List<AdresseSuggestion> _suggestions = [];
+  List<PropositionAdresse> _suggestions = [];
   bool _recherche = false;
+  String? _erreur;
+
+  /// Numéro de la dernière recherche : une réponse plus ancienne, arrivée
+  /// en retard, n'écrase pas les suggestions du texte actuel.
+  int _demande = 0;
 
   @override
   void dispose() {
@@ -47,6 +57,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
 
   void _surChangement(String texte) {
     widget.onEdited?.call();
+    if (_erreur != null) setState(() => _erreur = null);
     _debounce?.cancel();
     _debounce = Timer(
       const Duration(milliseconds: 500),
@@ -55,24 +66,41 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
   }
 
   Future<void> _rechercher(String texte) async {
+    final demande = ++_demande;
     if (texte.trim().length < 3) {
       setState(() => _suggestions = []);
       return;
     }
     setState(() => _recherche = true);
-    final resultats = await _geocodingService.rechercher(texte);
-    if (!mounted) return;
+    final resultats = await _service.rechercher(texte);
+    if (!mounted || demande != _demande) return;
     setState(() {
       _suggestions = resultats;
       _recherche = false;
     });
   }
 
-  void _selectionner(AdresseSuggestion suggestion) {
-    widget.controller.text = suggestion.libelle;
-    setState(() => _suggestions = []);
-    widget.onSelected(suggestion);
+  Future<void> _selectionner(PropositionAdresse proposition) async {
+    _demande++;
+    _debounce?.cancel();
+    widget.controller.text = proposition.libelle;
     FocusScope.of(context).unfocus();
+    setState(() {
+      _suggestions = [];
+      _recherche = true;
+    });
+    try {
+      final adresse = await _service.resoudre(proposition);
+      if (!mounted) return;
+      setState(() => _recherche = false);
+      widget.onSelected(adresse);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _recherche = false;
+        _erreur = 'Adresse introuvable. Choisissez-en une autre dans la liste.';
+      });
+    }
   }
 
   @override
@@ -85,9 +113,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
           controller: widget.controller,
           prefixIcon: widget.prefixIcon,
           onChanged: _surChangement,
-          validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-              ? 'Adresse requise'
-              : null,
+          validator: (valeur) => (valeur == null || valeur.trim().isEmpty) ? 'Adresse requise' : null,
           suffixIcon: _recherche
               ? const Padding(
                   padding: EdgeInsets.all(14),
@@ -100,33 +126,51 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
               : null,
         ),
         if (_suggestions.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            // Material (et non un simple fond décoré) : l'effet au toucher
+            // des suggestions reste visible.
+            child: Material(
               color: AppColors.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.greyBorder),
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: AppColors.greyBorder),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: _suggestions.map((suggestion) {
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.location_on_outlined,
+                      color: AppColors.grey,
+                      size: 20,
+                    ),
+                    title: Text(
+                      suggestion.principal,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: suggestion.secondaire.isEmpty
+                        ? null
+                        : Text(
+                            suggestion.secondaire,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                          ),
+                    onTap: () => _selectionner(suggestion),
+                  );
+                }).toList(),
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: _suggestions.map((suggestion) {
-                return ListTile(
-                  dense: true,
-                  leading: const Icon(
-                    Icons.location_on_outlined,
-                    color: AppColors.grey,
-                    size: 20,
-                  ),
-                  title: Text(
-                    suggestion.libelle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  onTap: () => _selectionner(suggestion),
-                );
-              }).toList(),
-            ),
+          ),
+        if (_erreur != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(_erreur!, style: TextStyle(fontSize: 12.5, color: Colors.red.shade700)),
           ),
       ],
     );

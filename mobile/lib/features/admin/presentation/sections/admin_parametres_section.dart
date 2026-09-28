@@ -188,6 +188,7 @@ class _ReglesEnVigueur extends StatelessWidget {
             ligne('Prise en charge', formaterFcfa(300)),
             ligne('Prix par kilomètre', formaterFcfa(200)),
             ligne('Prix minimum', formaterFcfa(1000)),
+            ligne('Distance facturée', 'Par la route (Google)'),
             ligne('Heures de pointe (7 h – 10 h, 17 h – 20 h)', '× 1,2'),
             ligne('Tarif de nuit (22 h – 5 h)', '× 1,2'),
             const SizedBox(height: 6),
@@ -195,6 +196,12 @@ class _ReglesEnVigueur extends StatelessWidget {
               'Exemples calculés : 5 km à midi = ${formaterFcfa(_prix(5, 12))} · 5 km à 8 h = '
               '${formaterFcfa(_prix(5, 8))} · 15 km à midi = ${formaterFcfa(_prix(15, 12))}.',
               style: const TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Si Google ne répond pas, la distance est estimée (vol d\'oiseau + 10 %) pour ne jamais '
+              'bloquer une commande.',
+              style: TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
             ),
             const Divider(height: 36, color: AppColors.greyBorder),
             const Text('Commission et paiement', style: titre),

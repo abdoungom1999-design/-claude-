@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
+import type { CalculDistance, DistanceTrajet } from './distances';
 import {
   distanceRouteEstimeeKm,
   estimerPrix,
@@ -29,6 +30,7 @@ export interface Trajet {
   type: TypeCourse;
   depart: Point;
   arrivee: Point;
+  /** Vol d'oiseau x 1,1 : sert aux contrôles (même lieu, hors zone). */
   distanceKm: number;
 }
 
@@ -112,11 +114,25 @@ export function validerCommande(donnees: unknown): Commande {
   };
 }
 
-/** Callable `estimerPrix` : prix affiché au client avant de commander. */
-export function estimer(uid: string | undefined, donnees: unknown, maintenant: Date): EstimationPrix {
+export interface EstimationServeur extends EstimationPrix {
+  /** "route" (Google Routes) ou "estimation" (secours). */
+  sourceDistance: DistanceTrajet['source'];
+}
+
+/**
+ * Callable `estimerPrix` : prix affiché au client avant de commander,
+ * sur la distance par la route ([calcul]).
+ */
+export async function estimer(
+  calcul: CalculDistance,
+  uid: string | undefined,
+  donnees: unknown,
+  maintenant: Date,
+): Promise<EstimationServeur> {
   if (!uid) throw new HttpsError('unauthenticated', 'Connectez-vous pour estimer un trajet.');
   const trajet = validerTrajet(donnees);
-  return estimerPrix(trajet.type, trajet.distanceKm, maintenant);
+  const distance = await calcul(trajet.depart, trajet.arrivee);
+  return { ...estimerPrix(trajet.type, distance.distanceKm, maintenant), sourceDistance: distance.source };
 }
 
 /**
@@ -141,6 +157,7 @@ export interface CourseCreee {
  */
 export async function creerCourse(
   db: Firestore,
+  calcul: CalculDistance,
   uid: string | undefined,
   donnees: unknown,
   maintenant: Date,
@@ -155,7 +172,9 @@ export async function creerCourse(
     throw new HttpsError('permission-denied', 'Votre compte ne permet pas de commander une course.');
   }
 
-  const estimation = estimerPrix(commande.type, commande.distanceKm, maintenant);
+  // Même calcul (et même cache) que l'estimation affichée au client.
+  const distance = await calcul(commande.depart, commande.arrivee);
+  const estimation = estimerPrix(commande.type, distance.distanceKm, maintenant);
   if (estimation.prixFcfa !== commande.prixAttendu) {
     throw new HttpsError('failed-precondition', 'Le prix de ce trajet a changé.', {
       raison: 'prix-modifie',
@@ -176,7 +195,8 @@ export async function creerCourse(
       longitudeDepart: commande.depart.longitude,
       latitudeArrivee: commande.arrivee.latitude,
       longitudeArrivee: commande.arrivee.longitude,
-      distanceKm: Math.round(commande.distanceKm * 100) / 100,
+      distanceKm: Math.round(distance.distanceKm * 100) / 100,
+      sourceDistance: distance.source,
       prixFcfa: estimation.prixFcfa,
       methodePaiement: commande.methodePaiement,
       transactionId: commande.transactionId,

@@ -1,3 +1,10 @@
+> **Mise à jour :** la recherche d'adresses (Places API New) et la
+> distance par la route (Routes API) passent désormais par les Cloud
+> Functions, avec une clé serveur rangée dans Secret Manager
+> (`GOOGLE_MAPS_API_KEY`, voir FIREBASE_SETUP.md, étape 7). Le reste de
+> ce document concerne l'affichage de la carte Google (Maps JavaScript
+> API), pas encore activé : la carte affichée reste OpenStreetMap.
+
 # Configuration Google Maps Platform — projet Sprint
 
 Ce dépôt est prêt pour Google Maps (package installé, `MapService`

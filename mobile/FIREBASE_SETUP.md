@@ -196,12 +196,18 @@ depuis la Console.
 
 ## 7. Cloud Functions : prix et création des courses (plan Blaze)
 
-Le dossier `functions/` (TypeScript) contient deux fonctions, déployées
-en `europe-west1` (même région que Firestore `eur3`) :
+Le dossier `functions/` (TypeScript) contient quatre fonctions,
+déployées en `europe-west1` (même région que Firestore `eur3`) :
 
-- `estimerPrix` : calcule le prix d'un trajet à partir des coordonnées
-  (distance, majoration heure de pointe / nuit, minimum). C'est lui que
-  l'app affiche avant la commande.
+- `estimerPrix` : calcule le prix d'un trajet à partir des coordonnées :
+  distance **par la route** (Google Routes API, mise en cache 30 jours
+  dans la collection `distances`, réservée au serveur), majoration heure
+  de pointe / nuit, minimum. Si Google ne répond pas, la distance est
+  estimée (vol d'oiseau + 10 %) pour ne jamais bloquer une commande.
+  C'est ce prix que l'app affiche avant la commande.
+- `rechercherAdresses` et `coordonneesAdresse` : recherche d'adresses
+  Google Places (API New) pour l'app, limitée au Sénégal, Dakar en
+  priorité. Si elles échouent, l'app bascule sur OpenStreetMap.
 - `creerCourse` : recalcule ce prix et crée la course. Si le prix a
   changé depuis son affichage (passage en heure de pointe…), rien n'est
   créé et l'app affiche le nouveau prix. Une commande envoyée deux fois
@@ -257,6 +263,16 @@ Alternative sans GitHub (depuis un ordinateur, CLI Firebase 15 ou plus) :
 `cd mobile && npm --prefix functions install && firebase deploy --only
 functions --project sprint-vtc && firebase deploy --only firestore:rules
 --project sprint-vtc`.
+
+### Clé Google Maps Platform
+
+Places API (New) et Routes API utilisent la clé rangée dans Secret
+Manager sous le nom `GOOGLE_MAPS_API_KEY` (restreinte à ces deux API,
+jamais présente dans l'app ni dans GitHub). Le compte `github-deploy`
+doit avoir le rôle **Administrateur Secret Manager** pour que le
+déploiement donne aux fonctions l'accès à ce secret. Pour changer de
+clé : ajouter une nouvelle version du secret dans Secret Manager, puis
+relancer le déploiement (onglet Actions > Run workflow).
 
 ### 7.2 Tests
 
