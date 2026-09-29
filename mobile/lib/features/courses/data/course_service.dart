@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../../core/firebase/fonctions_cloud.dart';
+import '../../../core/utils/flux_repris.dart';
 import '../../conducteur/data/position_chauffeur_service.dart';
 import 'position_chauffeur.dart';
 
@@ -224,6 +225,28 @@ abstract final class Commission {
   static int de(int prixFcfa) => (prixFcfa * pourcentage) ~/ 100;
 }
 
+/// Liaison chauffeur <-> client (`liaisons/{clientId}_{chauffeurId}`) :
+/// écrite par le chauffeur dans la même transaction que l'acceptation, et
+/// vérifiée contre la course par `firestore.rules`. Elle seule ouvre, tant
+/// que la course est en cours, la lecture du profil de l'autre partie
+/// (nom, véhicule, plaque, téléphone) et la messagerie : personne n'a
+/// accès à la liste des chauffeurs ni des clients.
+abstract final class Liaison {
+  static String id({required String clientId, required String chauffeurId}) => '${clientId}_$chauffeurId';
+
+  static Map<String, Object?> donnees({
+    required String clientId,
+    required String chauffeurId,
+    required String courseId,
+  }) =>
+      {
+        'clientId': clientId,
+        'chauffeurId': chauffeurId,
+        'courseId': courseId,
+        'creeLe': FieldValue.serverTimestamp(),
+      };
+}
+
 /// Motif d'annulation d'une course par le chauffeur (valeurs acceptées
 /// par la Cloud Function `annulerCourse`), ou par le serveur
 /// ([aucunChauffeur]).
@@ -380,7 +403,15 @@ class CourseService {
         if (!instantane.exists || donnees == null || donnees['statut'] != 'en_attente') {
           return false;
         }
+        final clientId = donnees['clientId'];
+        if (clientId is! String) return false;
         transaction.update(courseRef, {'chauffeurId': chauffeurId, 'statut': 'acceptee'});
+        // La liaison naît avec l'acceptation : sans elle, le client ne
+        // pourrait ni voir son chauffeur ni lui écrire.
+        transaction.set(
+          _firestore.collection('liaisons').doc(Liaison.id(clientId: clientId, chauffeurId: chauffeurId)),
+          Liaison.donnees(clientId: clientId, chauffeurId: chauffeurId, courseId: courseId),
+        );
         return true;
       });
     } catch (_) {
@@ -421,15 +452,22 @@ class CourseService {
   /// n'a rien publié ou s'il est passé hors ligne. Les règles Firestore
   /// ne l'autorisent qu'au client d'une course `acceptee` ou `en_cours`
   /// avec ce chauffeur.
+  ///
+  /// La position est EXACTE (jamais arrondie : l'arrondi à ~150 m ne
+  /// concerne que les motos anonymes de la carte des autres clients). Une
+  /// lecture refusée (course pas encore visible des règles, réseau) est
+  /// retentée toute seule, voir [fluxRepris].
   Stream<PositionChauffeurDirect?> streamPositionChauffeur(String chauffeurId) {
-    return _firestore
-        .collection(PositionChauffeurService.collection)
-        .doc(chauffeurId)
-        .snapshots()
-        .map((doc) {
-      final donnees = doc.data();
-      return donnees == null ? null : PositionChauffeurDirect.depuisDocument(doc.id, donnees);
-    });
+    return fluxRepris(
+      () => _firestore
+          .collection(PositionChauffeurService.collection)
+          .doc(chauffeurId)
+          .snapshots()
+          .map((doc) {
+        final donnees = doc.data();
+        return donnees == null ? null : PositionChauffeurDirect.depuisDocument(doc.id, donnees);
+      }),
+    );
   }
 
   /// Le chauffeur a récupéré son client (ou le colis) : `acceptee` ->

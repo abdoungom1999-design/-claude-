@@ -71,6 +71,39 @@ void main() {
     });
   });
 
+  group('Rythme du suivi en direct (pendant une course)', () {
+    final t0 = DateTime(2026, 9, 26, 10);
+
+    test('un envoi toutes les 2 s en roulant, un battement toutes les 5 s à l\'arrêt', () {
+      final limiteur = LimiteurEnvoiPosition.enCourse()..enregistrerEnvoi(t0);
+      expect(limiteur.peutEnvoyer(t0.add(const Duration(seconds: 1))), isFalse);
+      expect(limiteur.peutEnvoyer(t0.add(const Duration(seconds: 2))), isTrue);
+      expect(limiteur.battementDu(t0.add(const Duration(seconds: 4))), isFalse);
+      expect(limiteur.battementDu(t0.add(const Duration(seconds: 5))), isTrue);
+    });
+
+    test('Android : un point tous les 3 m au plus, toutes les 2 s, précision maximale', () {
+      final reglages = PositionChauffeurService.reglagesSuivi(android: true, enCourse: true) as AndroidSettings;
+      expect(reglages.distanceFilter, 3);
+      expect(reglages.intervalDuration, const Duration(seconds: 2));
+      expect(reglages.accuracy, LocationAccuracy.best);
+      // Le service de premier plan reste actif (écran verrouillé).
+      expect(reglages.foregroundNotificationConfig, isNotNull);
+    });
+
+    test('web : même finesse de déplacement', () {
+      final reglages = PositionChauffeurService.reglagesSuivi(android: false, enCourse: true);
+      expect(reglages.distanceFilter, 3);
+      expect(reglages.accuracy, LocationAccuracy.best);
+    });
+
+    test('hors course, on reste économe en batterie (10 m, toutes les 5 s)', () {
+      final reglages = PositionChauffeurService.reglagesSuivi(android: true) as AndroidSettings;
+      expect(reglages.distanceFilter, 10);
+      expect(reglages.intervalDuration, const Duration(seconds: 5));
+    });
+  });
+
   group('Suivi GPS du chauffeur en ligne', () {
     test('APK Android : service de premier plan, le GPS continue écran verrouillé', () {
       final reglages = PositionChauffeurService.reglagesSuivi(android: true);

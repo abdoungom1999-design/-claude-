@@ -74,13 +74,90 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // Profil public : le strict nécessaire pour le chat et l'appel entre
-    // client et chauffeur (nom, téléphone, rôle). "disponible" (chauffeur
-    // validé et non sanctionné) et le véhicule du chauffeur (modèle,
-    // plaque, vérifiés avec sa carte grise) ne sont écrits que par l'Admin.
+    // Liaison chauffeur <-> client : preuve qu'un chauffeur a accepté une
+    // course de ce client. Créée par le chauffeur dans la même écriture
+    // que l'acceptation et vérifiée contre la course (voir /liaisons).
+    // Elle seule ouvre l'accès au profil de l'autre et à la messagerie, et
+    // seulement tant que la course est en cours : un client ne voit et ne
+    // contacte que le chauffeur de sa course active, un chauffeur que le
+    // client de la sienne.
+    // Identifiant : "clientId_chauffeurId" (ou l'ordre inverse).
+    // ---------------------------------------------------------------
+    function courseEnCours(c) {
+      return c.statut in ['acceptee', 'en_cours'];
+    }
+
+    // Terminée depuis moins d'un jour : le client peut encore lire le nom
+    // de son chauffeur pour le noter.
+    function courseRecemmentTerminee(c) {
+      return c.statut == 'terminee'
+        && c.get('termineeLe', null) != null
+        && request.time < c.termineeLe + duration.value(1, 'd');
+    }
+
+    function aUneLiaison(a, b) {
+      return exists(/databases/$(database)/documents/liaisons/$(a + '_' + b))
+        || exists(/databases/$(database)/documents/liaisons/$(b + '_' + a));
+    }
+
+    function courseDeLiaison(a, b) {
+      let liaison = exists(/databases/$(database)/documents/liaisons/$(a + '_' + b))
+        ? get(/databases/$(database)/documents/liaisons/$(a + '_' + b)).data
+        : get(/databases/$(database)/documents/liaisons/$(b + '_' + a)).data;
+      return get(/databases/$(database)/documents/courses/$(liaison.courseId)).data;
+    }
+
+    // Contact en cours de course : messagerie.
+    function contactEnCours(a, b) {
+      return aUneLiaison(a, b) && courseEnCours(courseDeLiaison(a, b));
+    }
+
+    // Lecture du profil de l'autre : course en cours, ou tout juste terminée.
+    function contactAutorise(a, b) {
+      return aUneLiaison(a, b)
+        && (courseEnCours(courseDeLiaison(a, b)) || courseRecemmentTerminee(courseDeLiaison(a, b)));
+    }
+
+    // La liaison ne peut être écrite que par le chauffeur assigné à une
+    // course en cours de ce client (état APRÈS l'écriture : elle se fait
+    // avec l'acceptation).
+    function liaisonValide(liaison) {
+      let course = getAfter(/databases/$(database)/documents/courses/$(liaison.courseId)).data;
+      return liaison.chauffeurId == moi()
+        && course.clientId == liaison.clientId
+        && course.chauffeurId == moi()
+        && courseEnCours(course);
+    }
+
+    match /liaisons/{liaisonId} {
+      allow read: if estAdmin();
+
+      allow create, update: if connecte()
+        && request.resource.data.keys().hasOnly(['clientId', 'chauffeurId', 'courseId', 'creeLe'])
+        && request.resource.data.clientId is string
+        && request.resource.data.courseId is string
+        && liaisonId in [
+             request.resource.data.clientId + '_' + moi(),
+             moi() + '_' + request.resource.data.clientId]
+        && request.resource.data.creeLe == request.time
+        && liaisonValide(request.resource.data);
+
+      allow delete: if estAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Profil public : nom, téléphone, rôle, et pour un chauffeur son
+    // véhicule et sa note. "disponible" (chauffeur validé et non
+    // sanctionné) et le véhicule (modèle, plaque, vérifiés avec la carte
+    // grise) ne sont écrits que par l'Admin.
+    //
+    // Lecture : son propre profil, l'Admin, ou l'autre partie d'une course
+    // en cours (voir la liaison plus haut). JAMAIS de listage : aucun
+    // utilisateur ne peut parcourir la liste des chauffeurs ni des clients.
     // ---------------------------------------------------------------
     match /profils_publics/{uid} {
-      allow read: if connecte();
+      allow get: if connecte() && (moi() == uid || estAdmin() || contactAutorise(moi(), uid));
+      allow list: if estAdmin();
 
       allow create: if estAdmin()
         || (connecte() && moi() == uid
@@ -205,7 +282,19 @@ service cloud.firestore {
     // ---------------------------------------------------------------
     function clientSuitChauffeur(chauffeurUid) {
       let courseId = resource.data.get('courseId', null);
-      return courseId is string && coursePermetSuivi(courseId, chauffeurUid);
+      return (courseId is string && coursePermetSuivi(courseId, chauffeurUid))
+        || suitParLiaison(chauffeurUid);
+    }
+
+    // La liaison est écrite dans la transaction d'acceptation : le client
+    // suit son chauffeur dès la seconde où la course est acceptée, sans
+    // attendre que le téléphone du chauffeur ait republié sa position avec
+    // le courseId (sinon la première lecture du client serait refusée et
+    // son écoute Firestore s'arrêterait).
+    function suitParLiaison(chauffeurUid) {
+      let id = moi() + '_' + chauffeurUid;
+      return exists(/databases/$(database)/documents/liaisons/$(id))
+        && coursePermetSuivi(get(/databases/$(database)/documents/liaisons/$(id)).data.courseId, chauffeurUid);
     }
 
     function coursePermetSuivi(courseId, chauffeurUid) {
@@ -423,11 +512,19 @@ service cloud.firestore {
       return connecte() && moi() in chatId.split('_');
     }
 
+    // On n'écrit qu'à l'autre partie d'une course en cours ; l'historique
+    // reste lisible par ses deux participants.
+    function contactEnCoursDuChat(chatId) {
+      let ids = chatId.split('_');
+      return ids.size() == 2 && contactEnCours(ids[0], ids[1]);
+    }
+
     match /chats/{chatId} {
       allow get: if membreDuChat(chatId);
       allow list: if connecte() && moi() in resource.data.participants;
 
       allow create, update: if membreDuChat(chatId)
+        && contactEnCoursDuChat(chatId)
         && chatId.split('_').size() == 2
         && request.resource.data.participants.size() == 2
         && request.resource.data.participants.toSet() == chatId.split('_').toSet();
@@ -435,6 +532,7 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if membreDuChat(chatId);
         allow create: if membreDuChat(chatId)
+          && contactEnCoursDuChat(chatId)
           && request.resource.data.keys().hasOnly(['senderId', 'text', 'timestamp'])
           && request.resource.data.senderId == moi();
       }

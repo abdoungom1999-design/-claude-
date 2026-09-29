@@ -8,7 +8,13 @@ import '../theme/app_colors.dart';
 /// image à télécharger. Le contour blanc la détache de n'importe quel
 /// fond de carte.
 class MotoVueDessus extends StatelessWidget {
-  const MotoVueDessus({super.key, this.cap, this.taille = 38, this.couleur = AppColors.orange});
+  const MotoVueDessus({
+    super.key,
+    this.cap,
+    this.taille = 38,
+    this.couleur = AppColors.orange,
+    this.libelle = 'Moto Sprint à proximité',
+  });
 
   /// Direction de la moto ; `null` : pointée vers le nord.
   final double? cap;
@@ -19,10 +25,13 @@ class MotoVueDessus extends StatelessWidget {
   /// Couleur de la tenue du pilote (orange Sprint par défaut).
   final Color couleur;
 
+  /// Texte lu par les lecteurs d'écran.
+  final String libelle;
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Moto Sprint à proximité',
+      label: libelle,
       child: Transform.rotate(
         angle: (cap ?? 0) * math.pi / 180,
         child: CustomPaint(

@@ -1,21 +1,22 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/coming_soon_view.dart';
+import '../../../courses/data/course_service.dart';
 import '../../../messages/data/chat_service.dart';
-import '../../../messages/presentation/messagerie_chat_page.dart';
+import '../../../messages/presentation/widgets/ligne_conversation_course.dart';
 
-/// Onglet Messages du Conducteur : liste des conversations réellement
-/// en cours avec des clients (voir [ChatService.streamMesChats]),
-/// jusque-là inaccessibles côté chauffeur — seul l'écran Client pouvait
-/// discuter. Chaque ligne ouvre le même [MessagerieChatPage] temps réel
-/// que côté client (StreamBuilder Firestore, bouton d'appel compris).
+/// Onglet Messages du Conducteur : la conversation avec le client de sa
+/// course en cours, et rien d'autre (voir `firestore.rules` : on n'écrit
+/// et on ne lit le profil que de l'autre partie d'une course en cours).
+/// Le chat est le même [MessagerieChatPage] temps réel que côté client
+/// (bouton d'appel compris).
 class ConducteurMessagesTab extends StatefulWidget {
-  const ConducteurMessagesTab({super.key, this.chatService, this.monUid});
+  const ConducteurMessagesTab({super.key, this.chatService, this.courseService, this.monUid});
 
   /// Injectables pour les tests.
   final ChatService? chatService;
+  final CourseService? courseService;
   final String? monUid;
 
   @override
@@ -25,8 +26,9 @@ class ConducteurMessagesTab extends StatefulWidget {
 class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
   late final ChatService _chatService = widget.chatService ?? ChatService();
   late final String? _monUid = widget.monUid ?? FirebaseAuth.instance.currentUser?.uid;
-  late final Stream<List<Map<String, dynamic>>>? _chats =
-      _monUid == null ? null : _chatService.streamMesChats(_monUid);
+  late final Stream<CourseFirestore?>? _course = _monUid == null
+      ? null
+      : (widget.courseService ?? CourseService()).streamCourseActiveChauffeur(_monUid);
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +43,7 @@ class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
               padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  'Messages',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
+                child: Text('Messages', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               ),
             ),
             Expanded(
@@ -54,8 +53,8 @@ class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
                       titre: 'Messagerie indisponible',
                       message: 'Reconnectez-vous pour accéder à vos conversations.',
                     )
-                  : StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _chats,
+                  : StreamBuilder<CourseFirestore?>(
+                      stream: _course,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
                           return const ComingSoonView(
@@ -65,131 +64,36 @@ class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
                           );
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(color: AppColors.orange),
-                          );
+                          return const Center(child: CircularProgressIndicator(color: AppColors.orange));
                         }
-                        final chats = snapshot.data ?? [];
-                        if (chats.isEmpty) {
+                        final course = snapshot.data;
+                        if (course == null || course.clientId.isEmpty) {
                           return const ComingSoonView(
                             icon: Icons.chat_bubble_outline_rounded,
-                            titre: 'Aucune conversation',
-                            message: 'Vos échanges avec les clients apparaîtront ici.',
+                            titre: 'Aucune conversation en cours',
+                            message: 'Vous pourrez écrire à votre client dès que vous aurez accepté sa course, '
+                                'jusqu\'à la fin du trajet.',
                           );
                         }
-                        return ListView.separated(
+                        return ListView(
                           padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                          itemCount: chats.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final chat = chats[index];
-                            final participants =
-                                (chat['participants'] as List?)?.cast<String>() ?? [];
-                            final interlocuteurUid = participants.firstWhere(
-                              (uid) => uid != monUid,
-                              orElse: () => '',
-                            );
-                            if (interlocuteurUid.isEmpty) return const SizedBox.shrink();
-                            return _LigneConversation(
+                          children: [
+                            LigneConversationCourse(
+                              key: ValueKey(course.id),
                               chatService: _chatService,
-                              interlocuteurUid: interlocuteurUid,
-                              dernierMessage: chat['dernierMessage'] as String? ?? '',
-                            );
-                          },
+                              monUid: monUid,
+                              interlocuteurUid: course.clientId,
+                              nomParDefaut: 'Votre client',
+                              sousTitre: 'Client Sprint',
+                              detailCourse: 'Course en cours · ${course.adresseDepart}',
+                            ),
+                          ],
                         );
                       },
                     ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _LigneConversation extends StatefulWidget {
-  const _LigneConversation({
-    required this.chatService,
-    required this.interlocuteurUid,
-    required this.dernierMessage,
-  });
-
-  final ChatService chatService;
-  final String interlocuteurUid;
-  final String dernierMessage;
-
-  @override
-  State<_LigneConversation> createState() => _LigneConversationState();
-}
-
-class _LigneConversationState extends State<_LigneConversation> {
-  String? _nom;
-
-  @override
-  void initState() {
-    super.initState();
-    _chargerProfil();
-  }
-
-  Future<void> _chargerProfil() async {
-    final profil = await widget.chatService.chargerProfil(widget.interlocuteurUid);
-    if (mounted) setState(() => _nom = profil?['nom'] as String?);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final nomAffiche = _nom ?? 'Client Sprint';
-
-    return AppCard(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => MessagerieChatPage(
-            interlocuteurUid: widget.interlocuteurUid,
-            interlocuteurNom: nomAffiche,
-            interlocuteurSousTitre: 'Client Sprint',
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.orange, AppColors.orangeDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              nomAffiche.isNotEmpty ? nomAffiche[0].toUpperCase() : '?',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  nomAffiche,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.dernierMessage,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppColors.grey),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
-        ],
       ),
     );
   }

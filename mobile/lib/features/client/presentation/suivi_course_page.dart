@@ -11,7 +11,10 @@ import '../../evaluations/presentation/evaluation_course.dart';
 import '../../messages/data/chat_service.dart';
 import '../../messages/data/detecteur_nouveaux_messages.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
+import 'package:latlong2/latlong.dart';
+import '../../../core/maps/proximite_service.dart';
 import 'widgets/carte_chauffeur.dart';
+import 'widgets/carte_recherche.dart';
 import 'widgets/suivi_approche.dart';
 
 /// Suivi temps réel d'une course, depuis sa création jusqu'à
@@ -32,6 +35,7 @@ class SuiviCoursePage extends StatefulWidget {
     this.chatService,
     this.monUid,
     this.coucheFond,
+    this.proximite,
   });
 
   final String courseId;
@@ -43,6 +47,9 @@ class SuiviCoursePage extends StatefulWidget {
 
   /// Fond de la carte de suivi ; par défaut celui de l'app.
   final Widget? coucheFond;
+
+  /// Motos alentour affichées pendant la recherche d'un chauffeur.
+  final ProximiteService? proximite;
 
   @override
   State<SuiviCoursePage> createState() => _SuiviCoursePageState();
@@ -90,6 +97,8 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
                   course: course,
                   enCours: _annulationEnCours,
                   onAnnuler: _annuler,
+                  proximite: widget.proximite,
+                  coucheFond: widget.coucheFond,
                 );
               case 'terminee':
                 // Fin de course : le client note son chauffeur.
@@ -112,25 +121,41 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
 }
 
 class _EtatRecherche extends StatelessWidget {
-  const _EtatRecherche({required this.course, required this.enCours, required this.onAnnuler});
+  const _EtatRecherche({
+    required this.course,
+    required this.enCours,
+    required this.onAnnuler,
+    this.proximite,
+    this.coucheFond,
+  });
 
   final CourseFirestore course;
   final bool enCours;
   final VoidCallback onAnnuler;
+  final ProximiteService? proximite;
+  final Widget? coucheFond;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(28),
+    final points = course.points;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(
-            width: 64,
-            height: 64,
-            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.orange),
+          // Les motos disponibles autour du point de prise en charge
+          // gardent la carte vivante pendant l'attente.
+          CarteRecherche(
+            priseEnCharge: points == null ? null : LatLng(points.latitudeDepart, points.longitudeDepart),
+            proximite: proximite,
+            coucheFond: coucheFond,
           ),
           const SizedBox(height: 28),
+          const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.orange),
+          ),
+          const SizedBox(height: 20),
           const Text(
             "Recherche d'un chauffeur…",
             textAlign: TextAlign.center,
@@ -143,7 +168,7 @@ class _EtatRecherche extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.5),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           OutlinedButton(
             onPressed: enCours ? null : onAnnuler,
             style: OutlinedButton.styleFrom(

@@ -66,6 +66,22 @@ beforeEach(async () => {
 });
 
 const en = (uid) => env.authenticatedContext(uid, { email: `${uid}@test.sn` }).firestore();
+
+/**
+ * Le chauffeur "chauffeur" a accepté la course "ca" du client "client"
+ * (avec sa liaison), dans l'état demandé. Réécrit la course : peut
+ * être rappelée dans un test pour la faire évoluer.
+ */
+async function poserCourseAcceptee(extra = {}, { courseId = 'ca', client = 'client', chauffeur = 'chauffeur' } = {}) {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'courses', courseId), {
+      clientId: client, chauffeurId: chauffeur, statut: 'acceptee', prixFcfa: 2000, ...extra,
+    });
+    await setDoc(doc(db, 'liaisons', `${client}_${chauffeur}`), { clientId: client, chauffeurId: chauffeur, courseId });
+    await setDoc(doc(db, 'profils_publics', client), { nom: 'Awa Ndiaye', telephone: TEL_CLIENT, role: 'client' });
+  });
+}
 const anonyme = () => env.unauthenticatedContext().firestore();
 
 describe('users (profil privé)', () => {
@@ -155,10 +171,8 @@ describe('profils_publics', () => {
     await assertFails(updateDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'), { disponible: false }));
   });
 
-  test('lecture par un utilisateur connecté (chat, appel) : acceptée ; non connecté : refusée', async () => {
-    await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
-    await assertSucceeds(getDocs(query(collection(en('client'), 'profils_publics'),
-      where('role', '==', 'conducteur'), where('disponible', '==', true))));
+  test('lire son propre profil : accepté ; non connecté : refusé', async () => {
+    await assertSucceeds(getDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur')));
     await assertFails(getDoc(doc(anonyme(), 'profils_publics', 'chauffeur')));
   });
 
@@ -554,6 +568,46 @@ describe('suivi d\'approche (client)', () => {
     await assertFails(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
   });
 
+  test('dès l\'acceptation : lisible via la liaison, même si la position n\'a pas encore de courseId', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'liaisons', 'client_chauffeur'), { clientId: 'client', chauffeurId: 'chauffeur', courseId: 'c2' });
+      // Position publiée avant l'acceptation : aucun courseId.
+      await setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44 });
+    });
+    await assertSucceeds(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
+  });
+
+  test('la liaison ne donne ni au mauvais client, ni après la course, ni sur le listage', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'liaisons', 'client_chauffeur'), { clientId: 'client', chauffeurId: 'chauffeur', courseId: 'c2' });
+      await setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44 });
+    });
+    // Un autre client n'a aucune liaison avec ce chauffeur.
+    await assertFails(getDoc(doc(en('autreClient'), 'positions_chauffeurs', 'chauffeur')));
+    // Le chauffeur d'une autre course n'est pas visible non plus.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'positions_chauffeurs', 'autreChauffeur'), { latitude: 14.7, longitude: -17.4 });
+    });
+    await assertFails(getDoc(doc(en('client'), 'positions_chauffeurs', 'autreChauffeur')));
+    await assertFails(getDocs(collection(en('client'), 'positions_chauffeurs')));
+    // Course terminée : la liaison (qui reste) ne suffit plus.
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'courses', 'c2'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee' }));
+    await assertFails(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
+  });
+
+  test('liaison pointant vers une course d\'un autre chauffeur : aucun suivi', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'courses', 'c9'), { clientId: 'client', chauffeurId: 'autreChauffeur', statut: 'en_cours' });
+      await setDoc(doc(db, 'liaisons', 'client_chauffeur'), { clientId: 'client', chauffeurId: 'chauffeur', courseId: 'c9' });
+      await setDoc(doc(db, 'positions_chauffeurs', 'chauffeur'), { latitude: 14.69, longitude: -17.44 });
+    });
+    await assertFails(getDoc(doc(en('client'), 'positions_chauffeurs', 'chauffeur')));
+  });
+
   test('position pas encore publiée : lecture possible (document vide), pas de listage', async () => {
     await assertSucceeds(getDoc(doc(en('client'), 'positions_chauffeurs', 'inconnu')));
     await assertFails(getDocs(collection(en('client'), 'positions_chauffeurs')));
@@ -719,6 +773,9 @@ describe('finances', () => {
 describe('chats', () => {
   const chatId = ['chauffeur', 'client'].sort().join('_');
 
+  // Le chauffeur a accepté une course du client : c'est ce qui ouvre la conversation.
+  beforeEach(() => poserCourseAcceptee());
+
   test('un participant crée le chat et envoie un message : accepté', async () => {
     const db = en('client');
     await assertSucceeds(setDoc(doc(db, 'chats', chatId), { participants: ['client', 'chauffeur'], dernierMessage: 'Bonjour' }, { merge: true }));
@@ -744,5 +801,216 @@ describe('chats', () => {
 
   test('lister ses propres conversations : accepté', async () => {
     await assertSucceeds(getDocs(query(collection(en('chauffeur'), 'chats'), where('participants', 'array-contains', 'chauffeur'))));
+  });
+
+  test('course terminée, annulée ou sans liaison : on ne peut plus écrire, l\'historique reste lisible', async () => {
+    await assertSucceeds(addDoc(collection(en('client'), 'chats', chatId, 'messages'), { senderId: 'client', text: 'Bonjour' }));
+    await poserCourseAcceptee({ statut: 'terminee', termineeLe: new Date() });
+    await assertFails(addDoc(collection(en('client'), 'chats', chatId, 'messages'), { senderId: 'client', text: 'Encore là ?' }));
+    await assertFails(addDoc(collection(en('chauffeur'), 'chats', chatId, 'messages'), { senderId: 'chauffeur', text: 'Oui' }));
+    await assertFails(setDoc(doc(en('client'), 'chats', chatId), { participants: ['client', 'chauffeur'], dernierMessage: 'x' }, { merge: true }));
+    await assertSucceeds(getDocs(collection(en('client'), 'chats', chatId, 'messages')));
+
+    await poserCourseAcceptee({ statut: 'annulee' });
+    await assertFails(addDoc(collection(en('client'), 'chats', chatId, 'messages'), { senderId: 'client', text: 'x' }));
+  });
+
+  test('aucune conversation avec un chauffeur qui n\'a pas de course en cours avec soi', async () => {
+    // "client" n'a jamais eu de course avec "suspendu" (ni avec aucun autre chauffeur).
+    const autre = ['client', 'suspendu'].sort().join('_');
+    await assertFails(setDoc(doc(en('client'), 'chats', autre), { participants: ['client', 'suspendu'], dernierMessage: 'x' }, { merge: true }));
+    await assertFails(addDoc(collection(en('client'), 'chats', autre, 'messages'), { senderId: 'client', text: 'x' }));
+    // Ni un autre client avec le chauffeur de "client".
+    const intrus = ['autreClient', 'chauffeur'].sort().join('_');
+    await assertFails(addDoc(collection(en('autreClient'), 'chats', intrus, 'messages'), { senderId: 'autreClient', text: 'x' }));
+  });
+});
+
+// ---------------------------------------------------------------------
+// Confidentialité : un client ne voit et ne contacte que le chauffeur de
+// sa course en cours (et inversement). Aucune liste de chauffeurs.
+// ---------------------------------------------------------------------
+describe('confidentialité : contact limité à la course en cours', () => {
+  const JOUR = 24 * 3600 * 1000;
+
+  describe('profils publics', () => {
+    beforeEach(async () => {
+      await poserCourseAcceptee();
+      // Un autre client avec un autre chauffeur (course en cours aussi).
+      await env.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), 'profils_publics', 'suspendu'), { nom: 'Ibou', telephone: '+221770000077', role: 'conducteur' }));
+      await poserCourseAcceptee({}, { courseId: 'cb', client: 'autreClient', chauffeur: 'suspendu' });
+    });
+
+    test('aucune liste de chauffeurs ni de clients : refusée à tous, sauf à l\'admin', async () => {
+      const chauffeurs = (db) => getDocs(query(collection(db, 'profils_publics'), where('role', '==', 'conducteur'), where('disponible', '==', true)));
+      await assertFails(chauffeurs(en('client')));
+      await assertFails(chauffeurs(en('autreClient')));
+      await assertFails(chauffeurs(en('chauffeur')));
+      await assertFails(getDocs(collection(en('client'), 'profils_publics')));
+      await assertFails(getDocs(collection(en('chauffeur'), 'profils_publics')));
+      await assertFails(getDocs(collection(anonyme(), 'profils_publics')));
+      await assertSucceeds(chauffeurs(en('admin')));
+    });
+
+    test('le client lit le chauffeur de sa course en cours, et le chauffeur son client', async () => {
+      await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+      await assertSucceeds(getDoc(doc(en('chauffeur'), 'profils_publics', 'client')));
+    });
+
+    test('client à bord : l\'accès continue', async () => {
+      await poserCourseAcceptee({ statut: 'en_cours' });
+      await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+    });
+
+    test('un autre chauffeur ou un autre client, même en connaissant l\'identifiant : refusé', async () => {
+      await assertFails(getDoc(doc(en('autreClient'), 'profils_publics', 'chauffeur')));
+      await assertFails(getDoc(doc(en('client'), 'profils_publics', 'suspendu')));
+      await assertFails(getDoc(doc(en('suspendu'), 'profils_publics', 'client')));
+      await assertFails(getDoc(doc(en('enAttente'), 'profils_publics', 'client')));
+      await assertFails(getDoc(doc(anonyme(), 'profils_publics', 'chauffeur')));
+    });
+
+    test('sans course : un client qui n\'a jamais commandé ne voit personne', async () => {
+      await env.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), 'users', 'nouveau'), { role: 'client', email: 'nouveau@test.sn' }));
+      await assertFails(getDoc(doc(en('nouveau'), 'profils_publics', 'chauffeur')));
+    });
+
+    test('course annulée : accès retiré aussitôt', async () => {
+      await poserCourseAcceptee({ statut: 'annulee' });
+      await assertFails(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+      await assertFails(getDoc(doc(en('chauffeur'), 'profils_publics', 'client')));
+    });
+
+    test('course terminée : un jour de grâce (pour noter), puis plus rien', async () => {
+      await poserCourseAcceptee({ statut: 'terminee', termineeLe: new Date() });
+      await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+      await poserCourseAcceptee({ statut: 'terminee', termineeLe: new Date(Date.now() - 3 * JOUR) });
+      await assertFails(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+      await assertFails(getDoc(doc(en('chauffeur'), 'profils_publics', 'client')));
+      // Course terminée sans date de fin (donnée ancienne) : pas d'accès.
+      await poserCourseAcceptee({ statut: 'terminee' });
+      await assertFails(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+    });
+
+    test('noter son chauffeur ne demande aucune lecture de son profil', async () => {
+      await poserCourseAcceptee({ statut: 'terminee', termineeLe: new Date(Date.now() - 3 * JOUR) });
+      const db = en('client');
+      const lot = writeBatch(db);
+      lot.set(doc(db, 'evaluations', 'ca'), {
+        courseId: 'ca', chauffeurId: 'chauffeur', clientId: 'client', note: 5, creeLe: serverTimestamp(),
+      });
+      lot.update(doc(db, 'profils_publics', 'chauffeur'), {
+        noteSomme: increment(5), noteNombre: increment(1), derniereEvaluation: 'ca',
+      });
+      await assertSucceeds(lot.commit());
+    });
+
+    test('l\'admin lit n\'importe quel profil', async () => {
+      await assertSucceeds(getDoc(doc(en('admin'), 'profils_publics', 'chauffeur')));
+      await assertSucceeds(getDoc(doc(en('admin'), 'profils_publics', 'client')));
+    });
+  });
+
+  describe('liaison créée par le chauffeur à l\'acceptation', () => {
+    const liaison = (extra = {}) => ({
+      clientId: 'client', chauffeurId: 'chauffeur', courseId: 'c1', creeLe: serverTimestamp(), ...extra,
+    });
+    const accepter = (donneesLiaison, idLiaison = 'client_chauffeur') => {
+      const db = en('chauffeur');
+      const lot = writeBatch(db);
+      lot.update(doc(db, 'courses', 'c1'), { statut: 'acceptee', chauffeurId: 'chauffeur' });
+      lot.set(doc(db, 'liaisons', idLiaison), donneesLiaison);
+      return lot.commit();
+    };
+
+    test('acceptation + liaison dans la même écriture : accepté, le client voit alors son chauffeur', async () => {
+      await assertSucceeds(accepter(liaison()));
+      await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+      await assertSucceeds(getDoc(doc(en('chauffeur'), 'profils_publics', 'client')));
+      const chatId = ['chauffeur', 'client'].sort().join('_');
+      await assertSucceeds(addDoc(collection(en('client'), 'chats', chatId, 'messages'), { senderId: 'client', text: 'Bonjour' }));
+    });
+
+    test('acceptation par transaction, exactement comme l\'app : lecture, mise à jour, liaison', async () => {
+      const db = en('chauffeur');
+      const course = doc(db, 'courses', 'c1');
+      const accepte = await runTransaction(db, async (transaction) => {
+        const instantane = await transaction.get(course);
+        if (instantane.data().statut !== 'en_attente') return false;
+        transaction.update(course, { chauffeurId: 'chauffeur', statut: 'acceptee' });
+        transaction.set(doc(db, 'liaisons', `${instantane.data().clientId}_chauffeur`), liaison());
+        return true;
+      });
+      if (!accepte) throw new Error('transaction refusée');
+      await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+      await assertSucceeds(getDoc(doc(en('chauffeur'), 'profils_publics', 'client')));
+    });
+
+    test('l\'ordre inverse de l\'identifiant fonctionne aussi', async () => {
+      await assertSucceeds(accepter(liaison(), 'chauffeur_client'));
+      await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+    });
+
+    test('accepter sans liaison ne donne aucun accès', async () => {
+      await assertSucceeds(updateDoc(doc(en('chauffeur'), 'courses', 'c1'), { statut: 'acceptee', chauffeurId: 'chauffeur' }));
+      await assertFails(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+    });
+
+    test('nouvelle course avec le même client : la liaison se met à jour', async () => {
+      await poserCourseAcceptee({ statut: 'terminee', termineeLe: new Date(Date.now() - 3 * JOUR) });
+      await assertFails(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+      await assertSucceeds(accepter(liaison()));
+      await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+    });
+
+    test('un client ne peut pas se créer de liaison, ni un chauffeur pour la course d\'un autre', async () => {
+      await assertFails(setDoc(doc(en('client'), 'liaisons', 'client_chauffeur'), liaison()));
+      await assertFails(setDoc(doc(en('client'), 'liaisons', 'client_suspendu'), liaison({ chauffeurId: 'suspendu' })));
+      // Course déjà prise par un autre chauffeur.
+      await env.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), 'courses', 'c1'), { clientId: 'client', chauffeurId: 'suspendu', statut: 'acceptee', prixFcfa: 2000 }));
+      await assertFails(setDoc(doc(en('chauffeur'), 'liaisons', 'client_chauffeur'), liaison()));
+    });
+
+    test('liaison forgée : mauvais client, mauvaise course, mauvais identifiant, champ en trop, date truquée', async () => {
+      await assertFails(accepter(liaison({ clientId: 'autreClient' }), 'autreClient_chauffeur'));
+      await assertFails(accepter(liaison({ courseId: 'inexistante' })));
+      await assertFails(accepter(liaison(), 'client_suspendu'));
+      await assertFails(accepter(liaison(), 'autreClient_chauffeur'));
+      await assertFails(accepter(liaison({ role: 'admin' })));
+      await assertFails(accepter(liaison({ creeLe: new Date('2020-01-01') })));
+      await assertFails(accepter(liaison({ chauffeurId: 'suspendu' })));
+    });
+
+    test('pas de liaison pour une course terminée, annulée ou encore en attente', async () => {
+      for (const statut of ['terminee', 'annulee']) {
+        await env.withSecurityRulesDisabled((ctx) =>
+          setDoc(doc(ctx.firestore(), 'courses', 'c1'), { clientId: 'client', chauffeurId: 'chauffeur', statut, prixFcfa: 2000 }));
+        await assertFails(setDoc(doc(en('chauffeur'), 'liaisons', 'client_chauffeur'), liaison()));
+      }
+      // c1 revient en attente, sans chauffeur : personne ne peut s'y lier sans l'accepter.
+      await env.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), 'courses', 'c1'), { clientId: 'client', chauffeurId: null, statut: 'en_attente', prixFcfa: 2000 }));
+      await assertFails(setDoc(doc(en('chauffeur'), 'liaisons', 'client_chauffeur'), liaison()));
+    });
+
+    test('un chauffeur suspendu ne peut pas accepter donc ne peut pas se lier', async () => {
+      const db = en('suspendu');
+      const lot = writeBatch(db);
+      lot.update(doc(db, 'courses', 'c1'), { statut: 'acceptee', chauffeurId: 'suspendu' });
+      lot.set(doc(db, 'liaisons', 'client_suspendu'), liaison({ chauffeurId: 'suspendu' }));
+      await assertFails(lot.commit());
+    });
+
+    test('les liaisons ne sont lisibles que par l\'admin', async () => {
+      await assertSucceeds(accepter(liaison()));
+      await assertFails(getDoc(doc(en('client'), 'liaisons', 'client_chauffeur')));
+      await assertFails(getDoc(doc(en('chauffeur'), 'liaisons', 'client_chauffeur')));
+      await assertFails(getDocs(collection(en('client'), 'liaisons')));
+      await assertSucceeds(getDoc(doc(en('admin'), 'liaisons', 'client_chauffeur')));
+      await assertFails(deleteDoc(doc(en('client'), 'liaisons', 'client_chauffeur')));
+    });
   });
 });

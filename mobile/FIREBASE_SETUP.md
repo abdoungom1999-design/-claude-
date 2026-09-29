@@ -139,16 +139,29 @@ depuis la Console.
   dossier "en attente", sans jamais pouvoir le passer à "validé".
   `statutValidation` (validé / rejeté), `statutCompte`, `estValide` et
   `role` ne sont modifiables que par l'Admin.
-- `profils_publics/{uid}` : nom, téléphone et rôle, lisibles par les
-  utilisateurs connectés ; `disponible` (chauffeur validé et non
+- `profils_publics/{uid}` : nom, téléphone, rôle, véhicule et plaque.
+  Lecture **document par document** : par son propriétaire, l'Admin, ou
+  l'autre partie d'une course en cours (voir `liaisons`). **Aucun
+  listage** : un client ne peut pas énumérer les chauffeurs, ni un
+  chauffeur les clients. `disponible` (chauffeur validé et non
   sanctionné) n'est écrit que par l'Admin.
+- `liaisons/{clientId}_{chauffeurId}` : preuve qu'un chauffeur a accepté
+  la course d'un client. Écrite par le chauffeur dans la transaction
+  d'acceptation, et acceptée par les règles seulement si la course
+  correspondante (`getAfter`) est bien à lui, pour ce client, `acceptee`
+  ou `en_cours`. Sert de clé aux règles de profils, de chat et de suivi
+  GPS. Lecture Admin uniquement. Un client ne voit et ne contacte que le
+  chauffeur de sa course active (l'identité reste lisible 1 jour après
+  la course, pour la noter).
 - `annuaire_telephones` : lecture d'une entrée précise possible avant
   connexion (connexion par téléphone), mais aucun listage possible.
 - `courses` : un client ne crée et ne liste que ses propres demandes,
   sans pouvoir s'attribuer un chauffeur ni antidater ; seuls les chauffeurs validés
   et non sanctionnés voient et acceptent les courses en attente.
-- `chats` : lecture et écriture réservées aux deux participants, sans
-  usurpation d'expéditeur.
+- `chats` : lecture réservée aux deux participants ; création et envoi
+  de messages seulement pendant leur course en cours (`liaisons`), sans
+  usurpation d'expéditeur. Après la course, la conversation reste
+  lisible mais plus rien ne peut être envoyé.
 - `evaluations` : une par course, laissée par le client d'une course
   terminée, jamais modifiable ; la note moyenne du chauffeur (profil
   public) est mise à jour dans la même écriture et ne peut augmenter que
@@ -156,7 +169,15 @@ depuis la Console.
 - `positions_chauffeurs` : position GPS des chauffeurs en ligne, publiée
   par le chauffeur validé lui-même, lisible par l'Admin (carte "Courses
   en direct") et par le client uniquement pendant SA course avec ce
-  chauffeur (suivi d'approche) ; effacée quand il passe hors ligne.
+  chauffeur (suivi d'approche), dès l'acceptation (via `liaisons`, sans
+  attendre que le téléphone du chauffeur ait republié sa position) ;
+  effacée quand il passe hors ligne. **La position lue par le client de
+  la course est exacte (jamais arrondie)** ; le chauffeur publie toutes
+  les ~2 s pendant une course (un point tous les 3 m, et un battement
+  toutes les 5 s même à l'arrêt) ; hors course : 5 s / 10 m. Seule la
+  carte d'accueil (motos anonymes, autres clients) passe par l'arrondi
+  à ~150 m de `chauffeursProches`, qui exclut d'ailleurs les chauffeurs
+  en course.
   L'accueil client ne la lit jamais directement : la Cloud Function
   `chauffeursProches` ne renvoie que des positions arrondies à ~150 m,
   sans identité.

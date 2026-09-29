@@ -11,11 +11,20 @@ import '../../../core/location/maintien_ecran.dart';
 /// [intervalleMin] quand le chauffeur roule, et au moins un toutes les
 /// [battementCoeur] même immobile, pour que l'Admin distingue un
 /// chauffeur à l'arrêt d'un chauffeur dont le signal est perdu.
+///
+/// Pendant une course, le client suit son chauffeur en direct : le rythme
+/// passe à [enCourse] (2 s, et un envoi même à l'arrêt toutes les 5 s pour
+/// que le client voie le signal vivant).
 class LimiteurEnvoiPosition {
   LimiteurEnvoiPosition({
     this.intervalleMin = const Duration(seconds: 5),
     this.battementCoeur = const Duration(seconds: 30),
   });
+
+  /// Rythme du suivi en direct, pendant une course.
+  LimiteurEnvoiPosition.enCourse()
+      : intervalleMin = const Duration(seconds: 2),
+        battementCoeur = const Duration(seconds: 5);
 
   final Duration intervalleMin;
   final Duration battementCoeur;
@@ -50,7 +59,7 @@ class LimiteurEnvoiPosition {
 class PositionChauffeurService {
   static const collection = 'positions_chauffeurs';
 
-  final _limiteur = LimiteurEnvoiPosition();
+  var _limiteur = LimiteurEnvoiPosition();
   final _maintienEcran = MaintienEcran();
   StreamSubscription<Position>? _flux;
   Timer? _minuteurBattement;
@@ -64,11 +73,26 @@ class PositionChauffeurService {
   /// À appeler à chaque changement de course active (`null` quand il
   /// n'en a plus). Republie aussitôt la position pour ouvrir ou fermer
   /// le suivi côté client sans attendre le prochain déplacement.
+  ///
+  /// Pendant une course, le GPS est relu et publié au rythme du suivi en
+  /// direct (voir [LimiteurEnvoiPosition.enCourse]) ; hors course, retour
+  /// au rythme économe en batterie.
   void definirCourse(String? courseId) {
     if (courseId == _courseId) return;
+    final avait = _courseId != null;
     _courseId = courseId;
+    if (_uid != null && avait != (courseId != null)) _lancerFlux();
     final position = _derniere;
     if (position != null) _envoyer(position, DateTime.now());
+  }
+
+  bool get _enCourse => _courseId != null;
+
+  void _lancerFlux() {
+    _flux?.cancel();
+    _limiteur = _enCourse ? LimiteurEnvoiPosition.enCourse() : LimiteurEnvoiPosition();
+    _flux = Geolocator.getPositionStream(locationSettings: reglagesSuivi(android: _android, enCourse: _enCourse))
+        .listen(_surPosition, onError: (_) {});
   }
 
   Future<void> demarrer() async {
@@ -76,11 +100,9 @@ class PositionChauffeurService {
     if (uid == null) return;
     _annulerSuivi();
     _uid = uid;
-    _limiteur.reinitialiser();
 
-    _flux = Geolocator.getPositionStream(locationSettings: reglagesSuivi(android: _android))
-        .listen(_surPosition, onError: (_) {});
-    _minuteurBattement = Timer.periodic(const Duration(seconds: 10), (_) => _surBattement());
+    _lancerFlux();
+    _minuteurBattement = Timer.periodic(const Duration(seconds: 2), (_) => _surBattement());
     unawaited(_maintienEcran.activer());
 
     // Premier point tout de suite, sans attendre un déplacement de 10 m.
@@ -162,11 +184,16 @@ class PositionChauffeurService {
   /// Réglages du suivi GPS. Sur Android, service de premier plan : sans
   /// lui, le système coupe le GPS de l'app dès que l'écran se verrouille.
   @visibleForTesting
-  static LocationSettings reglagesSuivi({required bool android}) {
-    if (!android) return const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10);
+  static LocationSettings reglagesSuivi({required bool android, bool enCourse = false}) {
+    // Pendant une course : un point tous les ~3 m (la moto avance
+    // "mètre par mètre" sous les yeux du client) ; sinon 10 m.
+    final filtre = enCourse ? 3 : 10;
+    final precision = enCourse ? LocationAccuracy.best : LocationAccuracy.high;
+    if (!android) return LocationSettings(accuracy: precision, distanceFilter: filtre);
     return AndroidSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
+      accuracy: precision,
+      distanceFilter: filtre,
+      intervalDuration: Duration(seconds: enCourse ? 2 : 5),
       foregroundNotificationConfig: const ForegroundNotificationConfig(
         notificationTitle: 'Sprint : vous êtes en ligne',
         notificationText: 'Votre position est partagée pour recevoir des courses. Passez hors ligne pour l\'arrêter.',

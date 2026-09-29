@@ -36,10 +36,12 @@ class ChatMessageFirestore {
 /// Architecture : une collection `chats`, un document par paire
 /// d'utilisateurs (identifiant déterministe, voir [chatIdEntre]),
 /// chacun portant une sous-collection `messages` (`senderId`, `text`,
-/// `timestamp`) écoutée en temps réel par [streamMessages]. Pas de
-/// dépendance à une course particulière : le fil de discussion entre
-/// deux utilisateurs reste le même d'une course à l'autre, comme sur
-/// WhatsApp.
+/// `timestamp`) écoutée en temps réel par [streamMessages].
+///
+/// Confidentialité : on n'écrit qu'à l'autre partie d'une course en cours
+/// (voir [Liaison] et `firestore.rules`), et on ne peut lire le profil de
+/// quelqu'un que dans ce cadre. Il n'existe aucune liste de chauffeurs
+/// ni de clients à parcourir.
 class ChatService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   FirebaseAuth get _auth => FirebaseAuth.instance;
@@ -115,61 +117,13 @@ class ChatService {
     });
   }
 
-  /// Charge le profil public (nom, téléphone, rôle) d'un utilisateur —
-  /// utilisé pour l'en-tête du chat et pour récupérer le vrai numéro
-  /// de téléphone de l'interlocuteur avant de lancer un appel. Lit
-  /// `profils_publics` : le document `users` d'un autre utilisateur
-  /// est privé (voir `firestore.rules`).
+  /// Charge le profil public (nom, téléphone, véhicule, note) de l'autre
+  /// partie d'une course en cours (ou de soi-même). Ailleurs, les règles
+  /// refusent : `FirebaseException` `permission-denied`. Lit
+  /// `profils_publics` : le document `users` d'un autre utilisateur est
+  /// privé (voir `firestore.rules`).
   Future<Map<String, dynamic>?> chargerProfil(String uid) async {
     final doc = await _firestore.collection('profils_publics').doc(uid).get();
     return doc.data();
-  }
-
-  /// Chauffeurs validés et non sanctionnés (`disponible`, tenu à jour
-  /// par l'Admin, voir `AdminKycService`), pour peupler l'onglet
-  /// Messages avec de vrais interlocuteurs (au lieu d'une liste de
-  /// conversations simulées).
-  Stream<List<Map<String, dynamic>>> streamConducteursDisponibles() {
-    return _firestore
-        .collection('profils_publics')
-        .where('role', isEqualTo: 'conducteur')
-        .where('disponible', isEqualTo: true)
-        .snapshots()
-        .map(
-          (instantane) =>
-              instantane.docs.map((doc) => {'uid': doc.id, ...doc.data()}).toList(),
-        );
-  }
-
-  /// Flux des conversations réelles auxquelles [monUid] participe déjà
-  /// (au moins un message échangé), du plus récemment actif au plus
-  /// ancien — utilisé par l'onglet Messages du Conducteur pour lister
-  /// les clients avec qui discuter, à la façon d'une boîte de réception
-  /// WhatsApp plutôt que d'un simple annuaire.
-  ///
-  /// Tri fait ici plutôt que par Firestore : un `orderBy` combiné au
-  /// filtre `participants` exigeait un index composite qui, tant qu'il
-  /// n'était pas créé dans la Console, faisait échouer la requête — et
-  /// la boîte de réception du chauffeur restait vide.
-  Stream<List<Map<String, dynamic>>> streamMesChats(String monUid) {
-    return _firestore
-        .collection('chats')
-        .where('participants', arrayContains: monUid)
-        .snapshots()
-        .map((instantane) => trierParActivite([
-              for (final doc in instantane.docs) {'id': doc.id, ...doc.data()},
-            ]));
-  }
-
-  /// Conversation la plus récemment active en premier ; celle dont
-  /// l'horodatage serveur est encore en attente (message tout juste
-  /// envoyé) passe devant.
-  static List<Map<String, dynamic>> trierParActivite(List<Map<String, dynamic>> chats) {
-    DateTime date(Map<String, dynamic> chat) {
-      final valeur = chat['misAJourLe'];
-      return valeur is Timestamp ? valeur.toDate() : DateTime(9999);
-    }
-
-    return chats..sort((a, b) => date(b).compareTo(date(a)));
   }
 }

@@ -1,7 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sprint/features/conducteur/presentation/tabs/conducteur_messages_tab.dart';
 import 'package:sprint/features/conducteur/presentation/widgets/course_active_bandeau.dart';
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/messages/data/chat_service.dart';
@@ -22,19 +20,6 @@ final _course = CourseFirestore(
   methodePaiement: 'WAVE',
   timestamp: DateTime(2026, 9, 27),
 );
-
-class _ChatFactice extends ChatService {
-  _ChatFactice(this.flux);
-
-  final Stream<List<Map<String, dynamic>>> flux;
-
-  @override
-  Stream<List<Map<String, dynamic>>> streamMesChats(String monUid) => flux;
-
-  @override
-  Future<Map<String, dynamic>?> chargerProfil(String uid) async =>
-      {'awa': {'nom': 'Awa Ndiaye'}, 'fatou': {'nom': 'Fatou Sarr'}}[uid];
-}
 
 void main() {
   group('Nouveaux messages du client', () {
@@ -91,48 +76,6 @@ void main() {
       expect(pastille().isLabelVisible, isTrue);
       await tester.tap(find.text('Message'));
       expect(appels.last, 'message');
-    });
-  });
-
-  group('Boîte de réception du chauffeur', () {
-    testWidgets('liste les conversations avec les clients, la plus récente en premier', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: ConducteurMessagesTab(
-          monUid: 'moussa',
-          chatService: _ChatFactice(Stream.value(ChatService.trierParActivite([
-            {'id': 'fatou_moussa', 'participants': ['fatou', 'moussa'], 'dernierMessage': 'Merci !',
-              'misAJourLe': Timestamp.fromDate(DateTime(2026, 9, 20))},
-            {'id': 'awa_moussa', 'participants': ['moussa', 'awa'], 'dernierMessage': 'Bonjour',
-              'misAJourLe': Timestamp.fromDate(DateTime(2026, 9, 27))},
-          ]))),
-        ),
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Awa Ndiaye'), findsOneWidget);
-      expect(find.text('Bonjour'), findsOneWidget);
-      expect(find.text('Fatou Sarr'), findsOneWidget);
-      expect(tester.getTopLeft(find.text('Awa Ndiaye')).dy, lessThan(tester.getTopLeft(find.text('Fatou Sarr')).dy));
-    });
-
-    testWidgets('lecture impossible : message explicite au lieu d\'une liste vide', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: ConducteurMessagesTab(
-          monUid: 'moussa',
-          chatService: _ChatFactice(Stream.error(Exception('failed-precondition'))),
-        ),
-      ));
-      await tester.pumpAndSettle();
-      expect(find.text('Conversations indisponibles'), findsOneWidget);
-      expect(find.text('Aucune conversation'), findsNothing);
-    });
-
-    test('message tout juste envoyé (horodatage en attente) en tête', () {
-      final tries = ChatService.trierParActivite([
-        {'id': 'a', 'misAJourLe': Timestamp.fromDate(DateTime(2026, 9, 27))},
-        {'id': 'b', 'misAJourLe': null},
-      ]);
-      expect(tries.first['id'], 'b');
     });
   });
 }

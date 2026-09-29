@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/maps/distance_utils.dart';
 
@@ -10,6 +12,8 @@ class PositionChauffeurDirect {
     required this.latitude,
     required this.longitude,
     required this.majLe,
+    this.cap,
+    this.vitesse,
   });
 
   final String uid;
@@ -18,6 +22,12 @@ class PositionChauffeurDirect {
 
   /// `null` le temps que le serveur horodate le tout premier envoi.
   final DateTime? majLe;
+
+  /// Cap du GPS en degrés (0 = nord, sens horaire) et vitesse en m/s ;
+  /// `null` si le téléphone ne les donne pas. Le GPS ne donne pas de cap
+  /// fiable à l'arrêt : à n'utiliser qu'en mouvement.
+  final double? cap;
+  final double? vitesse;
 
   static PositionChauffeurDirect? depuisDocument(String uid, Map<String, dynamic> donnees) {
     final latitude = donnees['latitude'];
@@ -29,9 +39,22 @@ class PositionChauffeurDirect {
       latitude: latitude.toDouble(),
       longitude: longitude.toDouble(),
       majLe: majLe is Timestamp ? majLe.toDate() : null,
+      cap: _nombre(donnees['cap']),
+      vitesse: _nombre(donnees['vitesse']),
     );
   }
 }
+
+/// Cap (0 = nord, 90 = est, sens horaire) pour aller du point A au point B.
+double capEntre(double latA, double lngA, double latB, double lngB) {
+  double rad(double d) => d * math.pi / 180;
+  final dLng = rad(lngB - lngA);
+  final y = math.sin(dLng) * math.cos(rad(latB));
+  final x = math.cos(rad(latA)) * math.sin(rad(latB)) - math.sin(rad(latA)) * math.cos(rad(latB)) * math.cos(dLng);
+  return (math.atan2(y, x) * 180 / math.pi + 360) % 360;
+}
+
+double? _nombre(Object? valeur) => valeur is num && valeur.isFinite ? valeur.toDouble() : null;
 
 /// Fraîcheur du signal GPS d'un chauffeur. Le téléphone envoie sa
 /// position au moins toutes les 30 s, même à l'arrêt.

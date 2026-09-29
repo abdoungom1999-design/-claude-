@@ -1,0 +1,128 @@
+import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../data/chat_service.dart';
+import '../messagerie_chat_page.dart';
+
+/// Ligne de l'onglet Messages : la conversation avec l'autre partie de la
+/// course en cours (le chauffeur pour un client, le client pour un
+/// chauffeur), avec son nom et le dernier message. Ouvre le chat.
+///
+/// Le nom vient du profil public, lisible seulement pendant la course
+/// (voir `firestore.rules`) : sinon [nomParDefaut] s'affiche.
+class LigneConversationCourse extends StatefulWidget {
+  const LigneConversationCourse({
+    super.key,
+    required this.chatService,
+    required this.monUid,
+    required this.interlocuteurUid,
+    required this.nomParDefaut,
+    required this.sousTitre,
+    required this.detailCourse,
+  });
+
+  final ChatService chatService;
+  final String monUid;
+  final String interlocuteurUid;
+
+  /// "Votre chauffeur" ou "Votre client".
+  final String nomParDefaut;
+
+  /// "Chauffeur Sprint" ou "Client Sprint".
+  final String sousTitre;
+
+  /// Ce que l'on sait de la course, ex. "Course en cours · Almadies".
+  final String detailCourse;
+
+  @override
+  State<LigneConversationCourse> createState() => _LigneConversationCourseState();
+}
+
+class _LigneConversationCourseState extends State<LigneConversationCourse> {
+  String? _nom;
+  late final Stream<ChatMessageFirestore?> _dernierMessage =
+      widget.chatService.streamDernierMessage(widget.chatService.chatIdEntre(widget.monUid, widget.interlocuteurUid));
+
+  @override
+  void initState() {
+    super.initState();
+    _chargerNom();
+  }
+
+  Future<void> _chargerNom() async {
+    try {
+      final profil = await widget.chatService.chargerProfil(widget.interlocuteurUid);
+      final nom = (profil?['nom'] as String?)?.trim();
+      if (mounted && nom != null && nom.isNotEmpty) setState(() => _nom = nom);
+    } catch (_) {
+      // Course terminée entre-temps, ou réseau : le nom par défaut suffit.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nom = _nom ?? widget.nomParDefaut;
+    return AppCard(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MessagerieChatPage(
+            interlocuteurUid: widget.interlocuteurUid,
+            interlocuteurNom: nom,
+            interlocuteurSousTitre: widget.sousTitre,
+            chatService: widget.chatService,
+            monUid: widget.monUid,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.orange, AppColors.orangeDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              nom.isNotEmpty ? nom[0].toUpperCase() : '?',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(nom, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                const SizedBox(height: 2),
+                Text(widget.detailCourse, style: const TextStyle(fontSize: 11.5, color: AppColors.grey)),
+                const SizedBox(height: 4),
+                StreamBuilder<ChatMessageFirestore?>(
+                  stream: _dernierMessage,
+                  builder: (context, snapshot) {
+                    final texte = snapshot.data?.text;
+                    return Text(
+                      texte ?? 'Aucun message pour le moment',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: texte == null ? AppColors.grey : AppColors.text,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+        ],
+      ),
+    );
+  }
+}

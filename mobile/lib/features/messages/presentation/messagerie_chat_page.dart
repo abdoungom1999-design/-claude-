@@ -10,27 +10,37 @@ import '../data/chat_service.dart';
 /// directement du flux [ChatService.streamMessages]. Un bouton
 /// "Appeler" dans la barre d'app lance l'appel natif vers le vrai
 /// numéro de téléphone de l'interlocuteur (récupéré depuis Firestore).
+///
+/// On n'écrit (et on n'appelle) que pendant la course en cours : une fois
+/// la course terminée ou annulée, les règles Firestore refusent l'envoi
+/// et la lecture du numéro ; la page le dit clairement.
 class MessagerieChatPage extends StatefulWidget {
   const MessagerieChatPage({
     super.key,
     required this.interlocuteurUid,
     required this.interlocuteurNom,
     required this.interlocuteurSousTitre,
+    this.chatService,
+    this.monUid,
   });
 
   final String interlocuteurUid;
   final String interlocuteurNom;
   final String interlocuteurSousTitre;
 
+  /// Injectables pour les tests.
+  final ChatService? chatService;
+  final String? monUid;
+
   @override
   State<MessagerieChatPage> createState() => _MessagerieChatPageState();
 }
 
 class _MessagerieChatPageState extends State<MessagerieChatPage> {
-  final _chatService = ChatService();
+  late final ChatService _chatService = widget.chatService ?? ChatService();
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  late final String _moiUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  late final String _moiUid = widget.monUid ?? FirebaseAuth.instance.currentUser?.uid ?? '';
   late final String _chatId = _chatService.chatIdEntre(_moiUid, widget.interlocuteurUid);
 
   /// Créé une fois : un nouveau flux à chaque reconstruction relancerait
@@ -54,10 +64,16 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
   }
 
   Future<void> _chargerTelephone() async {
-    final profil = await _chatService.chargerProfil(widget.interlocuteurUid);
+    String? telephone;
+    try {
+      final profil = await _chatService.chargerProfil(widget.interlocuteurUid);
+      telephone = profil?['telephone'] as String?;
+    } catch (_) {
+      // Course terminée (accès retiré) ou réseau coupé : pas de numéro.
+    }
     if (!mounted) return;
     setState(() {
-      _telephoneInterlocuteur = profil?['telephone'] as String?;
+      _telephoneInterlocuteur = telephone;
       _telephoneCharge = true;
     });
   }
@@ -83,11 +99,27 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
     final texte = _controller.text.trim();
     if (texte.isEmpty) return;
     _controller.clear();
-    await _chatService.envoyerMessage(
-      chatId: _chatId,
-      participants: [_moiUid, widget.interlocuteurUid],
-      texte: texte,
-    );
+    try {
+      await _chatService.envoyerMessage(
+        chatId: _chatId,
+        participants: [_moiUid, widget.interlocuteurUid],
+        texte: texte,
+      );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      // Le texte tapé n'est pas perdu.
+      _controller.text = texte;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.code == 'permission-denied'
+                ? 'Message non envoyé : on ne peut écrire qu\'à l\'autre partie d\'une course en cours.'
+                : 'Message non envoyé. Vérifiez votre connexion.',
+          ),
+        ),
+      );
+      return;
+    }
     _defilerVersLeBas();
   }
 

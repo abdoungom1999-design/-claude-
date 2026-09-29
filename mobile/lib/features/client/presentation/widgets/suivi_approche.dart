@@ -1,10 +1,12 @@
-import '../../../../core/maps/fond_carte.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/maps/distance_utils.dart';
+import '../../../../core/maps/fond_carte.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/moto_vue_dessus.dart';
 import '../../../courses/data/course_service.dart';
 import '../../../courses/data/position_chauffeur.dart';
 
@@ -14,10 +16,21 @@ import '../../../courses/data/position_chauffeur.dart';
 /// dans ~X min" vers le point de prise en charge, puis vers la
 /// destination une fois le client à bord.
 ///
-/// Entre deux positions (toutes les 5 s environ quand il roule), l'icône
-/// glisse de l'ancienne à la nouvelle au lieu de sauter.
+/// La position est EXACTE (jamais arrondie) : le chauffeur d'une course
+/// n'est plus une moto anonyme, son client le voit avancer en direct. Son
+/// téléphone publie toutes les ~2 s pendant la course ; entre deux
+/// positions, la moto glisse de l'ancienne à la nouvelle au lieu de sauter,
+/// orientée dans le sens de la marche. La caméra ne bouge que quand il le
+/// faut (chauffeur qui sort du cadre, ou qui s'approche : on zoome).
 class SuiviApproche extends StatefulWidget {
-  const SuiviApproche({super.key, required this.course, required this.positions, this.coucheFond});
+  const SuiviApproche({
+    super.key,
+    required this.course,
+    required this.positions,
+    this.coucheFond,
+    this.controleurCarte,
+    this.horloge = DateTime.now,
+  });
 
   final CourseFirestore course;
 
@@ -27,6 +40,11 @@ class SuiviApproche extends StatefulWidget {
   /// Fond de la carte ; par défaut [CoucheFondCarte]. Remplacé dans les tests.
   final Widget? coucheFond;
 
+  /// Injectables pour les tests : contrôleur de la carte (pour lire la
+  /// caméra) et horloge.
+  final MapController? controleurCarte;
+  final DateTime Function() horloge;
+
   @override
   State<SuiviApproche> createState() => _SuiviApprocheState();
 }
@@ -34,15 +52,24 @@ class SuiviApproche extends StatefulWidget {
 class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProviderStateMixin {
   static const _centreDakar = LatLng(14.6928, -17.4467);
 
-  final _carte = MapController();
+  late final MapController _carte = widget.controleurCarte ?? MapController();
   late final AnimationController _glissement =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..addListener(_redessiner);
   StreamSubscription<PositionChauffeurDirect?>? _abonnement;
   Timer? _horloge;
 
+  /// Un chauffeur dont on n'a rien reçu depuis ce délai n'est plus "en direct".
+  static const _delaiDirect = Duration(seconds: 15);
+
   PositionChauffeurDirect? _position;
   LatLng? _depuis;
   LatLng? _vers;
+  DateTime? _recueLe;
+
+  /// Cap de la moto en degrés, "déroulé" (peut dépasser 360) pour que la
+  /// rotation prenne toujours le chemin le plus court.
+  double? _cap;
+  bool _dejaCadre = false;
   bool _premiereReception = false;
   bool _erreur = false;
   bool _suiviManuel = false;
@@ -58,7 +85,7 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
       },
     );
     // Rafraîchit "signal perdu" même si plus rien n'arrive.
-    _horloge = Timer.periodic(const Duration(seconds: 15), (_) => _redessiner());
+    _horloge = Timer.periodic(const Duration(seconds: 5), (_) => _redessiner());
   }
 
   @override
@@ -88,7 +115,8 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
     final vers = _vers;
     if (vers == null) return null;
     if (depuis == null) return vers;
-    final t = Curves.easeInOut.transform(_glissement.value);
+    // Linéaire : la moto roule à vitesse constante entre deux points.
+    final t = _glissement.value;
     return LatLng(
       depuis.latitude + (vers.latitude - depuis.latitude) * t,
       depuis.longitude + (vers.longitude - depuis.longitude) * t,
@@ -107,19 +135,102 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
 
   void _surPosition(PositionChauffeurDirect? position) {
     if (!mounted) return;
+    final maintenant = widget.horloge();
     setState(() {
       _premiereReception = true;
       _erreur = false;
       _position = position;
       if (position == null) return;
       final nouveau = LatLng(position.latitude, position.longitude);
+      final ancien = _vers;
+      _mettreAJourCap(ancien, nouveau, position);
       _depuis = _pointAffiche ?? nouveau;
       _vers = nouveau;
+      // Le glissement dure autant que l'intervalle réel entre deux
+      // positions : la moto arrive au nouveau point à l'instant où le
+      // suivant est attendu, sans temps mort ni saccade.
+      final recu = _recueLe;
+      _glissement.duration = recu == null
+          ? const Duration(milliseconds: 1200)
+          : Duration(milliseconds: maintenant.difference(recu).inMilliseconds.clamp(800, 3000));
+      _recueLe = maintenant;
     });
     if (position != null) {
       _glissement.forward(from: 0);
-      _cadrer();
+      _suivreCamera();
     }
+  }
+
+  /// Cap = sens du déplacement réel dès ~4 m parcourus (le GPS est
+  /// imprécis en dessous) ; sinon le cap du GPS si le chauffeur roule ;
+  /// sinon on garde le dernier (à l'arrêt, la moto ne pivote pas).
+  void _mettreAJourCap(LatLng? ancien, LatLng nouveau, PositionChauffeurDirect position) {
+    double? cible;
+    if (ancien != null && _metresEntre(ancien, nouveau) >= 4) {
+      cible = capEntre(ancien.latitude, ancien.longitude, nouveau.latitude, nouveau.longitude);
+    } else if (_cap == null && position.cap != null && (position.vitesse ?? 0) > 1.5) {
+      cible = position.cap;
+    }
+    if (cible == null) return;
+    final courant = _cap;
+    _cap = courant == null ? cible : courant + ((cible - courant + 540) % 360 - 180);
+  }
+
+  static double _metresEntre(LatLng a, LatLng b) => DistanceUtils.distanceKm(
+        latDepart: a.latitude,
+        lngDepart: a.longitude,
+        latArrivee: b.latitude,
+        lngArrivee: b.longitude,
+      ) *
+      1000;
+
+  bool get _enDirect {
+    final recu = _recueLe;
+    final maintenant = widget.horloge();
+    return recu != null &&
+        maintenant.difference(recu) < _delaiDirect &&
+        EtatSignal.pour(_position?.majLe, maintenant) == EtatSignal.actif;
+  }
+
+  CameraFit _ajustement(LatLng vers, LatLng cible) => CameraFit.coordinates(
+        coordinates: [vers, cible],
+        padding: const EdgeInsets.fromLTRB(50, 110, 50, 50),
+        maxZoom: 16.5,
+      );
+
+  /// À chaque position : premier cadrage, puis on ne touche à la caméra que
+  /// si le chauffeur (ou la cible) sort de la zone confortable de l'écran, ou
+  /// si l'écart a tant changé qu'un autre zoom s'impose (il approche : on
+  /// zoome). Jamais de recadrage à chaque point : la carte resterait
+  /// secouée en permanence.
+  void _suivreCamera() {
+    if (!_carteChargee || _suiviManuel) return;
+    final vers = _vers;
+    if (vers == null) return;
+    if (!_dejaCadre) {
+      _cadrer();
+      return;
+    }
+    final cible = _cible;
+    final camera = _carte.camera;
+    final visible = camera.visibleBounds;
+    final hauteur = visible.north - visible.south;
+    final largeur = visible.east - visible.west;
+    // Un peu plus large que les marges du cadrage (bandeau d'info en haut
+    // : 110 px sur 320) pour qu'un point cadré par [_cadrer] soit toujours
+    // "confortable".
+    bool confortable(LatLng p) =>
+        p.latitude > visible.south + hauteur * 0.08 &&
+        p.latitude < visible.north - hauteur * 0.30 &&
+        p.longitude > visible.west + largeur * 0.06 &&
+        p.longitude < visible.east - largeur * 0.06;
+    if (!confortable(vers) || (cible != null && !confortable(cible))) {
+      _cadrer();
+      return;
+    }
+    if (cible == null) return;
+    final ideal = _ajustement(vers, cible).fit(camera).zoom;
+    if ((ideal - camera.zoom).abs() >= 1) _cadrer();
   }
 
   /// Cadre chauffeur + cible, sauf si le client a déplacé la carte.
@@ -127,23 +238,18 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
     if (!_carteChargee || (_suiviManuel && !force)) return;
     final vers = _vers;
     if (vers == null) return;
+    _dejaCadre = true;
     final cible = _cible;
     if (cible == null) {
       _carte.move(vers, 15.5);
       return;
     }
-    _carte.fitCamera(
-      CameraFit.coordinates(
-        coordinates: [vers, cible],
-        padding: const EdgeInsets.fromLTRB(50, 110, 50, 50),
-        maxZoom: 16.5,
-      ),
-    );
+    _carte.fitCamera(_ajustement(vers, cible));
   }
 
   @override
   Widget build(BuildContext context) {
-    final maintenant = DateTime.now();
+    final maintenant = widget.horloge();
     final point = _pointAffiche;
     final cible = _cible;
     final clientABord = widget.course.statut == StatutCourse.enCours;
@@ -186,6 +292,8 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
                         width: 48,
                         height: 48,
                         child: _MarqueurChauffeur(
+                          key: const Key('marqueur-chauffeur'),
+                          cap: _cap,
                           signalPerdu: EtatSignal.pour(_position?.majLe, maintenant) != EtatSignal.actif,
                         ),
                       ),
@@ -207,6 +315,12 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
                 maintenant: maintenant,
               ),
             ),
+            if (point != null)
+              Positioned(
+                left: 12,
+                bottom: 28,
+                child: BadgeDirect(enDirect: _enDirect),
+              ),
             if (_suiviManuel && point != null)
               Positioned(
                 right: 12,
@@ -344,9 +458,13 @@ class EncartApproche extends StatelessWidget {
   }
 }
 
+/// La moto du chauffeur, vue de dessus, tournée dans le sens de la marche
+/// (rotation adoucie entre deux caps), sur un halo blanc pour rester lisible
+/// sur tous les fonds de carte. Grise quand le signal est perdu.
 class _MarqueurChauffeur extends StatelessWidget {
-  const _MarqueurChauffeur({required this.signalPerdu});
+  const _MarqueurChauffeur({super.key, required this.cap, required this.signalPerdu});
 
+  final double? cap;
   final bool signalPerdu;
 
   @override
@@ -354,13 +472,91 @@ class _MarqueurChauffeur extends StatelessWidget {
     final couleur = signalPerdu ? AppColors.grey : AppColors.orange;
     return Container(
       decoration: BoxDecoration(
-        color: couleur,
+        color: Colors.white,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [BoxShadow(color: couleur.withValues(alpha: 0.45), blurRadius: 12, offset: const Offset(0, 3))],
+        border: Border.all(color: couleur, width: 3),
+        boxShadow: [BoxShadow(color: couleur.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 3))],
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 22),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(end: cap ?? 0),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOut,
+        builder: (context, angle, _) => MotoVueDessus(
+          cap: angle,
+          taille: 30,
+          couleur: couleur,
+          libelle: 'Votre chauffeur',
+        ),
+      ),
+    );
+  }
+}
+
+/// "En direct" quand la position arrive en continu ; "Signal faible" si les
+/// dernières nouvelles datent : le client sait s'il peut se fier à ce
+/// qu'il voit.
+class BadgeDirect extends StatefulWidget {
+  const BadgeDirect({super.key, required this.enDirect});
+
+  final bool enDirect;
+
+  @override
+  State<BadgeDirect> createState() => _BadgeDirectState();
+}
+
+class _BadgeDirectState extends State<BadgeDirect> with SingleTickerProviderStateMixin {
+  late final AnimationController _pouls = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.enDirect) _pouls.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant BadgeDirect ancien) {
+    super.didUpdateWidget(ancien);
+    if (widget.enDirect && !_pouls.isAnimating) {
+      _pouls.repeat(reverse: true);
+    } else if (!widget.enDirect && _pouls.isAnimating) {
+      _pouls.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pouls.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final couleur = widget.enDirect ? AppColors.vert : AppColors.grey;
+    return Semantics(
+      label: widget.enDirect ? 'Position en direct' : 'Signal faible',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 2))],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FadeTransition(
+              opacity: widget.enDirect ? Tween<double>(begin: 0.35, end: 1).animate(_pouls) : const AlwaysStoppedAnimation(1),
+              child: Container(width: 9, height: 9, decoration: BoxDecoration(color: couleur, shape: BoxShape.circle)),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              widget.enDirect ? 'En direct' : 'Signal faible',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: couleur),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
