@@ -11,7 +11,7 @@ Future<void> main() async {
   // démarrage si ce fichier devait un jour revenir à ses valeurs
   // placeholder. AuthRepository vérifie la même condition.
   if (DefaultFirebaseOptions.estConfigure) {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   }
 
   runApp(const SprintApp());

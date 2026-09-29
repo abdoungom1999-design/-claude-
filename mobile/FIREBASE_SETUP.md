@@ -179,12 +179,12 @@ depuis la Console.
 
 ### Limites connues (à traiter avant le lancement)
 
-- Suivi GPS : l'app étant une application web, le navigateur coupe la
-  géolocalisation quand l'écran du chauffeur se verrouille ou que
-  l'onglet passe en arrière-plan. L'app garde l'écran allumé tant que le
-  chauffeur est en ligne, et la carte Admin affiche "Signal perdu" au
-  bout de 2 minutes sans nouvelle. Un vrai suivi en arrière-plan exige
-  l'application Android native.
+- Suivi GPS : sur le site (et l'iPhone, qui n'a que le site), le
+  navigateur coupe la géolocalisation quand l'écran du chauffeur se
+  verrouille ou que l'app passe en arrière-plan. L'app garde l'écran
+  allumé tant que le chauffeur est en ligne, et la carte Admin affiche
+  "Signal perdu" au bout de 2 minutes sans nouvelle. L'APK Android
+  (voir DISTRIBUTION_TEST.md) continue, lui, écran verrouillé.
 
 - Paiement en mode test : tout le parcours passe par le serveur, mais
   l'opérateur est simulé (« faux Wave », page de paiement

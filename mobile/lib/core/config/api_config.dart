@@ -29,11 +29,13 @@ class ApiConfig {
     return 'http://localhost:3000';
   }
 
-  /// Mode démo : le build web tourne sans backend public configuré
-  /// (aucun `--dart-define=API_BASE_URL` fourni). Dans ce cas,
-  /// l'authentification est simulée localement pour permettre de tester
-  /// l'interface (voir [AuthRepository]) plutôt que d'échouer sur chaque
-  /// appel réseau. Se désactive automatiquement dès qu'un vrai backend
-  /// est renseigné au build — aucun interrupteur séparé à retourner.
-  static bool get modeDemo => kIsWeb && _override.isEmpty;
+  /// Mode démo : l'app (web ou APK Android) tourne sans l'ancienne API
+  /// REST (aucun `--dart-define=API_BASE_URL` fourni). Les rares appels
+  /// qui passaient encore par elle (profil et statut du chauffeur) sont
+  /// alors traités localement plutôt que d'échouer sur chaque appel
+  /// réseau ; tout le reste passe par Firebase. Se désactive
+  /// automatiquement dès qu'un vrai backend est renseigné au build —
+  /// aucun interrupteur séparé à retourner. Hors web et Android (tests,
+  /// poste de développement), l'API locale reste utilisée.
+  static bool get modeDemo => (kIsWeb || Platform.isAndroid) && _override.isEmpty;
 }

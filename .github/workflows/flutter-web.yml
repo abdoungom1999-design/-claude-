@@ -3,8 +3,8 @@ name: Build & déployer Sprint Web
 # À chaque push : compile l'app Flutter (dossier mobile/) en site
 # statique, teste le backend (Cloud Functions et règles Firestore sur
 # émulateur), déploie le backend sur Firebase (fonctions puis règles),
-# puis publie l'app sur GitHub Pages. Rien n'est déployé si un test
-# échoue.
+# puis publie l'app sur GitHub Pages et l'APK Android de test (release
+# "sprint-android"). Rien n'est déployé si un test échoue.
 on:
   push:
     branches:
@@ -223,3 +223,169 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # APK Android de test, pour les chauffeurs : publié dans la release
+  # GitHub "sprint-android", toujours au même lien (à partager sur
+  # WhatsApp) :
+  #   https://github.com/<dépôt>/releases/download/sprint-android/sprint.apk
+  # Compilé après le déploiement du backend : l'APK parle aux mêmes Cloud
+  # Functions que le site. Rien à configurer à la main :
+  # - l'app Android est enregistrée dans Firebase si besoin (API
+  #   Firebase Management, compte github-deploy) ;
+  # - la clé de signature est créée une seule fois et gardée dans Secret
+  #   Manager (ANDROID_SIGNATURE) : chaque APK s'installe par-dessus le
+  #   précédent. Elle n'apparaît jamais dans le dépôt ni dans les journaux.
+  android:
+    needs: [firebase]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
+        id: secret
+        env:
+          COMPTE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$COMPTE_SERVICE" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=APK non compilé::Secret FIREBASE_SERVICE_ACCOUNT absent (voir mobile/FIREBASE_SETUP.md, étape 7)."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.secret.outputs.present == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: App Android dans Firebase
+        id: firebase_android
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          jeton=$(gcloud auth print-access-token)
+          api=https://firebase.googleapis.com/v1beta1/projects/sprint-vtc/androidApps
+          appeler() {
+            reponse=$(curl -s -w '\n%{http_code}' "$@" -H "Authorization: Bearer $jeton")
+            code=${reponse##*$'\n'}
+            corps=${reponse%$'\n'*}
+            if [ "${code:0:1}" != 2 ]; then
+              echo "$corps"
+              echo "::error title=Firebase::Appel à l'API Firebase refusé (HTTP $code)."
+              exit 1
+            fi
+          }
+          appeler "$api"
+          app_id=$(echo "$corps" | jq -r '[.apps[]? | select(.packageName == "sn.groupesantine.sprint")][0].appId // empty')
+          if [ -z "$app_id" ]; then
+            echo "Première compilation : enregistrement de l'app Android dans Firebase."
+            appeler -X POST "$api" -H 'Content-Type: application/json' \
+              -d '{"packageName":"sn.groupesantine.sprint","displayName":"Sprint Android"}'
+            operation=$(echo "$corps" | jq -r '.name')
+            for essai in $(seq 1 30); do
+              appeler "https://firebase.googleapis.com/v1beta1/$operation"
+              if [ "$(echo "$corps" | jq -r '.done // false')" = true ]; then
+                app_id=$(echo "$corps" | jq -r '.response.appId // empty')
+                break
+              fi
+              sleep 2
+            done
+          fi
+          if [ -z "$app_id" ]; then
+            echo "::error title=Firebase::Impossible d'obtenir l'identifiant de l'app Android."
+            exit 1
+          fi
+          echo "App Android Firebase : $app_id"
+          echo "app_id=$app_id" >> "$GITHUB_OUTPUT"
+
+      - name: Clé de signature (Secret Manager)
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          signature="$RUNNER_TEMP/signature.txt"
+          if ! gcloud secrets describe ANDROID_SIGNATURE --project=sprint-vtc > /dev/null 2>&1; then
+            echo "Première compilation : création de la clé de signature Sprint."
+            mdp=$(openssl rand -hex 24)
+            echo "::add-mask::$mdp"
+            keytool -genkeypair -keystore "$RUNNER_TEMP/nouvelle.jks" -storetype PKCS12 -alias sprint \
+              -keyalg RSA -keysize 2048 -validity 10000 -storepass "$mdp" -keypass "$mdp" \
+              -dname "CN=Sprint, O=Groupe Santine, L=Dakar, C=SN" > /dev/null 2>&1
+            { echo "$mdp"; base64 -w0 "$RUNNER_TEMP/nouvelle.jks"; echo; } > "$signature"
+            gcloud secrets create ANDROID_SIGNATURE --project=sprint-vtc \
+              --replication-policy=automatic --data-file="$signature"
+            rm -f "$signature" "$RUNNER_TEMP/nouvelle.jks"
+          fi
+          gcloud secrets versions access latest --secret=ANDROID_SIGNATURE --project=sprint-vtc > "$signature"
+          mdp=$(head -n 1 "$signature")
+          echo "::add-mask::$mdp"
+          sed -n 2p "$signature" | base64 -d > "$RUNNER_TEMP/sprint.jks"
+          rm -f "$signature"
+          echo "SPRINT_KEYSTORE_PATH=$RUNNER_TEMP/sprint.jks" >> "$GITHUB_ENV"
+          echo "SPRINT_KEYSTORE_PASSWORD=$mdp" >> "$GITHUB_ENV"
+          # Empreinte (publique) : sert à vérifier l'APK plus bas.
+          keytool -list -v -keystore "$RUNNER_TEMP/sprint.jks" -storepass "$mdp" -alias sprint \
+            | grep 'SHA256:' | head -n 1 | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f' > "$RUNNER_TEMP/empreinte.txt"
+          echo "Empreinte SHA-256 de la clé Sprint : $(cat "$RUNNER_TEMP/empreinte.txt")"
+
+      - if: steps.secret.outputs.present == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - if: steps.secret.outputs.present == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - if: steps.secret.outputs.present == 'true'
+        run: flutter pub get
+
+      # Téléphones ARM uniquement (tous les smartphones) : APK plus léger
+      # à envoyer sur WhatsApp. Numéro de version = numéro du run.
+      - name: Compiler l'APK
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm,android-arm64 \
+            --build-number=${{ github.run_number }} \
+            --dart-define=FIREBASE_ANDROID_APP_ID=${{ steps.firebase_android.outputs.app_id }}
+
+      # L'APK doit être signé avec la clé Sprint (et non une clé de debug),
+      # sinon les mises à jour ne s'installeraient pas.
+      - name: Vérifier la signature de l'APK
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner
+          certificats=$("$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk)
+          echo "$certificats" | grep -E 'Signer #1 certificate (DN|SHA-256)'
+          echo "$certificats" | grep -qi "SHA-256 digest: $(cat "$RUNNER_TEMP/empreinte.txt")" \
+            || { echo "::error::APK non signé avec la clé Sprint"; exit 1; }
+          ls -lh build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publier l'APK (release « sprint-android »)
+        if: steps.secret.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          depot="$GITHUB_REPOSITORY"
+          lien="https://github.com/$depot/releases/download/sprint-android/sprint.apk"
+          version="$(grep '^version:' pubspec.yaml | awk '{print $2}') (${{ github.run_number }})"
+          notes=$(printf 'APK de test Sprint pour les chauffeurs : version %s, commit %s, compilé le %s UTC.\n\nLien direct à partager : %s' \
+            "$version" "${GITHUB_SHA::7}" "$(date -u '+%d/%m/%Y %H:%M')" "$lien")
+          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/sprint.apk"
+          if ! gh release view sprint-android --repo "$depot" > /dev/null 2>&1; then
+            gh release create sprint-android --repo "$depot" --target "$GITHUB_SHA" --prerelease \
+              --title "Sprint Android (test chauffeurs)" --notes "$notes"
+          fi
+          gh release upload sprint-android "$RUNNER_TEMP/sprint.apk" --repo "$depot" --clobber
+          gh release edit sprint-android --repo "$depot" --notes "$notes"
+          code=$(curl -s -L -o /dev/null -w '%{http_code}' "$lien")
+          echo "Téléchargement : HTTP $code"
+          [ "$code" = 200 ] || { echo "::error::Le lien de téléchargement ne répond pas"; exit 1; }
+          echo "::notice title=APK publié (version $version)::$lien"
+          rm -f "$RUNNER_TEMP/sprint.jks"

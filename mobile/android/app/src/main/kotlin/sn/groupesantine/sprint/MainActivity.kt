@@ -1,0 +1,62 @@
+package sn.groupesantine.sprint
+
+import android.content.Context
+import android.media.RingtoneManager
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+/**
+ * Alerte "Nouvelle course" du chauffeur (canal "sprint/alerte", appelé par
+ * lib/core/alertes/alerte_sonore_natif.dart) : son de notification du
+ * téléphone et trois vibrations. L'équivalent web passe par Web Audio.
+ */
+class MainActivity : FlutterActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sprint/alerte")
+            .setMethodCallHandler { appel, resultat ->
+                if (appel.method == "nouvelleCourse") {
+                    sonner()
+                    vibrer()
+                    resultat.success(null)
+                } else {
+                    resultat.notImplemented()
+                }
+            }
+    }
+
+    private fun sonner() {
+        try {
+            val son = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            RingtoneManager.getRingtone(applicationContext, son)?.play()
+        } catch (e: Exception) {
+            // Pas de son disponible : la vibration suffit.
+        }
+    }
+
+    private fun vibrer() {
+        try {
+            val motif = longArrayOf(0, 400, 200, 400, 200, 400)
+            val vibreur: Vibrator =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibreur.vibrate(VibrationEffect.createWaveform(motif, -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibreur.vibrate(motif, -1)
+            }
+        } catch (e: Exception) {
+            // Téléphone sans vibreur.
+        }
+    }
+}

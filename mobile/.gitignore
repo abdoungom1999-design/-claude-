@@ -8,8 +8,8 @@ build/
 .idea/
 
 # Dossiers de plateforme générés par `flutter create .`
-# (web/ est committé : nécessaire au build CI et personnalisé — voir web/index.html)
-android/
+# (web/ et android/ sont committés : nécessaires au build CI et
+# personnalisés — voir web/index.html et android/app/src/main/AndroidManifest.xml)
 ios/
 linux/
 macos/

@@ -1,12 +1,15 @@
 {
+    "id": ".",
     "name": "Sprint",
     "short_name": "Sprint",
+    "description": "Sprint — VTC moto-taxi et livraison de colis à Dakar.",
+    "lang": "fr",
     "start_url": ".",
+    "scope": ".",
     "display": "standalone",
+    "orientation": "portrait-primary",
     "background_color": "#FFFFFF",
     "theme_color": "#FF6600",
-    "description": "Sprint — VTC moto-taxi et livraison de colis à Dakar.",
-    "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:sprint/features/admin/data/suivi_direct_service.dart';
 import 'package:sprint/features/admin/presentation/sections/admin_courses_direct_section.dart';
 import 'package:sprint/features/conducteur/data/position_chauffeur_service.dart';
@@ -67,6 +68,25 @@ void main() {
       final limiteur = LimiteurEnvoiPosition()..enregistrerEnvoi(t0);
       expect(limiteur.battementDu(t0.add(const Duration(seconds: 29))), isFalse);
       expect(limiteur.battementDu(t0.add(const Duration(seconds: 30))), isTrue);
+    });
+  });
+
+  group('Suivi GPS du chauffeur en ligne', () {
+    test('APK Android : service de premier plan, le GPS continue écran verrouillé', () {
+      final reglages = PositionChauffeurService.reglagesSuivi(android: true);
+      expect(reglages, isA<AndroidSettings>());
+      final notification = (reglages as AndroidSettings).foregroundNotificationConfig;
+      expect(notification, isNotNull);
+      expect(notification!.notificationTitle, 'Sprint : vous êtes en ligne');
+      expect(notification.enableWakeLock, isTrue);
+      expect(reglages.distanceFilter, 10);
+    });
+
+    test('web : réglages simples (le navigateur ne permet pas mieux)', () {
+      final reglages = PositionChauffeurService.reglagesSuivi(android: false);
+      expect(reglages, isNot(isA<AndroidSettings>()));
+      expect(reglages.accuracy, LocationAccuracy.high);
+      expect(reglages.distanceFilter, 10);
     });
   });
 

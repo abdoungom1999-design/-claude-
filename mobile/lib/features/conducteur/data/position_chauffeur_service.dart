@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/location/maintien_ecran.dart';
@@ -39,10 +42,11 @@ class LimiteurEnvoiPosition {
 /// [LimiteurEnvoiPosition]. Le document est supprimé au passage hors
 /// ligne : aucun historique de trajets n'est conservé.
 ///
-/// Limite de la version web : le navigateur suspend la géolocalisation
-/// quand l'écran est verrouillé ou l'onglet en arrière-plan. L'écran est
-/// donc maintenu allumé ([MaintienEcran]) ; un vrai suivi en arrière-plan
-/// exigera l'application Android native.
+/// Version web : le navigateur suspend la géolocalisation quand l'écran
+/// est verrouillé ou l'onglet en arrière-plan ; l'écran est donc maintenu
+/// allumé ([MaintienEcran]). APK Android : le suivi passe par un service
+/// de premier plan (notification permanente "vous êtes en ligne") et
+/// continue écran verrouillé, tant que le chauffeur est en ligne.
 class PositionChauffeurService {
   static const collection = 'positions_chauffeurs';
 
@@ -74,9 +78,8 @@ class PositionChauffeurService {
     _uid = uid;
     _limiteur.reinitialiser();
 
-    _flux = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10),
-    ).listen(_surPosition, onError: (_) {});
+    _flux = Geolocator.getPositionStream(locationSettings: reglagesSuivi(android: _android))
+        .listen(_surPosition, onError: (_) {});
     _minuteurBattement = Timer.periodic(const Duration(seconds: 10), (_) => _surBattement());
     unawaited(_maintienEcran.activer());
 
@@ -152,6 +155,26 @@ class PositionChauffeurService {
     } on FirebaseException {
       // Réseau coupé : le prochain envoi réessaiera.
     }
+  }
+
+  static bool get _android => !kIsWeb && Platform.isAndroid;
+
+  /// Réglages du suivi GPS. Sur Android, service de premier plan : sans
+  /// lui, le système coupe le GPS de l'app dès que l'écran se verrouille.
+  @visibleForTesting
+  static LocationSettings reglagesSuivi({required bool android}) {
+    if (!android) return const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10);
+    return AndroidSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10,
+      foregroundNotificationConfig: const ForegroundNotificationConfig(
+        notificationTitle: 'Sprint : vous êtes en ligne',
+        notificationText: 'Votre position est partagée pour recevoir des courses. Passez hors ligne pour l\'arrêter.',
+        notificationChannelName: 'Chauffeur en ligne',
+        enableWakeLock: true,
+        setOngoing: true,
+      ),
+    );
   }
 
   /// Certains navigateurs renvoient NaN pour le cap ou la vitesse.

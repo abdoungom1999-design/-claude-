@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../firebase_options.dart';
 import '../config/api_config.dart';
 import '../theme/app_colors.dart';
 
@@ -155,7 +156,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            if (peutRevenir || ApiConfig.modeDemo)
+            if (peutRevenir || _authentificationSimulee)
               Positioned(
                 top: 12,
                 left: 20,
@@ -172,7 +173,7 @@ class _Header extends StatelessWidget {
                       )
                     else
                       const SizedBox.shrink(),
-                    if (ApiConfig.modeDemo) const _BadgeModeDemo(),
+                    if (_authentificationSimulee) const _BadgeModeDemo(),
                   ],
                 ),
               ),
@@ -236,9 +237,14 @@ class _FondRepliOrange extends StatelessWidget {
   }
 }
 
-/// Repère discret indiquant que l'authentification est simulée (build web
-/// sans backend public configuré, voir [ApiConfig.modeDemo]) : aucune
-/// donnée saisie n'est réellement envoyée ni persistée.
+/// Authentification simulée : ni Firebase ni API configurés. Avec
+/// Firebase (cas du site et de l'APK), la connexion est réelle : pas de
+/// badge.
+bool get _authentificationSimulee => ApiConfig.modeDemo && !DefaultFirebaseOptions.estConfigure;
+
+/// Repère discret indiquant que l'authentification est simulée (voir
+/// [_authentificationSimulee]) : aucune donnée saisie n'est réellement
+/// envoyée ni persistée.
 class _BadgeModeDemo extends StatelessWidget {
   const _BadgeModeDemo();
 
