@@ -69,6 +69,36 @@ void main() {
     expect(requetes, hasLength(2)); // renouvelée avant expiration
   });
 
+  test('APK Android : identité de l\'app (package + SHA-1) jointe à la demande de session', () async {
+    final requetes = <RequestOptions>[];
+    final fond = FondCarte(
+      cle: 'CLE-ANDROID',
+      entetes: FondCarte.entetesAndroid,
+      maintenant: () => _maintenant,
+      dio: _dioFactice(requetes, reponse: {
+        'session': 'JETON',
+        'expiry': '${_secondes(_maintenant.add(const Duration(days: 14)))}',
+      }),
+    );
+    await fond.session();
+    expect(requetes.single.headers['X-Android-Package'], 'sn.groupesantine.sprint');
+    expect(requetes.single.headers['X-Android-Cert'], matches(RegExp(r'^[0-9A-F]{40}$')));
+  });
+
+  testWidgets('APK Android : identité de l\'app jointe aussi aux images de la carte', (tester) async {
+    final fond = FondCarte(
+      cle: 'CLE-ANDROID',
+      entetes: FondCarte.entetesAndroid,
+      maintenant: () => _maintenant,
+      dio: _dioFactice([], reponse: {'session': 'JETON', 'expiry': '${_secondes(_maintenant.add(const Duration(days: 14)))}'}),
+    );
+    await tester.runAsync(fond.session);
+    await _carte(tester, fond);
+    final fournisseur = tester.widget<TileLayer>(find.byType(TileLayer)).tileProvider as NetworkTileProvider;
+    expect(fournisseur.headers, containsPair('X-Android-Package', 'sn.groupesantine.sprint'));
+    expect(fournisseur.headers, containsPair('X-Android-Cert', FondCarte.entetesAndroid['X-Android-Cert']));
+  });
+
   test('sans clé : aucun appel à Google', () async {
     final requetes = <RequestOptions>[];
     final fond = FondCarte(cle: '', dio: _dioFactice(requetes, reponse: {}));

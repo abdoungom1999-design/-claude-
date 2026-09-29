@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'style_sprint_clair.dart';
@@ -14,6 +16,11 @@ import 'style_sprint_clair.dart';
 /// ligne : elle est restreinte au site (référents HTTP) et à la seule
 /// Map Tiles API dans Google Cloud.
 ///
+/// APK Android : clé distincte (`GOOGLE_MAPS_ANDROID_KEY`), restreinte à
+/// l'app Android (package + empreinte SHA-1 du certificat Sprint). Google
+/// la vérifie grâce aux en-têtes [entetesAndroid], joints à chaque appel
+/// (session et images).
+///
 /// Style : « Sprint clair » ([styleSprintClair]) sur toutes les cartes.
 /// Un style refusé par Google (400) fait redemander une session sans
 /// style, puis seulement OpenStreetMap en dernier recours.
@@ -26,14 +33,27 @@ class FondCarte {
     Dio? dio,
     DateTime Function()? maintenant,
     this.styles = styleSprintClair,
+    this.entetes = const {},
   })  : _cle = cle,
         _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 8))),
         _maintenant = maintenant ?? DateTime.now;
 
-  static const cleCompilation = String.fromEnvironment('GOOGLE_MAPS_WEB_KEY');
+  static const cleWeb = String.fromEnvironment('GOOGLE_MAPS_WEB_KEY');
+  static const cleAndroid = String.fromEnvironment('GOOGLE_MAPS_ANDROID_KEY');
+
+  /// Identité de l'APK Sprint pour une clé restreinte à Android : nom du
+  /// package et empreinte SHA-1 du certificat de signature (la CI refuse
+  /// tout APK qui ne serait pas signé avec ce certificat).
+  static const entetesAndroid = {
+    'X-Android-Package': 'sn.groupesantine.sprint',
+    'X-Android-Cert': '6D6BBAF81DD1B73BDB47102FB00531F5259A4192',
+  };
+
+  static bool get _android => !kIsWeb && Platform.isAndroid;
 
   /// Instance partagée par toutes les cartes (une seule session Google).
-  static final instance = FondCarte(cle: cleCompilation);
+  static final instance =
+      _android ? FondCarte(cle: cleAndroid, entetes: entetesAndroid) : FondCarte(cle: cleWeb);
 
   static const urlOpenStreetMap = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const urlGoogle = 'https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session={session}&key={key}';
@@ -43,6 +63,9 @@ class FondCarte {
 
   final String _cle;
   final List<Map<String, Object>> styles;
+
+  /// En-têtes joints aux appels Google (identité de l'app Android).
+  final Map<String, String> entetes;
   final Dio _dio;
   final DateTime Function() _maintenant;
 
@@ -95,6 +118,7 @@ class FondCarte {
     final reponse = await _dio.post<Map<String, dynamic>>(
       'https://tile.googleapis.com/v1/createSession',
       queryParameters: {'key': _cle},
+      options: Options(headers: entetes),
       data: {
         'mapType': 'roadmap',
         'language': 'fr-FR',
@@ -204,6 +228,8 @@ class _CoucheFondCarteState extends State<CoucheFondCarte> {
       urlTemplate: FondCarte.urlGoogle,
       additionalOptions: _fond.optionsGoogle(session),
       userAgentPackageName: 'sn.groupesantine.sprint',
+      // Copie modifiable : flutter_map y ajoute son propre User-Agent.
+      tileProvider: _fond.entetes.isEmpty ? null : NetworkTileProvider(headers: {..._fond.entetes}),
       maxNativeZoom: 20,
       errorTileCallback: (tuile, erreur, pile) => _fond.signalerErreur(),
     );

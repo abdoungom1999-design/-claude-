@@ -14,10 +14,17 @@
 >   blanches, commerces et transports masqués). Style refusé par Google :
 >   carte Google sans style ; Google indisponible : OpenStreetMap, aux
 >   couleurs adoucies dans le même esprit.
-> - APK Android : compilé sans la clé web (restreinte au site), il affiche
->   le fond OpenStreetMap adouci. Pour le style Google sur Android, il
->   faudra une clé dédiée restreinte à l'app Android (voir le compte
->   rendu du Lot 2).
+> - APK Android : clé dédiée `sprint-carte-android` (secret GitHub
+>   `GOOGLE_MAPS_ANDROID_KEY`), restreinte à l'app Android
+>   (`sn.groupesantine.sprint`, SHA-1
+>   `6D:6B:BA:F8:1D:D1:B7:3B:DB:47:10:2F:B0:05:31:F5:25:9A:41:92`) et à
+>   Map Tiles API. L'app joint son identité (en-têtes `X-Android-Package`
+>   et `X-Android-Cert`) à chaque appel. La CI vérifie que cette empreinte
+>   est bien celle du certificat de l'APK.
+> - Vérification réelle à chaque déploiement : la CI ouvre une session
+>   Google avec chaque clé (site et APK) et le style « Sprint clair »
+>   (`tool/verifier_session_carte.sh`). Un refus apparaît en
+>   avertissement dans le résumé du run.
 > - Le composant Google Maps officiel (Maps JavaScript API, décrit
 >   ci-dessous) n'est pas utilisé.
 

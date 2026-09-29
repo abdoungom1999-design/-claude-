@@ -61,6 +61,18 @@ jobs:
             --dart-define=API_BASE_URL="${{ inputs.api_base_url }}" \
             --dart-define=GOOGLE_MAPS_WEB_KEY="$GOOGLE_MAPS_WEB_KEY"
 
+      # Vérification réelle auprès de Google : la clé web, présentée comme
+      # venant du site, ouvre une session de carte avec le style « Sprint
+      # clair ». Non bloquant (avertissement dans le résumé du run).
+      - name: Vérifier la carte Google du site (clé web + style)
+        env:
+          CLE: ${{ secrets.GOOGLE_MAPS_WEB_KEY }}
+        run: |
+          if [ -z "$CLE" ]; then echo "::warning::Pas de clé GOOGLE_MAPS_WEB_KEY : carte OpenStreetMap."; exit 0; fi
+          dart run tool/style_carte_json.dart "$RUNNER_TEMP/style.json" > /dev/null
+          bash tool/verifier_session_carte.sh "Carte du site" "$RUNNER_TEMP/style.json" \
+            "Referer: https://sprint-vtc.web.app/"
+
       # Site publié sur Firebase Hosting (job hebergement).
       - uses: actions/upload-artifact@v4
         with:
@@ -358,13 +370,22 @@ jobs:
 
       # Téléphones ARM uniquement (tous les smartphones) : APK plus léger
       # à envoyer sur WhatsApp. Numéro de version = numéro du run.
+      # Clé Google du fond de carte pour l'APK (Map Tiles API), restreinte
+      # à l'app Android (package + SHA-1 du certificat Sprint). Sans elle,
+      # la carte de l'APK reste sur OpenStreetMap.
       - name: Compiler l'APK
         if: steps.secret.outputs.present == 'true'
+        env:
+          GOOGLE_MAPS_ANDROID_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY }}
         run: |
+          if [ -z "$GOOGLE_MAPS_ANDROID_KEY" ]; then
+            echo "::warning::Pas de clé GOOGLE_MAPS_ANDROID_KEY : carte OpenStreetMap dans l'APK."
+          fi
           flutter build apk --release \
             --target-platform android-arm,android-arm64 \
             --build-number=${{ github.run_number }} \
-            --dart-define=FIREBASE_ANDROID_APP_ID=${{ steps.firebase_android.outputs.app_id }}
+            --dart-define=FIREBASE_ANDROID_APP_ID=${{ steps.firebase_android.outputs.app_id }} \
+            --dart-define=GOOGLE_MAPS_ANDROID_KEY="$GOOGLE_MAPS_ANDROID_KEY"
 
       # L'APK doit être signé avec la clé Sprint (et non une clé de debug),
       # sinon les mises à jour ne s'installeraient pas.
@@ -391,7 +412,29 @@ jobs:
             exit 1
           fi
           echo "Signature Sprint vérifiée."
+          # L'app présente cette empreinte SHA-1 à Google (clé de carte
+          # restreinte à Android) : elle doit être celle du certificat.
+          sha1=$(grep -o "'X-Android-Cert': '[0-9A-F]*'" lib/core/maps/fond_carte.dart | grep -o '[0-9A-F]\{40\}')
+          if ! tr -d ':' < "$RUNNER_TEMP/certificats.txt" | grep -i 'SHA-1 digest' | grep -qi "$sha1"; then
+            echo "::error::L'empreinte SHA-1 de fond_carte.dart ($sha1) n'est pas celle du certificat de l'APK"
+            exit 1
+          fi
+          echo "Empreinte SHA-1 présentée à Google : conforme."
           ls -lh "$apk"
+
+      # Vérification réelle auprès de Google : la clé Android, présentée
+      # avec l'identité de l'APK, ouvre une session de carte avec le style
+      # « Sprint clair ». Non bloquant (avertissement dans le résumé).
+      - name: Vérifier la carte Google de l'APK (clé Android + style)
+        if: steps.secret.outputs.present == 'true'
+        env:
+          CLE: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY }}
+        run: |
+          if [ -z "$CLE" ]; then echo "::warning::Pas de clé GOOGLE_MAPS_ANDROID_KEY."; exit 0; fi
+          sha1=$(grep -o "'X-Android-Cert': '[0-9A-F]*'" lib/core/maps/fond_carte.dart | grep -o '[0-9A-F]\{40\}')
+          dart run tool/style_carte_json.dart "$RUNNER_TEMP/style.json" > /dev/null
+          bash tool/verifier_session_carte.sh "Carte de l'APK" "$RUNNER_TEMP/style.json" \
+            "X-Android-Package: sn.groupesantine.sprint" "X-Android-Cert: $sha1"
 
       # APK et page de téléchargement (version, taille, date inscrites),
       # remis au job hebergement qui publie tout le site d'un coup.
