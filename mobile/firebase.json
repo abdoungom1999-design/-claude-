@@ -21,6 +21,42 @@
   "storage": {
     "rules": "storage.rules"
   },
+  "hosting": {
+    "public": "hebergement",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "/sprint.apk",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.android.package-archive"
+          },
+          {
+            "key": "Content-Disposition",
+            "value": "attachment; filename=\"sprint.apk\""
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  },
   "emulators": {
     "firestore": {
       "port": 8080
@@ -33,6 +69,9 @@
     },
     "auth": {
       "port": 9099
+    },
+    "hosting": {
+      "port": 5000
     }
   }
 }

@@ -2,13 +2,23 @@
 
 ## Android : l'APK
 
-À chaque push, GitHub Actions compile l'APK et le publie toujours au même
-lien, à envoyer tel quel sur WhatsApp :
+À chaque push, GitHub Actions compile l'APK et le publie sur Firebase
+Hosting (projet sprint-vtc), toujours aux mêmes adresses, à envoyer sur
+WhatsApp :
 
-https://github.com/abdoungom1999-design/-claude-/releases/download/sprint-android/sprint.apk
+- page de téléchargement (logo, version, étapes d'installation) :
+  https://sprint-vtc.web.app/
+- lien direct du fichier : https://sprint-vtc.web.app/sprint.apk
 
-Page de la version (numéro, date, commit) :
-https://github.com/abdoungom1999-design/-claude-/releases/tag/sprint-android
+La page est dans `hebergement/index.html` ; la CI y inscrit la version,
+la taille et la date à chaque publication, puis vérifie que le lien
+public sert bien l'APK qui vient d'être compilé.
+
+Nom de domaine Sprint : dans la Console Firebase > Hosting > **Ajouter
+un domaine personnalisé** (ex. `app.sprint.sn`), puis ajouter chez le
+registraire du domaine les enregistrements DNS indiqués. Les mêmes
+fichiers sont alors servis aussi à cette adresse, sans rien changer au
+pipeline.
 
 Installation par le chauffeur :
 

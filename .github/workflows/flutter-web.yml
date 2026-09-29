@@ -3,8 +3,8 @@ name: Build & déployer Sprint Web
 # À chaque push : compile l'app Flutter (dossier mobile/) en site
 # statique, teste le backend (Cloud Functions et règles Firestore sur
 # émulateur), déploie le backend sur Firebase (fonctions puis règles),
-# puis publie l'app sur GitHub Pages et l'APK Android de test (release
-# "sprint-android"). Rien n'est déployé si un test échoue.
+# puis publie l'app sur GitHub Pages et l'APK Android de test sur
+# Firebase Hosting. Rien n'est déployé si un test échoue.
 on:
   push:
     branches:
@@ -224,10 +224,10 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  # APK Android de test, pour les chauffeurs : publié dans la release
-  # GitHub "sprint-android", toujours au même lien (à partager sur
-  # WhatsApp) :
-  #   https://github.com/<dépôt>/releases/download/sprint-android/sprint.apk
+  # APK Android de test, pour les chauffeurs : publié sur Firebase
+  # Hosting, toujours au même lien (à partager sur WhatsApp), avec une
+  # page de téléchargement :
+  #   https://sprint-vtc.web.app/sprint.apk   (page : https://sprint-vtc.web.app/)
   # Compilé après le déploiement du backend : l'APK parle aux mêmes Cloud
   # Functions que le site. Rien à configurer à la main :
   # - l'app Android est enregistrée dans Firebase si besoin (API
@@ -238,8 +238,6 @@ jobs:
   android:
     needs: [firebase]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     defaults:
       run:
         working-directory: mobile
@@ -382,25 +380,71 @@ jobs:
           echo "Signature Sprint vérifiée."
           ls -lh "$apk"
 
-      - name: Publier l'APK (release « sprint-android »)
+      - if: steps.secret.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Site Firebase Hosting du projet (créé au premier passage s'il
+      # n'existe pas encore) : l'APK et sa page de téléchargement y sont
+      # servis, à l'adresse du projet (et plus tard au nom de domaine
+      # Sprint, une fois rattaché dans la Console Firebase).
+      - name: Site Firebase Hosting
+        id: hosting
         if: steps.secret.outputs.present == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          depot="$GITHUB_REPOSITORY"
-          lien="https://github.com/$depot/releases/download/sprint-android/sprint.apk"
-          version="$(grep '^version:' pubspec.yaml | awk '{print $2}') (${{ github.run_number }})"
-          notes=$(printf 'APK de test Sprint pour les chauffeurs : version %s, commit %s, compilé le %s UTC.\n\nLien direct à partager : %s' \
-            "$version" "${GITHUB_SHA::7}" "$(date -u '+%d/%m/%Y %H:%M')" "$lien")
-          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/sprint.apk"
-          if ! gh release view sprint-android --repo "$depot" > /dev/null 2>&1; then
-            gh release create sprint-android --repo "$depot" --target "$GITHUB_SHA" --prerelease \
-              --title "Sprint Android (test chauffeurs)" --notes "$notes"
+          gcloud services enable firebasehosting.googleapis.com --project=sprint-vtc
+          jeton=$(gcloud auth print-access-token)
+          api=https://firebasehosting.googleapis.com/v1beta1/projects/sprint-vtc/sites
+          appeler() {
+            reponse=$(curl -s -w '\n%{http_code}' "$@" -H "Authorization: Bearer $jeton")
+            code=${reponse##*$'\n'}
+            corps=${reponse%$'\n'*}
+            if [ "${code:0:1}" != 2 ]; then
+              echo "$corps"
+              echo "::error title=Firebase Hosting::Appel refusé (HTTP $code)."
+              exit 1
+            fi
+          }
+          appeler "$api"
+          adresse=$(echo "$corps" | jq -r '[.sites[]? | select(.type == "DEFAULT_SITE")][0].defaultUrl // empty')
+          if [ -z "$adresse" ]; then
+            echo "Premier passage : création du site Firebase Hosting."
+            appeler -X POST "$api?siteId=sprint-vtc" -H 'Content-Type: application/json' -d '{}'
+            adresse=$(echo "$corps" | jq -r '.defaultUrl // empty')
           fi
-          gh release upload sprint-android "$RUNNER_TEMP/sprint.apk" --repo "$depot" --clobber
-          gh release edit sprint-android --repo "$depot" --notes "$notes"
-          code=$(curl -s -L -o /dev/null -w '%{http_code}' "$lien")
-          echo "Téléchargement : HTTP $code"
-          [ "$code" = 200 ] || { echo "::error::Le lien de téléchargement ne répond pas"; exit 1; }
-          echo "::notice title=APK publié (version $version)::$lien"
+          [ -n "$adresse" ] || { echo "::error::Adresse du site Firebase Hosting introuvable"; exit 1; }
+          echo "Site : $adresse"
+          echo "adresse=$adresse" >> "$GITHUB_OUTPUT"
+
+      # Page de téléchargement (hebergement/index.html) + sprint.apk, puis
+      # contrôle réel : l'APK téléchargé depuis le lien public doit être
+      # identique, octet pour octet, à celui qui vient d'être compilé.
+      - name: Publier l'APK sur Firebase Hosting
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          adresse="${{ steps.hosting.outputs.adresse }}"
+          version="$(grep '^version:' pubspec.yaml | awk '{print $2}') (${{ github.run_number }})"
+          taille="$(stat -c %s "$apk" | awk '{printf "%.0f Mo", $1 / 1048576}')"
+          jour=$(TZ=Africa/Dakar date '+%d/%m/%Y')
+          cp "$apk" hebergement/sprint.apk
+          sed -i -e "s|__VERSION__|$version|g" -e "s|__TAILLE__|$taille|g" -e "s|__DATE__|$jour|g" hebergement/index.html
+          npx --yes firebase-tools@15 deploy --only hosting --project sprint-vtc --non-interactive \
+            --message "APK $version, commit ${GITHUB_SHA::7}"
+          attendu=$(sha256sum "$apk" | cut -d ' ' -f 1)
+          for essai in 1 2 3 4 5 6; do
+            curl -sfL "$adresse/sprint.apk" -o "$RUNNER_TEMP/telecharge.apk" || true
+            recu=$(sha256sum "$RUNNER_TEMP/telecharge.apk" 2> /dev/null | cut -d ' ' -f 1)
+            [ "$recu" = "$attendu" ] && break
+            sleep 10
+          done
+          if [ "$recu" != "$attendu" ]; then
+            echo "::error::Le lien public ne sert pas l'APK qui vient d'être compilé"
+            exit 1
+          fi
+          curl -sI "$adresse/sprint.apk" | grep -iE '^(HTTP|content-type|content-length|content-disposition)'
+          curl -s "$adresse/" | grep -q "Version $version" \
+            || { echo "::error::La page de téléchargement n'affiche pas la version $version"; exit 1; }
+          echo "::notice title=APK publié (version $version, $taille)::$adresse/sprint.apk — page : $adresse/"
           rm -f "$RUNNER_TEMP/sprint.jks"
