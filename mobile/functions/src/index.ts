@@ -8,6 +8,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { coordonneesAdresse as coordonneesCore, rechercherAdresses as rechercherCore } from './adresses';
 import { rembourserCourseAdmin as rembourserCore, sanctionnerCompte as sanctionnerCore } from './admin';
 import { estimer } from './commandes';
+import { chauffeursProches as chauffeursProchesCore } from './proximite';
 import { calculDistance } from './distances';
 import { corpsWebhook, ErreurSignature, FournisseurSimule, signer, type FournisseurPaiement } from './fournisseurs';
 import { ClientGoogle } from './google';
@@ -200,4 +201,9 @@ export const rechercherAdresses = onCall(options, (requete) =>
 /** Coordonnées de l'adresse choisie (Google Places). */
 export const coordonneesAdresse = onCall(options, (requete) =>
   coordonneesCore(google(), requete.auth?.uid, requete.data),
+);
+
+/** Accueil client : chauffeurs disponibles alentour, anonymes et arrondis à 150 m. */
+export const chauffeursProches = onCall((requete) =>
+  chauffeursProchesCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
 );

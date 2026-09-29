@@ -157,6 +157,9 @@ depuis la Console.
   par le chauffeur validé lui-même, lisible par l'Admin (carte "Courses
   en direct") et par le client uniquement pendant SA course avec ce
   chauffeur (suivi d'approche) ; effacée quand il passe hors ligne.
+  L'accueil client ne la lit jamais directement : la Cloud Function
+  `chauffeursProches` ne renvoie que des positions arrondies à ~150 m,
+  sans identité.
 - Seul le chauffeur attribué fait avancer sa course (client à bord, puis
   course terminée), sans pouvoir sauter d'étape ni toucher au prix.
 - Courses : aucune course ne peut être créée depuis l'app, même par
@@ -258,6 +261,13 @@ en `europe-west1` (même région que Firestore `eur3`) :
   retiré des chauffeurs disponibles, position effacée, et sa course en
   cours (acceptée ou client à bord) annulée et remboursée au client.
 
+- `chauffeursProches` (client connecté, accueil) : motos disponibles
+  dans un rayon de 3 km (position de moins de 2 minutes, chauffeur sans
+  course en cours). Chaque position est ramenée au centre d'une case
+  d'environ 150 m, une case n'apparaît qu'une fois, jamais d'identifiant ;
+  cap arrondi à 45° pour orienter l'icône ; au plus 15 motos, plus une
+  estimation d'approche en minutes.
+
 ### 7.1 Déploiement automatique (GitHub Actions)
 
 À chaque push, GitHub Actions teste le backend puis déploie les Cloud
@@ -330,6 +340,6 @@ relancer le déploiement (onglet Actions > Run workflow).
 ```bash
 cd mobile/functions
 npm test                  # moteur de prix (dont parité avec l'app), validation, signatures
-npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions (émulateur Firestore)
+npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité (émulateur Firestore)
 ```
 

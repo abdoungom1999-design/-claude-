@@ -9,6 +9,15 @@
 >   fournie à la compilation par le secret GitHub `GOOGLE_MAPS_WEB_KEY`.
 >   Sans cette clé, ou si Google ne répond pas, la carte reste sur
 >   OpenStreetMap. Les mentions Google sont affichées sur chaque carte.
+> - Style « Sprint clair » (`lib/core/maps/style_sprint_clair.dart`) :
+>   envoyé à la création de la session Map Tiles (fonds clairs, routes
+>   blanches, commerces et transports masqués). Style refusé par Google :
+>   carte Google sans style ; Google indisponible : OpenStreetMap, aux
+>   couleurs adoucies dans le même esprit.
+> - APK Android : compilé sans la clé web (restreinte au site), il affiche
+>   le fond OpenStreetMap adouci. Pour le style Google sur Android, il
+>   faudra une clé dédiée restreinte à l'app Android (voir le compte
+>   rendu du Lot 2).
 > - Le composant Google Maps officiel (Maps JavaScript API, décrit
 >   ci-dessous) n'est pas utilisé.
 

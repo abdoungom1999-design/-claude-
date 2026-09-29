@@ -4,14 +4,24 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sprint/core/maps/fond_carte.dart';
+import 'package:sprint/core/maps/style_sprint_clair.dart';
 
-/// Dio dont chaque requête reçoit [reponse] (ou échoue si `null`).
-Dio _dioFactice(List<RequestOptions> requetes, {Map<String, dynamic>? reponse}) {
+/// Dio dont chaque requête reçoit [reponse] (ou échoue si `null`, avec
+/// le code [codeErreur]). [refuserStyle] : une demande avec style est
+/// refusée (400), comme le ferait Google pour un style invalide.
+Dio _dioFactice(
+  List<RequestOptions> requetes, {
+  Map<String, dynamic>? reponse,
+  int codeErreur = 403,
+  bool refuserStyle = false,
+}) {
   final dio = Dio();
   dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
     requetes.add(options);
-    if (reponse == null) {
-      handler.reject(DioException(requestOptions: options, response: Response(requestOptions: options, statusCode: 403)));
+    final avecStyle = (options.data as Map?)?.containsKey('styles') ?? false;
+    if (reponse == null || (refuserStyle && avecStyle)) {
+      final code = refuserStyle && avecStyle ? 400 : codeErreur;
+      handler.reject(DioException(requestOptions: options, response: Response(requestOptions: options, statusCode: code)));
     } else {
       handler.resolve(Response(requestOptions: options, statusCode: 200, data: reponse));
     }
@@ -33,7 +43,7 @@ Future<void> _carte(WidgetTester tester, FondCarte fond) async {
 }
 
 void main() {
-  test('session Google : carte routière en français pour le Sénégal, réutilisée puis renouvelée', () async {
+  test('session Google : carte routière en français pour le Sénégal, style Sprint clair, réutilisée puis renouvelée', () async {
     final requetes = <RequestOptions>[];
     var maintenant = _maintenant;
     final fond = FondCarte(
@@ -48,7 +58,7 @@ void main() {
     final session = await fond.session();
     expect(session!.jeton, 'JETON');
     expect(requetes.single.uri.toString(), 'https://tile.googleapis.com/v1/createSession?key=CLE-WEB');
-    expect(requetes.single.data, {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN'});
+    expect(requetes.single.data, {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN', 'styles': styleSprintClair});
     expect(fond.optionsGoogle(session), {'session': 'JETON', 'key': 'CLE-WEB'});
 
     await fond.session();
@@ -73,6 +83,34 @@ void main() {
     expect(fond.secours.value, isTrue);
     expect(await fond.session(), isNull);
     expect(requetes, hasLength(1));
+  });
+
+  test('style refusé par Google (400) : carte Google sans style, pas OpenStreetMap', () async {
+    final requetes = <RequestOptions>[];
+    final fond = FondCarte(
+      cle: 'CLE-WEB',
+      maintenant: () => _maintenant,
+      dio: _dioFactice(
+        requetes,
+        refuserStyle: true,
+        reponse: {'session': 'SANS-STYLE', 'expiry': '${_secondes(_maintenant.add(const Duration(days: 14)))}'},
+      ),
+    );
+    expect((await fond.session())!.jeton, 'SANS-STYLE');
+    expect(fond.secours.value, isFalse);
+    expect(requetes, hasLength(2));
+    expect((requetes.last.data as Map).containsKey('styles'), isFalse);
+  });
+
+  test('style : aucune règle vide, couleurs au format #rrggbb', () {
+    for (final regle in styleSprintClair) {
+      final stylers = regle['stylers']! as List;
+      expect(stylers, isNotEmpty);
+      for (final s in stylers.cast<Map<String, Object>>()) {
+        final couleur = s['color'];
+        if (couleur != null) expect(couleur, matches(RegExp(r'^#[0-9a-f]{6}$')));
+      }
+    }
   });
 
   test('images Google en erreur à répétition : secours OpenStreetMap', () {

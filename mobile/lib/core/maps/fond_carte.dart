@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'style_sprint_clair.dart';
 
 /// Fond de carte de toute l'app : images Google Maps (Map Tiles API) dès
 /// qu'une clé web est fournie à la compilation
@@ -13,11 +14,19 @@ import 'package:flutter_map/flutter_map.dart';
 /// ligne : elle est restreinte au site (référents HTTP) et à la seule
 /// Map Tiles API dans Google Cloud.
 ///
+/// Style : « Sprint clair » ([styleSprintClair]) sur toutes les cartes.
+/// Un style refusé par Google (400) fait redemander une session sans
+/// style, puis seulement OpenStreetMap en dernier recours.
+///
 /// Secours : si Google ne répond pas (session refusée, quota, images en
 /// erreur), la carte repasse sur OpenStreetMap plutôt que de rester vide.
 class FondCarte {
-  FondCarte({required String cle, Dio? dio, DateTime Function()? maintenant})
-      : _cle = cle,
+  FondCarte({
+    required String cle,
+    Dio? dio,
+    DateTime Function()? maintenant,
+    this.styles = styleSprintClair,
+  })  : _cle = cle,
         _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 8))),
         _maintenant = maintenant ?? DateTime.now;
 
@@ -33,6 +42,7 @@ class FondCarte {
   static const erreursToleres = 6;
 
   final String _cle;
+  final List<Map<String, Object>> styles;
   final Dio _dio;
   final DateTime Function() _maintenant;
 
@@ -57,27 +67,51 @@ class FondCarte {
   }
 
   Future<SessionTuiles?> _creerSession() async {
-    try {
-      final reponse = await _dio.post<Map<String, dynamic>>(
-        'https://tile.googleapis.com/v1/createSession',
-        queryParameters: {'key': _cle},
-        data: {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN'},
-      );
-      final donnees = reponse.data ?? const {};
-      final jeton = donnees['session'];
-      final expiration = int.tryParse('${donnees['expiry']}');
-      if (jeton is! String || jeton.isEmpty || expiration == null) {
-        throw const FormatException('Session Google invalide');
+    if (styles.isNotEmpty) {
+      try {
+        return await _demanderSession(avecStyle: true);
+      } on DioException catch (e) {
+        // Style refusé : la carte reste Google, sans le style.
+        if (e.response?.statusCode != 400) return _abandonner(e);
+        debugPrint('Style de carte refusé par Google : carte sans style.');
+      } catch (e) {
+        return _abandonner(e);
       }
-      return _session = SessionTuiles(
-        jeton: jeton,
-        expire: DateTime.fromMillisecondsSinceEpoch(expiration * 1000, isUtc: true),
-      );
-    } catch (e) {
-      debugPrint('Fond de carte Google indisponible ($e) : OpenStreetMap.');
-      secours.value = true;
-      return null;
     }
+    try {
+      return await _demanderSession(avecStyle: false);
+    } catch (e) {
+      return _abandonner(e);
+    }
+  }
+
+  SessionTuiles? _abandonner(Object e) {
+    debugPrint('Fond de carte Google indisponible ($e) : OpenStreetMap.');
+    secours.value = true;
+    return null;
+  }
+
+  Future<SessionTuiles> _demanderSession({required bool avecStyle}) async {
+    final reponse = await _dio.post<Map<String, dynamic>>(
+      'https://tile.googleapis.com/v1/createSession',
+      queryParameters: {'key': _cle},
+      data: {
+        'mapType': 'roadmap',
+        'language': 'fr-FR',
+        'region': 'SN',
+        if (avecStyle) 'styles': styles,
+      },
+    );
+    final donnees = reponse.data ?? const {};
+    final jeton = donnees['session'];
+    final expiration = int.tryParse('${donnees['expiry']}');
+    if (jeton is! String || jeton.isEmpty || expiration == null) {
+      throw const FormatException('Session Google invalide');
+    }
+    return _session = SessionTuiles(
+      jeton: jeton,
+      expire: DateTime.fromMillisecondsSinceEpoch(expiration * 1000, isUtc: true),
+    );
   }
 
   /// Une image Google en erreur (clé refusée, quota…) : au-delà de
@@ -98,6 +132,15 @@ class SessionTuiles {
   final String jeton;
   final DateTime expire;
 }
+
+/// Désature (≈ 30 % de la couleur d'origine) et éclaircit les images
+/// OpenStreetMap.
+const filtreClair = ColorFilter.matrix(<double>[
+  0.51, 0.40, 0.04, 0, 22, //
+  0.12, 0.79, 0.04, 0, 22, //
+  0.12, 0.40, 0.43, 0, 22, //
+  0, 0, 0, 1, 0, //
+]);
 
 /// Couche de fond à placer en premier dans `FlutterMap(children: …)`.
 class CoucheFondCarte extends StatefulWidget {
@@ -151,6 +194,9 @@ class _CoucheFondCarteState extends State<CoucheFondCarte> {
       return TileLayer(
         urlTemplate: FondCarte.urlOpenStreetMap,
         userAgentPackageName: 'sn.groupesantine.sprint',
+        // OpenStreetMap ne se stylise pas : couleurs atténuées et
+        // éclaircies pour rester proche du style « Sprint clair ».
+        tileBuilder: (context, image, tuile) => ColorFiltered(colorFilter: filtreClair, child: image),
       );
     }
     return TileLayer(
