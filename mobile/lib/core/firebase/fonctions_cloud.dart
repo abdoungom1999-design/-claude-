@@ -24,6 +24,8 @@ abstract final class FonctionsCloud {
       case 'invalid-argument':
       case 'permission-denied':
       case 'failed-precondition':
+      case 'already-exists':
+      case 'not-found':
         return ApiException(e.message ?? 'Demande refusée.');
       case 'unauthenticated':
         return ApiException('Votre session a expiré. Reconnectez-vous.');

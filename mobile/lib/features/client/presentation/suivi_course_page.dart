@@ -462,7 +462,9 @@ class _EtatAnnulee extends StatelessWidget {
     if (course == null) return null;
     final raison = switch (course.annuleePar) {
       'chauffeur' => '${MotifAnnulation.pourLeClient(course.motifAnnulation)} ',
-      'systeme' => "Aucun chauffeur n'était disponible pour le moment. ",
+      'systeme' => course.motifAnnulation == MotifAnnulation.chauffeurSuspendu
+          ? "Votre chauffeur n'est plus disponible : la course a été annulée par Sprint. "
+          : "Aucun chauffeur n'était disponible pour le moment. ",
       _ => '',
     };
     final remboursement = course.estRemboursable ? 'Votre paiement vous est remboursé. ' : '';

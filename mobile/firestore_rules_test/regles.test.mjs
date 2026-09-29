@@ -346,6 +346,100 @@ describe('courses : cycle de vie côté chauffeur', () => {
   });
 });
 
+describe('support : tickets par course', () => {
+  beforeEach(() => env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'courses', 'c9'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee', prixFcfa: 2000 });
+    await setDoc(doc(db, 'courses', 'c10'), { clientId: 'autreClient', chauffeurId: 'chauffeur', statut: 'terminee', prixFcfa: 2000 });
+  }));
+
+  const ticket = (extra = {}) => ({
+    courseId: 'c9', clientId: 'client', chauffeurId: 'chauffeur', categorie: 'chauffeur', statut: 'ouvert',
+    creeLe: serverTimestamp(), majLe: serverTimestamp(), dernierMessage: 'Le chauffeur était impoli',
+    nonLuAdmin: true, nonLuClient: false, ...extra,
+  });
+  const message = (auteurId, auteurRole, texte = 'Bonjour') => ({ auteurId, auteurRole, texte, creeLe: serverTimestamp() });
+
+  /** Ticket + premier message, dans la même écriture (comme l'app). */
+  async function ouvrir(db, extra = {}) {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'tickets', 'c9'), ticket(extra));
+    batch.set(doc(db, 'tickets', 'c9', 'messages', 'm1'), message('client', 'client', 'Le chauffeur était impoli'));
+    return batch.commit();
+  }
+
+  test('le client ouvre un ticket sur sa course, avec son premier message', async () => {
+    await assertSucceeds(ouvrir(en('client')));
+    await assertSucceeds(getDoc(doc(en('client'), 'tickets', 'c9')));
+    await assertSucceeds(getDocs(collection(en('client'), 'tickets', 'c9', 'messages')));
+    await assertSucceeds(getDocs(query(collection(en('client'), 'tickets'), where('clientId', '==', 'client'))));
+  });
+
+  test('savoir si un ticket existe déjà (document absent) : accepté', async () => {
+    await assertSucceeds(getDoc(doc(en('client'), 'tickets', 'c9')));
+  });
+
+  test('ticket sur la course d\'un autre, au nom d\'un autre, faux chauffeur, catégorie ou statut inventés : refusé', async () => {
+    const db = en('client');
+    await assertFails(setDoc(doc(db, 'tickets', 'c10'), ticket({ courseId: 'c10' })));
+    await assertFails(setDoc(doc(en('autreClient'), 'tickets', 'c9'), ticket({ clientId: 'autreClient' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'c9'), ticket({ chauffeurId: 'suspendu' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'c9'), ticket({ categorie: 'remboursement_immediat' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'c9'), ticket({ statut: 'resolu' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'c9'), ticket({ priorite: 'haute' })));
+  });
+
+  test('un autre client ou le chauffeur ne lisent ni le ticket ni la conversation', async () => {
+    await ouvrir(en('client'));
+    for (const uid of ['autreClient', 'chauffeur']) {
+      await assertFails(getDoc(doc(en(uid), 'tickets', 'c9')));
+      await assertFails(getDocs(collection(en(uid), 'tickets', 'c9', 'messages')));
+      await assertFails(setDoc(doc(en(uid), 'tickets', 'c9', 'messages', 'x'), message(uid, 'client')));
+    }
+    await assertFails(getDocs(collection(en('autreClient'), 'tickets')));
+  });
+
+  test('le client répond (le ticket repasse ouvert) mais ne peut ni se faire passer pour l\'Admin ni clore', async () => {
+    await ouvrir(en('client'));
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), 'tickets', 'c9'), { statut: 'resolu' }));
+    const db = en('client');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'tickets', 'c9', 'messages', 'm2'), message('client', 'client', 'Toujours pas réglé'));
+    batch.update(doc(db, 'tickets', 'c9'), {
+      majLe: serverTimestamp(), dernierMessage: 'Toujours pas réglé', nonLuAdmin: true, nonLuClient: false, statut: 'ouvert',
+    });
+    await assertSucceeds(batch.commit());
+    await assertFails(setDoc(doc(db, 'tickets', 'c9', 'messages', 'm3'), message('client', 'admin')));
+    await assertFails(setDoc(doc(db, 'tickets', 'c9', 'messages', 'm4'), message('admin', 'admin')));
+    await assertFails(updateDoc(doc(db, 'tickets', 'c9'), { statut: 'resolu' }));
+    await assertFails(updateDoc(doc(db, 'tickets', 'c9'), { categorie: 'securite' }));
+    await assertSucceeds(updateDoc(doc(db, 'tickets', 'c9'), { nonLuClient: false }));
+    await assertFails(updateDoc(doc(db, 'tickets', 'c9', 'messages', 'm1'), { texte: 'modifié' }));
+  });
+
+  test('message vide ou trop long : refusé', async () => {
+    await ouvrir(en('client'));
+    await assertFails(setDoc(doc(en('client'), 'tickets', 'c9', 'messages', 'v'), message('client', 'client', '')));
+    await assertFails(setDoc(doc(en('client'), 'tickets', 'c9', 'messages', 'l'), message('client', 'client', 'x'.repeat(1001))));
+  });
+
+  test('l\'Admin voit toute la file, répond et clôt', async () => {
+    await ouvrir(en('client'));
+    const db = en('admin');
+    await assertSucceeds(getDocs(query(collection(db, 'tickets'), orderBy('majLe', 'desc'))));
+    await assertSucceeds(getDocs(collection(db, 'tickets', 'c9', 'messages')));
+    await assertSucceeds(setDoc(doc(db, 'tickets', 'c9', 'messages', 'r1'), message('admin', 'admin', 'Nous regardons.')));
+    await assertSucceeds(updateDoc(doc(db, 'tickets', 'c9'), { statut: 'resolu', nonLuAdmin: false, nonLuClient: true }));
+  });
+
+  test('journal des actions Admin : lisible par l\'Admin seul, écrit par le serveur seul', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'journal_admin', 'j1'), { action: 'remboursement' }));
+    await assertSucceeds(getDocs(collection(en('admin'), 'journal_admin')));
+    await assertFails(getDocs(collection(en('client'), 'journal_admin')));
+    await assertFails(setDoc(doc(en('admin'), 'journal_admin', 'j2'), { action: 'faux' }));
+  });
+});
+
 describe('commandes (paiement) et config serveur', () => {
   beforeEach(() => env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();

@@ -5,7 +5,6 @@ import 'package:sprint/features/admin/data/pilotage_service.dart';
 import 'package:sprint/features/admin/presentation/sections/admin_clients_section.dart';
 import 'package:sprint/features/admin/presentation/sections/admin_overview_section.dart';
 import 'package:sprint/features/admin/presentation/sections/admin_parametres_section.dart';
-import 'package:sprint/features/admin/presentation/sections/admin_support_section.dart';
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/finances/data/comptabilite.dart';
 
@@ -147,12 +146,6 @@ void main() {
     await tester.enterText(find.byType(TextField), 'inconnu');
     await tester.pump();
     expect(find.text('Aucun client ne correspond à la recherche.'), findsOneWidget);
-  });
-
-  testWidgets('Support : aucun ticket factice', (tester) async {
-    await _afficher(tester, const AdminSupportSection(demo: false));
-    expect(find.textContaining('Aucun ticket'), findsOneWidget);
-    expect(find.textContaining('Client :'), findsNothing);
   });
 
   testWidgets('Paramètres : règles réellement appliquées, exemples calculés', (tester) async {

@@ -6,6 +6,7 @@ import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
 import { coordonneesAdresse as coordonneesCore, rechercherAdresses as rechercherCore } from './adresses';
+import { rembourserCourseAdmin as rembourserCore, sanctionnerCompte as sanctionnerCore } from './admin';
 import { estimer } from './commandes';
 import { calculDistance } from './distances';
 import { corpsWebhook, ErreurSignature, FournisseurSimule, signer, type FournisseurPaiement } from './fournisseurs';
@@ -170,6 +171,16 @@ export const pagePaiementSimule = onRequest(async (req, res) => {
 /** Annulation par le client (en attente) ou le chauffeur (avec motif), puis remboursement. */
 export const annulerCourse = onCall(async (requete) =>
   annulerCourseCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
+);
+
+/** Admin : remboursement intégral d'une course (support). */
+export const rembourserCourseAdmin = onCall(async (requete) =>
+  rembourserCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
+);
+
+/** Admin : suspension, bannissement ou réactivation d'un compte. */
+export const sanctionnerCompte = onCall(async (requete) =>
+  sanctionnerCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
 );
 
 /** Paiements jamais finalisés et courses restées sans chauffeur. */

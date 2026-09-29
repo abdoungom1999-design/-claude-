@@ -33,6 +33,7 @@ class CourseFirestore {
     this.termineeLe,
     this.commissionFcfa,
     this.commandeId,
+    this.rembourseeLe,
   });
 
   final String id;
@@ -71,6 +72,23 @@ class CourseFirestore {
 
   bool get estRemboursable => commandeId != null;
 
+  /// Remboursement intégral accordé par le support (voir la Cloud
+  /// Function `rembourserCourseAdmin`) ; `null` sinon.
+  final DateTime? rembourseeLe;
+
+  /// Libellé du statut pour le client.
+  String get libelleStatut => switch (statut) {
+        StatutCourse.enAttente => "Recherche d'un chauffeur",
+        StatutCourse.acceptee => 'Chauffeur en route',
+        StatutCourse.enCours => 'En cours',
+        StatutCourse.terminee => 'Terminée',
+        StatutCourse.annulee => 'Annulée',
+        _ => statut,
+      };
+
+  bool get estActive =>
+      statut == StatutCourse.enAttente || statut == StatutCourse.acceptee || statut == StatutCourse.enCours;
+
   /// "Déjà payé par Wave" / "Déjà payé par Orange Money" : 100 % mobile
   /// money, le chauffeur n'encaisse jamais rien.
   String get libellePaiement => switch (methodePaiement) {
@@ -100,6 +118,7 @@ class CourseFirestore {
       termineeLe: donnees['termineeLe'] is Timestamp ? (donnees['termineeLe'] as Timestamp).toDate() : null,
       commissionFcfa: (donnees['commissionFcfa'] as num?)?.toInt(),
       commandeId: donnees['commandeId'] as String?,
+      rembourseeLe: donnees['rembourseeLe'] is Timestamp ? (donnees['rembourseeLe'] as Timestamp).toDate() : null,
     );
   }
 }
@@ -218,6 +237,10 @@ abstract final class MotifAnnulation {
   /// Personne n'a accepté la course à temps : le serveur l'annule.
   static const aucunChauffeur = 'aucun_chauffeur';
 
+  /// Chauffeur suspendu par l'Admin pendant la course : le serveur
+  /// l'annule et rembourse le client.
+  static const chauffeurSuspendu = 'chauffeur_suspendu';
+
   /// Libellé pour le chauffeur.
   static String libelle(String motif) => switch (motif) {
         clientIntrouvable => 'Client introuvable',
@@ -305,6 +328,18 @@ class CourseService {
       if (!doc.exists || donnees == null) return null;
       return CourseFirestore.depuisDocument(doc.id, donnees);
     });
+  }
+
+  /// Courses du client (historique de l'onglet Activité), de la plus
+  /// récente à la plus ancienne. Filtre d'égalité seul, tri local : pas
+  /// d'index composite à créer.
+  Stream<List<CourseFirestore>> streamCoursesClient(String clientId) {
+    return _courses.where('clientId', isEqualTo: clientId).snapshots().map(
+          (instantane) => instantane.docs
+              .map((doc) => CourseFirestore.depuisDocument(doc.id, doc.data()))
+              .toList()
+            ..sort((a, b) => b.timestamp.compareTo(a.timestamp)),
+        );
   }
 
   /// Flux temps réel de toutes les courses en attente d'un chauffeur,

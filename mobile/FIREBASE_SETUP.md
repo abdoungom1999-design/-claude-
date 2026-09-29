@@ -166,6 +166,14 @@ depuis la Console.
 - Annulations (client tant que la course est en attente, chauffeur avec
   un motif) : uniquement par la Cloud Function `annulerCourse`, qui
   rembourse le client ; jamais directement depuis l'app.
+- `tickets/{courseId}` (support, un signalement par course) : ouvert par
+  le client de la course, lisible par lui et l'Admin ; la conversation
+  (`messages`) n'accepte que le client et l'Admin, sans usurpation
+  d'auteur ni modification après envoi. Seul l'Admin clôt ou rouvre un
+  ticket. Les messages "système" (remboursement effectué) sont écrits
+  par le serveur.
+- `journal_admin` : trace de chaque remboursement et de chaque sanction
+  (qui, quoi, motif), écrite par le serveur seul, lisible par l'Admin.
 - `commandes` (demandes de paiement) : écrites par le serveur seul,
   lisibles par leur client et l'Admin. `config` (secrets du serveur) :
   fermée à l'app.
@@ -234,6 +242,15 @@ en `europe-west1` (même région que Firestore `eur3`) :
   bout de 10 minutes → annulée et remboursée. Un remboursement refusé par
   l'opérateur laisse la commande en `remboursement_echoue`, à traiter à
   la main.
+- `rembourserCourseAdmin` (Admin, depuis un ticket du support) :
+  remboursement intégral d'une course terminée ou annulée, avec un motif
+  obligatoire. Refusé si la course est encore en cours ou déjà
+  remboursée. Le client en est informé dans son ticket. La part due au
+  chauffeur n'est pas modifiée.
+- `sanctionnerCompte` (Admin) : suspension, bannissement ou réactivation
+  d'un compte, avec un motif obligatoire. Pour un chauffeur sanctionné :
+  retiré des chauffeurs disponibles, position effacée, et sa course en
+  cours (acceptée ou client à bord) annulée et remboursée au client.
 
 ### 7.1 Déploiement automatique (GitHub Actions)
 
@@ -307,6 +324,6 @@ relancer le déploiement (onglet Actions > Run workflow).
 ```bash
 cd mobile/functions
 npm test                  # moteur de prix (dont parité avec l'app), validation, signatures
-npm run test:emulateur    # paiement, courses, annulations, surveillance (émulateur Firestore)
+npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions (émulateur Firestore)
 ```
 

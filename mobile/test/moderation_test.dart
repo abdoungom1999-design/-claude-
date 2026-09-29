@@ -9,7 +9,7 @@ class _AdminKycServiceEspion extends AdminKycService {
   _AdminKycServiceEspion(this.statutCompte);
 
   final String statutCompte;
-  final List<(String, String)> sanctions = [];
+  final List<(String, String, String?)> sanctions = [];
 
   @override
   Stream<ConducteurKycAdmin?> streamConducteur(String uid) => Stream.value(
@@ -26,7 +26,10 @@ class _AdminKycServiceEspion extends AdminKycService {
       );
 
   @override
-  Future<void> definirStatutCompte(String uid, String statut) async => sanctions.add((uid, statut));
+  Future<SanctionAppliquee> definirStatutCompte(String uid, String statut, {String? motif}) async {
+    sanctions.add((uid, statut, motif));
+    return const SanctionAppliquee(coursesAnnulees: 0, remboursements: 0);
+  }
 }
 
 Future<void> _ouvrirDossier(WidgetTester tester, AdminKycService service) async {
@@ -52,10 +55,11 @@ Future<void> _ouvrirDossier(WidgetTester tester, AdminKycService service) async 
 Future<void> _defilerJusqua(WidgetTester tester, Finder cible) =>
     tester.scrollUntilVisible(cible, 300, scrollable: find.byType(Scrollable).last);
 
-Future<void> _sanctionner(WidgetTester tester, String bouton, String confirmation) async {
+Future<void> _sanctionner(WidgetTester tester, String bouton, String confirmation, {String motif = 'Plainte client'}) async {
   await _defilerJusqua(tester, find.text(bouton));
   await tester.tap(find.text(bouton));
   await tester.pumpAndSettle();
+  await tester.enterText(find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)), motif);
   await tester.tap(
     find.descendant(of: find.byType(AlertDialog), matching: find.widgetWithText(FilledButton, confirmation)),
   );
@@ -76,7 +80,17 @@ void main() {
 
     await _sanctionner(tester, 'Suspendre le compte', 'Suspendre');
 
-    expect(service.sanctions, [('chauffeur-1', StatutCompte.suspendu)]);
+    expect(service.sanctions, [('chauffeur-1', StatutCompte.suspendu, 'Plainte client')]);
+  });
+
+  testWidgets('Dossier : sanction sans motif refusée, rien n\'est envoyé', (tester) async {
+    final service = _AdminKycServiceEspion(StatutCompte.actif);
+    await _ouvrirDossier(tester, service);
+
+    await _sanctionner(tester, 'Suspendre le compte', 'Suspendre', motif: '   ');
+
+    expect(find.text('Indiquez le motif.'), findsOneWidget);
+    expect(service.sanctions, isEmpty);
   });
 
   testWidgets('Dossier : "Bannir définitivement" écrit statutCompte = banni après confirmation', (tester) async {
@@ -85,7 +99,7 @@ void main() {
 
     await _sanctionner(tester, 'Bannir définitivement', 'Bannir définitivement');
 
-    expect(service.sanctions, [('chauffeur-1', StatutCompte.banni)]);
+    expect(service.sanctions, [('chauffeur-1', StatutCompte.banni, 'Plainte client')]);
   });
 
   testWidgets('Dossier : annuler la confirmation n\'applique aucune sanction', (tester) async {

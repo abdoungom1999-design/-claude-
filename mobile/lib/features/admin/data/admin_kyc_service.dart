@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import '../../../core/firebase/fonctions_cloud.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../conducteur/data/position_chauffeur_service.dart';
 
 /// Profil Conducteur tel que lu directement depuis Firestore
 /// (`users/{uid}`, `role == 'conducteur'`), pour la supervision KYC
@@ -61,6 +62,15 @@ class ConducteurKycAdmin {
   }
 }
 
+/// Résultat d'une sanction : courses en cours annulées et clients
+/// remboursés.
+class SanctionAppliquee {
+  const SanctionAppliquee({required this.coursesAnnulees, required this.remboursements});
+
+  final int coursesAnnulees;
+  final int remboursements;
+}
+
 /// Supervision KYC côté Admin : liste en temps réel des chauffeurs
 /// (collection Firestore `users`, `role == 'conducteur'`) et
 /// approbation/rejet de leur dossier. Écrit directement dans le même
@@ -95,14 +105,25 @@ class AdminKycService {
     });
   }
 
-  /// Suspend, bannit ou réactive un compte ([StatutCompte]). Le chauffeur
-  /// connecté est éjecté en direct (voir [ConducteurShellPage]).
-  Future<void> definirStatutCompte(String uid, String statut) async {
-    await _firestore.collection('users').doc(uid).update({'statutCompte': statut});
-    await _publierProfilPublic(uid);
-    // Retire aussitôt le chauffeur sanctionné de la carte en direct.
-    if (StatutCompte.estBloque(statut)) {
-      await _firestore.collection(PositionChauffeurService.collection).doc(uid).delete();
+  /// Suspend, bannit ou réactive un compte ([StatutCompte]) par le
+  /// serveur (Cloud Function `sanctionnerCompte`) : motif obligatoire pour
+  /// sanctionner, course en cours annulée et client remboursé, chauffeur
+  /// retiré de la carte en direct et rendu indisponible, décision tracée
+  /// dans le journal Admin. Le chauffeur connecté est éjecté en direct
+  /// (voir [ConducteurShellPage]).
+  Future<SanctionAppliquee> definirStatutCompte(String uid, String statut, {String? motif}) async {
+    try {
+      final r = await FonctionsCloud.appeler('sanctionnerCompte', {
+        'uid': uid,
+        'statutCompte': statut,
+        if (motif != null) 'motif': motif,
+      });
+      return SanctionAppliquee(
+        coursesAnnulees: (r['coursesAnnulees'] as num?)?.toInt() ?? 0,
+        remboursements: (r['remboursements'] as num?)?.toInt() ?? 0,
+      );
+    } on FirebaseFunctionsException catch (e) {
+      throw FonctionsCloud.versApiException(e);
     }
   }
 

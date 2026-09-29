@@ -2,9 +2,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../../../../core/models/statut_compte.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/image_document.dart';
 import '../../data/admin_kyc_service.dart';
+import 'dialogue_sanction.dart';
 import 'visionneuse_document.dart';
 
 const _documentsKyc = [
@@ -62,6 +64,8 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
     });
     try {
       await action();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _erreur = e.message);
     } catch (_) {
       if (mounted) setState(() => _erreur = "L'opération a échoué. Réessayez.");
     } finally {
@@ -69,37 +73,23 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
     }
   }
 
+  /// Suspension et bannissement passent par le serveur (course en cours
+  /// annulée et remboursée, journal Admin), avec un motif obligatoire.
   Future<void> _moderer(ConducteurKycAdmin c, String statut) async {
+    String? motif;
     if (statut != StatutCompte.actif) {
-      final confirme = await _confirmerSanction(c, statut);
-      if (confirme != true) return;
+      motif = await demanderMotifSanction(context, nom: c.nom, statut: statut);
+      if (motif == null) return;
     }
-    await _executer(() => widget.service.definirStatutCompte(c.id, statut));
-  }
-
-  Future<bool?> _confirmerSanction(ConducteurKycAdmin c, String statut) {
-    final bannir = statut == StatutCompte.banni;
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(bannir ? 'Bannir ${c.nom} ?' : 'Suspendre ${c.nom} ?'),
-        content: Text(
-          bannir
-              ? "Le chauffeur est déconnecté immédiatement et ne pourra plus jamais accéder à l'application. "
-                  "Cette décision n'est pas réversible depuis le panneau Admin."
-              : 'Le chauffeur est déconnecté immédiatement et ne peut plus se connecter '
-                  "jusqu'à la réactivation de son compte.",
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuler')),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: bannir ? Colors.red.shade700 : AppColors.orange),
-            child: Text(bannir ? 'Bannir définitivement' : 'Suspendre'),
-          ),
-        ],
-      ),
-    );
+    await _executer(() async {
+      final sanction = await widget.service.definirStatutCompte(c.id, statut, motif: motif);
+      if (mounted && sanction.coursesAnnulees > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${sanction.coursesAnnulees} course(s) en cours annulée(s), '
+              '${sanction.remboursements} client(s) remboursé(s).'),
+        ));
+      }
+    });
   }
 
   @override

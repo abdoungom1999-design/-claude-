@@ -192,7 +192,7 @@ jobs:
         if: steps.secret.outputs.present == 'true'
         run: |
           for service in estimerprix creerpaiement annulercourse webhookpaiement pagepaiementsimule \
-                         rechercheradresses coordonneesadresse; do
+                         rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
               --member=allUsers --role=roles/run.invoker --quiet > /dev/null
@@ -207,7 +207,8 @@ jobs:
         if: steps.secret.outputs.present == 'true'
         run: |
           base=https://europe-west1-sprint-vtc.cloudfunctions.net
-          for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse; do
+          for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
+                          rembourserCourseAdmin sanctionnerCompte; do
             reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
             echo "$fonction : $reponse"
             echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }
@@ -535,22 +536,3 @@ jobs:
           curl -s "$adresse/main.dart.js" -o /dev/null -w '%{http_code}' | grep -q 200 \
             || { echo "::error::main.dart.js introuvable"; exit 1; }
           echo "::notice title=Site publié::App : $adresse/ — APK $version : $adresse/sprint.apk (page : $adresse/android/)"
-
-  # Ancienne publication GitHub de l'APK (lien contenant le nom du dépôt) :
-  # supprimée, avec son tag. Sans effet si elle n'existe plus.
-  nettoyage:
-    needs: [hebergement]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Supprimer l'ancienne release « sprint-android »
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view sprint-android --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release delete sprint-android --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
-            echo "Release sprint-android supprimée."
-          else
-            echo "Release sprint-android déjà absente."
-          fi

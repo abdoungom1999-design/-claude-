@@ -337,6 +337,85 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
+    // Support : un ticket par course (identifiant = courseId), ouvert par
+    // le client de cette course depuis son historique. Conversation en
+    // sous-collection "messages" entre le client et l'Admin (et les
+    // messages automatiques du serveur). L'Admin traite : réponses,
+    // statut, lecture. Remboursements et sanctions passent par le
+    // serveur (Cloud Functions), tracés dans "journal_admin".
+    // ---------------------------------------------------------------
+    function ticketDuClient(courseId) {
+      let ticket = getAfter(/databases/$(database)/documents/tickets/$(courseId));
+      return ticket != null && ticket.data.clientId == moi();
+    }
+
+    match /tickets/{courseId} {
+      // resource == null : savoir si un ticket existe déjà pour la course.
+      allow get: if connecte()
+        && (resource == null || resource.data.clientId == moi() || estAdmin());
+      allow list: if estAdmin() || (connecte() && resource.data.clientId == moi());
+
+      allow create: if connecte()
+        && request.resource.data.keys().hasOnly([
+             'courseId', 'clientId', 'chauffeurId', 'categorie', 'statut',
+             'creeLe', 'majLe', 'dernierMessage', 'nonLuAdmin', 'nonLuClient'])
+        && request.resource.data.courseId == courseId
+        && request.resource.data.clientId == moi()
+        && get(/databases/$(database)/documents/courses/$(courseId)).data.clientId == moi()
+        && request.resource.data.chauffeurId
+             == get(/databases/$(database)/documents/courses/$(courseId)).data.get('chauffeurId', null)
+        && request.resource.data.categorie in ['chauffeur', 'prix', 'objet_perdu', 'securite', 'autre']
+        && request.resource.data.statut == 'ouvert'
+        && request.resource.data.creeLe == request.time
+        && request.resource.data.majLe == request.time
+        && request.resource.data.dernierMessage is string
+        && request.resource.data.dernierMessage.size() <= 200
+        && request.resource.data.nonLuAdmin == true
+        && request.resource.data.nonLuClient == false;
+
+      // Le client lit les réponses (nonLuClient -> false) ou écrit un
+      // nouveau message, ce qui rouvre le ticket s'il était résolu.
+      allow update: if estAdmin()
+        || (connecte() && resource.data.clientId == moi()
+            && champsModifies().hasOnly(['nonLuClient'])
+            && request.resource.data.nonLuClient == false)
+        || (connecte() && resource.data.clientId == moi()
+            && champsModifies().hasOnly(['majLe', 'dernierMessage', 'nonLuAdmin', 'statut', 'nonLuClient'])
+            && request.resource.data.majLe == request.time
+            && request.resource.data.dernierMessage is string
+            && request.resource.data.dernierMessage.size() <= 200
+            && request.resource.data.nonLuAdmin == true
+            && request.resource.data.nonLuClient == false
+            && request.resource.data.statut == 'ouvert');
+
+      allow delete: if estAdmin();
+
+      match /messages/{messageId} {
+        allow read: if connecte() && (estAdmin()
+          || get(/databases/$(database)/documents/tickets/$(courseId)).data.clientId == moi());
+
+        allow create: if connecte()
+          && request.resource.data.keys().hasOnly(['auteurId', 'auteurRole', 'texte', 'creeLe'])
+          && request.resource.data.auteurId == moi()
+          && request.resource.data.texte is string
+          && request.resource.data.texte.size() > 0
+          && request.resource.data.texte.size() <= 1000
+          && request.resource.data.creeLe == request.time
+          && ((request.resource.data.auteurRole == 'client' && ticketDuClient(courseId))
+              || (request.resource.data.auteurRole == 'admin' && estAdmin()));
+
+        allow update, delete: if false;
+      }
+    }
+
+    // Journal des actions de l'Admin (remboursements, sanctions) : écrit
+    // par le serveur seul, lisible par l'Admin.
+    match /journal_admin/{entreeId} {
+      allow read: if estAdmin();
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------
     // Messagerie : l'identifiant d'un chat est "uidA_uidB" (UID triés),
     // l'appartenance se lit donc dans l'identifiant lui-même.
     // ---------------------------------------------------------------
