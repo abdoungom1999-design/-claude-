@@ -15,3 +15,8 @@ void nouvelleCourse() {
   if (!Platform.isAndroid) return;
   unawaited(_canal.invokeMethod<void>('nouvelleCourse').then((_) {}, onError: (_) {}));
 }
+
+void nouveauMessage() {
+  if (!Platform.isAndroid) return;
+  unawaited(_canal.invokeMethod<void>('nouveauMessage').then((_) {}, onError: (_) {}));
+}

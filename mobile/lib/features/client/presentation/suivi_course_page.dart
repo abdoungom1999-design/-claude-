@@ -9,8 +9,9 @@ import '../../courses/data/course_service.dart';
 import '../../courses/data/position_chauffeur.dart';
 import '../../evaluations/presentation/evaluation_course.dart';
 import '../../messages/data/chat_service.dart';
-import '../../messages/data/detecteur_nouveaux_messages.dart';
+import '../../messages/data/messages_non_lus.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
+import '../../messages/presentation/widgets/pastille_non_lus.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/maps/proximite_service.dart';
 import 'widgets/carte_chauffeur.dart';
@@ -26,7 +27,8 @@ import 'widgets/suivi_approche.dart';
 /// fois le chauffeur attribué, sa position s'affiche en temps réel avec
 /// le temps d'attente estimé (voir [SuiviApproche]), et un message du
 /// chauffeur arrivé pendant que le client regarde la carte s'affiche
-/// aussitôt, avec un badge sur "Discuter" jusqu'à sa lecture.
+/// aussitôt (son + vibration, voir [MessagesNonLus]), avec une pastille
+/// rouge et le nombre de messages non lus sur "Discuter" jusqu'à leur lecture.
 class SuiviCoursePage extends StatefulWidget {
   const SuiviCoursePage({
     super.key,
@@ -36,6 +38,7 @@ class SuiviCoursePage extends StatefulWidget {
     this.monUid,
     this.coucheFond,
     this.proximite,
+    this.messagesNonLus,
   });
 
   final String courseId;
@@ -50,6 +53,9 @@ class SuiviCoursePage extends StatefulWidget {
 
   /// Motos alentour affichées pendant la recherche d'un chauffeur.
   final ProximiteService? proximite;
+
+  /// Messages non lus du chauffeur ; par défaut celui de l'app.
+  final MessagesNonLus? messagesNonLus;
 
   @override
   State<SuiviCoursePage> createState() => _SuiviCoursePageState();
@@ -110,6 +116,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
                   courseService: _courseService,
                   chatService: widget.chatService ?? ChatService(),
                   monUid: widget.monUid ?? FirebaseAuth.instance.currentUser?.uid,
+                  messagesNonLus: widget.messagesNonLus ?? MessagesNonLus.instance,
                   coucheFond: widget.coucheFond,
                 );
             }
@@ -199,6 +206,7 @@ class _EtatChauffeurAssigne extends StatefulWidget {
     required this.courseService,
     required this.chatService,
     required this.monUid,
+    required this.messagesNonLus,
     this.coucheFond,
   });
 
@@ -206,6 +214,7 @@ class _EtatChauffeurAssigne extends StatefulWidget {
   final CourseService courseService;
   final ChatService chatService;
   final String? monUid;
+  final MessagesNonLus messagesNonLus;
   final Widget? coucheFond;
 
   @override
@@ -220,8 +229,8 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
   late Stream<PositionChauffeurDirect?> _positions;
 
   // Messages du chauffeur reçus pendant que le client regarde la carte.
-  DetecteurNouveauxMessages? _detecteurMessages;
-  StreamSubscription<ChatMessageFirestore?>? _abonnementMessages;
+  MessagesNonLus get _nonLus => widget.messagesNonLus;
+  StreamSubscription<ChatMessageFirestore>? _abonnementMessages;
   bool _chatOuvert = false;
 
   @override
@@ -238,42 +247,33 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
     super.dispose();
   }
 
-  /// Même mécanisme que côté chauffeur : un message du chauffeur arrivé
-  /// alors que la conversation n'est pas ouverte s'affiche aussitôt
-  /// ("Répondre" ouvre le chat) et allume un badge sur "Discuter".
+  /// La coquille du client suit déjà la conversation (son, vibration,
+  /// compteur) ; ici on s'assure que c'est bien ce chauffeur (appel sans
+  /// effet si c'est déjà le cas) et on affiche le message aussitôt
+  /// ("Répondre" ouvre le chat).
   void _suivreMessages() {
     _abonnementMessages?.cancel();
     _abonnementMessages = null;
-    _detecteurMessages = null;
     final chauffeurId = widget.course.chauffeurId;
     final monUid = widget.monUid;
     if (chauffeurId == null || monUid == null) return;
 
-    final detecteur = DetecteurNouveauxMessages(interlocuteurUid: chauffeurId);
-    _detecteurMessages = detecteur;
-    _abonnementMessages = _chatService.streamDernierMessage(_chatService.chatIdEntre(monUid, chauffeurId)).listen(
-      (message) {
-        final alerter = detecteur.recevoir(message);
-        if (_chatOuvert) detecteur.marquerLu();
-        if (!mounted) return;
-        setState(() {});
-        if (alerter && !_chatOuvert && message != null) {
-          final nom = (_profilChauffeur?['nom'] as String?)?.trim();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${nom == null || nom.isEmpty ? 'Votre chauffeur' : nom} : ${message.text}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              duration: const Duration(seconds: 6),
-              action: SnackBarAction(label: 'Répondre', onPressed: _discuter),
-            ),
-          );
-        }
-      },
-      onError: (_) {},
-    );
+    _nonLus.suivre(chatService: _chatService, monUid: monUid, interlocuteurUid: chauffeurId);
+    _abonnementMessages = _nonLus.nouveauxMessages.listen((message) {
+      if (!mounted || _chatOuvert) return;
+      final nom = (_profilChauffeur?['nom'] as String?)?.trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${nom == null || nom.isEmpty ? 'Votre chauffeur' : nom} : ${message.text}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(label: 'Répondre', onPressed: _discuter),
+        ),
+      );
+    });
   }
 
   Stream<PositionChauffeurDirect?> _streamPositions() {
@@ -326,24 +326,21 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
     final chauffeurId = widget.course.chauffeurId;
     if (chauffeurId == null || _chatOuvert) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    setState(() {
-      _chatOuvert = true;
-      _detecteurMessages?.marquerLu();
-    });
+    setState(() => _chatOuvert = true);
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MessagerieChatPage(
           interlocuteurUid: chauffeurId,
           interlocuteurNom: (_profilChauffeur?['nom'] as String?) ?? 'Chauffeur Sprint',
           interlocuteurSousTitre: 'Chauffeur Sprint',
+          chatService: widget.chatService,
+          monUid: widget.monUid,
+          messagesNonLus: _nonLus,
         ),
       ),
     );
     if (!mounted) return;
-    setState(() {
-      _chatOuvert = false;
-      _detecteurMessages?.marquerLu();
-    });
+    setState(() => _chatOuvert = false);
   }
 
   @override
@@ -386,11 +383,12 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _discuter,
-                  icon: Badge(
-                    isLabelVisible: _detecteurMessages?.nonLu ?? false,
-                    smallSize: 9,
-                    backgroundColor: AppColors.orange,
-                    child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.orange),
+                  icon: ListenableBuilder(
+                    listenable: _nonLus,
+                    builder: (context, _) => PastilleNonLus(
+                      nombre: _nonLus.nonLus,
+                      child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.orange),
+                    ),
                   ),
                   label: const Text('Discuter'),
                   style: OutlinedButton.styleFrom(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/chat_service.dart';
+import '../data/messages_non_lus.dart';
 
 /// Chat instantané, temps réel, entre le client et un chauffeur —
 /// branché sur Firestore (voir [ChatService]) : plus de réponse
@@ -22,6 +23,7 @@ class MessagerieChatPage extends StatefulWidget {
     required this.interlocuteurSousTitre,
     this.chatService,
     this.monUid,
+    this.messagesNonLus,
   });
 
   final String interlocuteurUid;
@@ -31,6 +33,7 @@ class MessagerieChatPage extends StatefulWidget {
   /// Injectables pour les tests.
   final ChatService? chatService;
   final String? monUid;
+  final MessagesNonLus? messagesNonLus;
 
   @override
   State<MessagerieChatPage> createState() => _MessagerieChatPageState();
@@ -50,14 +53,20 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
   String? _telephoneInterlocuteur;
   bool _telephoneCharge = false;
 
+  late final MessagesNonLus _nonLus = widget.messagesNonLus ?? MessagesNonLus.instance;
+
   @override
   void initState() {
     super.initState();
+    // Conversation à l'écran : messages lus, ni son ni pastille pendant
+    // qu'on la regarde.
+    _nonLus.ouvrirConversation(widget.interlocuteurUid);
     _chargerTelephone();
   }
 
   @override
   void dispose() {
+    _nonLus.fermerConversation(widget.interlocuteurUid);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();

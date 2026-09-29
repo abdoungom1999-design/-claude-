@@ -1,7 +1,14 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/courses/data/course_service.dart';
+import '../../features/messages/data/chat_service.dart';
+import '../../features/messages/data/messages_non_lus.dart';
+import '../../features/messages/presentation/widgets/pastille_non_lus.dart';
 import '../../firebase_options.dart';
+import '../alertes/alerte_sonore.dart';
 import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
 import '../widgets/email_verification_pending_page.dart';
@@ -11,10 +18,92 @@ import '../widgets/premium_dialog.dart';
 /// Activité, Messages, Compte) surmontée d'un bouton d'action flottant
 /// central rond ('S') qui déborde légèrement au-dessus de la barre et
 /// ouvre le menu d'actions rapides.
-class HomeShellPage extends StatelessWidget {
-  const HomeShellPage({super.key, required this.navigationShell});
+class HomeShellPage extends StatefulWidget {
+  const HomeShellPage({
+    super.key,
+    required this.navigationShell,
+    this.courseService,
+    this.chatService,
+    this.messagesNonLus,
+    this.monUid,
+  });
 
   final StatefulNavigationShell navigationShell;
+
+  /// Injectables pour les tests.
+  final CourseService? courseService;
+  final ChatService? chatService;
+  final MessagesNonLus? messagesNonLus;
+  final String? monUid;
+
+  @override
+  State<HomeShellPage> createState() => _HomeShellPageState();
+}
+
+class _HomeShellPageState extends State<HomeShellPage> {
+  late final MessagesNonLus _nonLus =
+      widget.messagesNonLus ?? MessagesNonLus.instance;
+  StreamSubscription<List<CourseFirestore>>? _abonnementCourses;
+
+  StatefulNavigationShell get navigationShell => widget.navigationShell;
+
+  @override
+  void initState() {
+    super.initState();
+    _suivreMessagesDuChauffeur();
+  }
+
+  @override
+  void dispose() {
+    _abonnementCourses?.cancel();
+    _nonLus.arreter();
+    super.dispose();
+  }
+
+  static bool _emailNonVerifie() {
+    if (!DefaultFirebaseOptions.estConfigure) return false;
+    try {
+      final utilisateur = FirebaseAuth.instance.currentUser;
+      return utilisateur != null && !utilisateur.emailVerified;
+    } catch (_) {
+      // Firebase pas initialisé (tests) : rien à vérifier.
+      return false;
+    }
+  }
+
+  static String? _uidConnecte() {
+    if (!DefaultFirebaseOptions.estConfigure) return null;
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Tant que le client a une course en cours avec un chauffeur, on
+  /// écoute sa conversation depuis n'importe quel onglet : son + vibration
+  /// et pastille rouge à chaque message (voir [MessagesNonLus]).
+  void _suivreMessagesDuChauffeur() {
+    final uid = widget.monUid ?? _uidConnecte();
+    if (uid == null) return;
+    final chat = widget.chatService ?? ChatService();
+    _abonnementCourses = (widget.courseService ?? CourseService())
+        .streamCoursesClient(uid)
+        .listen(
+      (courses) {
+        final active = courses
+            .where((c) => c.estActive && (c.chauffeurId?.isNotEmpty ?? false));
+        final chauffeurId = active.isEmpty ? null : active.first.chauffeurId;
+        if (chauffeurId == null) {
+          _nonLus.arreter();
+        } else {
+          _nonLus.suivre(
+              chatService: chat, monUid: uid, interlocuteurUid: chauffeurId);
+        }
+      },
+      onError: (_) {},
+    );
+  }
 
   void _ouvrirMenuActions(BuildContext context) {
     showModalBottomSheet(
@@ -27,81 +116,87 @@ class HomeShellPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (DefaultFirebaseOptions.estConfigure) {
-      final utilisateur = FirebaseAuth.instance.currentUser;
-      if (utilisateur != null && !utilisateur.emailVerified) {
-        return const EmailVerificationPendingPage(
-          destinationApresVerification: AppRoutes.home,
-        );
-      }
+    if (_emailNonVerifie()) {
+      return const EmailVerificationPendingPage(
+        destinationApresVerification: AppRoutes.home,
+      );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: navigationShell,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(top: 28),
-        child: SizedBox(
-          width: 64,
-          height: 64,
-          child: FloatingActionButton(
-            onPressed: () => _ouvrirMenuActions(context),
-            backgroundColor: AppColors.noirProfond,
-            elevation: 4,
-            shape: const CircleBorder(),
-            child: const Text(
-              'S',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
+    // Les navigateurs n'autorisent le son qu'après un geste : le premier
+    // appui dans l'app prépare celui de l'alerte de message.
+    return Listener(
+      onPointerDown: (_) => AlerteSonore.preparer(),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: navigationShell,
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(top: 28),
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: FloatingActionButton(
+              onPressed: () => _ouvrirMenuActions(context),
+              backgroundColor: AppColors.noirProfond,
+              elevation: 4,
+              shape: const CircleBorder(),
+              child: const Text(
+                'S',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        color: AppColors.background,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 10,
-        elevation: 12,
-        padding: EdgeInsets.zero,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _OngletBarre(
-                icon: Icons.home_outlined,
-                iconActif: Icons.home_rounded,
-                label: 'Accueil',
-                selectionne: navigationShell.currentIndex == 0,
-                onTap: () => navigationShell.goBranch(0),
-              ),
-              _OngletBarre(
-                icon: Icons.receipt_long_outlined,
-                iconActif: Icons.receipt_long_rounded,
-                label: 'Activité',
-                selectionne: navigationShell.currentIndex == 1,
-                onTap: () => navigationShell.goBranch(1),
-              ),
-              const SizedBox(width: 56),
-              _OngletBarre(
-                icon: Icons.chat_bubble_outline_rounded,
-                iconActif: Icons.chat_bubble_rounded,
-                label: 'Messages',
-                selectionne: navigationShell.currentIndex == 2,
-                onTap: () => navigationShell.goBranch(2),
-              ),
-              _OngletBarre(
-                icon: Icons.person_outline_rounded,
-                iconActif: Icons.person_rounded,
-                label: 'Compte',
-                selectionne: navigationShell.currentIndex == 3,
-                onTap: () => navigationShell.goBranch(3),
-              ),
-            ],
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: BottomAppBar(
+          color: AppColors.background,
+          shape: const CircularNotchedRectangle(),
+          notchMargin: 10,
+          elevation: 12,
+          padding: EdgeInsets.zero,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _OngletBarre(
+                  icon: Icons.home_outlined,
+                  iconActif: Icons.home_rounded,
+                  label: 'Accueil',
+                  selectionne: navigationShell.currentIndex == 0,
+                  onTap: () => navigationShell.goBranch(0),
+                ),
+                _OngletBarre(
+                  icon: Icons.receipt_long_outlined,
+                  iconActif: Icons.receipt_long_rounded,
+                  label: 'Activité',
+                  selectionne: navigationShell.currentIndex == 1,
+                  onTap: () => navigationShell.goBranch(1),
+                ),
+                const SizedBox(width: 56),
+                ListenableBuilder(
+                  listenable: _nonLus,
+                  builder: (context, _) => _OngletBarre(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    iconActif: Icons.chat_bubble_rounded,
+                    label: 'Messages',
+                    selectionne: navigationShell.currentIndex == 2,
+                    nonLus: _nonLus.nonLus,
+                    onTap: () => navigationShell.goBranch(2),
+                  ),
+                ),
+                _OngletBarre(
+                  icon: Icons.person_outline_rounded,
+                  iconActif: Icons.person_rounded,
+                  label: 'Compte',
+                  selectionne: navigationShell.currentIndex == 3,
+                  onTap: () => navigationShell.goBranch(3),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -116,6 +211,7 @@ class _OngletBarre extends StatelessWidget {
     required this.label,
     required this.selectionne,
     required this.onTap,
+    this.nonLus = 0,
   });
 
   final IconData icon;
@@ -123,6 +219,9 @@ class _OngletBarre extends StatelessWidget {
   final String label;
   final bool selectionne;
   final VoidCallback onTap;
+
+  /// Messages non lus : pastille rouge sur l'icône.
+  final int nonLus;
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +234,11 @@ class _OngletBarre extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(selectionne ? iconActif : icon, color: couleur, size: 24),
+            PastilleNonLus(
+              nombre: nonLus,
+              child: Icon(selectionne ? iconActif : icon,
+                  color: couleur, size: 24),
+            ),
             const SizedBox(height: 3),
             Text(
               label,

@@ -7,6 +7,7 @@ import 'package:sprint/features/client/presentation/widgets/carte_chauffeur.dart
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/courses/data/position_chauffeur.dart';
 import 'package:sprint/features/messages/data/chat_service.dart';
+import 'package:sprint/features/messages/data/messages_non_lus.dart';
 
 const _profilComplet = {
   'nom': 'Moussa Diop',
@@ -70,6 +71,9 @@ class _Chat extends ChatService {
 
   @override
   Stream<ChatMessageFirestore?> streamDernierMessage(String chatId) => const Stream.empty();
+
+  @override
+  Stream<List<ChatMessageFirestore>> streamMessages(String chatId) => const Stream.empty();
 }
 
 void main() {
@@ -151,12 +155,15 @@ void main() {
       tester.view.physicalSize = const Size(390, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
+      final nonLus = MessagesNonLus(alerte: () {});
+      addTearDown(nonLus.dispose);
       await tester.pumpWidget(MaterialApp(
         home: SuiviCoursePage(
           courseId: 'c1',
           courseService: _Courses(flux),
           chatService: chat,
           monUid: 'awa',
+          messagesNonLus: nonLus,
           coucheFond: const SizedBox.shrink(),
         ),
       ));

@@ -10,6 +10,7 @@ import 'package:sprint/features/client/presentation/widgets/carte_chauffeur.dart
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/courses/data/position_chauffeur.dart';
 import 'package:sprint/features/messages/data/chat_service.dart';
+import 'package:sprint/features/messages/data/messages_non_lus.dart';
 
 const _points = PointsCourse(
   latitudeDepart: 14.6680,
@@ -58,6 +59,9 @@ class _Chat extends ChatService {
 
   @override
   Stream<ChatMessageFirestore?> streamDernierMessage(String chatId) => const Stream.empty();
+
+  @override
+  Stream<List<ChatMessageFirestore>> streamMessages(String chatId) => const Stream.empty();
 }
 
 class _Proximite implements ProximiteService {
@@ -89,6 +93,7 @@ void main() {
         courseService: courses,
         chatService: _Chat(),
         monUid: 'awa',
+        messagesNonLus: MessagesNonLus(alerte: () {}),
         proximite: proximite,
         coucheFond: const SizedBox.shrink(),
       ),

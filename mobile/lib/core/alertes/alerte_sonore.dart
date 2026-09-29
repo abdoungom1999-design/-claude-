@@ -15,4 +15,10 @@ abstract final class AlerteSonore {
   static void preparer() => plateforme.preparer();
 
   static void nouvelleCourse() => plateforme.nouvelleCourse();
+
+  /// Message du chauffeur reçu par le client : deux bips doux et une
+  /// courte vibration (web), son de notification du téléphone et une
+  /// courte vibration (APK). Plus discret que [nouvelleCourse], et avec
+  /// les mêmes limites (iPhone : bouton silencieux, pas de vibration web).
+  static void nouveauMessage() => plateforme.nouveauMessage();
 }

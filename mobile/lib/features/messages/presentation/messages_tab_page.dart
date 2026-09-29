@@ -5,6 +5,7 @@ import '../../../core/widgets/coming_soon_view.dart';
 import '../../../firebase_options.dart';
 import '../../courses/data/course_service.dart';
 import '../data/chat_service.dart';
+import '../data/messages_non_lus.dart';
 import 'widgets/ligne_conversation_course.dart';
 
 /// Onglet Messages du client : la conversation avec le chauffeur de sa
@@ -14,12 +15,13 @@ import 'widgets/ligne_conversation_course.dart';
 /// la course se termine ou est annulée, la conversation disparaît de
 /// l'onglet et on ne peut plus y écrire.
 class MessagesTabPage extends StatefulWidget {
-  const MessagesTabPage({super.key, this.courseService, this.chatService, this.monUid});
+  const MessagesTabPage({super.key, this.courseService, this.chatService, this.monUid, this.messagesNonLus});
 
   /// Injectables pour les tests.
   final CourseService? courseService;
   final ChatService? chatService;
   final String? monUid;
+  final MessagesNonLus? messagesNonLus;
 
   @override
   State<MessagesTabPage> createState() => _MessagesTabPageState();
@@ -102,6 +104,7 @@ class _MessagesTabPageState extends State<MessagesTabPage> {
                               nomParDefaut: 'Votre chauffeur',
                               sousTitre: 'Chauffeur Sprint',
                               detailCourse: 'Course en cours · ${course.adresseArrivee}',
+                              messagesNonLus: widget.messagesNonLus ?? MessagesNonLus.instance,
                             );
                           },
                         );

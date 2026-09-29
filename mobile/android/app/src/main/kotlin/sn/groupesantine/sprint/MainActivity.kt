@@ -11,21 +11,29 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Alerte "Nouvelle course" du chauffeur (canal "sprint/alerte", appelé par
+ * Alertes sonores (canal "sprint/alerte", appelé par
  * lib/core/alertes/alerte_sonore_natif.dart) : son de notification du
- * téléphone et trois vibrations. L'équivalent web passe par Web Audio.
+ * téléphone et vibrations. "nouvelleCourse" (chauffeur) : trois vibrations
+ * longues ; "nouveauMessage" (client) : deux vibrations courtes.
+ * L'équivalent web passe par Web Audio.
  */
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sprint/alerte")
             .setMethodCallHandler { appel, resultat ->
-                if (appel.method == "nouvelleCourse") {
-                    sonner()
-                    vibrer()
-                    resultat.success(null)
-                } else {
-                    resultat.notImplemented()
+                when (appel.method) {
+                    "nouvelleCourse" -> {
+                        sonner()
+                        vibrer(longArrayOf(0, 400, 200, 400, 200, 400))
+                        resultat.success(null)
+                    }
+                    "nouveauMessage" -> {
+                        sonner()
+                        vibrer(longArrayOf(0, 200, 100, 200))
+                        resultat.success(null)
+                    }
+                    else -> resultat.notImplemented()
                 }
             }
     }
@@ -39,9 +47,8 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun vibrer() {
+    private fun vibrer(motif: LongArray) {
         try {
-            val motif = longArrayOf(0, 400, 200, 400, 200, 400)
             val vibreur: Vibrator =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator

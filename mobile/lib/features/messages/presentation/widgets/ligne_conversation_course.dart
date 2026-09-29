@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../data/chat_service.dart';
+import '../../data/messages_non_lus.dart';
 import '../messagerie_chat_page.dart';
+import 'pastille_non_lus.dart';
 
 /// Ligne de l'onglet Messages : la conversation avec l'autre partie de la
 /// course en cours (le chauffeur pour un client, le client pour un
@@ -19,6 +21,7 @@ class LigneConversationCourse extends StatefulWidget {
     required this.nomParDefaut,
     required this.sousTitre,
     required this.detailCourse,
+    this.messagesNonLus,
   });
 
   final ChatService chatService;
@@ -33,6 +36,10 @@ class LigneConversationCourse extends StatefulWidget {
 
   /// Ce que l'on sait de la course, ex. "Course en cours · Almadies".
   final String detailCourse;
+
+  /// Messages non lus du chauffeur (côté client) : pastille rouge avec
+  /// leur nombre. `null` pour le chauffeur.
+  final MessagesNonLus? messagesNonLus;
 
   @override
   State<LigneConversationCourse> createState() => _LigneConversationCourseState();
@@ -71,6 +78,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
             interlocuteurSousTitre: widget.sousTitre,
             chatService: widget.chatService,
             monUid: widget.monUid,
+            messagesNonLus: widget.messagesNonLus,
           ),
         ),
       ),
@@ -120,6 +128,19 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
               ],
             ),
           ),
+          if (widget.messagesNonLus case final nonLus?)
+            ListenableBuilder(
+              listenable: nonLus,
+              builder: (context, _) => nonLus.interlocuteurUid == widget.interlocuteurUid && nonLus.nonLus > 0
+                  ? Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: PastilleNonLus(
+                        nombre: nonLus.nonLus,
+                        child: const Icon(Icons.mark_chat_unread_rounded, color: AppColors.orange, size: 22),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
         ],
       ),

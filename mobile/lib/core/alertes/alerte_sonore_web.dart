@@ -58,7 +58,7 @@ void preparer() {
 }
 
 void nouvelleCourse() {
-  _vibrer();
+  _vibrer(const [300, 120, 300, 120, 300]);
   final contexte = _obtenirContexte();
   if (contexte == null) return;
   if (contexte.state == 'suspended') contexte.resume().toDart.catchError((_) => null);
@@ -74,26 +74,42 @@ void nouvelleCourse() {
   }
 }
 
-void _bip(_Contexte contexte, double frequence, double debut, double duree) {
-  final oscillateur = contexte.createOscillator()..type = 'square';
+/// Message reçu : deux notes douces (onde sinusoïdale), courte vibration.
+void nouveauMessage() {
+  _vibrer(const [150, 80, 150]);
+  final contexte = _obtenirContexte();
+  if (contexte == null) return;
+  if (contexte.state == 'suspended') contexte.resume().toDart.catchError((_) => null);
+  try {
+    final debut = contexte.currentTime + 0.02;
+    _bip(contexte, 880, debut, 0.14, type: 'sine', volume: 0.5);
+    _bip(contexte, 1175, debut + 0.17, 0.2, type: 'sine', volume: 0.5);
+  } catch (_) {
+    // Audio indisponible : la vibration et le badge suffisent.
+  }
+}
+
+void _bip(_Contexte contexte, double frequence, double debut, double duree,
+    {String type = 'square', double volume = 0.9}) {
+  final oscillateur = contexte.createOscillator()..type = type;
   oscillateur.frequency.setValueAtTime(frequence, debut);
-  final volume = contexte.createGain();
-  volume.gain
+  final gain = contexte.createGain();
+  gain.gain
     ..setValueAtTime(0.0001, debut)
-    ..linearRampToValueAtTime(0.9, debut + 0.01)
-    ..setValueAtTime(0.9, debut + duree - 0.02)
+    ..linearRampToValueAtTime(volume, debut + 0.01)
+    ..setValueAtTime(volume, debut + duree - 0.02)
     ..linearRampToValueAtTime(0.0001, debut + duree);
-  oscillateur.connect(volume);
-  volume.connect(contexte.destination);
+  oscillateur.connect(gain);
+  gain.connect(contexte.destination);
   oscillateur
     ..start(debut)
     ..stop(debut + duree + 0.02);
 }
 
-void _vibrer() {
+void _vibrer(List<int> motif) {
   try {
     if (_navigator.has('vibrate')) {
-      _navigator.callMethod<JSAny?>('vibrate'.toJS, [300, 120, 300, 120, 300].jsify());
+      _navigator.callMethod<JSAny?>('vibrate'.toJS, motif.jsify());
     }
   } catch (_) {}
 }
