@@ -7,12 +7,16 @@ Hosting (projet sprint-vtc), toujours aux mêmes adresses, à envoyer sur
 WhatsApp :
 
 - page de téléchargement (logo, version, étapes d'installation) :
-  https://sprint-vtc.web.app/
+  https://sprint-vtc.web.app/android/
 - lien direct du fichier : https://sprint-vtc.web.app/sprint.apk
 
-La page est dans `hebergement/index.html` ; la CI y inscrit la version,
-la taille et la date à chaque publication, puis vérifie que le lien
-public sert bien l'APK qui vient d'être compilé.
+Le même site sert l'app web à sa racine (https://sprint-vtc.web.app/),
+avec un bandeau « Sprint existe en application Android » pour les
+visiteurs Android. La page est dans `hebergement/android/index.html` ;
+la CI y inscrit la version, la taille et la date, assemble le site
+complet (`hebergement/assembler.sh`), le publie d'un seul coup, puis
+vérifie que le lien public sert bien l'APK qui vient d'être compilé.
+L'ancienne adresse GitHub Pages redirige vers https://sprint-vtc.web.app/.
 
 Nom de domaine Sprint : dans la Console Firebase > Hosting > **Ajouter
 un domaine personnalisé** (ex. `app.sprint.sn`), puis ajouter chez le
@@ -57,7 +61,7 @@ Limites connues de l'APK de test :
 Apple n'autorise pas les APK ni l'installation d'un site en un clic : le
 chauffeur ajoute le site à son écran d'accueil, une fois.
 
-1. Ouvrir https://abdoungom1999-design.github.io/-claude-/ dans **Safari**.
+1. Ouvrir https://sprint-vtc.web.app/ dans **Safari**.
 2. Toucher **Partager** (carré avec une flèche), puis **« Sur l'écran
    d'accueil »**, puis **Ajouter**. Un bandeau rappelle ce geste sur
    iPhone tant que Sprint n'est pas installé.

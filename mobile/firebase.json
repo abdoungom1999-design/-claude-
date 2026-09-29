@@ -22,13 +22,28 @@
     "rules": "storage.rules"
   },
   "hosting": {
-    "public": "hebergement",
+    "public": "build/hebergement",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
     "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
       {
         "source": "/sprint.apk",
         "headers": [
@@ -40,15 +55,6 @@
             "key": "Content-Disposition",
             "value": "attachment; filename=\"sprint.apk\""
           },
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
-        "source": "/",
-        "headers": [
           {
             "key": "Cache-Control",
             "value": "no-cache"

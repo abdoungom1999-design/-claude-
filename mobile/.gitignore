@@ -18,5 +18,3 @@ windows/
 # Journaux des émulateurs Firebase
 *-debug.log
 
-# APK copié par la CI avant publication sur Firebase Hosting
-hebergement/sprint.apk

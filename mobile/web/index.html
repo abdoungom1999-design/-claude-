@@ -66,12 +66,13 @@
   -->
   <script src="flutter_bootstrap.js" async></script>
 
-  <!-- iPhone/iPad : aucune installation en un clic n'est possible (Apple ne
-       le permet pas aux sites). On explique donc le geste, une seule fois,
-       tant que Sprint n'est pas ouvert depuis l'écran d'accueil. -->
+  <!-- Aide à l'installation, une seule fois, tant que Sprint n'est pas
+       ouvert en app : iPhone/iPad (Apple ne permet pas l'installation d'un
+       site en un clic : on explique le geste) et Android (lien vers l'APK,
+       plus complet que le site : GPS écran verrouillé, alertes). -->
   <div id="aide-installation" role="dialog" aria-label="Installer Sprint">
     <img src="icons/apple-touch-icon.png" alt="">
-    <div>
+    <div data-plateforme="ios">
       <strong>Installez Sprint sur votre iPhone</strong><br>
       Touchez
       <svg width="16" height="18" viewBox="0 0 16 18" aria-label="Partager">
@@ -80,6 +81,10 @@
       </svg>
       <strong>Partager</strong>, puis <strong>« Sur l'écran d'accueil »</strong>.
     </div>
+    <div data-plateforme="android">
+      <strong>Sprint existe en application Android</strong><br>
+      <a href="/android/" style="color:#FF6600;font-weight:700">Télécharger l'application</a>
+    </div>
     <button type="button" aria-label="Fermer">×</button>
   </div>
   <script>
@@ -87,12 +92,15 @@
       var cle = 'sprint-aide-installation-fermee';
       var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var android = /Android/.test(navigator.userAgent);
       var installee = window.navigator.standalone === true ||
         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
       var dejaFermee = false;
       try { dejaFermee = localStorage.getItem(cle) === '1'; } catch (e) {}
-      if (!ios || installee || dejaFermee) return;
+      if (!(ios || android) || installee || dejaFermee) return;
       var aide = document.getElementById('aide-installation');
+      var autre = aide.querySelector('[data-plateforme="' + (ios ? 'android' : 'ios') + '"]');
+      autre.parentNode.removeChild(autre);
       aide.querySelector('button').addEventListener('click', function () {
         aide.style.display = 'none';
         try { localStorage.setItem(cle, '1'); } catch (e) {}

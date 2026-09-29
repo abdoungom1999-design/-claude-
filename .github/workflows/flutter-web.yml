@@ -1,10 +1,12 @@
 name: Build & déployer Sprint Web
 
 # À chaque push : compile l'app Flutter (dossier mobile/) en site
-# statique, teste le backend (Cloud Functions et règles Firestore sur
-# émulateur), déploie le backend sur Firebase (fonctions puis règles),
-# puis publie l'app sur GitHub Pages et l'APK Android de test sur
-# Firebase Hosting. Rien n'est déployé si un test échoue.
+# statique et en APK Android, teste le backend (Cloud Functions et règles
+# Firestore sur émulateur), déploie le backend sur Firebase (fonctions
+# puis règles), puis publie sur Firebase Hosting (https://sprint-vtc.web.app)
+# l'app web à la racine et l'APK Android (/android/, /sprint.apk).
+# L'ancienne adresse GitHub Pages redirige vers le nouveau site. Rien
+# n'est déployé si un test échoue.
 on:
   push:
     branches:
@@ -55,13 +57,21 @@ jobs:
           GOOGLE_MAPS_WEB_KEY: ${{ secrets.GOOGLE_MAPS_WEB_KEY }}
         run: |
           flutter build web --release \
-            --base-href "/${{ github.event.repository.name }}/" \
+            --base-href "/" \
             --dart-define=API_BASE_URL="${{ inputs.api_base_url }}" \
             --dart-define=GOOGLE_MAPS_WEB_KEY="$GOOGLE_MAPS_WEB_KEY"
 
+      # Site publié sur Firebase Hosting (job hebergement).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-web
+          path: mobile/build/web
+          retention-days: 3
+
+      # GitHub Pages ne sert plus que la redirection vers le nouveau site.
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: mobile/build/web
+          path: mobile/hebergement/redirection
 
   # Tests du backend : moteur de prix, paiement et création des courses
   # (Cloud Functions, dont émulateur Firestore) et règles de sécurité
@@ -214,8 +224,10 @@ jobs:
         if: steps.secret.outputs.present == 'true'
         run: npx --yes firebase-tools@15 deploy --only firestore:rules --project sprint-vtc --non-interactive
 
+  # Ancienne adresse (GitHub Pages) : page de redirection vers
+  # https://sprint-vtc.web.app, publiée une fois le nouveau site en ligne.
   deploy:
-    needs: [build, firebase]
+    needs: [hebergement]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -224,10 +236,9 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  # APK Android de test, pour les chauffeurs : publié sur Firebase
-  # Hosting, toujours au même lien (à partager sur WhatsApp), avec une
-  # page de téléchargement :
-  #   https://sprint-vtc.web.app/sprint.apk   (page : https://sprint-vtc.web.app/)
+  # APK Android de test, pour les chauffeurs, publié par le job
+  # hebergement, toujours au même lien (à partager sur WhatsApp) :
+  #   https://sprint-vtc.web.app/sprint.apk   (page : https://sprint-vtc.web.app/android/)
   # Compilé après le déploiement du backend : l'APK parle aux mêmes Cloud
   # Functions que le site. Rien à configurer à la main :
   # - l'app Android est enregistrée dans Firebase si besoin (API
@@ -380,15 +391,83 @@ jobs:
           echo "Signature Sprint vérifiée."
           ls -lh "$apk"
 
+      # APK et page de téléchargement (version, taille, date inscrites),
+      # remis au job hebergement qui publie tout le site d'un coup.
+      - name: Préparer l'APK et sa page
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          version="$(grep '^version:' pubspec.yaml | awk '{print $2}') (${{ github.run_number }})"
+          taille="$(stat -c %s "$apk" | awk '{printf "%.0f Mo", $1 / 1048576}')"
+          jour=$(TZ=Africa/Dakar date '+%d/%m/%Y')
+          mkdir -p "$RUNNER_TEMP/livraison"
+          cp "$apk" "$RUNNER_TEMP/livraison/sprint.apk"
+          sed -e "s|__VERSION__|$version|g" -e "s|__TAILLE__|$taille|g" -e "s|__DATE__|$jour|g" \
+            hebergement/android/index.html > "$RUNNER_TEMP/livraison/android.html"
+          echo "$version" > "$RUNNER_TEMP/livraison/version.txt"
+          rm -f "$RUNNER_TEMP/sprint.jks"
+          echo "APK $version, $taille"
+
+      - if: steps.secret.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: ${{ runner.temp }}/livraison
+          retention-days: 3
+
+  # Site Firebase Hosting (https://sprint-vtc.web.app), publié en un seul
+  # déploiement : Firebase Hosting remplace tout le site à chaque fois.
+  #   /             app web Sprint (PWA)
+  #   /android/     page de téléchargement de l'APK
+  #   /sprint.apk   APK Android
+  # Si l'APK n'a pas pu être compilé, le site est quand même publié avec
+  # l'APK déjà en ligne (repris tel quel), pour ne jamais le supprimer.
+  hebergement:
+    needs: [build, firebase, android]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.firebase.result == 'success' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
+        id: secret
+        env:
+          COMPTE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$COMPTE_SERVICE" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Site non publié::Secret FIREBASE_SERVICE_ACCOUNT absent (voir mobile/FIREBASE_SETUP.md, étape 7)."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.secret.outputs.present == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - if: steps.secret.outputs.present == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      - if: steps.secret.outputs.present == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: site-web
+          path: mobile/build/web
+
+      - if: steps.secret.outputs.present == 'true' && needs.android.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: ${{ runner.temp }}/livraison
+
       # Site Firebase Hosting du projet (créé au premier passage s'il
-      # n'existe pas encore) : l'APK et sa page de téléchargement y sont
-      # servis, à l'adresse du projet (et plus tard au nom de domaine
-      # Sprint, une fois rattaché dans la Console Firebase).
+      # n'existe pas encore).
       - name: Site Firebase Hosting
         id: hosting
         if: steps.secret.outputs.present == 'true'
@@ -417,34 +496,61 @@ jobs:
           echo "Site : $adresse"
           echo "adresse=$adresse" >> "$GITHUB_OUTPUT"
 
-      # Page de téléchargement (hebergement/index.html) + sprint.apk, puis
-      # contrôle réel : l'APK téléchargé depuis le lien public doit être
-      # identique, octet pour octet, à celui qui vient d'être compilé.
-      - name: Publier l'APK sur Firebase Hosting
+      # APK absent (compilation en échec) : on reprend celui en ligne.
+      - name: Reprendre l'APK en ligne
+        if: steps.secret.outputs.present == 'true' && needs.android.result != 'success'
+        run: |
+          adresse="${{ steps.hosting.outputs.adresse }}"
+          echo "::warning title=APK non recompilé::Le site est publié avec l'APK déjà en ligne."
+          mkdir -p "$RUNNER_TEMP/livraison"
+          curl -sfL "$adresse/sprint.apk" -o "$RUNNER_TEMP/livraison/sprint.apk"
+          curl -sfL "$adresse/android/" -o "$RUNNER_TEMP/livraison/android.html"
+          grep -o 'Version [^·<]*' "$RUNNER_TEMP/livraison/android.html" | head -n 1 | sed 's/^Version //; s/ *$//' \
+            > "$RUNNER_TEMP/livraison/version.txt"
+
+      # Publication, puis contrôle réel sur le site public : app à la
+      # racine, page Android à jour, APK identique octet pour octet.
+      - name: Publier le site sur Firebase Hosting
         if: steps.secret.outputs.present == 'true'
         run: |
-          apk=build/app/outputs/flutter-apk/app-release.apk
           adresse="${{ steps.hosting.outputs.adresse }}"
-          version="$(grep '^version:' pubspec.yaml | awk '{print $2}') (${{ github.run_number }})"
-          taille="$(stat -c %s "$apk" | awk '{printf "%.0f Mo", $1 / 1048576}')"
-          jour=$(TZ=Africa/Dakar date '+%d/%m/%Y')
-          cp "$apk" hebergement/sprint.apk
-          sed -i -e "s|__VERSION__|$version|g" -e "s|__TAILLE__|$taille|g" -e "s|__DATE__|$jour|g" hebergement/index.html
+          livraison="$RUNNER_TEMP/livraison"
+          version=$(cat "$livraison/version.txt")
+          hebergement/assembler.sh build/web "$livraison/sprint.apk" "$livraison/android.html"
           npx --yes firebase-tools@15 deploy --only hosting --project sprint-vtc --non-interactive \
-            --message "APK $version, commit ${GITHUB_SHA::7}"
-          attendu=$(sha256sum "$apk" | cut -d ' ' -f 1)
+            --message "Site ${GITHUB_SHA::7}, APK $version"
+          attendu=$(sha256sum "$livraison/sprint.apk" | cut -d ' ' -f 1)
           for essai in 1 2 3 4 5 6; do
             curl -sfL "$adresse/sprint.apk" -o "$RUNNER_TEMP/telecharge.apk" || true
             recu=$(sha256sum "$RUNNER_TEMP/telecharge.apk" 2> /dev/null | cut -d ' ' -f 1)
             [ "$recu" = "$attendu" ] && break
             sleep 10
           done
-          if [ "$recu" != "$attendu" ]; then
-            echo "::error::Le lien public ne sert pas l'APK qui vient d'être compilé"
-            exit 1
+          [ "$recu" = "$attendu" ] || { echo "::error::Le lien public ne sert pas l'APK attendu"; exit 1; }
+          curl -sI "$adresse/sprint.apk" | grep -iE '^(HTTP|content-type|content-disposition)'
+          curl -s "$adresse/android/" | grep -qF "Version $version" \
+            || { echo "::error::La page /android/ n'affiche pas la version $version"; exit 1; }
+          curl -s "$adresse/" | grep -q 'flutter_bootstrap.js' \
+            || { echo "::error::L'app web n'est pas servie à la racine"; exit 1; }
+          curl -s "$adresse/main.dart.js" -o /dev/null -w '%{http_code}' | grep -q 200 \
+            || { echo "::error::main.dart.js introuvable"; exit 1; }
+          echo "::notice title=Site publié::App : $adresse/ — APK $version : $adresse/sprint.apk (page : $adresse/android/)"
+
+  # Ancienne publication GitHub de l'APK (lien contenant le nom du dépôt) :
+  # supprimée, avec son tag. Sans effet si elle n'existe plus.
+  nettoyage:
+    needs: [hebergement]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Supprimer l'ancienne release « sprint-android »
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view sprint-android --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release delete sprint-android --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+            echo "Release sprint-android supprimée."
+          else
+            echo "Release sprint-android déjà absente."
           fi
-          curl -sI "$adresse/sprint.apk" | grep -iE '^(HTTP|content-type|content-length|content-disposition)'
-          curl -s "$adresse/" | grep -q "Version $version" \
-            || { echo "::error::La page de téléchargement n'affiche pas la version $version"; exit 1; }
-          echo "::notice title=APK publié (version $version, $taille)::$adresse/sprint.apk — page : $adresse/"
-          rm -f "$RUNNER_TEMP/sprint.jks"

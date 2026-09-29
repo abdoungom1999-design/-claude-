@@ -5,7 +5,7 @@
 > - Fond de carte : images Google (**Map Tiles API**) dans les cartes de
 >   l'app (`lib/core/maps/fond_carte.dart`), avec une clé web distincte
 >   (`sprint-carte-web`, restreinte au site
->   `https://abdoungom1999-design.github.io/*` et à Map Tiles API),
+>   `https://sprint-vtc.web.app/*` et à Map Tiles API),
 >   fournie à la compilation par le secret GitHub `GOOGLE_MAPS_WEB_KEY`.
 >   Sans cette clé, ou si Google ne répond pas, la carte reste sur
 >   OpenStreetMap. Les mentions Google sont affichées sur chaque carte.
@@ -71,8 +71,8 @@ peut être réutilisée par n'importe qui pour consommer ton quota. Sur
 la page de la clé (clique dessus dans la liste des identifiants) :
 
 - **Restrictions d'application** : choisis **Sites Web (référents
-  HTTP)**, ajoute `https://abdoungom1999-design.github.io/*` (le
-  domaine du site déployé). Ajoute aussi `http://localhost:*` si tu
+  HTTP)**, ajoute `https://sprint-vtc.web.app/*` (le domaine du site
+  déployé, sur Firebase Hosting). Ajoute aussi `http://localhost:*` si tu
   comptes tester en local plus tard.
 - **Restrictions d'API** : choisis **Restreindre la clé**, coche
   uniquement les 4 API activées à l'étape 3.
