@@ -2,21 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../core/location/localiser.dart';
 import '../../../core/maps/distance_utils.dart';
 import '../../../core/maps/fond_carte.dart';
+import '../../../core/maps/motos_proches_controller.dart';
+import '../../../core/maps/proximite_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/moto_vue_dessus.dart';
-import '../../../firebase_options.dart';
 import '../../compte/presentation/mes_notifications_page.dart';
-import '../data/proximite_service.dart';
-
-/// Position de l'appareil : `demander` à `false` n'affiche jamais de
-/// demande d'autorisation (on ne localise que si elle est déjà donnée).
-typedef Localiser = Future<LatLng?> Function({required bool demander});
 
 /// Onglet Accueil : carte « Sprint clair » en plein écran avec les motos
 /// disponibles alentour (anonymes, positions arrondies à 150 m par le
@@ -44,49 +40,32 @@ class HomeTabPage extends StatefulWidget {
 
 class _HomeTabPageState extends State<HomeTabPage> {
   final _carte = MapController();
-  late final ProximiteService _proximite =
-      widget.proximite ?? (DefaultFirebaseOptions.estConfigure ? ProximiteFirebase() : const ProximiteDemo());
-  late final Localiser _localiser = widget.localiser ?? _localiserAppareil;
+  late final Localiser _localiser = widget.localiser ?? localiserAppareil;
 
-  Proximite _motos = Proximite.vide;
+  /// Onglet masqué (autre onglet ouvert) : pas d'appel inutile.
+  late final MotosProchesController _motos = MotosProchesController(
+    service: widget.proximite,
+    rafraichissement: HomeTabPage.rafraichissement,
+    actif: () => mounted && TickerMode.valuesOf(context).enabled,
+  );
+
   LatLng? _moi;
-  LatLng? _dernierCentreInterroge;
-  Timer? _minuteur;
   Timer? _attenteDeplacement;
-  bool _chargement = true;
 
   @override
   void initState() {
     super.initState();
-    _chercherMotos(HomeTabPage.centreDakar);
-    _minuteur = Timer.periodic(HomeTabPage.rafraichissement, (_) => _rafraichir());
+    _motos.chercherAutour(HomeTabPage.centreDakar);
     // Localisation silencieuse : seulement si l'autorisation existe déjà.
     _localiserPuisCentrer(demander: false);
   }
 
   @override
   void dispose() {
-    _minuteur?.cancel();
     _attenteDeplacement?.cancel();
+    _motos.dispose();
     _carte.dispose();
     super.dispose();
-  }
-
-  static Future<LatLng?> _localiserAppareil({required bool demander}) async {
-    try {
-      if (!await Geolocator.isLocationServiceEnabled()) return null;
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied && demander) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) return null;
-      final p = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      ).timeout(const Duration(seconds: 12));
-      return LatLng(p.latitude, p.longitude);
-    } catch (_) {
-      return null;
-    }
   }
 
   Future<void> _localiserPuisCentrer({required bool demander}) async {
@@ -102,20 +81,14 @@ class _HomeTabPageState extends State<HomeTabPage> {
     }
     setState(() => _moi = position);
     _carte.move(position, 15);
-    _chercherMotos(position);
-  }
-
-  /// Onglet masqué (autre onglet ouvert) : pas d'appel inutile.
-  void _rafraichir() {
-    if (!mounted || !TickerMode.valuesOf(context).enabled) return;
-    _chercherMotos(_dernierCentreInterroge ?? HomeTabPage.centreDakar);
+    _motos.chercherAutour(position);
   }
 
   void _surDeplacement(MapCamera camera, bool geste) {
     if (!geste) return;
     _attenteDeplacement?.cancel();
     _attenteDeplacement = Timer(const Duration(milliseconds: 700), () {
-      final precedent = _dernierCentreInterroge;
+      final precedent = _motos.centre;
       // Petits déplacements : les motos déjà affichées suffisent.
       if (precedent != null &&
           DistanceUtils.distanceKm(
@@ -127,20 +100,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
               0.5) {
         return;
       }
-      _chercherMotos(camera.center);
+      _motos.chercherAutour(camera.center);
     });
-  }
-
-  Future<void> _chercherMotos(LatLng autour) async {
-    _dernierCentreInterroge = autour;
-    try {
-      final resultat = await _proximite.chauffeursProches(autour);
-      if (mounted) setState(() => _motos = resultat);
-    } catch (_) {
-      // Réseau coupé : on garde les motos déjà affichées.
-    } finally {
-      if (mounted && _chargement) setState(() => _chargement = false);
-    }
   }
 
   @override
@@ -163,17 +124,20 @@ class _HomeTabPageState extends State<HomeTabPage> {
               ),
               children: [
                 widget.coucheFond ?? CoucheFondCarte(fond: widget.fond),
-                MarkerLayer(
-                  markers: [
-                    for (final m in _motos.motos)
-                      Marker(
-                        point: m.position,
-                        width: 46,
-                        height: 46,
-                        child: Center(child: MotoVueDessus(cap: m.cap, taille: 40)),
-                      ),
-                    if (_moi != null) Marker(point: _moi!, width: 44, height: 44, child: const _PointMoi()),
-                  ],
+                ListenableBuilder(
+                  listenable: _motos,
+                  builder: (context, _) => MarkerLayer(
+                    markers: [
+                      for (final m in _motos.motos)
+                        Marker(
+                          point: m.position,
+                          width: 46,
+                          height: 46,
+                          child: Center(child: MotoVueDessus(cap: m.cap, taille: 40)),
+                        ),
+                      if (_moi != null) Marker(point: _moi!, width: 44, height: 44, child: const _PointMoi()),
+                    ],
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 250),
@@ -250,11 +214,14 @@ class _HomeTabPageState extends State<HomeTabPage> {
                       onTap: () => _localiserPuisCentrer(demander: true),
                     ),
                     const SizedBox(height: 12),
-                    _CarteDestination(
-                      motos: _motos,
-                      chargement: _chargement,
-                      onRechercher: () => context.push(AppRoutes.clientPassager),
-                      onColis: () => context.push(AppRoutes.clientColis),
+                    ListenableBuilder(
+                      listenable: _motos,
+                      builder: (context, _) => _CarteDestination(
+                        motos: _motos.proximite,
+                        chargement: _motos.chargement,
+                        onRechercher: () => context.push(AppRoutes.clientPassager),
+                        onColis: () => context.push(AppRoutes.clientColis),
+                      ),
                     ),
                   ],
                 ),

@@ -17,12 +17,15 @@ import '../../../courses/data/position_chauffeur.dart';
 /// Entre deux positions (toutes les 5 s environ quand il roule), l'icône
 /// glisse de l'ancienne à la nouvelle au lieu de sauter.
 class SuiviApproche extends StatefulWidget {
-  const SuiviApproche({super.key, required this.course, required this.positions});
+  const SuiviApproche({super.key, required this.course, required this.positions, this.coucheFond});
 
   final CourseFirestore course;
 
   /// Position du chauffeur attribué ; injectable pour les tests.
   final Stream<PositionChauffeurDirect?> positions;
+
+  /// Fond de la carte ; par défaut [CoucheFondCarte]. Remplacé dans les tests.
+  final Widget? coucheFond;
 
   @override
   State<SuiviApproche> createState() => _SuiviApprocheState();
@@ -165,7 +168,7 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
                 },
               ),
               children: [
-                const CoucheFondCarte(),
+                widget.coucheFond ?? const CoucheFondCarte(),
                 MarkerLayer(
                   markers: [
                     if (cible != null)

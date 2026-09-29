@@ -7,11 +7,11 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../courses/data/course_service.dart';
 import '../../courses/data/position_chauffeur.dart';
-import '../../evaluations/data/evaluation_service.dart';
 import '../../evaluations/presentation/evaluation_course.dart';
 import '../../messages/data/chat_service.dart';
 import '../../messages/data/detecteur_nouveaux_messages.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
+import 'widgets/carte_chauffeur.dart';
 import 'widgets/suivi_approche.dart';
 
 /// Suivi temps réel d'une course, depuis sa création jusqu'à
@@ -31,6 +31,7 @@ class SuiviCoursePage extends StatefulWidget {
     this.courseService,
     this.chatService,
     this.monUid,
+    this.coucheFond,
   });
 
   final String courseId;
@@ -39,6 +40,9 @@ class SuiviCoursePage extends StatefulWidget {
   final CourseService? courseService;
   final ChatService? chatService;
   final String? monUid;
+
+  /// Fond de la carte de suivi ; par défaut celui de l'app.
+  final Widget? coucheFond;
 
   @override
   State<SuiviCoursePage> createState() => _SuiviCoursePageState();
@@ -97,6 +101,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
                   courseService: _courseService,
                   chatService: widget.chatService ?? ChatService(),
                   monUid: widget.monUid ?? FirebaseAuth.instance.currentUser?.uid,
+                  coucheFond: widget.coucheFond,
                 );
             }
           },
@@ -169,12 +174,14 @@ class _EtatChauffeurAssigne extends StatefulWidget {
     required this.courseService,
     required this.chatService,
     required this.monUid,
+    this.coucheFond,
   });
 
   final CourseFirestore course;
   final CourseService courseService;
   final ChatService chatService;
   final String? monUid;
+  final Widget? coucheFond;
 
   @override
   State<_EtatChauffeurAssigne> createState() => _EtatChauffeurAssigneState();
@@ -184,6 +191,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
   ChatService get _chatService => widget.chatService;
   CourseService get _courseService => widget.courseService;
   Map<String, dynamic>? _profilChauffeur;
+  bool _profilEnErreur = false;
   late Stream<PositionChauffeurDirect?> _positions;
 
   // Messages du chauffeur reçus pendant que le client regarde la carte.
@@ -258,11 +266,24 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
     }
   }
 
+  /// Identité du chauffeur (profil public). Un échec de lecture est dit
+  /// au client, avec "Réessayer", au lieu de laisser un nom générique.
   Future<void> _chargerChauffeur() async {
     final chauffeurId = widget.course.chauffeurId;
     if (chauffeurId == null) return;
-    final profil = await _chatService.chargerProfil(chauffeurId);
-    if (mounted) setState(() => _profilChauffeur = profil);
+    if (_profilEnErreur) setState(() => _profilEnErreur = false);
+    try {
+      final profil = await _chatService.chargerProfil(chauffeurId);
+      if (!mounted) return;
+      setState(() {
+        // Profil absent : on affiche ce qu'on sait (nom générique, véhicule
+        // non renseigné) plutôt qu'un chargement sans fin.
+        _profilChauffeur = profil ?? const {};
+        _profilEnErreur = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _profilEnErreur = true);
+    }
   }
 
   Future<void> _appeler() async {
@@ -302,10 +323,6 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
 
   @override
   Widget build(BuildContext context) {
-    final nom = (_profilChauffeur?['nom'] as String?) ?? 'Chauffeur Sprint';
-    final vehicule = _profilChauffeur?['vehiculeId'] as String?;
-    final plaque = _profilChauffeur?['plaqueImmatriculation'] as String?;
-
     final clientABord = widget.course.statut == StatutCourse.enCours;
 
     return SingleChildScrollView(
@@ -316,62 +333,14 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
             key: ValueKey(widget.course.chauffeurId),
             course: widget.course,
             positions: _positions,
+            coucheFond: widget.coucheFond,
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.orange, AppColors.orangeDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  nom.isNotEmpty ? nom[0].toUpperCase() : '?',
-                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      clientABord ? 'Course en cours' : 'Votre chauffeur arrive',
-                      style: const TextStyle(fontSize: 12.5, color: AppColors.grey, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(nom, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                    if (vehicule != null && vehicule.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(vehicule, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
-                    ],
-                    if (_profilChauffeur != null) ...[
-                      const SizedBox(height: 4),
-                      BadgeNoteChauffeur(note: NoteChauffeur.depuisProfil(_profilChauffeur)),
-                    ],
-                  ],
-                ),
-              ),
-              if (plaque != null && plaque.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.text, width: 1.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    plaque,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-                  ),
-                ),
-            ],
+          CarteChauffeur(
+            profil: _profilChauffeur,
+            clientABord: clientABord,
+            erreur: _profilEnErreur,
+            onReessayer: _chargerChauffeur,
           ),
           const SizedBox(height: 24),
           Row(

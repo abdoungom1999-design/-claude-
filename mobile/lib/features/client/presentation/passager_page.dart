@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
@@ -9,13 +8,13 @@ import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/payment_method_sheet.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/trip_map.dart';
 import '../../../firebase_options.dart';
 import '../../courses/data/course_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/estimation_course_controller.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
 import 'payment_processing_page.dart';
+import 'widgets/carte_commande.dart';
 
 /// Écran de réservation d'une course "Passager" (moto-taxi), connecté à
 /// l'API. Carte réelle (OpenStreetMap), géocodage d'adresses (Nominatim)
@@ -149,17 +148,7 @@ class _PassagerPageState extends State<PassagerPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListenableBuilder(
-                  listenable: _estimation,
-                  builder: (context, _) {
-                    final depart = _estimation.depart;
-                    final arrivee = _estimation.arrivee;
-                    return TripMap(
-                      depart: depart != null ? LatLng(depart.latitude, depart.longitude) : null,
-                      arrivee: arrivee != null ? LatLng(arrivee.latitude, arrivee.longitude) : null,
-                    );
-                  },
-                ),
+                CarteCommande(estimation: _estimation),
                 const SizedBox(height: 24),
                 const Text(
                   'Où allez-vous ?',

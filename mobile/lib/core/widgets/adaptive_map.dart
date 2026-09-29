@@ -1,4 +1,6 @@
 import '../maps/fond_carte.dart';
+import '../maps/proximite_service.dart';
+import 'moto_vue_dessus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as osm;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -41,12 +43,34 @@ class AdaptiveMap extends StatelessWidget {
     this.marqueurs = const [],
     this.polylignePoints,
     this.interactif = true,
+    this.motos = const [],
+    this.tailleMotos = 34,
+    this.controleur,
+    this.coucheFond,
   });
 
   final ll.LatLng centre;
   final double zoom;
   final List<MarqueurCarte> marqueurs;
   final List<ll.LatLng>? polylignePoints;
+
+  /// Motos disponibles alentour (anonymes), dessinées sous les repères.
+  /// Uniquement sur la carte OpenStreetMap / Google « Sprint clair »
+  /// (`flutter_map`) ; le composant Google Maps officiel, non utilisé
+  /// aujourd'hui (voir GOOGLE_MAPS_SETUP.md), ne les affiche pas.
+  final List<MotoProche> motos;
+
+  /// Hauteur des icônes de moto (plus petites quand la carte est très
+  /// dézoomée, pour ne pas masquer les repères du trajet).
+  final double tailleMotos;
+
+  /// Pour recentrer la carte après sa création (`initialCenter` n'est
+  /// appliqué qu'au départ). Ignoré par le composant Google Maps.
+  final osm.MapController? controleur;
+
+  /// Fond de carte ; par défaut [CoucheFondCarte]. Les tests le
+  /// remplacent (pas de réseau).
+  final Widget? coucheFond;
 
   /// Désactive le pan/zoom/rotation quand la carte n'est qu'un fond
   /// visuel (ex. arrière-plan plein écran derrière un HUD flottant),
@@ -96,15 +120,17 @@ class AdaptiveMap extends StatelessWidget {
     }
 
     return osm.FlutterMap(
+      mapController: controleur,
       options: osm.MapOptions(
         initialCenter: centre,
         initialZoom: zoom,
+        // Pas de rotation : les motos sont orientées selon le nord.
         interactionOptions: osm.InteractionOptions(
-          flags: interactif ? osm.InteractiveFlag.all : osm.InteractiveFlag.none,
+          flags: interactif ? osm.InteractiveFlag.all & ~osm.InteractiveFlag.rotate : osm.InteractiveFlag.none,
         ),
       ),
       children: [
-        const CoucheFondCarte(),
+        coucheFond ?? const CoucheFondCarte(),
         if (polylignePoints != null)
           osm.PolylineLayer(
             polylines: [
@@ -113,6 +139,18 @@ class AdaptiveMap extends StatelessWidget {
                 color: AppColors.orange,
                 strokeWidth: 3,
               ),
+            ],
+          ),
+        if (motos.isNotEmpty)
+          osm.MarkerLayer(
+            markers: [
+              for (final m in motos)
+                osm.Marker(
+                  point: m.position,
+                  width: tailleMotos + 6,
+                  height: tailleMotos + 6,
+                  child: Center(child: MotoVueDessus(cap: m.cap, taille: tailleMotos)),
+                ),
             ],
           ),
         osm.MarkerLayer(

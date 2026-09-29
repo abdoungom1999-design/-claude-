@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:sprint/core/location/localiser.dart';
 import 'package:sprint/core/maps/fond_carte.dart';
 import 'package:sprint/core/widgets/moto_vue_dessus.dart';
-import 'package:sprint/features/home/data/proximite_service.dart';
+import 'package:sprint/core/maps/proximite_service.dart';
 import 'package:sprint/features/home/presentation/home_tab_page.dart';
 
 class _ProximiteFactice implements ProximiteService {

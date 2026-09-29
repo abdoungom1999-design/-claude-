@@ -261,12 +261,15 @@ en `europe-west1` (même région que Firestore `eur3`) :
   retiré des chauffeurs disponibles, position effacée, et sa course en
   cours (acceptée ou client à bord) annulée et remboursée au client.
 
-- `chauffeursProches` (client connecté, accueil) : motos disponibles
+- `chauffeursProches` (client connecté ; accueil et écrans de commande
+  course moto / colis) : motos disponibles
   dans un rayon de 3 km (position de moins de 2 minutes, chauffeur sans
   course en cours). Chaque position est ramenée au centre d'une case
   d'environ 150 m, une case n'apparaît qu'une fois, jamais d'identifiant ;
   cap arrondi à 45° pour orienter l'icône ; au plus 15 motos, plus une
-  estimation d'approche en minutes.
+  estimation d'approche en minutes. Une fois la course acceptée, le
+  client voit l'identité de SON chauffeur (nom, véhicule, plaque), lue
+  dans son profil public : ce n'est pas passé par cette fonction.
 
 ### 7.1 Déploiement automatique (GitHub Actions)
 

@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:latlong2/latlong.dart';
-import '../../../core/firebase/fonctions_cloud.dart';
+import '../../firebase_options.dart';
+import '../firebase/fonctions_cloud.dart';
 
 /// Une moto disponible à proximité, telle que le serveur la décrit :
 /// position arrondie à environ 150 m, sans identité.
@@ -25,9 +26,15 @@ class Proximite {
   final int? approcheMinutes;
 }
 
-/// Motos disponibles autour d'un point, pour la carte de l'accueil.
+/// Motos disponibles autour d'un point, pour les cartes de l'accueil et
+/// des écrans de commande.
 abstract class ProximiteService {
   Future<Proximite> chauffeursProches(LatLng autour);
+
+  /// Le service réel (Cloud Function) dès que Firebase est configuré,
+  /// sinon la version démo.
+  static ProximiteService parDefaut() =>
+      DefaultFirebaseOptions.estConfigure ? ProximiteFirebase() : const ProximiteDemo();
 }
 
 /// Service réel : Cloud Function `chauffeursProches` (positions anonymes,
