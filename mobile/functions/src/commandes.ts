@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { FieldValue, type Firestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { CalculDistance, DistanceTrajet } from './distances';
 import {
@@ -20,12 +19,6 @@ export const DISTANCE_MAX_KM = 100;
 /** 100 % mobile money : la plateforme encaisse chaque course. */
 export const METHODES_PAIEMENT = ['WAVE', 'ORANGE_MONEY'] as const;
 
-/**
- * Tant que les clés Wave / Orange Money ne sont pas reçues, le paiement
- * est simulé dans l'app (mode test) : la course le garde en mémoire.
- */
-export const MODE_PAIEMENT = 'test';
-
 export interface Trajet {
   type: TypeCourse;
   depart: Point;
@@ -34,11 +27,11 @@ export interface Trajet {
   distanceKm: number;
 }
 
-export interface Commande extends Trajet {
+/** Demande de course envoyée par l'app, avant paiement. */
+export interface Demande extends Trajet {
   adresseDepart: string;
   adresseArrivee: string;
   methodePaiement: (typeof METHODES_PAIEMENT)[number];
-  transactionId: string;
   prixAttendu: number;
 }
 
@@ -94,10 +87,10 @@ export function validerTrajet(donnees: unknown): Trajet {
   return { type: d.type as TypeCourse, depart, arrivee, distanceKm };
 }
 
-export function validerCommande(donnees: unknown): Commande {
+export function validerDemande(donnees: unknown): Demande {
   const trajet = validerTrajet(donnees);
   const d = objet(donnees);
-  if (!METHODES_PAIEMENT.includes(d.methodePaiement as Commande['methodePaiement'])) {
+  if (!METHODES_PAIEMENT.includes(d.methodePaiement as Demande['methodePaiement'])) {
     throw invalide('Mode de paiement invalide : Wave ou Orange Money uniquement.');
   }
   const prixAttendu = d.prixAttendu;
@@ -108,8 +101,7 @@ export function validerCommande(donnees: unknown): Commande {
     ...trajet,
     adresseDepart: texte(d.adresseDepart, 'Adresse de départ', 300),
     adresseArrivee: texte(d.adresseArrivee, "Adresse d'arrivée", 300),
-    methodePaiement: d.methodePaiement as Commande['methodePaiement'],
-    transactionId: texte(d.transactionId, 'Identifiant de paiement', 120),
+    methodePaiement: d.methodePaiement as Demande['methodePaiement'],
     prixAttendu,
   };
 }
@@ -135,81 +127,37 @@ export async function estimer(
   return { ...estimerPrix(trajet.type, distance.distanceKm, maintenant), sourceDistance: distance.source };
 }
 
-/**
- * Identifiant de la course, déduit du client et de sa transaction : si
- * l'app renvoie la même commande (réseau coupé, double clic), la course
- * n'est pas créée deux fois.
- */
-export function idCourse(uid: string, transactionId: string): string {
-  return createHash('sha256').update(`${uid}:${transactionId}`).digest('hex').slice(0, 24);
-}
-
-export interface CourseCreee {
-  courseId: string;
-  prixFcfa: number;
-}
-
-/**
- * Callable `creerCourse` : seule façon de créer une course (les règles
- * Firestore l'interdisent aux clients). Le prix est recalculé ici ; s'il
- * diffère de celui que le client a vu (changement de tranche horaire
- * entre-temps), rien n'est créé et le nouveau prix est renvoyé.
- */
-export async function creerCourse(
-  db: Firestore,
-  calcul: CalculDistance,
-  uid: string | undefined,
-  donnees: unknown,
-  maintenant: Date,
-): Promise<CourseCreee> {
+/** Client connecté, avec un profil, ni suspendu ni banni. */
+export async function verifierClient(db: Firestore, uid: string | undefined): Promise<string> {
   if (!uid) throw new HttpsError('unauthenticated', 'Connectez-vous pour commander une course.');
-  const commande = validerCommande(donnees);
-
   const profil = await db.collection('users').doc(uid).get();
   if (!profil.exists) throw new HttpsError('permission-denied', 'Profil introuvable.');
   const statutCompte = profil.get('statutCompte');
   if (statutCompte === 'suspendu' || statutCompte === 'banni') {
     throw new HttpsError('permission-denied', 'Votre compte ne permet pas de commander une course.');
   }
+  return uid;
+}
 
-  // Même calcul (et même cache) que l'estimation affichée au client.
-  const distance = await calcul(commande.depart, commande.arrivee);
-  const estimation = estimerPrix(commande.type, distance.distanceKm, maintenant);
-  if (estimation.prixFcfa !== commande.prixAttendu) {
+export interface PrixServeur {
+  estimation: EstimationPrix;
+  distance: DistanceTrajet;
+}
+
+/**
+ * Prix recalculé par le serveur (même calcul et même cache que
+ * l'estimation affichée). S'il diffère de celui que le client a vu
+ * (changement de tranche horaire entre-temps), rien n'est fait et le
+ * nouveau prix est renvoyé.
+ */
+export async function prixServeur(calcul: CalculDistance, demande: Demande, maintenant: Date): Promise<PrixServeur> {
+  const distance = await calcul(demande.depart, demande.arrivee);
+  const estimation = estimerPrix(demande.type, distance.distanceKm, maintenant);
+  if (estimation.prixFcfa !== demande.prixAttendu) {
     throw new HttpsError('failed-precondition', 'Le prix de ce trajet a changé.', {
       raison: 'prix-modifie',
       prixFcfa: estimation.prixFcfa,
     });
   }
-
-  const ref = db.collection('courses').doc(idCourse(uid, commande.transactionId));
-  try {
-    await ref.create({
-      clientId: uid,
-      chauffeurId: null,
-      statut: 'en_attente',
-      type: commande.type,
-      adresseDepart: commande.adresseDepart,
-      adresseArrivee: commande.adresseArrivee,
-      latitudeDepart: commande.depart.latitude,
-      longitudeDepart: commande.depart.longitude,
-      latitudeArrivee: commande.arrivee.latitude,
-      longitudeArrivee: commande.arrivee.longitude,
-      distanceKm: Math.round(distance.distanceKm * 100) / 100,
-      sourceDistance: distance.source,
-      prixFcfa: estimation.prixFcfa,
-      methodePaiement: commande.methodePaiement,
-      transactionId: commande.transactionId,
-      modePaiement: MODE_PAIEMENT,
-      timestamp: FieldValue.serverTimestamp(),
-    });
-  } catch (e) {
-    // Code gRPC 6 : ALREADY_EXISTS. Commande déjà reçue : même résultat.
-    if ((e as { code?: unknown }).code === 6) {
-      const existante = await ref.get();
-      return { courseId: ref.id, prixFcfa: existante.get('prixFcfa') as number };
-    }
-    throw e;
-  }
-  return { courseId: ref.id, prixFcfa: estimation.prixFcfa };
+  return { estimation, distance };
 }

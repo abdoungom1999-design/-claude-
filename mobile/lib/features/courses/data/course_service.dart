@@ -6,11 +6,14 @@ import 'position_chauffeur.dart';
 
 /// Une course telle que stockée dans Firestore (collection `courses`).
 ///
-/// Cycle de vie du champ [statut] : `en_attente` (créée par le client,
-/// en attente d'un chauffeur) -> `acceptee` (un chauffeur a accepté,
-/// voir [CourseService.accepterCourse]) -> `en_cours` -> `terminee`,
-/// ou `annulee` tant qu'elle est `en_attente`. `en_cours` (client à
-/// bord) et `terminee` sont déclenchés par le chauffeur attribué (voir
+/// Cycle de vie du champ [statut] : `en_attente` (créée par le serveur
+/// une fois le paiement confirmé, en attente d'un chauffeur) ->
+/// `acceptee` (un chauffeur a accepté, voir
+/// [CourseService.accepterCourse]) -> `en_cours` -> `terminee`, ou
+/// `annulee` (par le client tant qu'elle est `en_attente`, par le
+/// chauffeur, ou par le serveur faute de chauffeur, toujours avec
+/// remboursement). `en_cours` (client à bord) et `terminee` sont
+/// déclenchés par le chauffeur attribué (voir
 /// [CourseService.demarrerCourse] et [CourseService.terminerCourse]).
 class CourseFirestore {
   const CourseFirestore({
@@ -29,6 +32,7 @@ class CourseFirestore {
     this.motifAnnulation,
     this.termineeLe,
     this.commissionFcfa,
+    this.commandeId,
   });
 
   final String id;
@@ -46,8 +50,8 @@ class CourseFirestore {
   /// créées avant leur enregistrement (pas de temps d'approche alors).
   final PointsCourse? points;
 
-  /// `'chauffeur'` quand le chauffeur a annulé (voir
-  /// [CourseService.annulerParChauffeur]) ; `null` sinon.
+  /// `'client'`, `'chauffeur'` (voir [CourseService.annulerParChauffeur])
+  /// ou `'systeme'` (aucun chauffeur à temps) ; `null` sinon.
   final String? annuleePar;
 
   /// Voir [MotifAnnulation].
@@ -59,6 +63,13 @@ class CourseFirestore {
   /// Commission de la plateforme figée à la fin de la course (voir
   /// `Commission`) ; `null` pour les courses terminées avant.
   final int? commissionFcfa;
+
+  /// Commande de paiement d'origine ; `null` pour les courses créées
+  /// avant le paiement par le serveur. Une course annulée qui en a une
+  /// est remboursée par le serveur.
+  final String? commandeId;
+
+  bool get estRemboursable => commandeId != null;
 
   /// "Déjà payé par Wave" / "Déjà payé par Orange Money" : 100 % mobile
   /// money, le chauffeur n'encaisse jamais rien.
@@ -88,6 +99,7 @@ class CourseFirestore {
       motifAnnulation: donnees['motifAnnulation'] as String?,
       termineeLe: donnees['termineeLe'] is Timestamp ? (donnees['termineeLe'] as Timestamp).toDate() : null,
       commissionFcfa: (donnees['commissionFcfa'] as num?)?.toInt(),
+      commandeId: donnees['commandeId'] as String?,
     );
   }
 }
@@ -157,6 +169,33 @@ class PrixModifie implements Exception {
   final int nouveauPrixFcfa;
 }
 
+/// Lien de paiement renvoyé par le serveur ([CourseService.creerPaiement]).
+class DemandePaiement {
+  const DemandePaiement({required this.commandeId, required this.lienPaiement, required this.prixFcfa});
+
+  final String commandeId;
+  final Uri lienPaiement;
+  final int prixFcfa;
+}
+
+/// Commande de paiement (collection `commandes`, écrite par le serveur).
+class CommandePaiement {
+  const CommandePaiement({required this.statut, this.courseId});
+
+  final String statut;
+
+  /// Course créée par le serveur, une fois le paiement confirmé.
+  final String? courseId;
+}
+
+/// Valeurs du champ `statut` d'une commande (voir `functions/src/paiements.ts`).
+abstract final class StatutCommande {
+  static const enAttente = 'en_attente_paiement';
+  static const payee = 'payee';
+  static const echouee = 'echouee';
+  static const expiree = 'expiree';
+}
+
 /// Commission de la plateforme sur chaque course terminée : 15 % du
 /// prix, arrondi à l'inférieur. Même formule que `firestore.rules`
 /// (`math.floor(prixFcfa * 15 / 100)`), qui la fait respecter.
@@ -167,13 +206,17 @@ abstract final class Commission {
 }
 
 /// Motif d'annulation d'une course par le chauffeur (valeurs acceptées
-/// par `firestore.rules`).
+/// par la Cloud Function `annulerCourse`), ou par le serveur
+/// ([aucunChauffeur]).
 abstract final class MotifAnnulation {
   static const clientIntrouvable = 'client_introuvable';
   static const panne = 'panne';
   static const autre = 'autre';
 
   static const tous = [clientIntrouvable, panne, autre];
+
+  /// Personne n'a accepté la course à temps : le serveur l'annule.
+  static const aucunChauffeur = 'aucun_chauffeur';
 
   /// Libellé pour le chauffeur.
   static String libelle(String motif) => switch (motif) {
@@ -192,9 +235,10 @@ abstract final class MotifAnnulation {
 
 /// Matchmaking Client <-> Conducteur en temps réel, basé sur Firestore :
 /// une collection `courses` à plat (pas de sous-collection), chaque
-/// document représentant une demande de course. Le client en crée une
-/// et écoute son évolution ([streamCourse]) ; tout chauffeur en ligne
-/// écoute la collection filtrée sur `statut == 'en_attente'`
+/// document représentant une demande de course. Le client la paie (le
+/// serveur la crée alors, voir [creerPaiement]) et écoute son évolution
+/// ([streamCourse]) ; tout chauffeur en ligne écoute la collection
+/// filtrée sur `statut == 'en_attente'`
 /// ([streamCoursesEnAttente]) et peut l'accepter ([accepterCourse]),
 /// sous transaction pour qu'un seul des chauffeurs qui tentent
 /// d'accepter en même temps gagne la course.
@@ -202,31 +246,34 @@ class CourseService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   CollectionReference<Map<String, dynamic>> get _courses => _firestore.collection('courses');
 
-  /// Crée une nouvelle demande de course (`statut: en_attente`,
-  /// `chauffeurId: null`) et retourne son id. C'est le serveur (Cloud
-  /// Function `creerCourse`) qui l'écrit, avec le prix qu'il recalcule
-  /// lui-même : [prixFcfa] (le prix montré au client) ne sert qu'à
-  /// vérifier qu'il n'a pas changé entre-temps, sinon [PrixModifie].
-  Future<String> creerCourse({
+  /// Demande de paiement : le serveur (Cloud Function `creerPaiement`)
+  /// recalcule le prix, enregistre une commande en attente et renvoie le
+  /// lien de paiement (Wave). La course n'existera qu'une fois le
+  /// paiement confirmé au serveur par l'opérateur. [prixFcfa] (le prix
+  /// montré au client) ne sert qu'à vérifier qu'il n'a pas changé
+  /// entre-temps, sinon [PrixModifie].
+  Future<DemandePaiement> creerPaiement({
     required String type,
     required String adresseDepart,
     required String adresseArrivee,
     required int prixFcfa,
     required String methodePaiement,
-    required String transactionId,
     required PointsCourse points,
   }) async {
     try {
-      final resultat = await FonctionsCloud.appeler('creerCourse', {
+      final resultat = await FonctionsCloud.appeler('creerPaiement', {
         'type': type,
         ...points.versServeur(),
         'adresseDepart': adresseDepart,
         'adresseArrivee': adresseArrivee,
         'methodePaiement': methodePaiement,
-        'transactionId': transactionId,
         'prixAttendu': prixFcfa,
       });
-      return resultat['courseId'] as String;
+      return DemandePaiement(
+        commandeId: resultat['commandeId'] as String,
+        lienPaiement: Uri.parse(resultat['lienPaiement'] as String),
+        prixFcfa: (resultat['prixFcfa'] as num).toInt(),
+      );
     } on FirebaseFunctionsException catch (e) {
       final details = e.details;
       if (e.code == 'failed-precondition' && details is Map && details['raison'] == 'prix-modifie') {
@@ -234,6 +281,19 @@ class CourseService {
       }
       throw FonctionsCloud.versApiException(e);
     }
+  }
+
+  /// Suivi temps réel d'une commande pendant que le client paie : passe à
+  /// `payee` (avec l'id de la course créée) dès que l'opérateur confirme.
+  Stream<CommandePaiement?> streamCommande(String commandeId) {
+    return _firestore.collection('commandes').doc(commandeId).snapshots().map((doc) {
+      final donnees = doc.data();
+      if (!doc.exists || donnees == null) return null;
+      return CommandePaiement(
+        statut: donnees['statut'] as String? ?? StatutCommande.enAttente,
+        courseId: donnees['courseId'] as String?,
+      );
+    });
   }
 
   /// Flux temps réel d'une course précise (écran client "Recherche
@@ -356,18 +416,24 @@ class CourseService {
 
   /// Le chauffeur attribué annule sa course (client introuvable,
   /// panne…) : elle quitte son bandeau de course active et il peut de
-  /// nouveau recevoir des demandes ; le client voit le motif.
+  /// nouveau recevoir des demandes ; le client voit le motif et il est
+  /// remboursé (Cloud Function `annulerCourse`).
   Future<void> annulerParChauffeur(String courseId, String motif) {
-    return _courses.doc(courseId).update({
-      'statut': StatutCourse.annulee,
-      'annuleePar': 'chauffeur',
-      'motifAnnulation': motif,
-    });
+    return _annulerParLeServeur({'courseId': courseId, 'motif': motif});
   }
 
   /// Annule une course encore en attente (bouton "Annuler la demande"
-  /// côté client).
+  /// côté client) ; le client est remboursé (Cloud Function
+  /// `annulerCourse`).
   Future<void> annulerCourse(String courseId) {
-    return _courses.doc(courseId).update({'statut': 'annulee'});
+    return _annulerParLeServeur({'courseId': courseId});
+  }
+
+  Future<void> _annulerParLeServeur(Map<String, dynamic> donnees) async {
+    try {
+      await FonctionsCloud.appeler('annulerCourse', donnees);
+    } on FirebaseFunctionsException catch (e) {
+      throw FonctionsCloud.versApiException(e);
+    }
   }
 }

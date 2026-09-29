@@ -403,10 +403,10 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
           const SnackBar(content: Text('Course annulée. Vous pouvez recevoir de nouvelles demandes.')),
         );
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("L'annulation a échoué. Vérifiez votre connexion.")),
+          SnackBar(content: Text(e is ApiException ? e.message : "L'annulation a échoué. Vérifiez votre connexion.")),
         );
       }
     } finally {

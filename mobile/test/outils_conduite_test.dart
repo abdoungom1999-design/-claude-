@@ -7,7 +7,7 @@ import 'package:sprint/features/conducteur/presentation/widgets/course_active_ba
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/messages/data/chat_service.dart';
 
-CourseFirestore _course(String statut, {String? annuleePar, String? motif}) => CourseFirestore(
+CourseFirestore _course(String statut, {String? annuleePar, String? motif, String? commandeId}) => CourseFirestore(
       id: 'c1',
       clientId: 'awa',
       chauffeurId: 'moussa',
@@ -20,6 +20,7 @@ CourseFirestore _course(String statut, {String? annuleePar, String? motif}) => C
       timestamp: DateTime(2026, 9, 27),
       annuleePar: annuleePar,
       motifAnnulation: motif,
+      commandeId: commandeId,
     );
 
 class _CoursesFactices extends CourseService {
@@ -163,6 +164,29 @@ void main() {
       await tester.pump();
       expect(find.text('Course annulée'), findsOneWidget);
       expect(find.textContaining('Votre chauffeur'), findsNothing);
+    });
+
+    testWidgets('aucun chauffeur à temps : annulée par le serveur, client remboursé', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: SuiviCoursePage(
+          courseId: 'c1',
+          courseService: _CoursesFactices(_course(
+            StatutCourse.annulee,
+            annuleePar: 'systeme',
+            motif: MotifAnnulation.aucunChauffeur,
+            commandeId: 'k1',
+          )),
+          chatService: ChatService(),
+          monUid: 'awa',
+        ),
+      ));
+      await tester.pump();
+      await tester.pump();
+      expect(
+        find.text("Aucun chauffeur n'était disponible pour le moment. Votre paiement vous est remboursé. "
+            'Vous pouvez commander une nouvelle course.'),
+        findsOneWidget,
+      );
     });
   });
 }

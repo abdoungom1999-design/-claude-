@@ -63,8 +63,9 @@ jobs:
         with:
           path: mobile/build/web
 
-  # Tests du backend : moteur de prix et création des courses (Cloud
-  # Functions, dont émulateur Firestore) et règles de sécurité Firestore.
+  # Tests du backend : moteur de prix, paiement et création des courses
+  # (Cloud Functions, dont émulateur Firestore) et règles de sécurité
+  # Firestore.
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -91,17 +92,18 @@ jobs:
 
       - run: npm ci --prefix firestore_rules_test
 
-      - name: Cloud Functions (moteur de prix, validation)
+      - name: Cloud Functions (moteur de prix, validation, signatures)
         run: npm test --prefix functions
 
-      - name: Cloud Functions (création des courses, émulateur)
+      - name: Cloud Functions (paiement et création des courses, émulateur)
         run: npm run test:emulateur --prefix functions
 
       - name: Règles Firestore (émulateur)
         run: npm test --prefix firestore_rules_test
 
   # Déploiement Firebase : Cloud Functions d'abord, puis règles Firestore
-  # (qui interdisent la création directe des courses). Nécessite le
+  # (qui interdisent la création directe des courses et les annulations
+  # sans remboursement). Nécessite le
   # secret FIREBASE_SERVICE_ACCOUNT (voir mobile/FIREBASE_SETUP.md,
   # étape 7) ; sans lui, l'étape est sautée avec un avertissement.
   firebase:
@@ -140,37 +142,73 @@ jobs:
       - if: steps.secret.outputs.present == 'true'
         run: npm ci --prefix functions
 
+      # La surveillance des paiements (toutes les 5 minutes) est une tâche
+      # Cloud Scheduler : sans le rôle "Administrateur Cloud Scheduler",
+      # son déploiement échouerait au milieu des autres. On vérifie donc
+      # AVANT de toucher à quoi que ce soit : l'app en ligne reste intacte.
+      - name: Vérifier les droits du compte de déploiement
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          jeton=$(gcloud auth print-access-token)
+          reponse=$(curl -s -X POST \
+            "https://cloudresourcemanager.googleapis.com/v1/projects/sprint-vtc:testIamPermissions" \
+            -H "Authorization: Bearer $jeton" -H 'Content-Type: application/json' \
+            -d '{"permissions":["cloudscheduler.jobs.create","cloudscheduler.jobs.update"]}')
+          echo "$reponse"
+          if echo "$reponse" | grep -q '"error"'; then
+            echo "::error title=Vérification impossible::Google a refusé la vérification des droits (réponse ci-dessus). Rien n'a été déployé."
+            exit 1
+          fi
+          if ! echo "$reponse" | grep -q '"cloudscheduler.jobs.create"'; then
+            echo "::error title=Rôle manquant::Le compte github-deploy n'a pas le rôle « Administrateur Cloud Scheduler » (surveillance des paiements). Ajoutez-le dans Google Cloud > IAM (voir mobile/FIREBASE_SETUP.md, étape 7), puis relancez ce job. Rien n'a été déployé."
+            exit 1
+          fi
+
       # --force : accepte sans question la politique de nettoyage des
-      # images de build (Artifact Registry).
+      # images de build (Artifact Registry) et supprime les fonctions
+      # retirées du code (ex. l'ancienne "creerCourse").
       - name: Déployer les Cloud Functions
         if: steps.secret.outputs.present == 'true'
         run: npx --yes firebase-tools@15 deploy --only functions --project sprint-vtc --non-interactive --force
 
-      # Les fonctions sont appelées depuis le navigateur : l'accès réseau
-      # doit être public (Cloud Run "allUsers"), l'identité étant vérifiée
-      # dans chaque fonction (Firebase Auth). Réappliqué à chaque
-      # déploiement, car une création interrompue peut l'avoir omis.
+      # Les fonctions sont appelées depuis le navigateur (et, pour le
+      # webhook et la page de paiement simulée, par l'opérateur et le
+      # client) : l'accès réseau doit être public (Cloud Run "allUsers").
+      # La sécurité est dans chaque fonction : Firebase Auth pour les
+      # fonctions de l'app, signature pour le webhook. Réappliqué à chaque
+      # déploiement, car une création interrompue peut l'avoir omis. La
+      # surveillance (surveillercommandes) reste privée.
       - name: Autoriser l'appel des fonctions depuis l'app
         if: steps.secret.outputs.present == 'true'
         run: |
-          for service in estimerprix creercourse rechercheradresses coordonneesadresse; do
+          for service in estimerprix creerpaiement annulercourse webhookpaiement pagepaiementsimule \
+                         rechercheradresses coordonneesadresse; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
               --member=allUsers --role=roles/run.invoker --quiet > /dev/null
             echo "Accès public : $service"
           done
 
-      # Vérification réelle : sans connexion, chaque fonction doit répondre
-      # elle-même "UNAUTHENTICATED" (et non être bloquée par Google).
+      # Vérification réelle : sans connexion, chaque fonction de l'app doit
+      # répondre elle-même "UNAUTHENTICATED" (et non être bloquée par
+      # Google) ; le webhook doit refuser un appel non signé (401) et la
+      # page de paiement un lien invalide (400).
       - name: Vérifier que les fonctions répondent
         if: steps.secret.outputs.present == 'true'
         run: |
-          for fonction in estimerPrix creerCourse rechercherAdresses coordonneesAdresse; do
-            reponse=$(curl -s -X POST "https://europe-west1-sprint-vtc.cloudfunctions.net/$fonction" \
-              -H 'Content-Type: application/json' -d '{"data":{}}')
+          base=https://europe-west1-sprint-vtc.cloudfunctions.net
+          for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse; do
+            reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
             echo "$fonction : $reponse"
             echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }
           done
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/webhookPaiement" \
+            -H 'Content-Type: application/json' -d '{"data":{}}')
+          echo "webhookPaiement sans signature : HTTP $code"
+          [ "$code" = 401 ] || { echo "::error::webhookPaiement devrait refuser un appel non signé (401)"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$base/pagePaiementSimule?session=invalide")
+          echo "pagePaiementSimule lien invalide : HTTP $code"
+          [ "$code" = 400 ] || { echo "::error::pagePaiementSimule ne répond pas correctement"; exit 1; }
 
       - name: Publier les règles Firestore
         if: steps.secret.outputs.present == 'true'

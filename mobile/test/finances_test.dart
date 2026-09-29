@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/core/utils/format_fcfa.dart';
@@ -11,7 +13,6 @@ import 'package:sprint/features/conducteur/presentation/widgets/gains_barres_cha
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/finances/data/comptabilite.dart';
 import 'package:sprint/features/finances/data/finance_service.dart';
-import 'package:sprint/features/paiement/data/paiement_service.dart';
 
 // Dimanche 27/09/2026, 15 h (Dakar = UTC) ; la semaine commence le lundi 21.
 final _maintenant = DateTime.utc(2026, 9, 27, 15);
@@ -165,7 +166,7 @@ void main() {
       expect(choix, PaymentMethod.orangeMoney);
     });
 
-    testWidgets('course créée seulement après confirmation du paiement', (tester) async {
+    testWidgets('course suivie seulement après confirmation du paiement par le serveur', (tester) async {
       final courses = _CourseServiceEspion();
       await tester.pumpWidget(MaterialApp(
         home: PaymentProcessingPage(
@@ -180,16 +181,22 @@ void main() {
             latitudeArrivee: 14.745,
             longitudeArrivee: -17.517,
           ),
-          paiementService: const PaiementServiceSandbox(delai: Duration.zero),
           courseService: courses,
+          ouvrirLien: (_) async => true,
         ),
       ));
-      expect(find.text('En attente de la confirmation de\nvotre paiement Wave…'), findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 10)); // délai simulé de l'opérateur
-      expect(find.text('Paiement confirmé !'), findsOneWidget);
-      expect(courses.methode, isNull);
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
       expect(courses.methode, 'WAVE');
+      await tester.tap(find.text('Payer avec Wave · ${formaterFcfa(3000)}'));
+      await tester.pump();
+      expect(find.text('En attente de la confirmation de\nvotre paiement Wave…'), findsOneWidget);
+      expect(find.text('Paiement confirmé !'), findsNothing);
+
+      courses.commande.add(const CommandePaiement(statut: StatutCommande.payee, courseId: 'course-test'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Paiement confirmé !'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
       // L'écran suivant (SuiviCoursePage) écoute Firestore, absent des tests.
       tester.takeException();
     });
@@ -330,18 +337,21 @@ void main() {
 
 class _CourseServiceEspion extends CourseService {
   String? methode;
+  final commande = StreamController<CommandePaiement?>();
 
   @override
-  Future<String> creerCourse({
+  Future<DemandePaiement> creerPaiement({
     required String type,
     required String adresseDepart,
     required String adresseArrivee,
     required int prixFcfa,
     required String methodePaiement,
-    required String transactionId,
     required PointsCourse points,
   }) async {
     methode = methodePaiement;
-    return 'course-test';
+    return DemandePaiement(commandeId: 'k1', lienPaiement: Uri.parse('https://paiement.test/k1'), prixFcfa: prixFcfa);
   }
+
+  @override
+  Stream<CommandePaiement?> streamCommande(String commandeId) => commande.stream;
 }

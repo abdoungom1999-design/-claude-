@@ -126,16 +126,28 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
+    // Commandes : demandes de paiement, écrites uniquement par le serveur
+    // (Cloud Function "creerPaiement", webhook du fournisseur). Le client
+    // suit la sienne pendant qu'il paie ; l'Admin les voit toutes.
+    // La collection "config" (secrets du serveur) n'a aucune règle : elle
+    // est fermée à l'app.
+    // ---------------------------------------------------------------
+    match /commandes/{commandeId} {
+      allow read: if connecte() && (resource.data.clientId == moi() || estAdmin());
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------
     // Courses : créées par le serveur (Cloud Function), visibles des
     // chauffeurs actifs tant qu'elles sont en attente, acceptées par un
     // seul chauffeur actif. Le prix n'est jamais modifiable depuis l'app,
     // sauf par l'Admin.
     // ---------------------------------------------------------------
     match /courses/{courseId} {
-      // Création réservée à la Cloud Function "creerCourse" (qui écrit
-      // avec les droits serveur, hors règles) : elle calcule elle-même le
-      // prix à partir des coordonnées. Aucun utilisateur, même Admin, ne
-      // crée une course depuis l'app, donc personne ne choisit son prix.
+      // Création réservée au serveur, une fois le paiement confirmé par le
+      // fournisseur (webhook signé) : il calcule lui-même le prix à partir
+      // des coordonnées. Aucun utilisateur, même Admin, ne crée une course
+      // depuis l'app : personne ne choisit son prix ni ne voyage sans payer.
       allow create: if false;
 
       allow get: if connecte()
@@ -175,22 +187,10 @@ service cloud.firestore {
             && request.resource.data.statut == 'terminee'
             && request.resource.data.termineeLe == request.time
             && request.resource.data.commissionFcfa == math.floor(resource.data.prixFcfa * 15 / 100)
-            && champsModifies().hasOnly(['statut', 'termineeLe', 'commissionFcfa']))
-        // Le chauffeur attribué annule sa course (client introuvable,
-        // panne…), avec un motif montré au client ; il redevient libre.
-        || (connecte()
-            && resource.data.chauffeurId == moi()
-            && resource.data.statut in ['acceptee', 'en_cours']
-            && request.resource.data.statut == 'annulee'
-            && request.resource.data.annuleePar == 'chauffeur'
-            && request.resource.data.motifAnnulation in ['client_introuvable', 'panne', 'autre']
-            && champsModifies().hasOnly(['statut', 'annuleePar', 'motifAnnulation']))
-        // Le client annule sa propre demande tant qu'elle est en attente.
-        || (connecte()
-            && resource.data.clientId == moi()
-            && resource.data.statut == 'en_attente'
-            && request.resource.data.statut == 'annulee'
-            && champsModifies().hasOnly(['statut']));
+            && champsModifies().hasOnly(['statut', 'termineeLe', 'commissionFcfa']));
+      // Annulations (client en attente, chauffeur avec un motif) :
+      // uniquement par la Cloud Function "annulerCourse", qui rembourse le
+      // client dans la foulée.
 
       allow delete: if estAdmin();
     }

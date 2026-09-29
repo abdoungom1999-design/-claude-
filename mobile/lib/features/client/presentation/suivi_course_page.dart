@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../courses/data/course_service.dart';
 import '../../courses/data/position_chauffeur.dart';
@@ -52,6 +53,12 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
     setState(() => _annulationEnCours = true);
     try {
       await _courseService.annulerCourse(widget.courseId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiException ? e.message : "L'annulation a échoué. Réessayez.")),
+        );
+      }
     } finally {
       if (mounted) setState(() => _annulationEnCours = false);
     }
@@ -450,6 +457,19 @@ class _EtatAnnulee extends StatelessWidget {
   final CourseFirestore? course;
   final VoidCallback onRetour;
 
+  /// Pourquoi la course est annulée, et si le client est remboursé.
+  static String? _explication(CourseFirestore? course) {
+    if (course == null) return null;
+    final raison = switch (course.annuleePar) {
+      'chauffeur' => '${MotifAnnulation.pourLeClient(course.motifAnnulation)} ',
+      'systeme' => "Aucun chauffeur n'était disponible pour le moment. ",
+      _ => '',
+    };
+    final remboursement = course.estRemboursable ? 'Votre paiement vous est remboursé. ' : '';
+    if (raison.isEmpty && remboursement.isEmpty) return null;
+    return '$raison${remboursement}Vous pouvez commander une nouvelle course.';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -464,11 +484,10 @@ class _EtatAnnulee extends StatelessWidget {
               'Course annulée',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            if (course?.annuleePar == 'chauffeur') ...[
+            if (_explication(course) case final texte?) ...[
               const SizedBox(height: 10),
               Text(
-                '${MotifAnnulation.pourLeClient(course?.motifAnnulation)} '
-                'Vous pouvez commander une nouvelle course.',
+                texte,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.5),
               ),

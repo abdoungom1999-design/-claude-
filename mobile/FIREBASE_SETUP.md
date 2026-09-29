@@ -158,14 +158,17 @@ depuis la Console.
   en direct") et par le client uniquement pendant SA course avec ce
   chauffeur (suivi d'approche) ; effacée quand il passe hors ligne.
 - Seul le chauffeur attribué fait avancer sa course (client à bord, puis
-  course terminée), sans pouvoir sauter d'étape ni toucher au prix. Il
-  peut aussi l'annuler avec un motif (client introuvable, panne, autre),
-  montré au client.
+  course terminée), sans pouvoir sauter d'étape ni toucher au prix.
 - Courses : aucune course ne peut être créée depuis l'app, même par
-  l'Admin. Seule la Cloud Function `creerCourse` (étape 7) les crée,
-  avec le prix qu'elle calcule elle-même ; le client ne peut ensuite
-  qu'annuler sa demande tant qu'elle est en attente, sans jamais toucher
-  au prix. Paiement 100 % mobile money (Wave ou Orange Money).
+  l'Admin. Seul le serveur les crée (étape 7), une fois le paiement
+  confirmé par l'opérateur, avec le prix qu'il calcule lui-même.
+  Paiement 100 % mobile money (Wave ou Orange Money).
+- Annulations (client tant que la course est en attente, chauffeur avec
+  un motif) : uniquement par la Cloud Function `annulerCourse`, qui
+  rembourse le client ; jamais directement depuis l'app.
+- `commandes` (demandes de paiement) : écrites par le serveur seul,
+  lisibles par leur client et l'Admin. `config` (secrets du serveur) :
+  fermée à l'app.
 - Finances : à la fin d'une course, la commission de la plateforme (15 %
   du prix) est figée et vérifiée par les règles. Sprint encaisse chaque
   course et doit au chauffeur sa part (85 %) ; les versements de Sprint
@@ -183,21 +186,23 @@ depuis la Console.
   bout de 2 minutes sans nouvelle. Un vrai suivi en arrière-plan exige
   l'application Android native.
 
-- Paiement en mode test : le prix est désormais calculé par le serveur,
-  mais le paiement Wave / Orange Money est encore simulé dans l'app ; la
-  Cloud Function enregistre l'identifiant de transaction sans pouvoir le
-  vérifier auprès de l'opérateur (`modePaiement: "test"` sur la course).
-  Avec les vraies clés, le serveur ouvrira lui-même le paiement et ne
-  créera la course qu'à la confirmation de l'opérateur.
+- Paiement en mode test : tout le parcours passe par le serveur, mais
+  l'opérateur est simulé (« faux Wave », page de paiement
+  `pagePaiementSimule`, aucune somme débitée ; `modePaiement:
+  "simulation"` sur la course). Pour passer au vrai Wave : ranger
+  `WAVE_API_KEY` et `WAVE_WEBHOOK_SECRET` dans Secret Manager et brancher
+  `FournisseurWave` (déjà écrit) dans `functions/src/index.ts`. Orange
+  Money passe aujourd'hui par la même simulation ; en réel, il lui
+  faudra son propre fournisseur.
 - Un numéro de téléphone n'est pas garanti unique : si quelqu'un
   revendique en premier le numéro d'un autre dans l'annuaire, ce dernier
   ne pourra se connecter que par email (aucun accès à son compte n'est
   donné pour autant).
 
-## 7. Cloud Functions : prix et création des courses (plan Blaze)
+## 7. Cloud Functions : prix, paiement et courses (plan Blaze)
 
-Le dossier `functions/` (TypeScript) contient quatre fonctions,
-déployées en `europe-west1` (même région que Firestore `eur3`) :
+Le dossier `functions/` (TypeScript) contient ces fonctions, déployées
+en `europe-west1` (même région que Firestore `eur3`) :
 
 - `estimerPrix` : calcule le prix d'un trajet à partir des coordonnées :
   distance **par la route** (Google Routes API, mise en cache 30 jours
@@ -208,10 +213,27 @@ déployées en `europe-west1` (même région que Firestore `eur3`) :
 - `rechercherAdresses` et `coordonneesAdresse` : recherche d'adresses
   Google Places (API New) pour l'app, limitée au Sénégal, Dakar en
   priorité. Si elles échouent, l'app bascule sur OpenStreetMap.
-- `creerCourse` : recalcule ce prix et crée la course. Si le prix a
-  changé depuis son affichage (passage en heure de pointe…), rien n'est
-  créé et l'app affiche le nouveau prix. Une commande envoyée deux fois
-  (double clic, réseau coupé) ne crée qu'une course.
+- `creerPaiement` : recalcule ce prix, enregistre une commande en
+  attente (`commandes`) et renvoie le lien de paiement de l'opérateur.
+  Si le prix a changé depuis son affichage (passage en heure de
+  pointe…), rien n'est créé et l'app affiche le nouveau prix.
+- `webhookPaiement` : reçoit la confirmation **signée** de l'opérateur
+  (en-tête `Wave-Signature`, HMAC-SHA256, 5 minutes de validité). Paiement
+  réussi et montant exact : la course est créée (une seule, même si la
+  confirmation arrive plusieurs fois). Refus : commande échouée. Montant
+  différent : commande en anomalie, aucune course. Paiement arrivé après
+  expiration : remboursé.
+- `pagePaiementSimule` : la page de paiement du faux Wave (boutons
+  « Payer » / « Refuser »), qui envoie au webhook un événement signé
+  exactement comme Wave. Son secret de signature est créé
+  automatiquement dans `config/paiementSimule`.
+- `annulerCourse` : annulation par le client (course en attente) ou par
+  le chauffeur attribué (avec un motif), puis remboursement.
+- `surveillerCommandes` (toutes les 5 minutes) : paiement non finalisé
+  au bout de 20 minutes → commande expirée ; course sans chauffeur au
+  bout de 10 minutes → annulée et remboursée. Un remboursement refusé par
+  l'opérateur laisse la commande en `remboursement_echoue`, à traiter à
+  la main.
 
 ### 7.1 Déploiement automatique (GitHub Actions)
 
@@ -236,6 +258,12 @@ depuis le navigateur, connecté avec le compte Google du projet Firebase :
    - Utilisateur du compte de service (*Service Account User*)
    - Administrateur Artifact Registry (*Artifact Registry Administrator*)
    - Administrateur Service Usage (*Service Usage Admin*)
+   - Administrateur Secret Manager (*Secret Manager Admin*)
+   - Administrateur Cloud Scheduler (*Cloud Scheduler Admin*) : pour
+     `surveillerCommandes`. Sans lui, le pipeline s'arrête **avant**
+     tout déploiement avec l'erreur « Rôle manquant ».
+   (Pour un compte déjà créé : page **IAM**, crayon à droite de
+   `github-deploy`, **+ Ajouter un autre rôle**, **Enregistrer**.)
 3. Cliquer sur le compte `github-deploy` créé, onglet **Clés** >
    **Ajouter une clé** > **Créer une clé** > **JSON** > **Créer** : un
    fichier `.json` est téléchargé.
@@ -278,7 +306,7 @@ relancer le déploiement (onglet Actions > Run workflow).
 
 ```bash
 cd mobile/functions
-npm test                  # moteur de prix (dont parité avec l'app) et validation
-npm run test:emulateur    # création des courses sur l'émulateur Firestore
+npm test                  # moteur de prix (dont parité avec l'app), validation, signatures
+npm run test:emulateur    # paiement, courses, annulations, surveillance (émulateur Firestore)
 ```
 

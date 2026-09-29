@@ -39,7 +39,7 @@ class EstimationPrix {
 
 /// Prix d'une course avant commande. En Firebase réel, calculé par le
 /// serveur (Cloud Function `estimerPrix`) à partir des coordonnées du
-/// trajet : c'est ce même calcul que la fonction `creerCourse` refait au
+/// trajet : c'est ce même calcul que la fonction `creerPaiement` refait au
 /// moment de commander. En mode démo, calcul local ([DemoData]).
 class PricingRepository {
   PricingRepository({Dio? dio}) : _dio = dio ?? ApiClient().dio;

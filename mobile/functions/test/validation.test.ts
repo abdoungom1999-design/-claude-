@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { HttpsError } from 'firebase-functions/v2/https';
-import { estimer, idCourse, validerCommande } from '../src/commandes';
+import { estimer, validerDemande } from '../src/commandes';
 import type { CalculDistance } from '../src/distances';
 import { distanceRouteEstimeeKm } from '../src/tarification';
 
@@ -21,7 +21,6 @@ const commande = (extra: Record<string, unknown> = {}) => ({
   adresseDepart: 'Plateau',
   adresseArrivee: 'Almadies',
   methodePaiement: 'WAVE',
-  transactionId: 'TXN-WAVE-DEMO-1',
   prixAttendu: 2300,
   ...extra,
 });
@@ -82,21 +81,14 @@ test('trajet invalide : type, coordonnées, même lieu, hors zone (sans appeler 
 });
 
 test('commande : le prix envoyé ne sert que de contrôle, jamais de valeur', () => {
-  assert.equal(validerCommande(commande()).prixAttendu, 2300);
-  refuse(() => validerCommande(commande({ prixAttendu: 0 })), 'invalid-argument');
-  refuse(() => validerCommande(commande({ prixAttendu: 2300.5 })), 'invalid-argument');
-  refuse(() => validerCommande(commande({ prixAttendu: '2300' })), 'invalid-argument');
+  assert.equal(validerDemande(commande()).prixAttendu, 2300);
+  refuse(() => validerDemande(commande({ prixAttendu: 0 })), 'invalid-argument');
+  refuse(() => validerDemande(commande({ prixAttendu: 2300.5 })), 'invalid-argument');
+  refuse(() => validerDemande(commande({ prixAttendu: '2300' })), 'invalid-argument');
 });
 
-test('commande : 100 % mobile money, adresses et identifiant de paiement obligatoires', () => {
-  refuse(() => validerCommande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /Wave ou Orange Money/);
-  refuse(() => validerCommande(commande({ adresseDepart: '  ' })), 'invalid-argument');
-  refuse(() => validerCommande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
-  refuse(() => validerCommande(commande({ transactionId: undefined })), 'invalid-argument');
-});
-
-test('identifiant de course stable pour une même transaction, distinct sinon', () => {
-  assert.equal(idCourse('awa', 'TXN-1'), idCourse('awa', 'TXN-1'));
-  assert.notEqual(idCourse('awa', 'TXN-1'), idCourse('awa', 'TXN-2'));
-  assert.notEqual(idCourse('awa', 'TXN-1'), idCourse('fatou', 'TXN-1'));
+test('commande : 100 % mobile money, adresses obligatoires', () => {
+  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /Wave ou Orange Money/);
+  refuse(() => validerDemande(commande({ adresseDepart: '  ' })), 'invalid-argument');
+  refuse(() => validerDemande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
 });

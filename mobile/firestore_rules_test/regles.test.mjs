@@ -276,9 +276,10 @@ describe('courses', () => {
     await assertFails(updateDoc(doc(en('chauffeur'), 'courses', 'c1'), { chauffeurId: 'chauffeur', statut: 'acceptee' }));
   });
 
-  test('le client annule sa course en attente : accepté ; un autre client : refusé', async () => {
+  test('annuler depuis l\'app, sans passer par le serveur (donc sans remboursement) : refusé', async () => {
     await assertFails(updateDoc(doc(en('autreClient'), 'courses', 'c1'), { statut: 'annulee' }));
-    await assertSucceeds(updateDoc(doc(en('client'), 'courses', 'c1'), { statut: 'annulee' }));
+    await assertFails(updateDoc(doc(en('client'), 'courses', 'c1'), { statut: 'annulee' }));
+    await assertFails(updateDoc(doc(en('client'), 'courses', 'c1'), { statut: 'annulee', annuleePar: 'client' }));
   });
 
   test('lire la course d\'un autre client : refusé', async () => {
@@ -306,25 +307,13 @@ describe('courses : cycle de vie côté chauffeur', () => {
     await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'acceptee' }));
   });
 
-  test('le chauffeur attribué annule sa course (client introuvable, panne) : accepté', async () => {
+  test('le chauffeur annule directement, même avec un motif valide : refusé (serveur seul, remboursement)', async () => {
     const annuler = (motif) => ({ statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: motif });
-    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'courses', 'c2'), annuler('client_introuvable')));
-    await env.withSecurityRulesDisabled((ctx) =>
-      setDoc(doc(ctx.firestore(), 'courses', 'c3'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'en_cours', prixFcfa: 2000 }));
-    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'courses', 'c3'), annuler('panne')));
-  });
-
-  test('annulation : sans motif valide, sur course terminée, par un autre, ou en touchant au prix : refusé', async () => {
     const db = en('chauffeur');
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'), annuler('client_introuvable')));
+    await assertFails(updateDoc(doc(db, 'courses', 'c2'), annuler('panne')));
     await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'annulee' }));
-    await assertFails(updateDoc(doc(db, 'courses', 'c2'), { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'flemme' }));
-    await assertFails(updateDoc(doc(db, 'courses', 'c2'),
-      { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'panne', prixFcfa: 0 }));
-    await assertFails(updateDoc(doc(en('client'), 'courses', 'c2'),
-      { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'panne' }));
-    await env.withSecurityRulesDisabled((ctx) =>
-      setDoc(doc(ctx.firestore(), 'courses', 'c4'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee', prixFcfa: 2000 }));
-    await assertFails(updateDoc(doc(db, 'courses', 'c4'), { statut: 'annulee', annuleePar: 'chauffeur', motifAnnulation: 'panne' }));
+    await assertFails(updateDoc(doc(en('client'), 'courses', 'c2'), annuler('panne')));
   });
 
   test('un autre chauffeur fait avancer la course : refusé', async () => {
@@ -353,6 +342,44 @@ describe('courses : cycle de vie côté chauffeur', () => {
     for (const uid of ['client', 'chauffeur']) {
       await assertFails(dernieres(en(uid)));
       await assertFails(clients(en(uid)));
+    }
+  });
+});
+
+describe('commandes (paiement) et config serveur', () => {
+  beforeEach(() => env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'commandes', 'k1'), {
+      clientId: 'client', statut: 'en_attente_paiement', prixFcfa: 2300, sessionPaiementId: 'sim_1', lienPaiement: 'https://page',
+    });
+    await setDoc(doc(db, 'config', 'paiementSimule'), { secret: 'x'.repeat(64) });
+  }));
+
+  test('le client suit sa commande pendant qu\'il paie ; l\'admin aussi', async () => {
+    await assertSucceeds(getDoc(doc(en('client'), 'commandes', 'k1')));
+    await assertSucceeds(getDoc(doc(en('admin'), 'commandes', 'k1')));
+    await assertSucceeds(getDocs(query(collection(en('client'), 'commandes'), where('clientId', '==', 'client'))));
+  });
+
+  test('un autre client, un chauffeur ou un anonyme ne la lit pas', async () => {
+    for (const db of [en('autreClient'), en('chauffeur'), anonyme()]) {
+      await assertFails(getDoc(doc(db, 'commandes', 'k1')));
+    }
+    await assertFails(getDocs(collection(en('client'), 'commandes')));
+  });
+
+  test('personne ne crée ni ne se déclare payé depuis l\'app, même l\'admin', async () => {
+    for (const uid of ['client', 'admin']) {
+      await assertFails(updateDoc(doc(en(uid), 'commandes', 'k1'), { statut: 'payee' }));
+      await assertFails(setDoc(doc(en(uid), 'commandes', `n-${uid}`), { clientId: uid, statut: 'payee', prixFcfa: 1 }));
+      await assertFails(deleteDoc(doc(en(uid), 'commandes', 'k1')));
+    }
+  });
+
+  test('le secret du paiement simulé est illisible depuis l\'app, même pour l\'admin', async () => {
+    for (const db of [en('client'), en('admin'), anonyme()]) {
+      await assertFails(getDoc(doc(db, 'config', 'paiementSimule')));
+      await assertFails(setDoc(doc(db, 'config', 'paiementSimule'), { secret: 'pirate' }));
     }
   });
 });

@@ -50,8 +50,8 @@ class _PassagerPageState extends State<PassagerPage> {
   /// `WelcomePage`) — redemander une authentification à ce stade
   /// serait un mur redondant. À la place, valider l'adresse ouvre le
   /// choix du mode de paiement, puis le sas de paiement obligatoire
-  /// (voir [PaymentProcessingPage]) qui déclenche lui-même l'écriture
-  /// dans Firestore une fois la simulation de confirmation terminée.
+  /// (voir [PaymentProcessingPage]) : le serveur ne crée la course
+  /// qu'une fois le paiement confirmé par l'opérateur.
   Future<void> _commander() async {
     if (!_formKey.currentState!.validate()) return;
     // Le bouton est désactivé tant que le prix n'est pas calculé ; ce
