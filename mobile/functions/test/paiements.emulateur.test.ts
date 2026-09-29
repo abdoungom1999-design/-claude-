@@ -128,6 +128,8 @@ test('prix vu par le client différent (tranche horaire changée) : rien n\'est 
 
 test('non connecté, sans profil ou compte banni : refusé', async () => {
   await refuse(creerPaiement(undefined, demande()), 'unauthenticated');
+  // Connexion vérifiée avant le contenu (contrôle de la CI : requête vide).
+  await refuse(creerPaiement(undefined, {}), 'unauthenticated');
   await refuse(creerPaiement('inconnu', demande()), 'permission-denied');
   await refuse(creerPaiement('banni', demande()), 'permission-denied');
   assert.equal(await nombre('commandes'), 0);

@@ -55,8 +55,10 @@ export async function creerPaiement(
   donnees: unknown,
   maintenant: Date,
 ): Promise<PaiementCree> {
-  const demande = validerDemande(donnees);
+  // Connexion vérifiée avant tout : un inconnu n'apprend rien de la
+  // validation des demandes.
   const clientId = await verifierClient(db, uid);
+  const demande = validerDemande(donnees);
   const { estimation, distance } = await prixServeur(calcul, demande, maintenant);
 
   const ref = db.collection('commandes').doc(randomBytes(12).toString('hex'));
