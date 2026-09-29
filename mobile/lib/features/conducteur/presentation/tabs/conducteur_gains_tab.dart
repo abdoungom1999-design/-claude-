@@ -231,6 +231,7 @@ class _CarteDu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enAttente = soldeFcfa > 0;
+    final aDeduire = soldeFcfa < 0;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -256,7 +257,10 @@ class _CarteDu extends StatelessWidget {
             enAttente
                 ? 'Votre part (${100 - Commission.pourcentage} %) de vos courses payées par Wave ou '
                     'Orange Money, moins les versements déjà reçus.'
-                : 'Aucune somme en attente : tout vous a été versé.',
+                : aDeduire
+                    ? '${formaterFcfa(-soldeFcfa)} seront déduits de vos prochains gains : une course déjà '
+                        'versée a été remboursée au client.'
+                    : 'Aucune somme en attente : tout vous a été versé.',
             style: TextStyle(fontSize: 12.5, height: 1.4, color: Colors.white.withValues(alpha: 0.6)),
           ),
         ],
@@ -310,19 +314,25 @@ class _LigneCourseReelle extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Payée par ${ligne.libelleMethode}',
+                  ligne.remboursee ? 'Remboursée au client' : 'Payée par ${ligne.libelleMethode}',
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                 ),
                 Text(
-                  '${_date(ligne.date)} · prix ${formaterFcfa(ligne.prixFcfa)}',
+                  ligne.remboursee
+                      ? '${_date(ligne.date)} · suite à un signalement, non payée'
+                      : '${_date(ligne.date)} · prix ${formaterFcfa(ligne.prixFcfa)}',
                   style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
                 ),
               ],
             ),
           ),
           Text(
-            '+${formaterFcfa(ligne.partChauffeurFcfa)}',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppColors.vert),
+            ligne.remboursee ? formaterFcfa(0) : '+${formaterFcfa(ligne.partChauffeurFcfa)}',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
+              color: ligne.remboursee ? AppColors.grey : AppColors.vert,
+            ),
           ),
         ],
       ),

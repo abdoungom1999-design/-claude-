@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/flux_partage.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../courses/data/course_service.dart';
+import '../../finances/data/comptabilite.dart';
 import '../../messages/data/chat_service.dart';
 import '../../support/data/support_service.dart';
 import '../../support/presentation/widgets/conversation_ticket.dart';
@@ -112,14 +113,19 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
   Future<void> _rembourser(CourseFirestore course) async {
     final motif = await showDialog<String>(
       context: context,
-      builder: (_) => _DialogueRemboursement(montantFcfa: course.prixFcfa),
+      builder: (_) => _DialogueRemboursement(
+        montantFcfa: course.prixFcfa,
+        partChauffeurFcfa: LigneCourse.partChauffeurDe(course),
+      ),
     );
     if (motif == null) return;
     await _executer(() async {
       final r = await _support.rembourser(course.id, motif);
-      return r.rembourse
-          ? 'Course remboursée : ${formaterFcfa(r.montantFcfa)}. Le client est prévenu dans le ticket.'
-          : 'Le fournisseur de paiement a refusé le remboursement : réessayez plus tard.';
+      if (!r.rembourse) return 'Le fournisseur de paiement a refusé le remboursement : réessayez plus tard.';
+      final part = r.partChauffeurRetireeFcfa > 0
+          ? ' Part du chauffeur retirée : ${formaterFcfa(r.partChauffeurRetireeFcfa)}.'
+          : '';
+      return 'Course remboursée : ${formaterFcfa(r.montantFcfa)}. Le client est prévenu dans le ticket.$part';
     });
   }
 
@@ -382,9 +388,12 @@ class _PersonneState extends State<_Personne> {
 }
 
 class _DialogueRemboursement extends StatefulWidget {
-  const _DialogueRemboursement({required this.montantFcfa});
+  const _DialogueRemboursement({required this.montantFcfa, required this.partChauffeurFcfa});
 
   final int montantFcfa;
+
+  /// Part (85 %) que le chauffeur ne touchera pas (0 : course annulée).
+  final int partChauffeurFcfa;
 
   @override
   State<_DialogueRemboursement> createState() => _DialogueRemboursementState();
@@ -413,6 +422,14 @@ class _DialogueRemboursementState extends State<_DialogueRemboursement> {
               'Remboursement intégral sur le compte mobile money du client, par le fournisseur de paiement. '
               'Le client est prévenu dans le ticket.',
             ),
+            if (widget.partChauffeurFcfa > 0) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Le chauffeur n\'est pas payé pour cette course : sa part (${formaterFcfa(widget.partChauffeurFcfa)}) '
+                'est retirée de ce que Sprint lui doit, ou déduite de ses prochains gains si elle lui a déjà été versée.',
+                style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600),
+              ),
+            ],
             const SizedBox(height: 16),
             TextField(
               controller: _motif,

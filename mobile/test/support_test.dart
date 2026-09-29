@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/core/models/statut_compte.dart';
+import 'package:sprint/core/utils/format_fcfa.dart';
 import 'package:sprint/features/activite/presentation/activite_tab_page.dart';
 import 'package:sprint/features/activite/presentation/detail_course_page.dart';
 import 'package:sprint/features/admin/data/admin_kyc_service.dart';
@@ -101,7 +102,7 @@ class _SupportFactice extends SupportService {
   @override
   Future<RemboursementEffectue> rembourser(String courseId, String motif) async {
     appels.add('rembourser:$courseId:$motif');
-    return const RemboursementEffectue(rembourse: true, montantFcfa: 2300);
+    return const RemboursementEffectue(rembourse: true, montantFcfa: 2300, partChauffeurRetireeFcfa: 1955);
   }
 }
 
@@ -290,6 +291,8 @@ void main() {
 
       await tester.tap(find.textContaining('Rembourser'));
       await tester.pumpAndSettle();
+      // Course terminée : 85 % de 2 300 (commission 345) ne seront pas payés au chauffeur.
+      expect(find.textContaining('sa part (${formaterFcfa(1955)}) est retirée'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Rembourser'));
       await tester.pumpAndSettle();
       expect(find.text('Indiquez le motif.'), findsOneWidget);
@@ -297,6 +300,7 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Rembourser'));
       await tester.pumpAndSettle();
       expect(support.appels, contains('rembourser:c1:Chauffeur impoli'));
+      expect(find.textContaining('Part du chauffeur retirée : ${formaterFcfa(1955)}.'), findsOneWidget);
 
       await tester.tap(find.text('Suspendre le chauffeur'));
       await tester.pumpAndSettle();

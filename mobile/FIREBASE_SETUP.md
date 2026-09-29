@@ -181,7 +181,10 @@ depuis la Console.
   du prix) est figée et vérifiée par les règles. Sprint encaisse chaque
   course et doit au chauffeur sa part (85 %) ; les versements de Sprint
   au chauffeur (`reglements`) ne sont saisis que par l'Admin, dans ce
-  seul sens. Le temps en ligne (`temps_en_ligne`) ne peut augmenter que
+  seul sens. Une course remboursée au client (marquée `rembourseeLe` par
+  le serveur, marque que ni le chauffeur ni le client ne peuvent effacer)
+  sort des comptes : ni chiffre d'affaires, ni commission, ni part pour le
+  chauffeur. Le temps en ligne (`temps_en_ligne`) ne peut augmenter que
   d'une minute par minute.
 - Toute autre collection : refusée.
 
@@ -245,8 +248,11 @@ en `europe-west1` (même région que Firestore `eur3`) :
 - `rembourserCourseAdmin` (Admin, depuis un ticket du support) :
   remboursement intégral d'une course terminée ou annulée, avec un motif
   obligatoire. Refusé si la course est encore en cours ou déjà
-  remboursée. Le client en est informé dans son ticket. La part due au
-  chauffeur n'est pas modifiée.
+  remboursée. Le client en est informé dans son ticket. Le chauffeur n'est
+  pas payé pour une course remboursée : sa part (85 %) sort de ce que
+  Sprint lui doit (`partChauffeurRetireeFcfa` sur la course et dans le
+  journal) ; si elle lui avait déjà été versée, elle est déduite de ses
+  prochains gains.
 - `sanctionnerCompte` (Admin) : suspension, bannissement ou réactivation
   d'un compte, avec un motif obligatoire. Pour un chauffeur sanctionné :
   retiré des chauffeurs disponibles, position effacée, et sa course en

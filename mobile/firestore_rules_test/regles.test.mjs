@@ -24,6 +24,7 @@ import {
   where,
   writeBatch,
   increment,
+  deleteField,
 } from 'firebase/firestore';
 
 let env;
@@ -674,6 +675,17 @@ describe('finances', () => {
     await assertFails(terminer(464));
     await assertFails(updateDoc(doc(en('chauffeur'), 'courses', 'f1'), { statut: 'terminee', termineeLe: serverTimestamp() }));
     await assertFails(terminer(465, { prixFcfa: 100 }));
+  });
+
+  test('course remboursée au client : ni le chauffeur ni le client ne peuvent effacer la marque', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'courses', 'f1'), {
+      clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee', prixFcfa: 3100, commissionFcfa: 465,
+      rembourseeLe: new Date(), rembourseePar: 'admin', partChauffeurRetireeFcfa: 2635,
+    }));
+    for (const qui of ['chauffeur', 'client']) {
+      await assertFails(updateDoc(doc(en(qui), 'courses', 'f1'), { rembourseeLe: deleteField() }));
+      await assertFails(updateDoc(doc(en(qui), 'courses', 'f1'), { partChauffeurRetireeFcfa: 0 }));
+    }
   });
 
   test('versements : saisis par l\'admin, lus par le chauffeur concerné seulement', async () => {

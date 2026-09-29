@@ -145,7 +145,9 @@ class _VueFinances extends StatelessWidget {
           'Commission : ${Commission.pourcentage} % de chaque course terminée, figée à la fin de la course '
           '(imposée par les règles Firestore). ${compte.nombreCourses} courses terminées au total, toutes '
           'payées par Wave / Orange Money et encaissées par Sprint, qui reverse ${100 - Commission.pourcentage} % '
-          'au chauffeur (paiements encore en mode test : aucun argent réellement encaissé).',
+          'au chauffeur (paiements encore en mode test : aucun argent réellement encaissé).'
+          '${compte.nombreRemboursees == 0 ? '' : ' ${compte.nombreRemboursees} course(s) remboursée(s) au client, exclue(s) '
+              'des comptes : part des chauffeurs retirée (${formaterFcfa(compte.partsRetireesFcfa)}).'}',
           style: const TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
         ),
         const SizedBox(height: 22),
@@ -213,11 +215,21 @@ class _LigneTableau extends StatelessWidget {
             flex: _flex[4],
             child: solde == null
                 ? Text(cellules[4], style: style)
+                // Négatif : une course déjà versée a été remboursée au
+                // client ; à déduire des prochains gains du chauffeur.
                 : Text(
-                    solde > 0 ? formaterFcfa(solde) : 'À jour',
+                    solde > 0
+                        ? formaterFcfa(solde)
+                        : solde < 0
+                            ? '− ${formaterFcfa(-solde)} à déduire'
+                            : 'À jour',
                     style: style.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: solde > 0 ? Colors.blue.shade700 : AppColors.grey,
+                      color: solde > 0
+                          ? Colors.blue.shade700
+                          : solde < 0
+                              ? Colors.red.shade700
+                              : AppColors.grey,
                     ),
                   ),
           ),

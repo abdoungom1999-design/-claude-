@@ -109,10 +109,13 @@ DateTime _date(Object? valeur) => valeur is Timestamp ? valeur.toDate() : DateTi
 
 /// Résultat d'un remboursement demandé par l'Admin.
 class RemboursementEffectue {
-  const RemboursementEffectue({required this.rembourse, required this.montantFcfa});
+  const RemboursementEffectue({required this.rembourse, required this.montantFcfa, this.partChauffeurRetireeFcfa = 0});
 
   final bool rembourse;
   final int montantFcfa;
+
+  /// Part du chauffeur retirée de ce que Sprint lui doit.
+  final int partChauffeurRetireeFcfa;
 }
 
 /// Support client : signalements ("Signaler un problème" depuis
@@ -234,6 +237,7 @@ class SupportService {
       return RemboursementEffectue(
         rembourse: r['rembourse'] == true,
         montantFcfa: (r['montantFcfa'] as num?)?.toInt() ?? 0,
+        partChauffeurRetireeFcfa: (r['partChauffeurRetireeFcfa'] as num?)?.toInt() ?? 0,
       );
     } on FirebaseFunctionsException catch (e) {
       throw FonctionsCloud.versApiException(e);

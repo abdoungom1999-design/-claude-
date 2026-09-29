@@ -17,7 +17,14 @@ import 'package:sprint/features/finances/data/finance_service.dart';
 // Dimanche 27/09/2026, 15 h (Dakar = UTC) ; la semaine commence le lundi 21.
 final _maintenant = DateTime.utc(2026, 9, 27, 15);
 
-LigneCourse _ligne(String id, String chauffeur, int prix, {required String methode, required DateTime date}) =>
+LigneCourse _ligne(
+  String id,
+  String chauffeur,
+  int prix, {
+  required String methode,
+  required DateTime date,
+  bool remboursee = false,
+}) =>
     LigneCourse(
       courseId: id,
       chauffeurId: chauffeur,
@@ -25,7 +32,17 @@ LigneCourse _ligne(String id, String chauffeur, int prix, {required String metho
       commissionFcfa: Commission.de(prix),
       methodePaiement: methode,
       date: date,
+      remboursee: remboursee,
     );
+
+/// La course "c" de Moussa (10 000 FCFA, déjà versée) remboursée au
+/// client après un signalement.
+final _avecRemboursement = [
+  for (final c in _courses)
+    c.courseId == 'c'
+        ? _ligne('c', 'moussa', 10000, methode: 'WAVE', date: DateTime.utc(2026, 9, 18, 10), remboursee: true)
+        : c,
+];
 
 Reglement _versement(String chauffeur, int montant) =>
     Reglement(id: 'r', chauffeurId: chauffeur, montantFcfa: montant, date: _maintenant);
@@ -39,12 +56,15 @@ final _courses = [
 ];
 
 class _FinanceFactice extends FinanceService {
+  _FinanceFactice({List<LigneCourse>? courses}) : courses = courses ?? _courses;
+
+  final List<LigneCourse> courses;
   final reglements = <Reglement>[_versement('moussa', 10000)];
   final enregistres = <(String, int)>[];
 
   @override
   Stream<List<LigneCourse>> streamCoursesChauffeur(String chauffeurId) => Stream.value([
-        for (final c in _courses)
+        for (final c in courses)
           if (c.chauffeurId == chauffeurId) c
       ]);
 
@@ -59,7 +79,7 @@ class _FinanceFactice extends FinanceService {
       Stream.value({'2026-09-27': 3720, '2026-09-22': 7200});
 
   @override
-  Stream<List<LigneCourse>> streamToutesCourses() => Stream.value(_courses);
+  Stream<List<LigneCourse>> streamToutesCourses() => Stream.value(courses);
 
   @override
   Stream<List<Reglement>> streamTousReglements() => Stream.value(reglements);
@@ -130,6 +150,48 @@ void main() {
 
     test('ancienne course de test "ESPECES" : comptée comme due au chauffeur', () {
       expect(LigneCourse.depuisCourse(ancienne('ESPECES')).partChauffeurFcfa, 2125);
+    });
+
+    test('course remboursée au client : le chauffeur n\'est pas payé, déduit s\'il a déjà reçu sa part', () {
+      final ligne = _avecRemboursement[2];
+      expect(ligne.partChauffeurFcfa, 0);
+      expect(ligne.partRetireeFcfa, 8500);
+      expect(ligne.encaisseFcfa, 0);
+      expect(ligne.commissionGagneeFcfa, 0);
+
+      final moussa =
+          Compte(courses: _avecRemboursement, reglements: [_versement('moussa', 10000)]).duChauffeur('moussa');
+      expect(moussa.nombreCourses, 2);
+      expect(moussa.nombreRemboursees, 1);
+      expect(moussa.chiffreAffairesFcfa, 5000);
+      expect(moussa.commissionsFcfa, 750);
+      expect(moussa.gainsNetsFcfa, 4250);
+      expect(moussa.partsRetireesFcfa, 8500);
+      // Les 10 000 déjà versés dépassent ses gains : 5 750 à déduire.
+      expect(moussa.soldeFcfa, -5750);
+
+      // Sans versement préalable, la part n'est simplement jamais due.
+      expect(Compte(courses: _avecRemboursement).duChauffeur('moussa').soldeFcfa, 4250);
+    });
+
+    test('remboursement lu sur la course (rembourseeLe), part retirée seulement si terminée', () {
+      final terminee = CourseFirestore(
+        id: 'x',
+        clientId: 'awa',
+        chauffeurId: 'moussa',
+        adresseDepart: 'A',
+        adresseArrivee: 'B',
+        prixFcfa: 2300,
+        methodePaiement: 'WAVE',
+        type: 'COURSE',
+        statut: StatutCourse.terminee,
+        timestamp: DateTime.utc(2026, 9, 27),
+        commissionFcfa: 345,
+        rembourseeLe: DateTime.utc(2026, 9, 28),
+      );
+      expect(LigneCourse.depuisCourse(terminee).remboursee, isTrue);
+      expect(LigneCourse.depuisCourse(terminee).partChauffeurFcfa, 0);
+      expect(LigneCourse.partChauffeurDe(terminee), 1955);
     });
 
     test('temps en ligne lisible', () {
@@ -238,6 +300,20 @@ void main() {
       expect(find.textContaining('Vous devez'), findsNothing);
     });
 
+    testWidgets('course remboursée : non payée, montant déjà versé déduit des prochains gains', (tester) async {
+      await afficher(tester, _FinanceFactice(courses: _avecRemboursement));
+      expect(find.text(formaterFcfa(0)), findsNWidgets(2)); // carte "Sprint vous doit" et ligne remboursée
+      expect(
+        find.text('${formaterFcfa(5750)} seront déduits de vos prochains gains : une course déjà '
+            'versée a été remboursée au client.'),
+        findsOneWidget,
+      );
+      expect(find.text('Remboursée au client'), findsOneWidget);
+      expect(find.text('18/09 · suite à un signalement, non payée'), findsOneWidget);
+      expect(find.text('+${formaterFcfa(8500)}'), findsNothing);
+      expect(find.textContaining('Vous devez'), findsNothing);
+    });
+
     testWidgets('semaine sans recette : le graphique ne plante pas', (tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: Scaffold(
@@ -295,6 +371,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(service.enregistres, [('awa', 3400)]);
       expect(find.text('Versement enregistré pour Awa Ndiaye.'), findsOneWidget);
+    });
+
+    testWidgets('course remboursée : exclue du CA et des commissions, part du chauffeur à déduire', (tester) async {
+      await afficher(tester, _FinanceFactice(courses: _avecRemboursement));
+      expect(find.text(formaterFcfa(9000)), findsNWidgets(2)); // CA total = CA semaine (19 000 - 10 000)
+      expect(find.text(formaterFcfa(1350)), findsOneWidget); // commissions : 2 850 - 1 500
+      expect(find.text(formaterFcfa(3400)), findsNWidgets(2)); // reste à verser = Awa seule
+      expect(find.text('− ${formaterFcfa(5750)} à déduire'), findsOneWidget); // Moussa
+      expect(find.widgetWithText(OutlinedButton, 'Verser'), findsOneWidget); // Awa seulement
+      expect(
+        find.textContaining('1 course(s) remboursée(s) au client, exclue(s) des comptes : part des chauffeurs '
+            'retirée (${formaterFcfa(8500)}).'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('chauffeur entièrement payé : "À jour", pas de bouton Verser', (tester) async {

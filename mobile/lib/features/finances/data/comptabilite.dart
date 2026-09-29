@@ -4,7 +4,12 @@ import '../../courses/data/course_service.dart';
 ///
 /// 100 % mobile money : la plateforme encaisse chaque course (Wave /
 /// Orange Money) et doit au chauffeur sa part, le prix moins la
-/// commission. Le chauffeur ne doit jamais rien à la plateforme.
+/// commission.
+///
+/// Une course remboursée au client (support Admin) ne rapporte rien : ni
+/// chiffre d'affaires, ni commission, ni part pour le chauffeur. Si cette
+/// part lui avait déjà été versée, son solde devient négatif : elle est
+/// déduite de ses prochains gains.
 class LigneCourse {
   const LigneCourse({
     required this.courseId,
@@ -14,6 +19,7 @@ class LigneCourse {
     required this.date,
     this.methodePaiement,
     this.clientId = '',
+    this.remboursee = false,
   });
 
   factory LigneCourse.depuisCourse(CourseFirestore course) => LigneCourse(
@@ -25,20 +31,44 @@ class LigneCourse {
         methodePaiement: course.methodePaiement,
         clientId: course.clientId,
         date: course.termineeLe ?? course.timestamp,
+        remboursee: course.rembourseeLe != null,
       );
+
+  /// Part du chauffeur sur [course] (celle qu'un remboursement lui
+  /// retirerait) : 0 si la course n'est pas terminée.
+  static int partChauffeurDe(CourseFirestore course) =>
+      course.statut == StatutCourse.terminee && course.chauffeurId != null
+          ? course.prixFcfa - (course.commissionFcfa ?? Commission.de(course.prixFcfa))
+          : 0;
 
   final String courseId;
   final String chauffeurId;
   final String clientId;
+  /// Prix payé par le client (affichage, même si remboursé).
   final int prixFcfa;
+
+  /// Commission figée à l'arrivée (affichage, même si remboursé).
   final int commissionFcfa;
   final DateTime date;
+
+  /// Remboursée intégralement au client : ne compte plus dans les comptes.
+  final bool remboursee;
+
+  /// Ce que Sprint garde du paiement du client (0 si remboursé).
+  int get encaisseFcfa => remboursee ? 0 : prixFcfa;
+
+  /// Commission de Sprint effectivement gagnée (0 si remboursé).
+  int get commissionGagneeFcfa => remboursee ? 0 : commissionFcfa;
+
+  /// Part du chauffeur qui lui a été retirée par le remboursement.
+  int get partRetireeFcfa => remboursee ? prixFcfa - commissionFcfa : 0;
 
   /// "WAVE" / "ORANGE_MONEY" (affichage seulement).
   final String? methodePaiement;
 
-  /// Ce que Sprint doit au chauffeur pour cette course.
-  int get partChauffeurFcfa => prixFcfa - commissionFcfa;
+  /// Ce que Sprint doit au chauffeur pour cette course (0 si remboursée :
+  /// le chauffeur n'est pas payé pour une course remboursée).
+  int get partChauffeurFcfa => remboursee ? 0 : prixFcfa - commissionFcfa;
 
   String get libelleMethode => switch (methodePaiement) {
         'WAVE' => 'Wave',
@@ -74,9 +104,14 @@ class Compte {
   final List<LigneCourse> courses;
   final List<Reglement> reglements;
 
-  int get nombreCourses => courses.length;
-  int get chiffreAffairesFcfa => _somme(courses.map((c) => c.prixFcfa));
-  int get commissionsFcfa => _somme(courses.map((c) => c.commissionFcfa));
+  /// Courses payées (hors courses remboursées).
+  int get nombreCourses => courses.where((c) => !c.remboursee).length;
+  int get nombreRemboursees => courses.where((c) => c.remboursee).length;
+  int get chiffreAffairesFcfa => _somme(courses.map((c) => c.encaisseFcfa));
+  int get commissionsFcfa => _somme(courses.map((c) => c.commissionGagneeFcfa));
+
+  /// Parts des chauffeurs retirées après remboursement des clients.
+  int get partsRetireesFcfa => _somme(courses.map((c) => c.partRetireeFcfa));
 
   /// Part des chauffeurs (85 %) : ce que Sprint leur doit sur ces courses.
   int get gainsNetsFcfa => chiffreAffairesFcfa - commissionsFcfa;
@@ -84,7 +119,9 @@ class Compte {
   /// Déjà versé par Sprint.
   int get versementsFcfa => _somme(reglements.map((r) => r.montantFcfa));
 
-  /// Reste à verser par Sprint au chauffeur (jamais l'inverse).
+  /// Reste à verser par Sprint au chauffeur. Négatif seulement si une
+  /// course déjà versée a été remboursée au client depuis : ce montant
+  /// sera déduit de ses prochains gains (Sprint ne lui réclame rien).
   int get soldeFcfa => gainsNetsFcfa - versementsFcfa;
 
   /// Lignes à partir de [debut] (les règlements ne sont pas filtrés :

@@ -63,15 +63,16 @@ const journal = async () => (await db.collection('journal_admin').get()).docs.ma
 
 // --- Remboursement ------------------------------------------------------
 
-test('remboursement intégral d\'une course terminée : commande remboursée, trace dans le journal', async () => {
-  await course('c1', 'terminee');
+test('remboursement intégral d\'une course terminée : commande remboursée, part du chauffeur retirée, trace dans le journal', async () => {
+  await course('c1', 'terminee', { commissionFcfa: 345 });
   const r = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c1', motif: 'Chauffeur désagréable' }, maintenant);
-  assert.deepEqual(r, { rembourse: true, montantFcfa: 2300 });
+  assert.deepEqual(r, { rembourse: true, montantFcfa: 2300, partChauffeurRetireeFcfa: 1955 });
   assert.deepEqual(remboursements, ['sim_c1']);
   assert.equal((await db.doc('commandes/k-c1').get()).get('statut'), 'remboursee');
   const c = (await db.doc('courses/c1').get()).data()!;
   assert.equal(c.rembourseePar, 'chef');
   assert.ok(c.rembourseeLe instanceof Timestamp);
+  assert.equal(c.partChauffeurRetireeFcfa, 1955);
   const [entree] = await journal();
   assert.equal(entree.action, 'remboursement');
   assert.equal(entree.adminId, 'chef');
@@ -79,6 +80,17 @@ test('remboursement intégral d\'une course terminée : commande remboursée, tr
   assert.equal(entree.montantFcfa, 2300);
   assert.equal(entree.resultat, 'rembourse');
   assert.equal(entree.motif, 'Chauffeur désagréable');
+  assert.equal(entree.chauffeurId, 'moussa');
+  assert.equal(entree.partChauffeurRetireeFcfa, 1955);
+});
+
+test('part du chauffeur : même formule sans commission figée, rien sur une course annulée', async () => {
+  await course('c1', 'terminee');
+  const r1 = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c1', motif: 'x' }, maintenant);
+  assert.equal(r1.partChauffeurRetireeFcfa, 1955);
+  await course('c2', 'annulee');
+  const r2 = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c2', motif: 'x' }, maintenant);
+  assert.deepEqual(r2, { rembourse: true, montantFcfa: 2300, partChauffeurRetireeFcfa: 0 });
 });
 
 test('remboursement : le client est prévenu dans son ticket', async () => {
@@ -110,16 +122,21 @@ test('remboursement refusé : déjà remboursée, course en cours, sans paiement
 });
 
 test('fournisseur en panne : échec visible et tracé, puis nouvel essai réussi', async () => {
-  await course('c1', 'annulee');
+  await course('c1', 'terminee');
   const rembourser = fournisseur.rembourser.bind(fournisseur);
   fournisseur.rembourser = async () => { throw new Error('Wave 500'); };
   const r = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c1', motif: 'x' }, maintenant);
   assert.equal(r.rembourse, false);
+  // Client pas remboursé : le chauffeur garde sa part.
+  assert.equal(r.partChauffeurRetireeFcfa, 0);
+  assert.equal((await db.doc('courses/c1').get()).get('rembourseeLe'), undefined);
   assert.equal((await db.doc('commandes/k-c1').get()).get('statut'), 'remboursement_echoue');
   assert.equal((await journal())[0].resultat, 'echec_fournisseur');
 
   fournisseur.rembourser = rembourser;
-  assert.equal((await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c1', motif: 'x' }, maintenant)).rembourse, true);
+  const r2 = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c1', motif: 'x' }, maintenant);
+  assert.equal(r2.rembourse, true);
+  assert.equal(r2.partChauffeurRetireeFcfa, 1955);
   assert.equal((await db.doc('commandes/k-c1').get()).get('statut'), 'remboursee');
 });
 

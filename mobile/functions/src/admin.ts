@@ -1,4 +1,4 @@
-import { FieldValue, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, type DocumentSnapshot, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { FournisseurPaiement } from './fournisseurs';
 import { rembourserCommande, STATUTS_COMMANDE } from './paiements';
@@ -79,6 +79,23 @@ async function informerTicket(db: Firestore, courseId: string, texte: string, ma
 export interface RemboursementAdmin {
   rembourse: boolean;
   montantFcfa: number;
+  /** Part du chauffeur (85 %) retirée de ce que Sprint lui doit. */
+  partChauffeurRetireeFcfa: number;
+}
+
+/** Commission de la plateforme : 15 % du prix, arrondi à l'inférieur (comme l'app et les règles). */
+const POURCENTAGE_COMMISSION = 15;
+
+/**
+ * Part du chauffeur sur une course terminée : le prix moins la
+ * commission figée à l'arrivée (même formule pour les courses plus
+ * anciennes). Aucune part sur une course annulée.
+ */
+function partChauffeur(course: DocumentSnapshot): number {
+  if (course.get('statut') !== 'terminee' || typeof course.get('chauffeurId') !== 'string') return 0;
+  const prix = course.get('prixFcfa') as number;
+  const commission = course.get('commissionFcfa');
+  return prix - (typeof commission === 'number' ? commission : Math.floor((prix * POURCENTAGE_COMMISSION) / 100));
 }
 
 /**
@@ -87,6 +104,11 @@ export interface RemboursementAdmin {
  * course encore en cours doit d'abord être annulée. En cas de refus du
  * fournisseur, la commande passe en `remboursement_echoue` (visible) et
  * l'Admin peut réessayer.
+ *
+ * Sur une course terminée, le chauffeur n'est pas payé pour une course
+ * remboursée : sa part (85 %) sort de ce que Sprint lui doit (l'app
+ * ignore dans les comptes toute course portant `rembourseeLe`). Si elle
+ * lui a déjà été versée, elle est déduite de ses prochains gains.
  */
 export async function rembourserCourseAdmin(
   db: Firestore,
@@ -118,9 +140,15 @@ export async function rembourserCourseAdmin(
   }
   const montantFcfa = commande.get('prixFcfa') as number;
 
+  const partRetiree = partChauffeur(course);
+
   const rembourse = await rembourserCommande(db, fournisseur, refCommande, 'support_admin', maintenant);
   if (rembourse) {
-    await refCourse.update({ rembourseeLe: Timestamp.fromDate(maintenant), rembourseePar: adminId });
+    await refCourse.update({
+      rembourseeLe: Timestamp.fromDate(maintenant),
+      rembourseePar: adminId,
+      partChauffeurRetireeFcfa: partRetiree,
+    });
     await informerTicket(
       db,
       courseId,
@@ -134,10 +162,12 @@ export async function rembourserCourseAdmin(
     courseId,
     commandeId,
     montantFcfa,
+    chauffeurId: course.get('chauffeurId') ?? null,
+    partChauffeurRetireeFcfa: rembourse ? partRetiree : 0,
     motif: raison,
     resultat: rembourse ? 'rembourse' : 'echec_fournisseur',
   }, maintenant);
-  return { rembourse, montantFcfa };
+  return { rembourse, montantFcfa, partChauffeurRetireeFcfa: rembourse ? partRetiree : 0 };
 }
 
 // ---------------------------------------------------------------------
