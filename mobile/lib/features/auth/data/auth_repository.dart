@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
+import '../../../core/notifications/notifications_push.dart';
 import '../../../firebase_options.dart';
 
 /// Authentification Client, Conducteur et Admin.
@@ -234,6 +235,9 @@ class AuthRepository {
   }
 
   Future<void> deconnecter() async {
+    // Le téléphone ne doit plus recevoir les notifications de ce compte :
+    // à faire avant la déconnexion, tant que les règles l'autorisent.
+    await NotificationsPush.instance.desactiver();
     if (DefaultFirebaseOptions.estConfigure) {
       await _auth.signOut();
     }

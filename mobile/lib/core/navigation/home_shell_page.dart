@@ -8,6 +8,7 @@ import '../../features/messages/data/chat_service.dart';
 import '../../features/messages/data/messages_non_lus.dart';
 import '../../features/messages/presentation/widgets/pastille_non_lus.dart';
 import '../../firebase_options.dart';
+import '../notifications/notifications_push.dart';
 import '../alertes/alerte_sonore.dart';
 import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
@@ -25,6 +26,7 @@ class HomeShellPage extends StatefulWidget {
     this.courseService,
     this.chatService,
     this.messagesNonLus,
+    this.notificationsPush,
     this.monUid,
   });
 
@@ -34,6 +36,7 @@ class HomeShellPage extends StatefulWidget {
   final CourseService? courseService;
   final ChatService? chatService;
   final MessagesNonLus? messagesNonLus;
+  final NotificationsPush? notificationsPush;
   final String? monUid;
 
   @override
@@ -51,6 +54,22 @@ class _HomeShellPageState extends State<HomeShellPage> {
   void initState() {
     super.initState();
     _suivreMessagesDuChauffeur();
+    _activerNotificationsPush();
+  }
+
+  /// Notifications push (APK Android) : message du chauffeur, course
+  /// acceptée ou annulée, même app fermée. L'appui sur l'une d'elles ouvre
+  /// la conversation (message) ou l'activité (course).
+  void _activerNotificationsPush() {
+    final uid = widget.monUid ?? _uidConnecte();
+    if (uid == null) return;
+    unawaited((widget.notificationsPush ?? NotificationsPush.instance).activer(
+      uid: uid,
+      surAppui: (message) {
+        if (!mounted) return;
+        context.go(message.type == 'message' ? AppRoutes.messagesTab : AppRoutes.activiteTab);
+      },
+    ));
   }
 
   @override

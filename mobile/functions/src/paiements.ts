@@ -5,6 +5,7 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { prixServeur, validerDemande, verifierClient } from './commandes';
 import type { CalculDistance } from './distances';
 import type { EvenementPaiement, FournisseurPaiement } from './fournisseurs';
+import { notifierAnnulation, notifierNouvelleCourse, type Messagerie } from './notifications';
 
 /**
  * Parcours de paiement : aucune course n'existe tant que le fournisseur
@@ -108,8 +109,10 @@ export async function traiterEvenement(
   fournisseur: FournisseurPaiement,
   evenement: EvenementPaiement,
   maintenant: Date,
+  messagerie?: Messagerie,
 ): Promise<ResultatWebhook> {
   const refCommande = db.collection('commandes').doc(evenement.commandeId);
+  let courseCreeeId: string | undefined;
 
   const resultat = await db.runTransaction(async (tx): Promise<ResultatWebhook | 'a_rembourser'> => {
     const commande = await tx.get(refCommande);
@@ -163,6 +166,7 @@ export async function traiterEvenement(
       courseId: refCourse.id,
       payeeLe: Timestamp.fromDate(maintenant),
     });
+    courseCreeeId = refCourse.id;
     return 'course_creee';
   });
 
@@ -170,6 +174,9 @@ export async function traiterEvenement(
     await rembourserCommande(db, fournisseur, refCommande, 'paiement_tardif', maintenant);
     return 'rembourse';
   }
+  // Les chauffeurs disponibles sont prévenus (même app fermée). Jamais
+  // bloquant : la course existe, le paiement est réglé.
+  if (resultat === 'course_creee' && courseCreeeId) await notifierNouvelleCourse(db, messagerie, courseCreeeId);
   return resultat;
 }
 
@@ -239,6 +246,7 @@ export async function annulerCourse(
   uid: string | undefined,
   donnees: unknown,
   maintenant: Date,
+  messagerie?: Messagerie,
 ): Promise<{ rembourse: boolean }> {
   if (!uid) throw new HttpsError('unauthenticated', 'Connectez-vous pour annuler une course.');
   const d = (typeof donnees === 'object' && donnees !== null ? donnees : {}) as Record<string, unknown>;
@@ -247,7 +255,9 @@ export async function annulerCourse(
   }
   const ref = db.collection('courses').doc(d.courseId);
 
+  let prevenirClient: string | undefined;
   const commandeId = await db.runTransaction(async (tx) => {
+    prevenirClient = undefined;
     const course = await tx.get(ref);
     if (!course.exists) throw new HttpsError('not-found', 'Course introuvable.');
     const statut = course.get('statut');
@@ -270,6 +280,7 @@ export async function annulerCourse(
         motifAnnulation: d.motif,
         annuleeLe: Timestamp.fromDate(maintenant),
       });
+      prevenirClient = course.get('clientId');
     } else {
       throw new HttpsError('permission-denied', 'Cette course ne vous concerne pas.');
     }
@@ -277,6 +288,7 @@ export async function annulerCourse(
   });
 
   const rembourse = await rembourserCourse(db, fournisseur, commandeId, 'course_annulee', maintenant);
+  if (prevenirClient) await notifierAnnulation(db, messagerie, prevenirClient, d.courseId, 'chauffeur');
   return { rembourse };
 }
 
@@ -288,6 +300,7 @@ export async function surveiller(
   db: Firestore,
   fournisseur: FournisseurPaiement,
   maintenant: Date,
+  messagerie?: Messagerie,
 ): Promise<{ expirees: number; sansChauffeur: number }> {
   let expirees = 0;
   const enAttente = await db.collection('commandes').where('statut', '==', STATUTS_COMMANDE.enAttente).get();
@@ -322,6 +335,7 @@ export async function surveiller(
     if (annulee) {
       sansChauffeur++;
       await rembourserCourse(db, fournisseur, doc.get('commandeId'), 'aucun_chauffeur', maintenant);
+      await notifierAnnulation(db, messagerie, doc.get('clientId'), doc.id, 'systeme');
     }
   }
   return { expirees, sansChauffeur };

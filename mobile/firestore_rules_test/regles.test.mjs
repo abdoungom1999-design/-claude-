@@ -1014,3 +1014,40 @@ describe('confidentialité : contact limité à la course en cours', () => {
     });
   });
 });
+
+describe('appareils (jetons des notifications push)', () => {
+  const jeton = () => ({ plateforme: 'android', majLe: serverTimestamp() });
+  const ref = (db, uid, id = 'jeton1') => doc(db, 'appareils', uid, 'jetons', id);
+
+  test('un utilisateur enregistre, met à jour et supprime ses propres jetons', async () => {
+    const db = en('client');
+    await assertSucceeds(setDoc(ref(db, 'client'), jeton()));
+    await assertSucceeds(setDoc(ref(db, 'client'), jeton()));
+    await assertSucceeds(deleteDoc(ref(db, 'client')));
+    await assertSucceeds(setDoc(ref(en('chauffeur'), 'chauffeur'), jeton()));
+  });
+
+  test('personne ne pose, ne remplace ni ne supprime le jeton d\'un autre', async () => {
+    await assertFails(setDoc(ref(en('autreClient'), 'client'), jeton()));
+    await env.withSecurityRulesDisabled((ctx) => setDoc(ref(ctx.firestore(), 'client'), { plateforme: 'android' }));
+    await assertFails(deleteDoc(ref(en('autreClient'), 'client')));
+    await assertFails(setDoc(ref(anonyme(), 'client'), jeton()));
+  });
+
+  test('aucune lecture ni listage, même de ses propres jetons ; l\'admin peut lire', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(ref(ctx.firestore(), 'client'), { plateforme: 'android' }));
+    await assertFails(getDoc(ref(en('client'), 'client')));
+    await assertFails(getDoc(ref(en('autreClient'), 'client')));
+    await assertFails(getDocs(collection(en('client'), 'appareils', 'client', 'jetons')));
+    await assertFails(getDocs(collection(en('autreClient'), 'appareils', 'client', 'jetons')));
+    await assertSucceeds(getDoc(ref(en('admin'), 'client')));
+  });
+
+  test('champs et plateforme contrôlés, horodatage du serveur obligatoire', async () => {
+    const db = en('client');
+    await assertFails(setDoc(ref(db, 'client'), { plateforme: 'android', majLe: serverTimestamp(), role: 'admin' }));
+    await assertFails(setDoc(ref(db, 'client'), { plateforme: 'nokia', majLe: serverTimestamp() }));
+    await assertFails(setDoc(ref(db, 'client'), { plateforme: 'android', majLe: new Date(2020, 0, 1) }));
+    await assertFails(setDoc(ref(db, 'client'), { plateforme: 'android' }));
+  });
+});

@@ -519,6 +519,22 @@ service cloud.firestore {
       return ids.size() == 2 && contactEnCours(ids[0], ids[1]);
     }
 
+    // ---------------------------------------------------------------
+    // Jetons des notifications push : un document par téléphone, écrit par
+    // son propriétaire (l'app l'enregistre à la connexion et le supprime à
+    // la déconnexion). Personne d'autre ne les lit ni ne les liste : un
+    // jeton permet de faire sonner un téléphone. Seul le serveur (Cloud
+    // Functions) les lit pour envoyer, et supprime ceux devenus invalides.
+    // ---------------------------------------------------------------
+    match /appareils/{uid}/jetons/{jeton} {
+      allow read: if estAdmin();
+      allow create, update: if connecte() && moi() == uid
+        && request.resource.data.keys().hasOnly(['plateforme', 'majLe'])
+        && request.resource.data.plateforme in ['android', 'ios', 'web']
+        && request.resource.data.majLe == request.time;
+      allow delete: if connecte() && moi() == uid;
+    }
+
     match /chats/{chatId} {
       allow get: if membreDuChat(chatId);
       allow list: if connecte() && moi() in resource.data.participants;

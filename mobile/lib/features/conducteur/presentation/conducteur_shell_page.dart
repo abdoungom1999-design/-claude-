@@ -11,6 +11,7 @@ import '../../../core/location/device_location_service.dart';
 import '../../../core/maps/navigation_gps.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/notifications/notifications_push.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/email_verification_pending_page.dart';
@@ -128,6 +129,11 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       }
       if (mounted && _gateOuverte && DefaultFirebaseOptions.estConfigure) {
         _surveillerCourseActive();
+        // Nouvelles courses et messages, même app fermée (APK Android).
+        // Un appui sur la notification ouvre simplement l'app : le radar
+        // et le bandeau de course sont déjà à l'écran.
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) unawaited(NotificationsPush.instance.activer(uid: uid, surAppui: (_) {}));
       }
       if (mounted && _gateOuverte && _enLigne) {
         _demarrerEnvoiPosition();

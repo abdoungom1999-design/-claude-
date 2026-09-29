@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/firebase/fonctions_cloud.dart';
 import '../../../core/utils/flux_repris.dart';
 import '../../conducteur/data/position_chauffeur_service.dart';
@@ -397,7 +400,7 @@ class CourseService {
   Future<bool> accepterCourse({required String courseId, required String chauffeurId}) async {
     final courseRef = _courses.doc(courseId);
     try {
-      return await _firestore.runTransaction<bool>((transaction) async {
+      final gagnee = await _firestore.runTransaction<bool>((transaction) async {
         final instantane = await transaction.get(courseRef);
         final donnees = instantane.data();
         if (!instantane.exists || donnees == null || donnees['statut'] != 'en_attente') {
@@ -414,8 +417,21 @@ class CourseService {
         );
         return true;
       });
+      if (gagnee) unawaited(prevenirClientAcceptation(courseId));
+      return gagnee;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Prévient le client par notification push (même app fermée) que son
+  /// chauffeur arrive. Le serveur vérifie que la course est bien au
+  /// chauffeur ; sans conséquence si ça échoue.
+  Future<void> prevenirClientAcceptation(String courseId) async {
+    try {
+      await FonctionsCloud.appeler('notifierAcceptation', {'courseId': courseId}).timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('Notification d\'acceptation non envoyée : $e');
     }
   }
 

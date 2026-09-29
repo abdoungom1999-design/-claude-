@@ -205,7 +205,7 @@ jobs:
         run: |
           for service in estimerprix creerpaiement annulercourse webhookpaiement pagepaiementsimule \
                          rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte \
-                         chauffeursproches; do
+                         chauffeursproches notifiermessage notifieracceptation; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
               --member=allUsers --role=roles/run.invoker --quiet > /dev/null
@@ -221,7 +221,8 @@ jobs:
         run: |
           base=https://europe-west1-sprint-vtc.cloudfunctions.net
           for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
-                          rembourserCourseAdmin sanctionnerCompte chauffeursProches; do
+                          rembourserCourseAdmin sanctionnerCompte chauffeursProches \
+                          notifierMessage notifierAcceptation; do
             reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
             echo "$fonction : $reponse"
             echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }
@@ -233,6 +234,29 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' "$base/pagePaiementSimule?session=invalide")
           echo "pagePaiementSimule lien invalide : HTTP $code"
           [ "$code" = 400 ] || { echo "::error::pagePaiementSimule ne répond pas correctement"; exit 1; }
+
+      # Notifications push : l'API Firebase Cloud Messaging doit être
+      # active et joignable. Contrôle réel (envoi "à blanc" vers un jeton
+      # volontairement invalide, rien n'est délivré) : 400 = l'API répond
+      # et le compte est autorisé ; 403 = API désactivée ou droit manquant.
+      # Simple avertissement : le compte de déploiement n'est pas celui qui
+      # envoie les notifications (compte des fonctions), donc un 403 ici
+      # est à vérifier sans forcément bloquer.
+      - name: Vérifier l'API des notifications push (FCM)
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          jeton=$(gcloud auth print-access-token)
+          code=$(curl -s -o fcm.json -w '%{http_code}' -X POST \
+            "https://fcm.googleapis.com/v1/projects/sprint-vtc/messages:send" \
+            -H "Authorization: Bearer $jeton" -H 'Content-Type: application/json' \
+            -d '{"validate_only":true,"message":{"token":"jeton-de-verification-invalide","notification":{"title":"t","body":"b"}}}')
+          echo "FCM (envoi à blanc) : HTTP $code"
+          grep -o '"status": *"[A-Z_]*"' fcm.json || true
+          if [ "$code" = 400 ] || [ "$code" = 404 ]; then
+            echo "API FCM active et joignable."
+          else
+            echo "::warning title=Notifications push::L'API Firebase Cloud Messaging a répondu HTTP $code (voir le journal). Si les notifications n'arrivent pas : activer « Firebase Cloud Messaging API » dans Google Cloud > API et services, et vérifier le rôle du compte des fonctions."
+          fi
 
       - name: Publier les règles Firestore
         if: steps.secret.outputs.present == 'true'

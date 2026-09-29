@@ -158,6 +158,9 @@ depuis la Console.
 - `courses` : un client ne crée et ne liste que ses propres demandes,
   sans pouvoir s'attribuer un chauffeur ni antidater ; seuls les chauffeurs validés
   et non sanctionnés voient et acceptent les courses en attente.
+- `appareils/{uid}/jetons/{jeton}` : jetons des notifications push (voir
+  section 7) ; écrits et supprimés par leur propriétaire, jamais lisibles
+  par un utilisateur.
 - `chats` : lecture réservée aux deux participants ; création et envoi
   de messages seulement pendant leur course en cours (`liaisons`), sans
   usurpation d'expéditeur. Après la course, la conversation reste
@@ -359,11 +362,37 @@ déploiement donne aux fonctions l'accès à ce secret. Pour changer de
 clé : ajouter une nouvelle version du secret dans Secret Manager, puis
 relancer le déploiement (onglet Actions > Run workflow).
 
+- Notifications push (APK Android ; web et iPhone dans un autre lot) :
+  elles arrivent même app fermée.
+  - Chaque téléphone enregistre son jeton dans
+    `appareils/{uid}/jetons/{jeton}` (règles : chacun écrit et supprime
+    les siens, **personne ne les lit**, pas même leur propriétaire ; seul
+    le serveur les lit). L'app le supprime à la déconnexion, le serveur
+    supprime ceux que Google déclare morts.
+  - `notifierMessage` (l'expéditeur l'appelle après chaque message) : le
+    serveur relit le message enregistré (le texte n'est jamais fourni par
+    l'appelant), vérifie qu'une course est en cours entre les deux, et ne
+    notifie qu'une fois par message. **Le texte du message s'affiche dans
+    la notification, donc sur l'écran verrouillé** (choix du client).
+  - `notifierAcceptation` (appelée par le chauffeur après avoir accepté) :
+    « Chauffeur trouvé ! Nom · moto · plaque » au client.
+  - Nouvelle course : à la confirmation du paiement, les chauffeurs en
+    ligne, validés, non sanctionnés et sans course en cours sont prévenus
+    (100 au plus). Course annulée par le chauffeur, ou faute de chauffeur :
+    le client est prévenu.
+  - Une notification qui échoue ne fait jamais échouer le paiement ou
+    l'annulation qui l'a déclenchée. Quand l'app est ouverte, Android
+    n'affiche pas la notification : l'app a ses propres alertes.
+  - La CI vérifie que l'API Firebase Cloud Messaging répond (envoi « à
+    blanc » vers un jeton invalide, avertissement sinon). L'arrivée d'une
+    vraie notification sur un vrai téléphone ne peut être vérifiée que par
+    un test réel (deux téléphones, app fermée).
+
 ### 7.2 Tests
 
 ```bash
 cd mobile/functions
 npm test                  # moteur de prix (dont parité avec l'app), validation, signatures
-npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité (émulateur Firestore)
+npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push (émulateur Firestore)
 ```
 

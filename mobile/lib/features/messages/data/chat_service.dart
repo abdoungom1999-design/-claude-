@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import '../../../core/firebase/fonctions_cloud.dart';
 
 /// Un message de chat tel que stocké dans Firestore
 /// (`chats/{chatId}/messages/{messageId}`).
@@ -110,11 +114,26 @@ class ChatService {
       'misAJourLe': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    await chatRef.collection('messages').add({
+    final message = await chatRef.collection('messages').add({
       'senderId': expediteurId,
       'text': contenu,
       'timestamp': FieldValue.serverTimestamp(),
     });
+    unawaited(_prevenirDestinataire(message.id, participants, expediteurId));
+  }
+
+  /// Notification push à l'autre partie (même app fermée). Le serveur relit
+  /// le message enregistré : on ne lui envoie que son identifiant. Sans
+  /// conséquence si ça échoue : le message est déjà envoyé et lisible.
+  Future<void> _prevenirDestinataire(String messageId, List<String> participants, String expediteurId) async {
+    final destinataire = participants.where((p) => p != expediteurId).firstOrNull;
+    if (destinataire == null) return;
+    try {
+      await FonctionsCloud.appeler('notifierMessage', {'messageId': messageId, 'destinataireId': destinataire})
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('Notification du message non envoyée : $e');
+    }
   }
 
   /// Charge le profil public (nom, téléphone, véhicule, note) de l'autre

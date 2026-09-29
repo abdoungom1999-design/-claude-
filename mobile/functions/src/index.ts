@@ -18,6 +18,7 @@ import {
   surveiller,
   traiterEvenement,
 } from './paiements';
+import { MessagerieFcm, notifierAcceptation as notifierAcceptationCore, notifierMessage as notifierMessageCore } from './notifications';
 import { pageMessage, pagePaiement, secretSimulation } from './simulation';
 
 // Région la plus proche de Dakar et de Firestore (eur3, voir
@@ -27,6 +28,9 @@ const REGION = 'europe-west1';
 setGlobalOptions({ region: REGION, maxInstances: 10 });
 
 initializeApp();
+
+/** Envoi des notifications push (Firebase Cloud Messaging). */
+const messagerie = new MessagerieFcm();
 
 /** Clé Google Maps Platform (Places + Routes), dans Secret Manager. */
 const cleGoogle = defineSecret('GOOGLE_MAPS_API_KEY');
@@ -97,7 +101,7 @@ export const webhookPaiement = onRequest(async (req, res) => {
       }
       throw e;
     }
-    const resultat = await traiterEvenement(getFirestore(), f, evenement, new Date());
+    const resultat = await traiterEvenement(getFirestore(), f, evenement, new Date(), messagerie);
     logger.info('Webhook de paiement', { commande: evenement.commandeId, resultat });
     res.status(200).json({ resultat });
   } catch (e) {
@@ -171,7 +175,7 @@ export const pagePaiementSimule = onRequest(async (req, res) => {
 
 /** Annulation par le client (en attente) ou le chauffeur (avec motif), puis remboursement. */
 export const annulerCourse = onCall(async (requete) =>
-  annulerCourseCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
+  annulerCourseCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date(), messagerie),
 );
 
 /** Admin : remboursement intégral d'une course (support). */
@@ -188,7 +192,7 @@ export const sanctionnerCompte = onCall(async (requete) =>
 export const surveillerCommandes = onSchedule(
   { schedule: 'every 5 minutes', timeZone: 'Africa/Dakar', retryCount: 0 },
   async () => {
-    const bilan = await surveiller(getFirestore(), await fournisseur(), new Date());
+    const bilan = await surveiller(getFirestore(), await fournisseur(), new Date(), messagerie);
     if (bilan.expirees || bilan.sansChauffeur) logger.info('Surveillance des commandes', bilan);
   },
 );
@@ -206,4 +210,14 @@ export const coordonneesAdresse = onCall(options, (requete) =>
 /** Accueil client : chauffeurs disponibles alentour, anonymes et arrondis à 150 m. */
 export const chauffeursProches = onCall((requete) =>
   chauffeursProchesCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
+);
+
+/** Push : prévient l'autre partie d'un message qui vient d'être envoyé (texte relu côté serveur). */
+export const notifierMessage = onCall((requete) =>
+  notifierMessageCore(getFirestore(), messagerie, requete.auth?.uid, requete.data, new Date()),
+);
+
+/** Push : prévient le client que son chauffeur a accepté la course. */
+export const notifierAcceptation = onCall((requete) =>
+  notifierAcceptationCore(getFirestore(), messagerie, requete.auth?.uid, requete.data, new Date()),
 );

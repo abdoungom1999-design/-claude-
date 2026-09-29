@@ -51,6 +51,18 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Notifications push (Firebase Cloud Messaging) : canal, icône et
+             couleur par défaut. Les canaux "messages" et "courses" sont
+             créés par MainActivity au démarrage. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="messages" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_sprint" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/ic_launcher_background" />
     </application>
     <!-- Applications que Sprint ouvre (Android 11+ exige de les déclarer) :
          page de paiement et liens web, appel du client ou du chauffeur,

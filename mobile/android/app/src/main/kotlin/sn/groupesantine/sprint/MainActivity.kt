@@ -1,8 +1,11 @@
 package sn.groupesantine.sprint
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -18,6 +21,37 @@ import io.flutter.plugin.common.MethodChannel
  * L'équivalent web passe par Web Audio.
  */
 class MainActivity : FlutterActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        creerCanauxDeNotification()
+    }
+
+    /**
+     * Canaux des notifications push (Android 8+), créés à chaque démarrage
+     * (sans effet s'ils existent déjà) donc avant toute notification : le
+     * serveur les désigne par leur identifiant (functions/src/notifications.ts).
+     * Importance haute : son, vibration et affichage sur l'écran verrouillé.
+     */
+    private fun creerCanauxDeNotification() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        try {
+            val gestionnaire = getSystemService(NotificationManager::class.java) ?: return
+            val messages = NotificationChannel("messages", "Messages", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Messages de votre chauffeur ou de votre client"
+                enableVibration(true)
+            }
+            val courses = NotificationChannel("courses", "Courses", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Nouvelles courses, chauffeur trouvé, annulations"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 400, 200, 400)
+            }
+            gestionnaire.createNotificationChannel(messages)
+            gestionnaire.createNotificationChannel(courses)
+        } catch (e: Exception) {
+            // Notifications indisponibles : l'app fonctionne sans.
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sprint/alerte")

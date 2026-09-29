@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sprint/core/navigation/home_shell_page.dart';
+import 'package:sprint/core/notifications/notifications_push.dart';
+import 'package:sprint/core/router/app_routes.dart';
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/messages/data/chat_service.dart';
 import 'package:sprint/features/messages/data/messages_non_lus.dart';
@@ -262,6 +264,7 @@ void main() {
               courseService: courses,
               chatService: chat,
               messagesNonLus: nonLus,
+              notificationsPush: NotificationsPush(estAndroid: false),
               monUid: 'awa',
             ),
             branches: [
@@ -315,4 +318,95 @@ void main() {
       expect(find.descendant(of: onglet, matching: find.byType(Badge)), findsNothing);
     });
   });
+
+  group('Notifications push : coquille du client', () {
+    testWidgets('à l\'ouverture les notifications sont activées pour ce compte ; un appui mène au bon onglet', (tester) async {
+      tester.view.physicalSize = const Size(640, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final appuis = StreamController<MessagePush>.broadcast();
+      addTearDown(appuis.close);
+      final passerelle = _PasserellePush(appuis.stream);
+      final stockage = _StockageJetons();
+      final courses = _Courses();
+      addTearDown(courses.flux.close);
+      final routeur = GoRouter(
+        routes: [
+          StatefulShellRoute.indexedStack(
+            builder: (context, state, shell) => HomeShellPage(
+              navigationShell: shell,
+              courseService: courses,
+              chatService: chat,
+              messagesNonLus: nonLus,
+              notificationsPush: NotificationsPush(passerelle: passerelle, stockage: stockage, estAndroid: true),
+              monUid: 'awa',
+            ),
+            branches: [
+              for (final chemin in [AppRoutes.home, AppRoutes.activiteTab, AppRoutes.messagesTab, AppRoutes.compteTab])
+                StatefulShellBranch(routes: [
+                  GoRoute(path: chemin, builder: (_, __) => Center(child: Text('page $chemin'))),
+                ]),
+            ],
+          ),
+        ],
+        initialLocation: AppRoutes.home,
+      );
+      addTearDown(routeur.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: routeur));
+      await tester.pump();
+      await tester.pump();
+
+      expect(passerelle.autorisations, 1);
+      expect(stockage.enregistres, ['awa:jeton-test']);
+      expect(find.text('page ${AppRoutes.home}'), findsOneWidget);
+
+      appuis.add(const MessagePush({'type': 'message'}));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('page ${AppRoutes.messagesTab}'), findsOneWidget);
+
+      appuis.add(const MessagePush({'type': 'acceptee', 'courseId': 'c1'}));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('page ${AppRoutes.activiteTab}'), findsOneWidget);
+    });
+  });
+}
+
+class _PasserellePush implements PasserellePush {
+  _PasserellePush(this._ouvertures);
+
+  final Stream<MessagePush> _ouvertures;
+  var autorisations = 0;
+
+  @override
+  Future<bool> demanderAutorisation() async {
+    autorisations++;
+    return true;
+  }
+
+  @override
+  Future<String?> jeton() async => 'jeton-test';
+
+  @override
+  Stream<String> get jetonRenouvele => const Stream.empty();
+
+  @override
+  Future<void> supprimerJeton() async {}
+
+  @override
+  Stream<MessagePush> get ouvertures => _ouvertures;
+
+  @override
+  Future<MessagePush?> messageInitial() async => null;
+}
+
+class _StockageJetons implements StockageJetons {
+  final enregistres = <String>[];
+
+  @override
+  Future<void> enregistrer(String uid, String jeton) async => enregistres.add('$uid:$jeton');
+
+  @override
+  Future<void> supprimer(String uid, String jeton) async {}
 }
