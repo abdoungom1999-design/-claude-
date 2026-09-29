@@ -360,12 +360,27 @@ jobs:
       - name: Vérifier la signature de l'APK
         if: steps.secret.outputs.present == 'true'
         run: |
-          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner
-          certificats=$("$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk)
-          echo "$certificats" | grep -E 'Signer #1 certificate (DN|SHA-256)'
-          echo "$certificats" | grep -qi "SHA-256 digest: $(cat "$RUNNER_TEMP/empreinte.txt")" \
-            || { echo "::error::APK non signé avec la clé Sprint"; exit 1; }
-          ls -lh build/app/outputs/flutter-apk/app-release.apk
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          attendu=$(cat "$RUNNER_TEMP/empreinte.txt")
+          echo "apksigner : $apksigner"
+          echo "Empreinte attendue (clé Sprint) : $attendu"
+          if [ -z "$apksigner" ] || [ ${#attendu} -ne 64 ]; then
+            echo "::error::Vérification impossible (apksigner ou empreinte introuvable)"
+            exit 1
+          fi
+          if ! "$apksigner" verify --print-certs "$apk" > "$RUNNER_TEMP/certificats.txt" 2>&1; then
+            cat "$RUNNER_TEMP/certificats.txt"
+            echo "::error::apksigner refuse l'APK"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/certificats.txt"
+          if ! tr -d ':' < "$RUNNER_TEMP/certificats.txt" | grep -qi "$attendu"; then
+            echo "::error::APK non signé avec la clé Sprint"
+            exit 1
+          fi
+          echo "Signature Sprint vérifiée."
+          ls -lh "$apk"
 
       - name: Publier l'APK (release « sprint-android »)
         if: steps.secret.outputs.present == 'true'
