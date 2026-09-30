@@ -79,7 +79,7 @@ export function pagePaiement(sessionId: string, commande: CommandeAffichee): str
 <h1>${operateur}</h1>
 <p>Sprint vous demande :</p>
 <div class="montant">${echapper(fcfa(commande.prixFcfa))}</div>
-<p class="trajet">${echapper(commande.adresseDepart)} → ${echapper(commande.adresseArrivee)}</p>
+<p class="trajet">${echapper(commande.adresseArrivee ? `${commande.adresseDepart} → ${commande.adresseArrivee}` : commande.adresseDepart)}</p>
 <form method="post">
 <input type="hidden" name="session" value="${session}">
 <button class="payer" name="choix" value="payer">Payer</button>

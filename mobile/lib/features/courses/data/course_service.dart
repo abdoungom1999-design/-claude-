@@ -98,6 +98,7 @@ class CourseFirestore {
   String get libellePaiement => switch (methodePaiement) {
         'WAVE' => 'Déjà payé par Wave',
         'ORANGE_MONEY' => 'Déjà payé par Orange Money',
+        'PORTEFEUILLE' => 'Déjà payé avec le solde Sprint',
         _ => 'Paiement dans l\'app',
       };
 
@@ -197,8 +198,13 @@ class DemandePaiement {
   const DemandePaiement({required this.commandeId, required this.lienPaiement, required this.prixFcfa});
 
   final String commandeId;
-  final Uri lienPaiement;
+
+  /// `null` quand la course est payée avec le solde du portefeuille : le
+  /// serveur l'a déjà débité et créé la course, il n'y a rien à ouvrir.
+  final Uri? lienPaiement;
   final int prixFcfa;
+
+  bool get payeParSolde => lienPaiement == null;
 }
 
 /// Commande de paiement (collection `commandes`, écrite par le serveur).
@@ -320,7 +326,10 @@ class CourseService {
       });
       return DemandePaiement(
         commandeId: resultat['commandeId'] as String,
-        lienPaiement: Uri.parse(resultat['lienPaiement'] as String),
+        lienPaiement: switch (resultat['lienPaiement']) {
+          final String lien => Uri.parse(lien),
+          _ => null,
+        },
         prixFcfa: (resultat['prixFcfa'] as num).toInt(),
       );
     } on FirebaseFunctionsException catch (e) {

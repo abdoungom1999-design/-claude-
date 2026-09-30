@@ -105,7 +105,7 @@ async function refuse(promesse: Promise<unknown>, code: string): Promise<HttpsEr
 test('demande de paiement : commande en attente au prix du serveur, aucune course', async () => {
   const r = await creerPaiement('awa', demande());
   assert.equal(r.prixFcfa, 2300);
-  assert.match(r.lienPaiement, /^https:\/\/page\?session=sim_/);
+  assert.match(r.lienPaiement!, /^https:\/\/page\?session=sim_/);
 
   const c = (await db.doc(`commandes/${r.commandeId}`).get()).data()!;
   assert.equal(c.clientId, 'awa');

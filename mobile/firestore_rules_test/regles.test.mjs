@@ -1,6 +1,7 @@
 // Tests des règles Firestore (../firestore.rules) sur l'émulateur Firestore.
 // Lancement : npm install && npm test (Java requis pour l'émulateur).
 import { after, before, beforeEach, describe, test } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   assertFails,
@@ -1049,5 +1050,92 @@ describe('appareils (jetons des notifications push)', () => {
     await assertFails(setDoc(ref(db, 'client'), { plateforme: 'nokia', majLe: serverTimestamp() }));
     await assertFails(setDoc(ref(db, 'client'), { plateforme: 'android', majLe: new Date(2020, 0, 1) }));
     await assertFails(setDoc(ref(db, 'client'), { plateforme: 'android' }));
+  });
+});
+
+
+describe('portefeuille Sprint : solde et livre écrits par le serveur seul', () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'portefeuilles', 'client'), { soldeFcfa: 5000, payerAvecSolde: false });
+      await setDoc(doc(db, 'portefeuilles', 'client', 'mouvements', 'm1'), {
+        type: 'recharge', montantFcfa: 5000, soldeApresFcfa: 5000, reference: 'rch_1',
+      });
+      await setDoc(doc(db, 'recharges', 'rch_1'), { clientId: 'client', statut: 'reussie', montantFcfa: 5000 });
+    });
+  });
+
+  test('le client lit son solde, son livre et ses recharges ; l\'admin aussi', async () => {
+    await assertSucceeds(getDoc(doc(en('client'), 'portefeuilles', 'client')));
+    await assertSucceeds(getDocs(collection(en('client'), 'portefeuilles', 'client', 'mouvements')));
+    await assertSucceeds(getDoc(doc(en('client'), 'recharges', 'rch_1')));
+    await assertSucceeds(getDocs(query(collection(en('client'), 'recharges'), where('clientId', '==', 'client'))));
+    await assertSucceeds(getDoc(doc(en('admin'), 'portefeuilles', 'client')));
+    await assertSucceeds(getDocs(collection(en('admin'), 'portefeuilles', 'client', 'mouvements')));
+    await assertSucceeds(getDoc(doc(en('admin'), 'recharges', 'rch_1')));
+  });
+
+  test('personne d\'autre ne lit le portefeuille, le livre ni les recharges d\'un client', async () => {
+    for (const uid of ['autreClient', 'chauffeur', 'enAttente']) {
+      await assertFails(getDoc(doc(en(uid), 'portefeuilles', 'client')));
+      await assertFails(getDoc(doc(en(uid), 'portefeuilles', 'client', 'mouvements', 'm1')));
+      await assertFails(getDocs(collection(en(uid), 'portefeuilles', 'client', 'mouvements')));
+      await assertFails(getDoc(doc(en(uid), 'recharges', 'rch_1')));
+      await assertFails(getDocs(collection(en(uid), 'recharges')));
+    }
+    await assertFails(getDoc(doc(anonyme(), 'portefeuilles', 'client')));
+    await assertFails(getDocs(collection(anonyme(), 'recharges')));
+  });
+
+  test('le client ne peut jamais écrire son solde, ni créditer, ni supprimer', async () => {
+    const db = en('client');
+    await assertFails(updateDoc(doc(db, 'portefeuilles', 'client'), { soldeFcfa: 999999 }));
+    await assertFails(updateDoc(doc(db, 'portefeuilles', 'client'), { soldeFcfa: increment(1000) }));
+    await assertFails(setDoc(doc(db, 'portefeuilles', 'client'), { soldeFcfa: 999999, payerAvecSolde: false }));
+    await assertFails(setDoc(doc(db, 'portefeuilles', 'client'), { soldeFcfa: 999999 }, { merge: true }));
+    await assertFails(deleteDoc(doc(db, 'portefeuilles', 'client')));
+  });
+
+  test('le client ne peut ni écrire ni effacer le livre de comptes', async () => {
+    const db = en('client');
+    await assertFails(setDoc(doc(db, 'portefeuilles', 'client', 'mouvements', 'triche'), {
+      type: 'recharge', montantFcfa: 100000, soldeApresFcfa: 105000, reference: null,
+    }));
+    await assertFails(updateDoc(doc(db, 'portefeuilles', 'client', 'mouvements', 'm1'), { montantFcfa: 1 }));
+    await assertFails(deleteDoc(doc(db, 'portefeuilles', 'client', 'mouvements', 'm1')));
+    await assertFails(addDoc(collection(db, 'portefeuilles', 'client', 'mouvements'), { type: 'recharge', montantFcfa: 1 }));
+  });
+
+  test('personne, admin compris, n\'écrit une recharge ni un mouvement depuis l\'app', async () => {
+    for (const uid of ['client', 'admin', 'chauffeur']) {
+      await assertFails(setDoc(doc(en(uid), 'recharges', 'rch_faux'), { clientId: 'client', statut: 'reussie', montantFcfa: 100000 }));
+      await assertFails(updateDoc(doc(en(uid), 'recharges', 'rch_1'), { montantFcfa: 1 }));
+      await assertFails(deleteDoc(doc(en(uid), 'recharges', 'rch_1')));
+      await assertFails(setDoc(doc(en(uid), 'portefeuilles', 'client', 'mouvements', 'x'), { type: 'recharge', montantFcfa: 1 }));
+    }
+    await assertFails(updateDoc(doc(en('admin'), 'portefeuilles', 'client'), { soldeFcfa: 999999 }));
+  });
+
+  test('le client règle sa préférence « payer avec mon solde » et rien d\'autre', async () => {
+    const db = en('client');
+    await assertSucceeds(updateDoc(doc(db, 'portefeuilles', 'client'), { payerAvecSolde: true }));
+    await assertSucceeds(setDoc(doc(db, 'portefeuilles', 'client'), { payerAvecSolde: false }, { merge: true }));
+    await assertFails(updateDoc(doc(db, 'portefeuilles', 'client'), { payerAvecSolde: 'oui' }));
+    await assertFails(updateDoc(doc(db, 'portefeuilles', 'client'), { payerAvecSolde: true, extra: 1 }));
+    // Le solde n'a pas bougé.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      assert.equal((await getDoc(doc(ctx.firestore(), 'portefeuilles', 'client'))).get('soldeFcfa'), 5000);
+    });
+  });
+
+  test('préférence avant tout portefeuille : création limitée à ce seul champ, sur son propre uid', async () => {
+    await assertSucceeds(setDoc(doc(en('autreClient'), 'portefeuilles', 'autreClient'), { payerAvecSolde: true }, { merge: true }));
+    await assertFails(setDoc(doc(en('enAttente'), 'portefeuilles', 'enAttente'), { payerAvecSolde: true, soldeFcfa: 50000 }));
+    await assertFails(setDoc(doc(en('enAttente'), 'portefeuilles', 'enAttente'), { soldeFcfa: 50000 }));
+    await assertFails(setDoc(doc(en('enAttente'), 'portefeuilles', 'enAttente'), { payerAvecSolde: 'x' }));
+    // Pas sur le portefeuille d'un autre.
+    await assertFails(setDoc(doc(en('autreClient'), 'portefeuilles', 'client'), { payerAvecSolde: true }, { merge: true }));
+    await assertFails(setDoc(doc(anonyme(), 'portefeuilles', 'nouveau'), { payerAvecSolde: true }));
   });
 });

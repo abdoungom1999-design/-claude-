@@ -202,9 +202,9 @@ void main() {
   });
 
   group('Client : Wave ou Orange Money uniquement', () {
-    test('aucun mode de paiement en espèces', () {
-      expect(PaymentMethod.values, [PaymentMethod.wave, PaymentMethod.orangeMoney]);
-      expect(PaymentMethod.values.map((m) => m.apiValue), ['WAVE', 'ORANGE_MONEY']);
+    test('aucun mode de paiement en espèces : mobile money, ou solde Sprint (rechargé par mobile money)', () {
+      expect(PaymentMethod.values, [PaymentMethod.wave, PaymentMethod.orangeMoney, PaymentMethod.portefeuille]);
+      expect(PaymentMethod.values.map((m) => m.apiValue), ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']);
     });
 
     testWidgets('la sheet ne propose que Wave et Orange Money', (tester) async {

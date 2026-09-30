@@ -2,10 +2,17 @@ import { randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
-import { prixServeur, validerDemande, verifierClient } from './commandes';
+import { prixServeur, validerDemande, verifierClient, type Demande, type PrixServeur } from './commandes';
 import type { CalculDistance } from './distances';
 import type { EvenementPaiement, FournisseurPaiement } from './fournisseurs';
 import { notifierAnnulation, notifierNouvelleCourse, type Messagerie } from './notifications';
+import {
+  debiterPourCourse,
+  FOURNISSEUR_PORTEFEUILLE,
+  lirePortefeuille,
+  METHODE_PORTEFEUILLE,
+  rembourserSurPortefeuille,
+} from './portefeuille';
 
 /**
  * Parcours de paiement : aucune course n'existe tant que le fournisseur
@@ -44,8 +51,10 @@ export const MOTIFS_ANNULATION_CHAUFFEUR = ['client_introuvable', 'panne', 'autr
 
 export interface PaiementCree {
   commandeId: string;
-  lienPaiement: string;
+  /** `null` quand la course est payée avec le solde du portefeuille (déjà réglée). */
+  lienPaiement: string | null;
   prixFcfa: number;
+  payeParSolde?: boolean;
 }
 
 export async function creerPaiement(
@@ -55,12 +64,17 @@ export async function creerPaiement(
   uid: string | undefined,
   donnees: unknown,
   maintenant: Date,
+  messagerie?: Messagerie,
 ): Promise<PaiementCree> {
   // Connexion vérifiée avant tout : un inconnu n'apprend rien de la
   // validation des demandes.
   const clientId = await verifierClient(db, uid);
   const demande = validerDemande(donnees);
   const { estimation, distance } = await prixServeur(calcul, demande, maintenant);
+
+  if (demande.methodePaiement === METHODE_PORTEFEUILLE) {
+    return payerParSolde(db, clientId, demande, estimation.prixFcfa, distance, maintenant, messagerie);
+  }
 
   const ref = db.collection('commandes').doc(randomBytes(12).toString('hex'));
   let session;
@@ -92,6 +106,78 @@ export async function creerPaiement(
     expireLe: Timestamp.fromDate(new Date(maintenant.getTime() + DUREE_PAIEMENT_MS)),
   });
   return { commandeId: ref.id, lienPaiement: session.lienPaiement, prixFcfa: estimation.prixFcfa };
+}
+
+/** Données de la course créée à partir d'une commande payée (par le fournisseur ou par le solde). */
+function donneesCourse(c: FirebaseFirestore.DocumentData, prixFcfa: number, transactionId: string, commandeId: string) {
+  return {
+    clientId: c.clientId,
+    chauffeurId: null,
+    statut: 'en_attente',
+    type: c.type,
+    adresseDepart: c.adresseDepart,
+    adresseArrivee: c.adresseArrivee,
+    latitudeDepart: c.latitudeDepart,
+    longitudeDepart: c.longitudeDepart,
+    latitudeArrivee: c.latitudeArrivee,
+    longitudeArrivee: c.longitudeArrivee,
+    distanceKm: c.distanceKm,
+    sourceDistance: c.sourceDistance,
+    prixFcfa,
+    methodePaiement: c.methodePaiement,
+    transactionId,
+    modePaiement: c.fournisseur,
+    commandeId,
+    timestamp: FieldValue.serverTimestamp(),
+  };
+}
+
+/**
+ * Paiement avec le solde du portefeuille : le débit, la commande (déjà
+ * "payee") et la course sont écrits dans UNE transaction. Solde
+ * insuffisant : rien n'est écrit et le client est invité à choisir un
+ * mode mobile money.
+ */
+async function payerParSolde(
+  db: Firestore,
+  clientId: string,
+  demande: Demande,
+  prixFcfa: number,
+  distance: PrixServeur['distance'],
+  maintenant: Date,
+  messagerie?: Messagerie,
+): Promise<PaiementCree> {
+  const refCommande = db.collection('commandes').doc(randomBytes(12).toString('hex'));
+  const refCourse = db.collection('courses').doc();
+  await db.runTransaction(async (tx) => {
+    const portefeuille = await lirePortefeuille(tx, db, clientId);
+    debiterPourCourse(tx, db, clientId, portefeuille, refCommande.id, prixFcfa, maintenant);
+    const commande = {
+      clientId,
+      statut: STATUTS_COMMANDE.payee,
+      type: demande.type,
+      adresseDepart: demande.adresseDepart,
+      adresseArrivee: demande.adresseArrivee,
+      latitudeDepart: demande.depart.latitude,
+      longitudeDepart: demande.depart.longitude,
+      latitudeArrivee: demande.arrivee.latitude,
+      longitudeArrivee: demande.arrivee.longitude,
+      distanceKm: Math.round(distance.distanceKm * 100) / 100,
+      sourceDistance: distance.source,
+      prixFcfa,
+      methodePaiement: METHODE_PORTEFEUILLE,
+      fournisseur: FOURNISSEUR_PORTEFEUILLE,
+      sessionPaiementId: `wallet_${refCommande.id}`,
+      courseId: refCourse.id,
+      creeLe: Timestamp.fromDate(maintenant),
+      payeeLe: Timestamp.fromDate(maintenant),
+    };
+    tx.create(refCommande, commande);
+    tx.create(refCourse, donneesCourse(commande, prixFcfa, commande.sessionPaiementId, refCommande.id));
+  });
+  // Les chauffeurs disponibles sont prévenus ; jamais bloquant.
+  await notifierNouvelleCourse(db, messagerie, refCourse.id);
+  return { commandeId: refCommande.id, lienPaiement: null, prixFcfa, payeParSolde: true };
 }
 
 // ---------------------------------------------------------------------
@@ -141,26 +227,7 @@ export async function traiterEvenement(
 
     const refCourse = db.collection('courses').doc();
     const c = commande.data()!;
-    tx.create(refCourse, {
-      clientId: c.clientId,
-      chauffeurId: null,
-      statut: 'en_attente',
-      type: c.type,
-      adresseDepart: c.adresseDepart,
-      adresseArrivee: c.adresseArrivee,
-      latitudeDepart: c.latitudeDepart,
-      longitudeDepart: c.longitudeDepart,
-      latitudeArrivee: c.latitudeArrivee,
-      longitudeArrivee: c.longitudeArrivee,
-      distanceKm: c.distanceKm,
-      sourceDistance: c.sourceDistance,
-      prixFcfa,
-      methodePaiement: c.methodePaiement,
-      transactionId: evenement.sessionId,
-      modePaiement: c.fournisseur,
-      commandeId: refCommande.id,
-      timestamp: FieldValue.serverTimestamp(),
-    });
+    tx.create(refCourse, donneesCourse(c, prixFcfa, evenement.sessionId, refCommande.id));
     tx.update(refCommande, {
       statut: STATUTS_COMMANDE.payee,
       courseId: refCourse.id,
@@ -199,6 +266,16 @@ export async function rembourserCommande(
   const commande = await refCommande.get();
   if (!commande.exists) return false;
   if (commande.get('statut') === STATUTS_COMMANDE.remboursee) return true;
+  // Course payée avec le solde : l'argent retourne sur le portefeuille.
+  if (commande.get('fournisseur') === FOURNISSEUR_PORTEFEUILLE) {
+    try {
+      return await rembourserSurPortefeuille(db, refCommande, motif, maintenant);
+    } catch (e) {
+      logger.error('Remboursement sur le solde impossible', { commande: refCommande.id, erreur: String(e) });
+      await refCommande.update({ statut: STATUTS_COMMANDE.remboursementEchoue, motifRemboursement: motif });
+      return false;
+    }
+  }
   if (commande.get('fournisseur') !== fournisseur.nom) {
     logger.error('Remboursement : fournisseur différent', { commande: refCommande.id });
     await refCommande.update({ statut: STATUTS_COMMANDE.remboursementEchoue, motifRemboursement: motif });

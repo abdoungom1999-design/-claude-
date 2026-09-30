@@ -6,7 +6,11 @@ import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
 import { coordonneesAdresse as coordonneesCore, rechercherAdresses as rechercherCore } from './adresses';
-import { rembourserCourseAdmin as rembourserCore, sanctionnerCompte as sanctionnerCore } from './admin';
+import {
+  ajusterPortefeuille as ajusterCore,
+  rembourserCourseAdmin as rembourserCore,
+  sanctionnerCompte as sanctionnerCore,
+} from './admin';
 import { estimer } from './commandes';
 import { chauffeursProches as chauffeursProchesCore } from './proximite';
 import { calculDistance } from './distances';
@@ -18,6 +22,12 @@ import {
   surveiller,
   traiterEvenement,
 } from './paiements';
+import {
+  creerRecharge as creerRechargeCore,
+  estReferenceRecharge,
+  surveillerRecharges,
+  traiterEvenementRecharge,
+} from './portefeuille';
 import { MessagerieFcm, notifierAcceptation as notifierAcceptationCore, notifierMessage as notifierMessageCore } from './notifications';
 import { pageMessage, pagePaiement, secretSimulation } from './simulation';
 
@@ -79,7 +89,15 @@ export const estimerPrix = onCall(options, (requete) =>
  * paiement confirmé par le fournisseur (webhookPaiement).
  */
 export const creerPaiement = onCall(options, async (requete) =>
-  creerPaiementCore(getFirestore(), distance(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
+  creerPaiementCore(getFirestore(), distance(), await fournisseur(), requete.auth?.uid, requete.data, new Date(), messagerie),
+);
+
+/**
+ * Portefeuille : demande de recharge (Wave ou Orange Money). Le solde n'est
+ * crédité que par le webhook signé du fournisseur, jamais par l'app.
+ */
+export const creerRecharge = onCall(async (requete) =>
+  creerRechargeCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
 );
 
 /** Confirmation signée du fournisseur de paiement. */
@@ -101,8 +119,11 @@ export const webhookPaiement = onRequest(async (req, res) => {
       }
       throw e;
     }
-    const resultat = await traiterEvenement(getFirestore(), f, evenement, new Date(), messagerie);
-    logger.info('Webhook de paiement', { commande: evenement.commandeId, resultat });
+    // Les recharges du portefeuille ("rch_…") ont leur propre traitement.
+    const resultat = estReferenceRecharge(evenement.commandeId)
+      ? await traiterEvenementRecharge(getFirestore(), evenement, new Date())
+      : await traiterEvenement(getFirestore(), f, evenement, new Date(), messagerie);
+    logger.info('Webhook de paiement', { reference: evenement.commandeId, resultat });
     res.status(200).json({ resultat });
   } catch (e) {
     // 500 : le fournisseur renverra l'événement plus tard.
@@ -116,6 +137,8 @@ const MESSAGES_RESULTAT: Record<string, [string, string]> = {
   echec_enregistre: ['Paiement refusé', 'Aucune course n’a été commandée. Retournez sur Sprint.'],
   rembourse: ['Demande expirée', 'Le délai de paiement était dépassé : vous avez été remboursé. Recommandez depuis Sprint.'],
   deja_traite: ['Paiement déjà traité', 'Cette demande de paiement a déjà été traitée. Retournez sur Sprint.'],
+  recharge_creditee: ['Recharge effectuée', 'Merci ! Votre portefeuille Sprint a été crédité. Retournez sur Sprint.'],
+  echec_enregistre_recharge: ['Recharge refusée', 'Votre portefeuille n’a pas été crédité. Retournez sur Sprint.'],
   anomalie: ['Paiement à vérifier', 'Le paiement n’a pas pu être validé. Contactez le support Sprint.'],
 };
 
@@ -137,25 +160,32 @@ export const pagePaiementSimule = onRequest(async (req, res) => {
   try {
     const db = getFirestore();
     const trouvees = await db.collection('commandes').where('sessionPaiementId', '==', session).limit(1).get();
-    const commande = trouvees.docs[0];
+    let commande = trouvees.docs[0];
+    let recharge = false;
+    if (!commande) {
+      const recharges = await db.collection('recharges').where('sessionPaiementId', '==', session).limit(1).get();
+      commande = recharges.docs[0];
+      recharge = true;
+    }
     if (!commande) {
       envoyer(404, pageMessage('Lien invalide', 'Cette demande de paiement est introuvable.'));
       return;
     }
     const c = commande.data();
+    const montantFcfa: number = recharge ? c.montantFcfa : c.prixFcfa;
     if (req.method === 'GET') {
       envoyer(200, pagePaiement(session, {
-        prixFcfa: c.prixFcfa,
-        adresseDepart: c.adresseDepart,
-        adresseArrivee: c.adresseArrivee,
-        statut: c.statut,
+        prixFcfa: montantFcfa,
+        adresseDepart: recharge ? 'Recharge du portefeuille Sprint' : c.adresseDepart,
+        adresseArrivee: recharge ? '' : c.adresseArrivee,
+        statut: recharge ? (c.statut === 'en_attente' ? 'en_attente_paiement' : c.statut) : c.statut,
         methodePaiement: c.methodePaiement,
       }));
       return;
     }
 
     const payer = req.body?.choix === 'payer';
-    const corps = corpsWebhook(session, commande.id, payer, c.prixFcfa);
+    const corps = corpsWebhook(session, commande.id, payer, montantFcfa);
     const secret = await secretSimulation(db);
     const reponse = await fetch(urlFonction('webhookPaiement'), {
       method: 'POST',
@@ -165,7 +195,8 @@ export const pagePaiementSimule = onRequest(async (req, res) => {
     });
     if (!reponse.ok) throw new Error(`webhook ${reponse.status}`);
     const { resultat } = (await reponse.json()) as { resultat: string };
-    const [titre, message] = MESSAGES_RESULTAT[resultat] ?? MESSAGES_RESULTAT.anomalie;
+    const cle = recharge && resultat === 'echec_enregistre' ? 'echec_enregistre_recharge' : resultat;
+    const [titre, message] = MESSAGES_RESULTAT[cle] ?? MESSAGES_RESULTAT.anomalie;
     envoyer(200, pageMessage(titre, message));
   } catch (e) {
     logger.error('Page de paiement simulée en erreur', e);
@@ -183,6 +214,11 @@ export const rembourserCourseAdmin = onCall(async (requete) =>
   rembourserCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
 );
 
+/** Admin : crédit ou débit manuel du portefeuille d'un client (motivé, journalisé). */
+export const ajusterPortefeuille = onCall(async (requete) =>
+  ajusterCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
+);
+
 /** Admin : suspension, bannissement ou réactivation d'un compte. */
 export const sanctionnerCompte = onCall(async (requete) =>
   sanctionnerCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
@@ -193,7 +229,10 @@ export const surveillerCommandes = onSchedule(
   { schedule: 'every 5 minutes', timeZone: 'Africa/Dakar', retryCount: 0 },
   async () => {
     const bilan = await surveiller(getFirestore(), await fournisseur(), new Date(), messagerie);
-    if (bilan.expirees || bilan.sansChauffeur) logger.info('Surveillance des commandes', bilan);
+    const rechargesExpirees = await surveillerRecharges(getFirestore(), new Date());
+    if (bilan.expirees || bilan.sansChauffeur || rechargesExpirees) {
+      logger.info('Surveillance des commandes', { ...bilan, rechargesExpirees });
+    }
   },
 );
 

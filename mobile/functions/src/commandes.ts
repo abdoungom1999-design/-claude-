@@ -16,8 +16,12 @@ export const DISTANCE_MIN_KM = 0.1;
 /** Au-delà, la course est hors zone (protection contre les saisies absurdes). */
 export const DISTANCE_MAX_KM = 100;
 
-/** 100 % mobile money : la plateforme encaisse chaque course. */
-export const METHODES_PAIEMENT = ['WAVE', 'ORANGE_MONEY'] as const;
+/**
+ * 100 % mobile money : la plateforme encaisse chaque course, soit par Wave
+ * ou Orange Money, soit avec le solde du Portefeuille Sprint (lui-même
+ * rechargé par mobile money).
+ */
+export const METHODES_PAIEMENT = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'] as const;
 
 export interface Trajet {
   type: TypeCourse;
@@ -91,7 +95,7 @@ export function validerDemande(donnees: unknown): Demande {
   const trajet = validerTrajet(donnees);
   const d = objet(donnees);
   if (!METHODES_PAIEMENT.includes(d.methodePaiement as Demande['methodePaiement'])) {
-    throw invalide('Mode de paiement invalide : Wave ou Orange Money uniquement.');
+    throw invalide('Mode de paiement invalide : Wave, Orange Money ou solde Sprint.');
   }
   const prixAttendu = d.prixAttendu;
   if (typeof prixAttendu !== 'number' || !Number.isInteger(prixAttendu) || prixAttendu <= 0) {

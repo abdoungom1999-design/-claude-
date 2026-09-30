@@ -215,6 +215,39 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
+    // Portefeuille Sprint : solde et livre de comptes écrits uniquement par
+    // le serveur (recharge confirmée par le fournisseur, paiement d'une
+    // course, remboursement, ajustement Admin). Le client lit le sien et
+    // ne peut écrire QUE sa préférence "Régler mes courses avec mon
+    // solde" (payerAvecSolde) : jamais le solde, jamais un mouvement.
+    // ---------------------------------------------------------------
+    match /portefeuilles/{uid} {
+      allow read: if connecte() && (moi() == uid || estAdmin());
+
+      allow create: if connecte() && moi() == uid
+        && request.resource.data.keys().hasOnly(['payerAvecSolde'])
+        && request.resource.data.payerAvecSolde is bool;
+
+      allow update: if connecte() && moi() == uid
+        && champsModifies().hasOnly(['payerAvecSolde'])
+        && request.resource.data.payerAvecSolde is bool;
+
+      allow delete: if false;
+
+      match /mouvements/{mouvementId} {
+        allow read: if connecte() && (moi() == uid || estAdmin());
+        allow write: if false;
+      }
+    }
+
+    // Recharges du portefeuille (demande de paiement Wave / Orange Money) :
+    // écrites par le serveur ; le client suit la sienne pendant qu'il paie.
+    match /recharges/{rechargeId} {
+      allow read: if connecte() && (resource.data.clientId == moi() || estAdmin());
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------
     // Courses : créées par le serveur (Cloud Function), visibles des
     // chauffeurs actifs tant qu'elles sont en attente, acceptées par un
     // seul chauffeur actif. Le prix n'est jamais modifiable depuis l'app,

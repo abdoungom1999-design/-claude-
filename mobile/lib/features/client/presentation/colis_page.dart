@@ -11,6 +11,7 @@ import '../../../core/widgets/payment_method_sheet.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../firebase_options.dart';
 import '../../courses/data/course_service.dart';
+import '../../portefeuille/data/portefeuille_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/estimation_course_controller.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
@@ -62,9 +63,12 @@ class _ColisPageState extends State<ColisPage> {
     final arrivee = _estimation.arrivee;
     if (!_estimation.peutCommander || estimation == null || depart == null || arrivee == null) return;
 
+    final portefeuille = await PortefeuilleService().lirePourCommande();
+    if (!mounted) return;
     final methode = await afficherSelectionPaiementSheet(
       context,
       montantFcfa: estimation.prixFcfa,
+      portefeuille: portefeuille,
     );
     if (methode == null || !mounted) return;
 

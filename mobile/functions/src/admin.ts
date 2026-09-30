@@ -1,7 +1,9 @@
+import { randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp, type DocumentSnapshot, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { FournisseurPaiement } from './fournisseurs';
 import { rembourserCommande, STATUTS_COMMANDE } from './paiements';
+import { ecrireMouvement, refPortefeuille, SOLDE_MAX_FCFA, solde, TYPES_MOUVEMENT } from './portefeuille';
 
 /**
  * Actions de l'Admin qui touchent à l'argent ou aux comptes : passées
@@ -152,7 +154,9 @@ export async function rembourserCourseAdmin(
     await informerTicket(
       db,
       courseId,
-      `Votre course a été remboursée intégralement (${montantFcfa} FCFA) sur votre compte mobile money.`,
+      commande.get('fournisseur') === 'portefeuille'
+        ? `Votre course a été remboursée intégralement (${montantFcfa} FCFA) sur votre portefeuille Sprint.`
+        : `Votre course a été remboursée intégralement (${montantFcfa} FCFA) sur votre compte mobile money.`,
       maintenant,
     );
   }
@@ -265,4 +269,72 @@ export async function sanctionnerCompte(
     remboursements,
   }, maintenant);
   return { statutCompte, coursesAnnulees, remboursements };
+}
+
+// ---------------------------------------------------------------------
+// 5. Ajustement manuel par l'Admin (callable `ajusterPortefeuille`)
+// ---------------------------------------------------------------------
+
+/**
+ * Crédit ou débit manuel, motivé, tracé dans le livre et dans le journal
+ * Admin (geste commercial, correction d'erreur, recharge non créditée à
+ * régulariser). Le solde ne peut ni devenir négatif ni dépasser le plafond.
+ */
+export async function ajusterPortefeuille(
+  db: Firestore,
+  uid: string | undefined,
+  donnees: unknown,
+  maintenant: Date,
+): Promise<{ soldeFcfa: number }> {
+  const adminId = await verifierAdmin(db, uid);
+  const d = donneesObjet(donnees);
+  const clientId = d.clientId;
+  if (typeof clientId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(clientId)) {
+    throw new HttpsError('invalid-argument', 'Client invalide.');
+  }
+  const montant = d.montantFcfa;
+  if (typeof montant !== 'number' || !Number.isInteger(montant) || montant === 0 || Math.abs(montant) > SOLDE_MAX_FCFA) {
+    throw new HttpsError('invalid-argument', 'Montant invalide (entier non nul).');
+  }
+  const motif = typeof d.motif === 'string' ? d.motif.trim() : '';
+  if (motif.length === 0 || motif.length > 300) {
+    throw new HttpsError('invalid-argument', 'Indiquez le motif (300 caractères au plus).');
+  }
+  const client = await db.collection('users').doc(clientId).get();
+  if (!client.exists || client.get('role') !== 'client') throw new HttpsError('not-found', 'Client introuvable.');
+
+  const soldeFcfa = await db.runTransaction(async (tx) => {
+    const portefeuille = await tx.get(refPortefeuille(db, clientId));
+    const soldeAvant = solde(portefeuille);
+    if (soldeAvant + montant < 0) {
+      throw new HttpsError('failed-precondition', 'Le solde ne peut pas devenir négatif.');
+    }
+    if (soldeAvant + montant > SOLDE_MAX_FCFA) {
+      throw new HttpsError('failed-precondition', `Le solde ne peut pas dépasser ${SOLDE_MAX_FCFA} FCFA.`);
+    }
+    return ecrireMouvement(
+      tx,
+      db,
+      clientId,
+      soldeAvant,
+      {
+        id: `ajustement_${randomBytes(8).toString('hex')}`,
+        type: TYPES_MOUVEMENT.ajustementAdmin,
+        montantFcfa: montant,
+        reference: null,
+        note: motif,
+      },
+      maintenant,
+    );
+  });
+  await db.collection('journal_admin').add({
+    action: 'ajustement_portefeuille',
+    adminId,
+    clientId,
+    montantFcfa: montant,
+    motif,
+    soldeApresFcfa: soldeFcfa,
+    le: Timestamp.fromDate(maintenant),
+  });
+  return { soldeFcfa };
 }

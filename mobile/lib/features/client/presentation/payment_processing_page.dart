@@ -108,7 +108,10 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
     if (!mounted) return;
     setState(() {
       _demande = demande;
-      _etape = _EtapePaiement.aPayer;
+      // Payée avec le solde : rien à ouvrir, la course est déjà créée ; on
+      // reste sur l'écran d'attente jusqu'à ce que le suivi de la commande
+      // la confirme (quasi immédiat).
+      if (!demande.payeParSolde) _etape = _EtapePaiement.aPayer;
     });
     _suivi = widget.courseService.streamCommande(demande.commandeId).listen(
           _suivre,
@@ -147,9 +150,9 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
   }
 
   Future<void> _payer() async {
-    final demande = _demande;
-    if (demande == null) return;
-    final ouverte = await widget.ouvrirLien(demande.lienPaiement);
+    final lien = _demande?.lienPaiement;
+    if (lien == null) return;
+    final ouverte = await widget.ouvrirLien(lien);
     if (!mounted) return;
     if (!ouverte) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -183,7 +186,9 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
               child: switch (_etape) {
                 _EtapePaiement.preparation => _VueAttente(
                     key: const ValueKey('preparation'),
-                    titre: 'Préparation de votre paiement $_operateur…',
+                    titre: widget.methode == PaymentMethod.portefeuille
+                        ? 'Paiement avec votre solde Sprint…'
+                        : 'Préparation de votre paiement $_operateur…',
                   ),
                 _EtapePaiement.aPayer => _VueAPayer(
                     key: ValueKey('aPayer-$_pageOuverte'),

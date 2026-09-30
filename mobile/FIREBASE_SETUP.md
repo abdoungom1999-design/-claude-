@@ -411,11 +411,72 @@ relancer le déploiement (onglet Actions > Run workflow).
     vraie notification sur un vrai téléphone ne peut être vérifiée que par
     un test réel (deux téléphones, app fermée).
 
+### 7.1 bis Portefeuille Sprint (mode test : faux Wave)
+
+Crédit prépayé du client, **non retirable**, utilisable uniquement pour
+payer des courses. Tout passe par le serveur (`functions/src/portefeuille.ts`)
+et fonctionne aujourd'hui contre le faux Wave : **aucune somme réelle ne
+bouge** tant que Wave et Orange Money réels ne sont pas branchés (voir
+« Passage à l'argent réel » plus bas).
+
+- **Données** (jamais écrites par l'app, sauf la préférence) :
+  - `portefeuilles/{uid}` : `soldeFcfa` (serveur) et `payerAvecSolde`
+    (l'interrupteur « Régler mes courses avec mon solde », seul champ que
+    le client peut écrire) ;
+  - `portefeuilles/{uid}/mouvements/{id}` : livre de comptes en ajout
+    seul (recharge, paiement_course, remboursement, ajustement_admin) avec
+    le solde après chaque opération. Identifiants déterministes
+    (`recharge_<id>`, `course_<commande>`, `remboursement_<commande>`) :
+    rejouer un webhook ou un remboursement ne crédite ni ne débite jamais
+    deux fois. La somme des mouvements est toujours égale au solde
+    (contrôle visible dans la fiche Admin) ;
+  - `recharges/{rch_…}` : demandes de recharge (en_attente, reussie,
+    echouee, expiree, anomalie), écrites par le serveur.
+- **Limites** (serveur, reprises à l'affichage) : recharge de 500 à
+  100 000 FCFA, solde plafonné à 200 000 FCFA, 5 recharges en attente au
+  plus par client, expiration à 20 minutes. Un remboursement n'est jamais
+  bloqué par le plafond.
+- **Recharge** : callable `creerRecharge` (client seulement, compte actif)
+  -> lien de paiement Wave / Orange Money -> webhook signé (le même que
+  pour les courses, référence `rch_…`) -> solde crédité dans une
+  transaction. Montant ou devise différents de la demande, ou dépassement
+  du plafond par deux recharges simultanées : statut `anomalie`, rien
+  n'est crédité, l'Admin est prévenu par le statut (à rembourser). Un
+  paiement arrivé après l'expiration est crédité (l'argent est encaissé).
+- **Payer une course avec le solde** : `creerPaiement` avec
+  `methodePaiement: "PORTEFEUILLE"` débite le solde, crée la commande
+  (déjà `payee`) et la course dans **une seule transaction** ; solde
+  insuffisant : refus net, rien d'écrit, le client choisit Wave ou Orange
+  Money pour le total (pas de paiement partiel). Dans l'app, avec
+  l'interrupteur actif et un solde suffisant, « Payer avec mon solde »
+  passe en premier dans le choix du mode de paiement (un appui).
+- **Remboursements** (annulation client ou chauffeur, aucune réponse au
+  bout de 10 min, chauffeur suspendu, remboursement Admin) : une course
+  payée avec le solde est recréditée **sur le solde**, sans appel au
+  fournisseur.
+- **Admin** : onglet Clients, icône portefeuille : solde, cohérence du
+  livre, historique, et ajustement manuel motivé (callable
+  `ajusterPortefeuille`, solde entre 0 et 200 000 FCFA, journalisé dans
+  `journal_admin`).
+
+#### Passage à l'argent réel (à faire, rien n'est branché)
+
+1. Compte Wave Business (API Checkout) : `WAVE_API_KEY` et
+   `WAVE_WEBHOOK_SECRET` dans Secret Manager, puis brancher
+   `FournisseurWave` dans `functions/src/index.ts`. Ce code n'a **jamais
+   tourné contre l'API réelle** : il suit la documentation publique et
+   sera à revalider avec les clés.
+2. Orange Money : aucun fournisseur n'existe encore (il passe par la
+   simulation) ; il faut le contrat marchand Sonatel et sa documentation.
+3. **Avant de garder l'argent des clients** : faire confirmer le cadre
+   réglementaire (monnaie électronique, BCEAO).
+4. Un premier test réel avec un petit montant, puis contrôle du livre.
+
 ### 7.2 Tests
 
 ```bash
 cd mobile/functions
 npm test                  # moteur de prix (dont parité avec l'app), validation, signatures
-npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push (émulateur Firestore)
+npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille (émulateur Firestore)
 ```
 

@@ -73,6 +73,7 @@ class LigneCourse {
   String get libelleMethode => switch (methodePaiement) {
         'WAVE' => 'Wave',
         'ORANGE_MONEY' => 'Orange Money',
+        'PORTEFEUILLE' => 'Solde Sprint',
         _ => 'Mobile money',
       };
 }

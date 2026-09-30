@@ -205,7 +205,8 @@ jobs:
         run: |
           for service in estimerprix creerpaiement annulercourse webhookpaiement pagepaiementsimule \
                          rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte \
-                         chauffeursproches notifiermessage notifieracceptation; do
+                         chauffeursproches notifiermessage notifieracceptation \
+                         creerrecharge ajusterportefeuille; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
               --member=allUsers --role=roles/run.invoker --quiet > /dev/null
@@ -222,7 +223,7 @@ jobs:
           base=https://europe-west1-sprint-vtc.cloudfunctions.net
           for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
                           rembourserCourseAdmin sanctionnerCompte chauffeursProches \
-                          notifierMessage notifierAcceptation; do
+                          notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille; do
             reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
             echo "$fonction : $reponse"
             echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }

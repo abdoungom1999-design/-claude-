@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../firebase_options.dart';
 import '../../../finances/data/comptabilite.dart';
 import '../../data/pilotage_service.dart';
+import '../admin_portefeuille_page.dart';
 
 /// Page "Clients". En Firebase réel : tous les comptes clients inscrits
 /// depuis l'application (`users`, `role == 'client'`), en temps réel,
@@ -147,6 +148,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
               SizedBox(width: 90, child: Text('Courses', style: entete)),
               SizedBox(width: 120, child: Text('Dépensé', style: entete)),
               SizedBox(width: 110, child: Text('Inscrit le', style: entete)),
+              SizedBox(width: 48),
             ],
           ),
           const Divider(height: 24, color: AppColors.greyBorder),
@@ -193,6 +195,17 @@ class _ClientsReelsState extends State<_ClientsReels> {
                     child: Text(
                       client.creeLe == null ? '—' : _date(client.creeLe!),
                       style: const TextStyle(fontSize: 13, color: AppColors.grey),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 48,
+                    child: IconButton(
+                      key: ValueKey('portefeuille-${client.id}'),
+                      tooltip: 'Portefeuille',
+                      icon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => AdminPortefeuillePage(clientId: client.id, nomClient: client.nom),
+                      )),
                     ),
                   ),
                 ],

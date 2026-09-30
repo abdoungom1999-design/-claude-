@@ -87,8 +87,9 @@ test('commande : le prix envoyé ne sert que de contrôle, jamais de valeur', ()
   refuse(() => validerDemande(commande({ prixAttendu: '2300' })), 'invalid-argument');
 });
 
-test('commande : 100 % mobile money, adresses obligatoires', () => {
-  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /Wave ou Orange Money/);
+test('commande : 100 % mobile money (ou solde Sprint), adresses obligatoires', () => {
+  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /Wave, Orange Money ou solde Sprint/);
+  assert.equal(validerDemande(commande({ methodePaiement: 'PORTEFEUILLE' })).methodePaiement, 'PORTEFEUILLE');
   refuse(() => validerDemande(commande({ adresseDepart: '  ' })), 'invalid-argument');
   refuse(() => validerDemande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
 });
