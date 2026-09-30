@@ -39,14 +39,14 @@ const banniereParDefaut = <BanniereProm>[
   ),
   BanniereProm(
     titre: 'Une moto en quelques minutes',
-    sousTitre: 'Le prix de la course est annoncé avant de commander',
+    sousTitre: 'Le prix est annoncé avant de commander',
     image: 'assets/promo/course.jpg',
     icone: Icons.two_wheeler_rounded,
     action: ActionBanniere.course,
   ),
   BanniereProm(
     titre: 'Suivez votre chauffeur en direct',
-    sousTitre: 'Sa position et sa messagerie pendant toute la course',
+    sousTitre: 'Sa position et sa messagerie en direct',
     image: 'assets/promo/suivi.jpg',
     icone: Icons.my_location_rounded,
   ),
@@ -62,7 +62,7 @@ class BandeauPromo extends StatefulWidget {
     this.bannieres = banniereParDefaut,
     this.surAction,
     this.intervalle = const Duration(seconds: 5),
-    this.hauteur = 112,
+    this.hauteur = 96,
   });
 
   final List<BanniereProm> bannieres;
@@ -214,7 +214,7 @@ class _Banniere extends StatelessWidget {
                           const SizedBox(height: 5),
                           Text(
                             banniere.sousTitre,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.78), fontSize: 12, height: 1.3),
                           ),

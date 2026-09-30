@@ -155,7 +155,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 420),
+                  padding: const EdgeInsets.only(bottom: 400),
                   child: MentionsFondCarte(fond: widget.fond),
                 ),
               ],
@@ -376,11 +376,16 @@ class _CarteDestination extends StatelessWidget {
   Widget build(BuildContext context) {
     return CarteVerre(
       rayon: 32,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Bandeau promo au-dessus de la recherche, court : un maximum de carte reste visible.
+          if (bannieres.isNotEmpty) ...[
+            BandeauPromo(bannieres: bannieres, surAction: _surBanniere),
+            const SizedBox(height: 14),
+          ],
           const Padding(
             padding: EdgeInsets.only(left: 4),
             child: Text(
@@ -435,10 +440,6 @@ class _CarteDestination extends StatelessWidget {
               ),
             ),
           ),
-          if (bannieres.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            BandeauPromo(bannieres: bannieres, surAction: _surBanniere),
-          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -469,7 +470,7 @@ class _CarteDestination extends StatelessWidget {
                 width: 7,
                 height: 7,
                 decoration: BoxDecoration(
-                  color: motos.motos.isEmpty ? AppColors.texteDiscret.withValues(alpha: 0.5) : AppColors.onyx,
+                  color: motos.motos.isEmpty ? AppColors.texteDiscret.withValues(alpha: 0.5) : AppColors.orange,
                   shape: BoxShape.circle,
                 ),
               ),
