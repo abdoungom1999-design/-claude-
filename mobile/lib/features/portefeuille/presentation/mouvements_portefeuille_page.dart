@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../data/portefeuille_service.dart';
 
 /// Historique du portefeuille du client : chaque crédit et débit, avec le
@@ -19,15 +20,22 @@ class MouvementsPortefeuillePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = uid ?? FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.fondClair,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.fondClairHaut,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Mouvements du portefeuille'),
+        foregroundColor: AppColors.onyx,
+        title: const Text(
+          'Mouvements du portefeuille',
+          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
+        ),
       ),
-      body: client == null
-          ? const _Vide(message: 'Connectez-vous pour voir votre portefeuille.')
-          : ListeMouvements(flux: service.streamMouvements(client)),
+      body: FondOnyxLight(
+        child: client == null
+            ? const _Vide(message: 'Connectez-vous pour voir votre portefeuille.')
+            : ListeMouvements(flux: service.streamMouvements(client)),
+      ),
     );
   }
 }
@@ -85,7 +93,7 @@ class _LigneMouvement extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final credit = mouvement.montantFcfa > 0;
-    final couleur = credit ? Colors.green.shade700 : AppColors.text;
+    final couleur = credit ? AppColors.orange : AppColors.onyx;
     final creeLe = mouvement.creeLe;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -95,7 +103,7 @@ class _LigneMouvement extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: credit ? Colors.green.shade50 : AppColors.greyLight,
+              color: credit ? AppColors.orangeLight : AppColors.fondClair,
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -109,7 +117,7 @@ class _LigneMouvement extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(mouvement.libelle, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(mouvement.libelle, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.onyx)),
                 if (mouvement.note case final note? when note.isNotEmpty)
                   Text(note, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
                 if (creeLe != null)

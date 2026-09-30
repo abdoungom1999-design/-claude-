@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'onyx_light.dart';
 
-/// Carte Portefeuille noire premium (écran Compte) : solde, bouton
-/// Recharger et interrupteur pour régler les courses avec le solde.
-/// Ponctuellement en noir profond — le reste de l'app reste sur le fond
-/// blanc de la charte Sprint (voir [AppColors.noirProfond]).
+/// Carte Portefeuille (écran Compte), charte Onyx & Light : verre clair,
+/// solde en grand en Onyx, bouton Recharger orange Sprint et interrupteur
+/// pour régler les courses avec le solde.
 class WalletCard extends StatelessWidget {
   const WalletCard({
     super.key,
@@ -21,93 +21,66 @@ class WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.noirProfond, AppColors.noirProfondClair],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.noirProfond.withValues(alpha: 0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
+    return CarteVerre(
+      rayon: 28,
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Portefeuille Santine',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: AppColors.fondClair, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.onyx, size: 18),
               ),
-              const Icon(
-                Icons.account_balance_wallet_outlined,
-                color: AppColors.orange,
-                size: 20,
+              const SizedBox(width: 10),
+              const Text(
+                'Portefeuille Santine',
+                style: TextStyle(color: AppColors.texteDiscret, fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Text(
             '$soldeFcfa FCFA',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-            ),
+            key: const ValueKey('solde-portefeuille'),
+            style: const TextStyle(color: AppColors.onyx, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8),
           ),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 50,
             child: ElevatedButton(
               onPressed: onRecharger,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.orange,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 elevation: 0,
               ),
-              child: const Text(
-                'Recharger',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-              ),
+              child: const Text('Recharger', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: AppColors.bordVerre),
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Régler mes courses avec mon solde',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12.5,
-                  ),
+                  style: TextStyle(color: AppColors.onyx, fontSize: 13, fontWeight: FontWeight.w500),
                 ),
               ),
               Switch(
                 value: payerAvecSolde,
                 onChanged: onTogglePaiement,
-                activeThumbColor: AppColors.orange,
-                activeTrackColor: AppColors.orange.withValues(alpha: 0.35),
-                inactiveThumbColor: Colors.white70,
-                inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
+                activeThumbColor: Colors.white,
+                activeTrackColor: AppColors.orange,
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: const Color(0xFFD1D1D6),
+                trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
               ),
             ],
           ),

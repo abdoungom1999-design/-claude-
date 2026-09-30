@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'onyx_light.dart';
 
 /// Ligne de menu avec icône, libellé et chevron — utilisée pour les listes
 /// de paramètres premium (écran Compte, menu Chauffeur).
@@ -19,6 +20,7 @@ class SectionListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final claire = ThemeOnyxLight.actif(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -30,16 +32,20 @@ class SectionListTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: AppColors.greyLight,
-                borderRadius: BorderRadius.circular(11),
+                color: claire ? AppColors.fondClair : AppColors.greyLight,
+                borderRadius: BorderRadius.circular(claire ? 12 : 11),
               ),
-              child: Icon(icon, color: AppColors.text, size: 19),
+              child: Icon(icon, color: claire ? AppColors.onyx : AppColors.text, size: 19),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: claire ? FontWeight.w600 : FontWeight.w500,
+                  color: claire ? AppColors.onyx : null,
+                ),
               ),
             ),
             if (trailingBadge != null) ...[
@@ -60,7 +66,7 @@ class SectionListTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
             ],
-            const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+            Icon(Icons.chevron_right_rounded, color: claire ? AppColors.texteDiscret : AppColors.grey),
           ],
         ),
       ),

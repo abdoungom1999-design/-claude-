@@ -6,6 +6,7 @@ import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -151,184 +152,215 @@ class _CompteTabPageState extends State<CompteTabPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-          children: [
-            StreamBuilder<Map<String, dynamic>?>(
-              stream: widget.profil ?? _authRepository.profilUtilisateurStream(),
-              builder: (context, snapshot) {
-                final nomFirestore = (snapshot.data?['nom'] as String?)?.trim();
-                final nomAffiche = (nomFirestore != null && nomFirestore.isNotEmpty)
-                    ? nomFirestore
-                    : DemoData.monNomClient;
-                final initiale = nomAffiche.isNotEmpty ? nomAffiche[0].toUpperCase() : '?';
-                return Row(
+    // Charte Onyx & Light : fond clair à halos, cartes « verre », texte Onyx.
+    return ThemeOnyxLight(
+      child: Scaffold(
+        backgroundColor: AppColors.fondClair,
+        body: FondOnyxLight(
+          child: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
+              children: [
+                _entete(),
+                const SizedBox(height: 22),
+                const CarteNotifications(),
+                const SizedBox(height: 22),
+                if (_fluxPortefeuille case final flux?)
+                  StreamBuilder<Portefeuille>(
+                    stream: flux,
+                    builder: (context, instantane) => _carteWallet(instantane.data ?? const Portefeuille()),
+                  )
+                else
+                  _carteWallet(
+                    Portefeuille(soldeFcfa: DemoData.soldePortefeuilleFcfa, payerAvecSolde: _payerAvecSolde),
+                  ),
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.orange, AppColors.orangeDark],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        initiale,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    const Expanded(
+                      child: StatTile(label: 'Note', valeur: '${DemoData.noteMoyenneClient}', icon: Icons.star_outline_rounded),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: StatTile(label: 'Courses', valeur: '${DemoData.coursesEffectueesClient}', icon: Icons.route_outlined),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: StatTile(
+                        label: 'Réservations',
+                        valeur: '${DemoData.reservationsClient}',
+                        icon: Icons.event_available_outlined,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            nomAffiche,
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Client Sprint',
-                            style: TextStyle(fontSize: 12.5, color: AppColors.grey),
-                          ),
-                        ],
-                      ),
+                      child: StatTile(label: 'Favoris', valeur: '${DemoData.favorisClient}', icon: Icons.favorite_border_rounded),
                     ),
                   ],
-                );
-              },
-            ),
-            const SizedBox(height: 22),
-            const CarteNotifications(),
-            const SizedBox(height: 22),
-            if (_fluxPortefeuille case final flux?)
-              StreamBuilder<Portefeuille>(
-                stream: flux,
-                builder: (context, instantane) => _carteWallet(instantane.data ?? const Portefeuille()),
-              )
-            else
-              _carteWallet(Portefeuille(soldeFcfa: DemoData.soldePortefeuilleFcfa, payerAvecSolde: _payerAvecSolde)),
-            const SizedBox(height: 22),
-            Row(
-              children: [
-                Expanded(
-                  child: StatTile(
-                    label: 'Note moyenne',
-                    valeur: '${DemoData.noteMoyenneClient}',
-                    icon: Icons.star_rounded,
-                    accent: Colors.amber.shade700,
-                  ),
                 ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: StatTile(
-                    label: 'Courses',
-                    valeur: '${DemoData.coursesEffectueesClient}',
-                    icon: Icons.route_outlined,
-                  ),
+                const SizedBox(height: 26),
+                const _TitreSection('Compte'),
+                _GroupeMenu(
+                  children: [
+                    if (_fluxPortefeuille != null)
+                      SectionListTile(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'Mouvements du portefeuille',
+                        onTap: () => _ouvrir(MouvementsPortefeuillePage(service: _portefeuille)),
+                      ),
+                    SectionListTile(
+                      icon: Icons.badge_outlined,
+                      label: 'Informations personnelles',
+                      onTap: () => _ouvrir(const InformationsPersonnellesPage()),
+                    ),
+                    SectionListTile(
+                      icon: Icons.shield_outlined,
+                      label: 'Sécurité',
+                      onTap: () => _ouvrir(const SecuritePage()),
+                    ),
+                    SectionListTile(
+                      icon: Icons.favorite_border_rounded,
+                      label: 'Favoris',
+                      onTap: () => _ouvrir(const FavorisPage()),
+                    ),
+                    SectionListTile(
+                      icon: Icons.star_border_rounded,
+                      label: 'Courses à noter',
+                      onTap: () => _ouvrir(const CoursesANoterPage()),
+                    ),
+                    SectionListTile(
+                      icon: Icons.person_add_alt_outlined,
+                      label: 'Inviter des amis',
+                      onTap: () => _ouvrir(const InviterAmisPage()),
+                    ),
+                    SectionListTile(
+                      icon: Icons.help_outline_rounded,
+                      label: 'Aide & Support',
+                      onTap: () => _ouvrir(const AideSupportPage()),
+                    ),
+                    SectionListTile(
+                      icon: Icons.settings_outlined,
+                      label: 'Paramètres',
+                      onTap: () => _ouvrir(const ParametresPage()),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: StatTile(
-                    label: 'Réservations',
-                    valeur: '${DemoData.reservationsClient}',
-                    icon: Icons.event_available_outlined,
-                    accent: Colors.blueGrey,
-                  ),
+                const SizedBox(height: 22),
+                const _TitreSection('Informations légales'),
+                _GroupeMenu(
+                  children: [
+                    SectionListTile(
+                      icon: Icons.description_outlined,
+                      label: 'Conditions d\'utilisation',
+                      onTap: () => _ouvrir(const ConditionsUtilisationPage()),
+                    ),
+                    SectionListTile(
+                      icon: Icons.privacy_tip_outlined,
+                      label: 'Politique de confidentialité',
+                      onTap: () => _ouvrir(const PolitiqueConfidentialitePage()),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: StatTile(
-                    label: 'Favoris',
-                    valeur: '${DemoData.favorisClient}',
-                    icon: Icons.favorite_border_rounded,
-                    accent: Colors.pink.shade400,
-                  ),
+                const SizedBox(height: 14),
+                _GroupeMenu(
+                  children: [
+                    SectionListTile(
+                      icon: Icons.logout_rounded,
+                      label: 'Se déconnecter',
+                      onTap: _seDeconnecter,
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 28),
-            const Text(
-              'Compte',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            if (_fluxPortefeuille != null)
-              SectionListTile(
-                icon: Icons.receipt_long_outlined,
-                label: 'Mouvements du portefeuille',
-                onTap: () => _ouvrir(MouvementsPortefeuillePage(service: _portefeuille)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _entete() {
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: widget.profil ?? _authRepository.profilUtilisateurStream(),
+      builder: (context, snapshot) {
+        final nomFirestore = (snapshot.data?['nom'] as String?)?.trim();
+        final nomAffiche = (nomFirestore != null && nomFirestore.isNotEmpty) ? nomFirestore : DemoData.monNomClient;
+        final initiale = nomAffiche.isNotEmpty ? nomAffiche[0].toUpperCase() : '?';
+        return Row(
+          children: [
+            // Avatar Onyx cerclé d'orange : l'orange reste un accent.
+            Container(
+              width: 62,
+              height: 62,
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.orange),
+              child: Container(
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.onyx),
+                alignment: Alignment.center,
+                child: Text(
+                  initiale,
+                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
+                ),
               ),
-            SectionListTile(
-              icon: Icons.badge_outlined,
-              label: 'Informations personnelles',
-              onTap: () => _ouvrir(const InformationsPersonnellesPage()),
             ),
-            SectionListTile(
-              icon: Icons.shield_outlined,
-              label: 'Sécurité',
-              onTap: () => _ouvrir(const SecuritePage()),
-            ),
-            SectionListTile(
-              icon: Icons.favorite_border_rounded,
-              label: 'Favoris',
-              onTap: () => _ouvrir(const FavorisPage()),
-            ),
-            SectionListTile(
-              icon: Icons.star_border_rounded,
-              label: 'Courses à noter',
-              onTap: () => _ouvrir(const CoursesANoterPage()),
-            ),
-            SectionListTile(
-              icon: Icons.person_add_alt_outlined,
-              label: 'Inviter des amis',
-              onTap: () => _ouvrir(const InviterAmisPage()),
-            ),
-            SectionListTile(
-              icon: Icons.help_outline_rounded,
-              label: 'Aide & Support',
-              onTap: () => _ouvrir(const AideSupportPage()),
-            ),
-            SectionListTile(
-              icon: Icons.settings_outlined,
-              label: 'Paramètres',
-              onTap: () => _ouvrir(const ParametresPage()),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Informations légales',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            SectionListTile(
-              icon: Icons.description_outlined,
-              label: 'Conditions d\'utilisation',
-              onTap: () => _ouvrir(const ConditionsUtilisationPage()),
-            ),
-            SectionListTile(
-              icon: Icons.privacy_tip_outlined,
-              label: 'Politique de confidentialité',
-              onTap: () => _ouvrir(const PolitiqueConfidentialitePage()),
-            ),
-            const SizedBox(height: 8),
-            SectionListTile(
-              icon: Icons.logout_rounded,
-              label: 'Se déconnecter',
-              onTap: _seDeconnecter,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    nomAffiche,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.onyx),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text('Client Sprint', style: TextStyle(fontSize: 13, color: AppColors.texteDiscret)),
+                ],
+              ),
             ),
           ],
-        ),
+        );
+      },
+    );
+  }
+}
+
+class _TitreSection extends StatelessWidget {
+  const _TitreSection(this.texte);
+
+  final String texte;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 0, 0, 10),
+      child: Text(
+        texte,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx),
+      ),
+    );
+  }
+}
+
+/// Lignes de menu réunies dans une carte « verre », séparées par un filet.
+class _GroupeMenu extends StatelessWidget {
+  const _GroupeMenu({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return CarteVerre(
+      rayon: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 56, color: AppColors.bordVerre),
+            children[i],
+          ],
+        ],
       ),
     );
   }
@@ -394,8 +426,8 @@ class _RechargeSheetState extends State<_RechargeSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          color: AppColors.fondClairHaut,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -410,11 +442,14 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text('Recharger mon portefeuille', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const Text(
+                'Recharger mon portefeuille',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.onyx),
+              ),
               const SizedBox(height: 6),
               const Text(
                 'Le solde sert uniquement à payer vos courses. Il n\'est pas retirable.',
-                style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               const SizedBox(height: 18),
               Wrap(
@@ -430,12 +465,14 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                       _montantChoisi = montant;
                     }),
                     selectedColor: AppColors.orange,
+                    showCheckmark: false,
+                    side: BorderSide.none,
                     labelStyle: TextStyle(
-                      color: selectionne ? Colors.white : AppColors.text,
+                      color: selectionne ? Colors.white : AppColors.onyx,
                       fontWeight: FontWeight.w600,
                     ),
-                    backgroundColor: AppColors.greyLight,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide.none),
+                    backgroundColor: AppColors.fondClair,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide.none),
                   );
                 }).toList(),
               ),
@@ -445,14 +482,22 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                 controller: _autreMontant,
                 keyboardType: TextInputType.number,
                 onChanged: _saisie,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
                   labelText: 'Autre montant (FCFA)',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFD1D1D6)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.onyx, width: 1.4),
+                  ),
                 ),
               ),
               const SizedBox(height: 18),
-              const Text('Payer avec', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              const Text('Payer avec', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onyx)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
@@ -463,13 +508,15 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                     label: Text(methode.label),
                     selected: selectionne,
                     onSelected: (_) => setState(() => _methode = methode),
-                    selectedColor: AppColors.noirProfond,
+                    selectedColor: AppColors.onyx,
+                    showCheckmark: false,
+                    side: BorderSide.none,
                     labelStyle: TextStyle(
-                      color: selectionne ? Colors.white : AppColors.text,
+                      color: selectionne ? Colors.white : AppColors.onyx,
                       fontWeight: FontWeight.w600,
                     ),
-                    backgroundColor: AppColors.greyLight,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide.none),
+                    backgroundColor: AppColors.fondClair,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide.none),
                   );
                 }).toList(),
               ),

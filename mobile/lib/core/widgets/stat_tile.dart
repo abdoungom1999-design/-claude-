@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'app_card.dart';
+import 'onyx_light.dart';
 
 /// Tuile de statistique pour tableaux de bord (Admin, Conducteur) : icône
 /// dans un badge coloré, grande valeur, libellé. Carte flottante standard
@@ -21,6 +22,35 @@ class StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Onyx & Light (écran Compte) : verre clair, pictogramme et chiffres Onyx.
+    if (ThemeOnyxLight.actif(context)) {
+      return CarteVerre(
+        rayon: 22,
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(color: AppColors.fondClair, borderRadius: BorderRadius.circular(11)),
+                child: Icon(icon, color: AppColors.onyx, size: 18),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Text(valeur, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.onyx)),
+            const SizedBox(height: 3),
+            // « Réservations » tient sur une ligne, quitte à réduire un peu.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(label, maxLines: 1, style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret)),
+            ),
+          ],
+        ),
+      );
+    }
     return AppCard(
       padding: const EdgeInsets.all(16),
       child: Column(
