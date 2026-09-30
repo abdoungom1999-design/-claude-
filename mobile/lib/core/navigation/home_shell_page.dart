@@ -13,6 +13,7 @@ import '../alertes/alerte_sonore.dart';
 import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
 import '../widgets/email_verification_pending_page.dart';
+import '../widgets/logo_sprint.dart';
 import '../widgets/premium_dialog.dart';
 
 /// Coquille de navigation Client : barre du bas à 4 onglets (Accueil,
@@ -155,26 +156,23 @@ class _HomeShellPageState extends State<HomeShellPage> {
             height: 64,
             child: FloatingActionButton(
               onPressed: () => _ouvrirMenuActions(context),
-              backgroundColor: AppColors.noirProfond,
+              backgroundColor: AppColors.onyx,
               elevation: 4,
               shape: const CircleBorder(),
-              child: const Text(
-                'S',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              // Logo Sprint (marbre noir et « S » de verre) rogné en rond.
+              child: const ClipOval(child: LogoSprint(taille: 64)),
             ),
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        // Onyx & Light : fond très clair, icônes Onyx, onglet actif orange.
         bottomNavigationBar: BottomAppBar(
-          color: AppColors.background,
+          color: AppColors.fondBarre,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: const Color(0x33000000),
           shape: const CircularNotchedRectangle(),
           notchMargin: 10,
-          elevation: 12,
+          elevation: 10,
           padding: EdgeInsets.zero,
           child: SizedBox(
             height: 64,
@@ -244,7 +242,7 @@ class _OngletBarre extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = selectionne ? AppColors.orange : AppColors.grey;
+    final couleur = selectionne ? AppColors.orange : AppColors.onyx;
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),

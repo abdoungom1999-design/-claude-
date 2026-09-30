@@ -157,12 +157,13 @@ class SessionTuiles {
   final DateTime expire;
 }
 
-/// Désature (≈ 30 % de la couleur d'origine) et éclaircit les images
-/// OpenStreetMap.
+/// Passe les images OpenStreetMap en gris très clair (≈ 12 % de la couleur
+/// d'origine, contraste réduit, +24 de luminosité) : même rendu « Silver »
+/// que le style Google, sans le vert ni le jaune d'OpenStreetMap.
 const filtreClair = ColorFilter.matrix(<double>[
-  0.51, 0.40, 0.04, 0, 22, //
-  0.12, 0.79, 0.04, 0, 22, //
-  0.12, 0.40, 0.43, 0, 22, //
+  0.20, 0.62, 0.065, 0, 24, //
+  0.19, 0.63, 0.065, 0, 24, //
+  0.19, 0.62, 0.075, 0, 24, //
   0, 0, 0, 1, 0, //
 ]);
 

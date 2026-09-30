@@ -1,0 +1,11 @@
+Photos de la bannière promo de l'Accueil.
+
+Déposez ici les photos (JPEG, 1200 x 600 px environ, moins de 300 Ko chacune) :
+
+  colis.jpg      "Vos colis livrés en sécurité"
+  course.jpg     "Une moto en quelques minutes"
+  suivi.jpg      "Suivez votre chauffeur en direct"
+
+Tant qu'une photo est absente, la bannière affiche un fond Onyx élégant à la
+place (aucune image cassée). Les textes et les actions se règlent dans
+lib/features/home/presentation/bandeau_promo.dart (liste "banniereParDefaut").

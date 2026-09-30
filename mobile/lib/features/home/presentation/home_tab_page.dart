@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -13,13 +14,23 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/logo_sprint.dart';
 import '../../../core/widgets/moto_vue_dessus.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../compte/presentation/mes_notifications_page.dart';
+import 'bandeau_promo.dart';
 
-/// Onglet Accueil : carte « Sprint clair » en plein écran avec les motos
-/// disponibles alentour (anonymes, positions arrondies à 150 m par le
-/// serveur), et une carte flottante « Où allez-vous ? ».
+/// Onglet Accueil (charte Onyx & Light) : carte « Silver » en plein écran
+/// avec les motos disponibles alentour (anonymes, positions arrondies à
+/// 150 m par le serveur), et un panneau « verre » flottant « Où
+/// allez-vous ? » : recherche, bandeau promo, services Course moto / Colis.
 class HomeTabPage extends StatefulWidget {
-  const HomeTabPage({super.key, this.proximite, this.localiser, this.fond, this.coucheFond});
+  const HomeTabPage({
+    super.key,
+    this.proximite,
+    this.localiser,
+    this.fond,
+    this.coucheFond,
+    this.bannieres = banniereParDefaut,
+  });
 
   /// Injectables pour les tests ; par défaut selon Firebase (démo sinon).
   final ProximiteService? proximite;
@@ -29,6 +40,9 @@ class HomeTabPage extends StatefulWidget {
   /// Fond de carte ; par défaut les images Google « Sprint clair » (ou
   /// OpenStreetMap). Les tests le remplacent (pas de réseau).
   final Widget? coucheFond;
+
+  /// Bannières du carrousel promo (par défaut [banniereParDefaut]).
+  final List<BanniereProm> bannieres;
 
   static const centreDakar = LatLng(14.6928, -17.4467);
 
@@ -141,7 +155,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 250),
+                  padding: const EdgeInsets.only(bottom: 420),
                   child: MentionsFondCarte(fond: widget.fond),
                 ),
               ],
@@ -159,7 +173,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [AppColors.background.withValues(alpha: 0.85), AppColors.background.withValues(alpha: 0)],
+                    colors: [AppColors.fondClairHaut.withValues(alpha: 0.7), AppColors.fondClairHaut.withValues(alpha: 0)],
                   ),
                 ),
               ),
@@ -198,7 +212,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 16,
+            bottom: 24,
             // Grand écran (ordinateur, tablette) : carte à gauche, largeur
             // d'un téléphone, la carte reste visible.
             child: Align(
@@ -222,6 +236,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                         chargement: _motos.chargement,
                         onRechercher: () => context.push(AppRoutes.clientPassager),
                         onColis: () => context.push(AppRoutes.clientColis),
+                        bannieres: widget.bannieres,
                       ),
                     ),
                   ],
@@ -235,35 +250,30 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 }
 
-const _ombreDouce = [
-  BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 8)),
-  BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 1)),
-];
-
 class _Logo extends StatelessWidget {
   const _Logo();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: _ombreDouce,
-      ),
-      child: const Row(
+    return const CarteVerre(
+      rayon: 22,
+      padding: EdgeInsets.fromLTRB(6, 6, 14, 6),
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           LogoSprint(taille: 30),
           SizedBox(width: 8),
-          Text('Sprint', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
+          Text(
+            'Sprint',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx),
+          ),
         ],
       ),
     );
   }
 }
 
+/// Bouton rond « verre » (flou, blanc translucide, bord fin).
 class _BoutonRond extends StatelessWidget {
   const _BoutonRond({required this.icon, required this.tooltip, required this.onTap});
 
@@ -276,13 +286,22 @@ class _BoutonRond extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: DecoratedBox(
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: _ombreDouce),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onTap,
-            customBorder: const CircleBorder(),
-            child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 20, color: AppColors.text)),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0, 8))],
+        ),
+        child: ClipOval(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Material(
+              color: AppColors.verre,
+              shape: const CircleBorder(side: BorderSide(color: AppColors.bordVerre)),
+              child: InkWell(
+                onTap: onTap,
+                customBorder: const CircleBorder(),
+                child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 20, color: AppColors.onyx)),
+              ),
+            ),
           ),
         ),
       ),
@@ -326,12 +345,14 @@ class _CarteDestination extends StatelessWidget {
     required this.chargement,
     required this.onRechercher,
     required this.onColis,
+    required this.bannieres,
   });
 
   final Proximite motos;
   final bool chargement;
   final VoidCallback onRechercher;
   final VoidCallback onColis;
+  final List<BanniereProm> bannieres;
 
   String get _disponibilite {
     final n = motos.motos.length;
@@ -340,15 +361,22 @@ class _CarteDestination extends StatelessWidget {
     return '${n == 1 ? '1 moto disponible' : '$n motos disponibles'} à proximité$approche';
   }
 
+  void _surBanniere(ActionBanniere action) {
+    switch (action) {
+      case ActionBanniere.colis:
+        onColis();
+      case ActionBanniere.course:
+        onRechercher();
+      case ActionBanniere.aucune:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: _ombreDouce,
-      ),
+    return CarteVerre(
+      rayon: 32,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -357,43 +385,66 @@ class _CarteDestination extends StatelessWidget {
             padding: EdgeInsets.only(left: 4),
             child: Text(
               'Où allez-vous ?',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.onyx),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Semantics(
             button: true,
             label: 'Rechercher une destination',
             child: InkWell(
               onTap: onRechercher,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(22),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(color: AppColors.greyLight, borderRadius: BorderRadius.circular(14)),
-                child: const Row(
+                padding: const EdgeInsets.fromLTRB(16, 15, 8, 15),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: AppColors.bordVerre),
+                  boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 4))],
+                ),
+                child: Row(
                   children: [
-                    Icon(Icons.search_rounded, color: AppColors.text, size: 22),
-                    SizedBox(width: 10),
-                    Expanded(
+                    Container(
+                      key: const ValueKey('point-orange'),
+                      width: 11,
+                      height: 11,
+                      decoration: BoxDecoration(
+                        color: AppColors.orange,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: AppColors.orange.withValues(alpha: 0.35), blurRadius: 0, spreadRadius: 4)],
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
                       child: Text(
                         'Rechercher une destination',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 15, color: AppColors.grey, fontWeight: FontWeight.w500),
+                        style: TextStyle(fontSize: 15.5, color: AppColors.texteDiscret, fontWeight: FontWeight.w500),
                       ),
                     ),
-                    Icon(Icons.arrow_forward_rounded, color: AppColors.grey, size: 18),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(color: AppColors.onyx, shape: BoxShape.circle),
+                      child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
+          if (bannieres.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            BandeauPromo(bannieres: bannieres, surAction: _surBanniere),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: _Service(
-                  icone: Icons.two_wheeler_rounded,
+                  icone: Icons.two_wheeler_outlined,
                   titre: 'Course moto',
                   sousTitre: 'Tiak-tiak',
                   onTap: onRechercher,
@@ -413,11 +464,12 @@ class _CarteDestination extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
+              const SizedBox(width: 4),
               Container(
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(
-                  color: motos.motos.isEmpty ? AppColors.grey : AppColors.vert,
+                  color: motos.motos.isEmpty ? AppColors.texteDiscret.withValues(alpha: 0.5) : AppColors.onyx,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -425,7 +477,7 @@ class _CarteDestination extends StatelessWidget {
               Expanded(
                 child: Text(
                   chargement ? 'Recherche des motos à proximité…' : _disponibilite,
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.grey, fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, fontWeight: FontWeight.w500),
                 ),
               ),
             ],
@@ -436,6 +488,8 @@ class _CarteDestination extends StatelessWidget {
   }
 }
 
+/// Service (Course moto, Colis) : pictogramme filaire Onyx dans une pastille
+/// grise très claire, sur fond blanc.
 class _Service extends StatelessWidget {
   const _Service({required this.icone, required this.titre, required this.sousTitre, required this.onTap});
 
@@ -448,30 +502,36 @@ class _Service extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.greyBorder),
+          color: Colors.white.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.bordVerre),
         ),
         child: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(color: AppColors.orangeLight, borderRadius: BorderRadius.circular(10)),
-              child: Icon(icone, color: AppColors.orange, size: 19),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: AppColors.fondClair, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icone, color: AppColors.onyx, size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(titre, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                  Text(
+                    titre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.onyx),
+                  ),
                   Text(
                     sousTitre,
-                    style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],

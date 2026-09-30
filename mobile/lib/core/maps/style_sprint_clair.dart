@@ -1,7 +1,9 @@
 /// Style « Sprint clair » des images Google (Map Tiles API, paramètre
 /// `styles` de `createSession`, même format que les cartes stylées Google
-/// Maps) : fonds très clairs, routes blanches, commerces et transports
-/// masqués, pour que les motos et le trajet ressortent.
+/// Maps), version « Silver » de la charte Onyx & Light : uniquement des gris
+/// et du blanc (plus de vert des parcs, de jaune/orange des grands axes ni de
+/// bleu franc de la mer), commerces et transports masqués, pour que les
+/// motos et le trajet ressortent. Un test garde la palette sans couleur.
 ///
 /// Si Google refusait ce style, [FondCarte] redemande une session sans
 /// style avant de repasser sur OpenStreetMap : la carte ne reste jamais
@@ -10,7 +12,7 @@ const styleSprintClair = <Map<String, Object>>[
   {
     'elementType': 'geometry',
     'stylers': [
-      {'color': '#f6f5f2'},
+      {'color': '#f1f2f4'},
     ],
   },
   {
@@ -22,13 +24,13 @@ const styleSprintClair = <Map<String, Object>>[
   {
     'elementType': 'labels.text.fill',
     'stylers': [
-      {'color': '#7c7c7c'},
+      {'color': '#8a8d93'},
     ],
   },
   {
     'elementType': 'labels.text.stroke',
     'stylers': [
-      {'color': '#f6f5f2'},
+      {'color': '#f1f2f4'},
     ],
   },
   {
@@ -42,7 +44,7 @@ const styleSprintClair = <Map<String, Object>>[
     'elementType': 'geometry',
     'stylers': [
       {'visibility': 'on'},
-      {'color': '#e3eedc'},
+      {'color': '#e9ebee'},
     ],
   },
   {
@@ -62,21 +64,21 @@ const styleSprintClair = <Map<String, Object>>[
     'featureType': 'road',
     'elementType': 'geometry.stroke',
     'stylers': [
-      {'color': '#e7e4de'},
+      {'color': '#e2e4e8'},
     ],
   },
   {
     'featureType': 'road.highway',
     'elementType': 'geometry.fill',
     'stylers': [
-      {'color': '#fde9d7'},
+      {'color': '#ffffff'},
     ],
   },
   {
     'featureType': 'road.highway',
     'elementType': 'geometry.stroke',
     'stylers': [
-      {'color': '#f4d3b5'},
+      {'color': '#d9dce1'},
     ],
   },
   {
@@ -90,21 +92,21 @@ const styleSprintClair = <Map<String, Object>>[
     'featureType': 'water',
     'elementType': 'geometry',
     'stylers': [
-      {'color': '#cfe3ef'},
+      {'color': '#dde2e8'},
     ],
   },
   {
     'featureType': 'water',
     'elementType': 'labels.text.fill',
     'stylers': [
-      {'color': '#8aa9bd'},
+      {'color': '#9aa1ab'},
     ],
   },
   {
     'featureType': 'administrative',
     'elementType': 'geometry.stroke',
     'stylers': [
-      {'color': '#dcd8d0'},
+      {'color': '#d3d6db'},
     ],
   },
 ];

@@ -41,6 +41,9 @@ class AppColors {
   static const Color bordVerre = Color(0x14000000);
   static const Color onyxClair = Color(0xFF232326);
 
+  /// Barre de navigation du bas : blanc très légèrement teinté.
+  static const Color fondBarre = Color(0xFFFAFAFB);
+
   /// Accent doré : réservé aux touches "premium" ponctuelles sur fond
   /// sombre (ex. bannière Forfait Aéroport), jamais un CTA principal.
   static const Color or = Color(0xFFD4AF37);

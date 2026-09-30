@@ -143,6 +143,38 @@ void main() {
     }
   });
 
+  test('style Silver : uniquement des gris (ni vert, ni jaune, ni bleu franc)', () {
+    for (final regle in styleSprintClair) {
+      for (final s in (regle['stylers']! as List).cast<Map<String, Object>>()) {
+        final couleur = s['color'] as String?;
+        if (couleur == null) continue;
+        final canaux = [for (var i = 1; i < 7; i += 2) int.parse(couleur.substring(i, i + 2), radix: 16)];
+        final ecart = canaux.reduce((a, b) => a > b ? a : b) - canaux.reduce((a, b) => a < b ? a : b);
+        expect(ecart, lessThanOrEqualTo(20), reason: '$couleur est trop colorée pour un style Silver');
+      }
+    }
+  });
+
+  test('images OpenStreetMap : le filtre les passe en gris (vert et jaune disparaissent)', () {
+    // Un vert de parc OSM (#cdebb0) et un jaune de route (#f7fabf) : après le
+    // filtre, les trois canaux doivent être proches.
+    double sortie(List<double> ligne, List<int> rgb) =>
+        ligne[0] * rgb[0] + ligne[1] * rgb[1] + ligne[2] * rgb[2] + ligne[4];
+    const m = <List<double>>[
+      [0.20, 0.62, 0.065, 0, 24],
+      [0.19, 0.63, 0.065, 0, 24],
+      [0.19, 0.62, 0.075, 0, 24],
+    ];
+    for (final rgb in [
+      [0xcd, 0xeb, 0xb0],
+      [0xf7, 0xfa, 0xbf],
+    ]) {
+      final valeurs = [for (final l in m) sortie(l, rgb)];
+      final ecart = valeurs.reduce((a, b) => a > b ? a : b) - valeurs.reduce((a, b) => a < b ? a : b);
+      expect(ecart, lessThan(12));
+    }
+  });
+
   test('images Google en erreur à répétition : secours OpenStreetMap', () {
     final fond = FondCarte(cle: 'CLE-WEB', dio: _dioFactice([], reponse: {}));
     for (var i = 0; i < FondCarte.erreursToleres - 1; i++) {

@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sprint/core/location/localiser.dart';
 import 'package:sprint/core/maps/fond_carte.dart';
+import 'package:sprint/core/theme/app_colors.dart';
 import 'package:sprint/core/widgets/moto_vue_dessus.dart';
+import 'package:sprint/core/widgets/onyx_light.dart';
 import 'package:sprint/core/maps/proximite_service.dart';
 import 'package:sprint/features/home/presentation/home_tab_page.dart';
 
@@ -71,9 +73,66 @@ void main() {
     expect(find.text('5 motos disponibles à proximité · environ 3 min'), findsOneWidget);
     // Recherche autour du centre de Dakar tant que le client n'est pas localisé.
     expect(service.appels.single, HomeTabPage.centreDakar);
-    // Plus de photos ni de carrousel.
+    // Pas de refonte « super app » : seulement les deux services Sprint.
+    expect(find.text('Course moto'), findsOneWidget);
+    expect(find.text('Colis'), findsOneWidget);
     expect(find.text('Découvrez nos univers'), findsNothing);
     expect(find.text('Pourquoi Sprint'), findsNothing);
+    // Onyx & Light : point orange dans la barre de recherche.
+    final point = tester.widget<Container>(find.byKey(const ValueKey('point-orange')));
+    expect((point.decoration! as BoxDecoration).color, AppColors.orange);
+  });
+
+  testWidgets('bandeau promo : trois bannières, message, pastilles, défilement automatique', (tester) async {
+    await afficher(tester, _ProximiteFactice(() => _motos(1)));
+    expect(find.byKey(const ValueKey('carrousel-promo')), findsOneWidget);
+    expect(find.text('Vos colis livrés en sécurité'), findsOneWidget);
+    // Photo absente des tests (ou illisible) : le fond Onyx prend le relais, sans erreur.
+    expect(tester.takeException(), isNull);
+    expect(find.descendant(of: find.byKey(const ValueKey('pastilles-promo')), matching: find.byType(AnimatedContainer)),
+        findsNWidgets(3));
+
+    // Défilement automatique vers la bannière suivante.
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Une moto en quelques minutes'), findsOneWidget);
+    expect(find.text('Vos colis livrés en sécurité'), findsNothing);
+  });
+
+  testWidgets('bandeau promo : balayage à la main, et appui sur une bannière = son action', (tester) async {
+    await afficher(tester, _ProximiteFactice(() => _motos(1)));
+    await tester.tap(find.text('Vos colis livrés en sécurité'));
+    await tester.pumpAndSettle();
+    expect(find.text('PAGE COLIS'), findsOneWidget);
+  });
+
+  testWidgets('bandeau promo : balayer change de bannière puis appui = course moto', (tester) async {
+    await afficher(tester, _ProximiteFactice(() => _motos(1)));
+    await tester.fling(find.byKey(const ValueKey('carrousel-promo')), const Offset(-300, 0), 1200);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Une moto en quelques minutes'), findsOneWidget);
+    await tester.tap(find.text('Une moto en quelques minutes'));
+    await tester.pumpAndSettle();
+    expect(find.text('PAGE PASSAGER'), findsOneWidget);
+  });
+
+  testWidgets('bandeau promo : aucune bannière, aucun carrousel', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: HomeTabPage(
+        proximite: _ProximiteFactice(() => _motos(1)),
+        fond: fond,
+        coucheFond: const SizedBox.shrink(),
+        bannieres: const [],
+        localiser: ({required bool demander}) async => null,
+      ),
+    ));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('carrousel-promo')), findsNothing);
+    expect(find.text('Où allez-vous ?'), findsOneWidget);
   });
 
   testWidgets('aucune moto, une seule moto, puis mise à jour périodique', (tester) async {
@@ -145,7 +204,7 @@ void main() {
 
   testWidgets('grand écran : carte flottante limitée à la largeur d\'un téléphone', (tester) async {
     await afficher(tester, _ProximiteFactice(() => _motos(1)), taille: const Size(1280, 800));
-    final carte = tester.getRect(find.ancestor(of: find.text('Où allez-vous ?'), matching: find.byType(Container)).first);
+    final carte = tester.getRect(find.ancestor(of: find.text('Où allez-vous ?'), matching: find.byType(CarteVerre)).first);
     expect(carte.width, lessThanOrEqualTo(460));
     expect(carte.left, 16);
   });
