@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -23,23 +24,24 @@ void main() {
   });
 
   group('écran Flutter', () {
-    testWidgets('fond Onyx et logo « S » au centre, rien d\'autre', (tester) async {
+    testWidgets('fond Onyx et logo au centre, rien d\'autre', (tester) async {
       await tester.pumpWidget(const Directionality(textDirection: TextDirection.ltr, child: SplashSprint()));
       final fond = tester.widget<ColoredBox>(find.byType(ColoredBox));
       expect(fond.color, AppColors.onyx);
       expect(find.byType(LogoSprint), findsOneWidget);
       expect(find.bySemanticsLabel('Sprint'), findsOneWidget);
-      final centre = tester.getCenter(find.byType(LogoSprint));
-      expect(centre, tester.getCenter(find.byType(SplashSprint)));
-      expect(tester.getSize(find.byType(LogoSprint)), const Size.square(96));
+      expect(tester.getCenter(find.byType(LogoSprint)), tester.getCenter(find.byType(SplashSprint)));
+      expect(tester.getSize(find.byType(LogoSprint)), const Size.square(128));
     });
 
-    testWidgets('le logo se redessine à la taille demandée', (tester) async {
+    testWidgets('le logo est l\'image de la tuile, à la taille demandée', (tester) async {
       await tester.pumpWidget(const Directionality(
         textDirection: TextDirection.ltr,
-        child: Center(child: LogoSprint(taille: 200)),
+        child: Center(child: LogoSprint(taille: 200, ombre: true)),
       ));
       expect(tester.getSize(find.byType(LogoSprint)), const Size.square(200));
+      final image = tester.widget<Image>(find.byType(Image));
+      expect((image.image as AssetImage).assetName, 'assets/logo/tuile.png');
     });
 
     testWidgets('l\'app place l\'écran de démarrage sous les pages : jamais d\'écran blanc, jamais visible par-dessus',
@@ -66,14 +68,32 @@ void main() {
       expect(index, contains('<meta name="theme-color" content="#$onyxHex">'));
     });
 
-    test('même logo que l\'app : mêmes coordonnées', () {
-      const trace = 'M69 27C66 10 30 10 30 32C30 52 70 47 70 68C70 90 34 90 30 74';
-      expect(index, contains(trace));
-      expect(lire('web/splash/logo-s.svg'), contains(trace));
-      expect(lire('lib/core/widgets/logo_sprint.dart'), contains('moveTo(69, 27)'));
-      const traceAndroid = 'M69,27C66,10 30,10 30,32C30,52 70,47 70,68C70,90 34,90 30,74';
-      expect(lire('android/app/src/main/res/drawable/ic_splash_s.xml'), contains(traceAndroid));
-      expect(lire('android/app/src/main/res/drawable/ic_splash_s_v31.xml'), contains(traceAndroid));
+    test('le logo de la page est intégré (aucun fichier à attendre) et c\'est bien la tuile', () {
+      final correspondance = RegExp(r'<img id="demarrage-logo"[^>]*? src="data:image/webp;base64,([A-Za-z0-9+/=]+)"').firstMatch(index);
+      expect(correspondance, isNotNull, reason: 'logo intégré manquant : node tool/generer_icones.cjs');
+      final octets = base64Decode(correspondance!.group(1)!);
+      expect(String.fromCharCodes(octets.sublist(0, 4)), 'RIFF');
+      expect(String.fromCharCodes(octets.sublist(8, 12)), 'WEBP');
+      expect(octets.length, lessThan(60 * 1024), reason: 'le logo intégré ralentirait la page');
+    });
+
+    test('icônes : images aux dimensions exactes, à partir du logo', () {
+      final attendues = {
+        'web/icons/Icon-192.png': 192,
+        'web/icons/Icon-512.png': 512,
+        'web/icons/Icon-maskable-192.png': 192,
+        'web/icons/Icon-maskable-512.png': 512,
+        'web/icons/apple-touch-icon.png': 180,
+        'web/favicon.png': 64,
+        'assets/logo/tuile.png': 512,
+      };
+      attendues.forEach((chemin, cote) {
+        final octets = ByteData.sublistView(Uint8List.fromList(File(chemin).readAsBytesSync().sublist(0, 24)));
+        expect(octets.getUint32(16), cote, reason: '$chemin : largeur');
+        expect(octets.getUint32(20), cote, reason: '$chemin : hauteur');
+      });
+      expect(File('assets/logo/source-1024.jpg').existsSync(), isTrue);
+      expect(File('tool/generer_icones.cjs').existsSync(), isTrue);
     });
 
     test('manifeste : fond Onyx (écran de démarrage de la PWA Android)', () {
@@ -110,20 +130,44 @@ void main() {
       for (final chemin in ['$res/drawable/launch_background.xml', '$res/drawable-v21/launch_background.xml']) {
         final xml = lire(chemin);
         expect(xml, contains('@color/onyx'), reason: chemin);
-        expect(xml, contains('@drawable/ic_splash_s'), reason: chemin);
+        expect(xml, contains('@drawable/splash_logo'), reason: chemin);
         expect(xml, contains('android:gravity="center"'), reason: chemin);
       }
-      expect(File('$res/drawable/ic_splash_s.xml').existsSync(), isTrue);
+      expect(File('$res/drawable-nodpi/splash_logo.png').existsSync(), isTrue);
     });
 
     test('Android 12 et plus, en clair comme en sombre : fond Onyx et logo', () {
       for (final chemin in ['$res/values-v31/styles.xml', '$res/values-night-v31/styles.xml']) {
         final xml = lire(chemin);
         expect(xml, contains('android:windowSplashScreenBackground">@color/onyx'), reason: chemin);
-        expect(xml, contains('android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_s_v31'), reason: chemin);
+        expect(xml, contains('android:windowSplashScreenAnimatedIcon">@drawable/splash_logo_v31'), reason: chemin);
         expect(xml, contains('name="LaunchTheme"'), reason: chemin);
       }
-      expect(File('$res/drawable/ic_splash_s_v31.xml').existsSync(), isTrue);
+      expect(File('$res/drawable/splash_logo_v31.xml').existsSync(), isTrue);
+    });
+
+    test('icône de l\'app : adaptative (logo) et anciennes tailles, plus d\'éclair', () {
+      final adaptative = lire('$res/mipmap-anydpi-v26/ic_launcher.xml');
+      expect(adaptative, contains('@mipmap/ic_launcher_foreground'));
+      expect(adaptative, contains('@color/onyx'));
+      expect(File('$res/drawable/ic_launcher_foreground.xml').existsSync(), isFalse, reason: 'ancien éclair');
+      const tailles = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192};
+      const premierPlan = {'mdpi': 108, 'hdpi': 162, 'xhdpi': 216, 'xxhdpi': 324, 'xxxhdpi': 432};
+      int largeur(String chemin) =>
+          ByteData.sublistView(Uint8List.fromList(File(chemin).readAsBytesSync().sublist(0, 24))).getUint32(16);
+      tailles.forEach((d, px) => expect(largeur('$res/mipmap-$d/ic_launcher.png'), px, reason: d));
+      premierPlan.forEach((d, px) => expect(largeur('$res/mipmap-$d/ic_launcher_foreground.png'), px, reason: d));
+    });
+
+    test('icône des notifications : silhouette du « S », en blanc', () {
+      final xml = lire('$res/drawable/ic_stat_sprint.xml');
+      expect(xml, contains('android:fillColor="#FFFFFFFF"'));
+      expect(xml, contains('android:pathData="M '));
+      expect(xml, isNot(contains('M4,6 L10,12')), reason: 'ancienne icône');
+    });
+
+    test('la couleur des notifications reste l\'orange (elle ne suit pas le fond de l\'icône)', () {
+      expect(lire('$res/values/colors.xml'), contains('<color name="ic_launcher_background">#FF6600</color>'));
     });
   });
 }

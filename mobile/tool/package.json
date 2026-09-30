@@ -1,0 +1,9 @@
+{
+  "name": "sprint-outils-logo",
+  "private": true,
+  "description": "Génère les icônes et écrans de démarrage à partir du logo (voir generer_icones.cjs).",
+  "dependencies": {
+    "potrace": "^2.1.8",
+    "sharp": "^0.35.5"
+  }
+}

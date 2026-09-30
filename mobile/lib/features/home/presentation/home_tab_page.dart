@@ -11,6 +11,7 @@ import '../../../core/maps/motos_proches_controller.dart';
 import '../../../core/maps/proximite_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/logo_sprint.dart';
 import '../../../core/widgets/moto_vue_dessus.dart';
 import '../../compte/presentation/mes_notifications_page.dart';
 
@@ -251,17 +252,12 @@ class _Logo extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: _ombreDouce,
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
-            child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 18),
-          ),
-          const SizedBox(width: 8),
-          const Text('Sprint', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
+          LogoSprint(taille: 30),
+          SizedBox(width: 8),
+          Text('Sprint', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
         ],
       ),
     );

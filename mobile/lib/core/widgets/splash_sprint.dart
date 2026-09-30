@@ -16,7 +16,7 @@ class SplashSprint extends StatelessWidget {
   Widget build(BuildContext context) {
     return const ColoredBox(
       color: AppColors.onyx,
-      child: Center(child: LogoSprint()),
+      child: Center(child: LogoSprint(taille: 128)),
     );
   }
 }

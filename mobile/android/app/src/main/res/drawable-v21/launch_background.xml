@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Écran de démarrage Android (avant Android 12) : fond Onyx, logo « S »
-     au centre. Retiré automatiquement dès que Flutter dessine sa première
+<!-- Écran de démarrage Android (avant Android 12) : fond Onyx, logo au
+     centre. Retiré automatiquement dès que Flutter dessine sa première
      image. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/onyx" />
     <item
-        android:width="96dp"
-        android:height="96dp"
+        android:width="128dp"
+        android:height="128dp"
         android:gravity="center"
-        android:drawable="@drawable/ic_splash_s" />
+        android:drawable="@drawable/splash_logo" />
 </layer-list>

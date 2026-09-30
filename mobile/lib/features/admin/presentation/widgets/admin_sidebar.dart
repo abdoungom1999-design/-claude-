@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/logo_sprint.dart';
 
 class AdminSection {
   const AdminSection({required this.icon, required this.label});
@@ -78,19 +79,11 @@ class _LogoSantine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: AppColors.orange,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
-        ),
-        const SizedBox(width: 12),
-        const Column(
+        LogoSprint(taille: 38),
+        SizedBox(width: 12),
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(

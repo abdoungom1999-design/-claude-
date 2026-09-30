@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/logo_sprint.dart';
 import '../../../core/widgets/section_list_tile.dart';
 import 'conditions_utilisation_page.dart';
 import 'politique_confidentialite_page.dart';
@@ -16,21 +17,7 @@ class AProposPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Center(
-              child: Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.orange, AppColors.orangeDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 40),
-              ),
-            ),
+            const Center(child: LogoSprint(taille: 92, ombre: true)),
             const SizedBox(height: 18),
             const Text(
               'Sprint',

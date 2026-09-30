@@ -18,3 +18,6 @@ windows/
 # Journaux des émulateurs Firebase
 *-debug.log
 
+
+# Outils de génération des icônes (npm install)
+tool/node_modules/

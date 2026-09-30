@@ -1,62 +1,37 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 
-/// Logo Sprint : un « S » géométrique blanc, terminé par un point orange
-/// (la destination). Dessiné en code, à la même géométrie que
-/// `web/splash/logo-s.svg` et `android/.../drawable/ic_splash_s.xml`, pour
-/// que l'écran de démarrage web, Android et l'app se superposent sans
-/// décalage. À changer aux trois endroits à la fois.
+/// Logo Sprint : la tuile de marbre noir et son « S » de verre (image
+/// `assets/logo/tuile.png`, aux coins arrondis, fond transparent), reprise
+/// telle quelle dans l'écran de démarrage, l'icône de l'app et les écrans.
+/// L'image est produite à partir du logo source par
+/// `tool/generer_icones.cjs`.
 class LogoSprint extends StatelessWidget {
-  const LogoSprint({super.key, this.taille = 96, this.couleurS = Colors.white, this.couleurPoint = AppColors.orange});
+  const LogoSprint({super.key, this.taille = 128, this.ombre = false});
 
+  /// Côté de la tuile, en pixels logiques.
   final double taille;
-  final Color couleurS;
-  final Color couleurPoint;
+
+  /// Ombre portée douce (sur les écrans clairs).
+  final bool ombre;
+
+  static const chemin = 'assets/logo/tuile.png';
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Sprint',
-      image: true,
-      child: CustomPaint(
-        size: Size.square(taille),
-        painter: _LogoPainter(couleurS: couleurS, couleurPoint: couleurPoint),
+    final logo = Image.asset(
+      chemin,
+      width: taille,
+      height: taille,
+      filterQuality: FilterQuality.high,
+      semanticLabel: 'Sprint',
+    );
+    if (!ombre) return logo;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(taille * 0.21),
+        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 28, offset: Offset(0, 14))],
       ),
+      child: logo,
     );
   }
-}
-
-class _LogoPainter extends CustomPainter {
-  const _LogoPainter({required this.couleurS, required this.couleurPoint});
-
-  final Color couleurS;
-  final Color couleurPoint;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final echelle = size.width / 100;
-    canvas.save();
-    canvas.scale(echelle);
-
-    final s = Path()
-      ..moveTo(69, 27)
-      ..cubicTo(66, 10, 30, 10, 30, 32)
-      ..cubicTo(30, 52, 70, 47, 70, 68)
-      ..cubicTo(70, 90, 34, 90, 30, 74);
-    canvas.drawPath(
-      s,
-      Paint()
-        ..color = couleurS
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..isAntiAlias = true,
-    );
-    canvas.drawCircle(const Offset(30, 74), 6.4, Paint()..color = couleurPoint..isAntiAlias = true);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_LogoPainter ancien) => ancien.couleurS != couleurS || ancien.couleurPoint != couleurPoint;
 }
