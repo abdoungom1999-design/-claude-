@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo « S » Sprint (même géométrie que lib/core/widgets/logo_sprint.dart
+     et web/splash/logo-s.svg) : écran de démarrage Android. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:pathData="M69,27C66,10 30,10 30,32C30,52 70,47 70,68C70,90 34,90 30,74"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#FF6600"
+        android:pathData="M30,67.6A6.4,6.4 0 1,0 30,80.4A6.4,6.4 0 1,0 30,67.6Z" />
+</vector>

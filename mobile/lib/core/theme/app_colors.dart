@@ -26,6 +26,11 @@ class AppColors {
   static const Color noirProfond = Color(0xFF0E0E0E);
   static const Color noirProfondClair = Color(0xFF1C1C1C);
 
+  /// Onyx : fond de l'écran de démarrage et base de la charte « Onyx &
+  /// Light ». Même valeur que dans `web/index.html`, `web/manifest.json`
+  /// et les thèmes Android (écran de démarrage) : à changer partout à la fois.
+  static const Color onyx = Color(0xFF0B0B0C);
+
   /// Accent doré : réservé aux touches "premium" ponctuelles sur fond
   /// sombre (ex. bannière Forfait Aéroport), jamais un CTA principal.
   static const Color or = Color(0xFFD4AF37);

@@ -17,9 +17,13 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <!-- Même réglage que celui que Flutter applique lui-même au démarrage (il
+       remplace cette balise) : nécessaire
+       dès maintenant pour que l'écran de démarrage ait la bonne taille sur mobile. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Sprint — VTC moto-taxi et livraison de colis à Dakar.">
-  <meta name="theme-color" content="#FF6600">
+  <meta name="theme-color" content="#0B0B0C">
 
   <!-- Installation sur l'écran d'accueil : plein écran (sans barre Safari),
        nom et icône Sprint. iOS n'utilise pas les icônes du manifeste :
@@ -30,6 +34,36 @@
   <meta name="apple-mobile-web-app-title" content="Sprint">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
+  <!-- Écran de démarrage iPhone (fond Onyx + logo « S ») : iOS l'affiche à
+       l'ouverture du site installé, avant tout code. Une image par taille
+       d'écran (iOS ne prend que celle dont la taille correspond exactement) ;
+       à défaut, écran blanc. Mise en cache à l'installation : pour la voir
+       après une mise à jour, supprimer l'icône puis réinstaller le site. -->
+  <link rel="apple-touch-startup-image" href="splash/ios-430x932@3x.png"
+        media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-393x852@3x.png"
+        media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-428x926@3x.png"
+        media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-390x844@3x.png"
+        media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-375x812@3x.png"
+        media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-414x896@3x.png"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-414x896@2x.png"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-414x736@3x.png"
+        media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-375x667@2x.png"
+        media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-320x568@2x.png"
+        media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-402x874@3x.png"
+        media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="splash/ios-440x956@3x.png"
+        media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
@@ -37,6 +71,25 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
+    /* Écran de démarrage Onyx : affiché tout de suite (CSS en ligne, aucun
+       fichier à attendre), retiré quand Sprint a dessiné sa première image
+       (voir le script plus bas). Même fond et même logo que l'écran de
+       démarrage de l'app (lib/core/widgets/splash_sprint.dart). */
+    html, body { margin: 0; height: 100%; background: #0B0B0C; }
+    #demarrage {
+      position: fixed; inset: 0; z-index: 20000;
+      display: flex; align-items: center; justify-content: center;
+      background: #0B0B0C;
+      transition: opacity .4s ease;
+    }
+    #demarrage.parti { opacity: 0; pointer-events: none; }
+    #demarrage svg { width: 96px; height: 96px; opacity: 0; animation: demarrage-apparition .6s ease .05s forwards; }
+    @keyframes demarrage-apparition { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+    @media (prefers-reduced-motion: reduce) {
+      #demarrage svg { animation: none; opacity: 1; }
+      #demarrage { transition: none; }
+    }
+
     /* Aide à l'installation sur iPhone (voir le script plus bas). */
     #aide-installation {
       position: fixed; left: 12px; right: 12px; z-index: 10000;
@@ -56,6 +109,36 @@
   </style>
 </head>
 <body>
+  <!-- Écran de démarrage (voir le style plus haut). -->
+  <div id="demarrage" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <path d="M69 27C66 10 30 10 30 32C30 52 70 47 70 68C70 90 34 90 30 74" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="30" cy="74" r="6.4" fill="#FF6600"/>
+    </svg>
+  </div>
+  <script>
+    // Retire l'écran de démarrage une fois la première image de Sprint
+    // dessinée, mais pas avant 0,7 s (le logo doit avoir le temps d'être vu
+    // et le passage reste fluide), et au plus tard après 20 s (l'app n'a
+    // alors pas pu démarrer : on ne cache pas la page indéfiniment).
+    (function () {
+      var debut = Date.now(), minimum = 700, retire = false;
+      function retirer() {
+        if (retire) return;
+        retire = true;
+        var ecran = document.getElementById('demarrage');
+        if (!ecran) return;
+        ecran.classList.add('parti');
+        setTimeout(function () { if (ecran.parentNode) ecran.parentNode.removeChild(ecran); }, 500);
+      }
+      window.addEventListener('flutter-first-frame', function () {
+        var reste = minimum - (Date.now() - debut);
+        if (reste > 0) setTimeout(retirer, reste); else retirer();
+      });
+      setTimeout(retirer, 20000);
+    })();
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

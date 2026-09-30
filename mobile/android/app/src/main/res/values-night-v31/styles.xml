@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Idem values-v31, pour les téléphones en mode sombre. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/onyx</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_s_v31</item>
+    </style>
+</resources>

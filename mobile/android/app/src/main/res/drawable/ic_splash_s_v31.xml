@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ : le système dessine l'icône dans un cercle de 288 dp dont
+     seuls les deux tiers centraux sont visibles ; le « S » est donc réduit
+     dans la zone sûre. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="288"
+    android:viewportHeight="288">
+    <group
+        android:scaleX="1.15"
+        android:scaleY="1.15"
+        android:translateX="86.4"
+        android:translateY="86.4">
+        <path
+            android:pathData="M69,27C66,10 30,10 30,32C30,52 70,47 70,68C70,90 34,90 30,74"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#FF6600"
+            android:pathData="M30,67.6A6.4,6.4 0 1,0 30,80.4A6.4,6.4 0 1,0 30,67.6Z" />
+    </group>
+</vector>

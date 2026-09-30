@@ -480,3 +480,30 @@ npm test                  # moteur de prix (dont parité avec l'app), validation
 npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille (émulateur Firestore)
 ```
 
+
+## 8. Écran de démarrage « Onyx »
+
+Fond noir profond (`#0B0B0C`, « Onyx »), logo « S » blanc terminé par un
+point orange, rien d'autre. Un seul dessin, repris à cinq endroits (à
+changer ensemble) : `web/index.html`, `web/splash/logo-s.svg`,
+`lib/core/widgets/logo_sprint.dart`, `android/.../drawable/ic_splash_s*.xml`
+et les images `web/splash/ios-*.png`. Le test `test/splash_test.dart`
+vérifie qu'ils restent d'accord.
+
+- **Site (navigateur, PWA)** : l'écran est dans `index.html` lui-même
+  (CSS et logo en ligne, aucun fichier à attendre) et s'affiche avant tout
+  chargement. Il est retiré en fondu quand Flutter a dessiné sa première
+  image, jamais avant 0,7 s (le logo doit être vu), au plus tard après 20 s.
+- **App (Flutter)** : `SplashSprint` est posé sous toutes les pages
+  (`MaterialApp.router(builder:)`) : tant que le routeur n'a rien à
+  montrer, c'est lui qui est visible, jamais un écran blanc.
+- **iPhone installé sur l'écran d'accueil** : iOS n'affiche l'écran de
+  démarrage que grâce à des images (`apple-touch-startup-image`), une par
+  taille d'écran ; 12 tailles d'iPhone sont fournies (iPad : non). iOS les
+  garde en cache à l'installation : après une mise à jour, supprimer
+  l'icône puis réinstaller le site pour les voir.
+- **Android (APK)** : `launch_background.xml` (fond Onyx, logo) avant
+  Android 12 ; thèmes `values-v31` et `values-night-v31` (écran de
+  démarrage système) à partir d'Android 12.
+- **PWA Android** : `background_color` du manifeste en Onyx. L'icône de
+  l'écran d'accueil (éclair blanc sur orange) n'est pas changée.
