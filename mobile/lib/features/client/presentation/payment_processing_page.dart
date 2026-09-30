@@ -176,6 +176,20 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
       canPop: false,
       child: Scaffold(
         backgroundColor: AppColors.background,
+        // Flèche « Retour » comme sur toutes les sous-pages : elle fait la
+        // même chose que « Annuler » (elle ne referme pas le sas par
+        // accident, seulement à l'appui), et disparaît une fois le paiement
+        // confirmé, quand on passe au suivi de la course.
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: _etape == _EtapePaiement.confirme
+              ? null
+              : IconButton(
+                  tooltip: 'Retour',
+                  icon: const Icon(Icons.arrow_back_rounded, size: 26),
+                  onPressed: () => _abandonner("Paiement annulé. Aucune course n'a été créée."),
+                ),
+        ),
         body: SafeArea(
           child: Center(
             child: AnimatedSwitcher(

@@ -21,6 +21,12 @@ class AppTheme {
         foregroundColor: AppColors.text,
         elevation: 0,
       ),
+      // Le même bouton « Retour » (flèche vers la gauche, bien visible) sur
+      // toutes les sous-pages, sur Android comme sur iPhone (où Flutter met
+      // sinon un petit chevron).
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (context) => const Icon(Icons.arrow_back_rounded, size: 26),
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.orange,

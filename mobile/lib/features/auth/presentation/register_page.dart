@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -64,7 +65,8 @@ class _RegisterPageState extends State<RegisterPage> {
         context,
         'Un email de confirmation vous a été envoyé pour valider votre compte.',
       );
-      context.pop(true);
+      // Compte créé et connecté : l'accueil devient la racine (`go` vide la pile).
+      context.go(AppRoutes.home);
     } on ApiException catch (e) {
       setState(() => _erreur = e.message);
     } finally {

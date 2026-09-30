@@ -48,7 +48,9 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
         motDePasse: _motDePasseController.text,
       );
       if (!mounted) return;
-      context.pop(true);
+      // L'accueil devient la racine : `go` vide la pile, l'écran de
+      // connexion (et l'accueil d'avant connexion) disparaissent.
+      context.go(AppRoutes.home);
     } on ApiException catch (e) {
       setState(() => _erreur = e.message);
     } finally {
@@ -63,12 +65,8 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
     );
   }
 
-  Future<void> _allerVersInscription() async {
-    final inscrit = await context.push<bool>(AppRoutes.clientRegister);
-    if (inscrit == true && mounted) {
-      context.pop(true);
-    }
-  }
+  /// L'inscription mène elle-même à l'accueil une fois le compte créé.
+  void _allerVersInscription() => context.push(AppRoutes.clientRegister);
 
   @override
   Widget build(BuildContext context) {

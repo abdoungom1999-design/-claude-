@@ -14,6 +14,7 @@ import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
 import '../widgets/email_verification_pending_page.dart';
 import '../widgets/premium_dialog.dart';
+import '../widgets/racine_de_session.dart';
 
 /// Coquille de navigation Client : barre du bas à 4 onglets (Accueil,
 /// Activité, Messages, Compte) surmontée d'un bouton d'action flottant
@@ -135,6 +136,19 @@ class _HomeShellPageState extends State<HomeShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Racine de l'espace Client : le geste « retour » ne mène jamais à la
+    // connexion ; depuis un autre onglet, il revient d'abord à l'accueil.
+    return RacineDeSession(
+      surRetour: () {
+        if (navigationShell.currentIndex == 0) return false;
+        navigationShell.goBranch(0);
+        return true;
+      },
+      child: _contenu(context),
+    );
+  }
+
+  Widget _contenu(BuildContext context) {
     if (_emailNonVerifie()) {
       return const EmailVerificationPendingPage(
         destinationApresVerification: AppRoutes.home,
