@@ -1,6 +1,7 @@
 Photos de la bannière promo de l'Accueil.
 
-Déposez ici les photos (JPEG, 1200 x 600 px environ, moins de 300 Ko chacune) :
+Photos en place (JPEG, format paysage environ 2,3:1 à 2,5:1, moins de 300 Ko chacune ;
+l'Accueil en affiche la partie centrale) :
 
   colis.jpg      "Vos colis livrés en sécurité"
   course.jpg     "Une moto en quelques minutes"
