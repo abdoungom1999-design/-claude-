@@ -104,11 +104,6 @@ class _ColisPageState extends State<ColisPage> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erreurPaiement)));
           // Le prix a pu changer (heure de pointe, nuit) : on le recalcule.
           _estimation.reessayer();
-        } else if (erreurPaiement == null && mounted) {
-          // Paiement confirmé : le sas a laissé place au suivi de la course, et
-          // le client vient de le refermer. Revenir sur le formulaire déjà
-          // commandé n'aurait pas de sens : on retourne à l'accueil.
-          Navigator.of(context).maybePop();
         }
         return;
       }

@@ -14,7 +14,6 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/notifications/notifications_push.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/racine_de_session.dart';
 import '../../../core/widgets/email_verification_pending_page.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
@@ -541,19 +540,6 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Racine de l'espace Chauffeur : le geste « retour » ne mène jamais à la
-    // connexion ; depuis un autre onglet, il revient d'abord à la carte.
-    return RacineDeSession(
-      surRetour: () {
-        if (_indexSelectionne == 0) return false;
-        setState(() => _indexSelectionne = 0);
-        return true;
-      },
-      child: _contenu(context),
-    );
-  }
-
-  Widget _contenu(BuildContext context) {
     if (_statutBloque != null) {
       return ConducteurCompteBloquePage(statutCompte: _statutBloque!);
     }

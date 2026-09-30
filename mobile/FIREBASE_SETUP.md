@@ -215,26 +215,6 @@ depuis la Console.
   d'une minute par minute.
 - Toute autre collection : refusée.
 
-### Navigation et geste « retour » (site, iPhone, Android)
-
-- **Garde de session** (`lib/core/router/garde_session.dart`) : connecté,
-  aucun écran de connexion n'est accessible (on revient à l'accueil de son
-  espace : Client, Chauffeur ou Admin) ; déconnecté, aucun espace ne l'est.
-  Elle vaut pour tout chemin (geste retour, lien de notification, page
-  rechargée, ancien historique). Le rôle n'est lu qu'à la demande.
-- **Geste « retour »** : sur le site, l'historique du navigateur n'est plus
-  écrit page par page (`RouteSansHistorique`, mode « entrée unique »).
-  Chaque geste ferme la page en cours ; sur la page racine d'un espace
-  (`RacineDeSession`), il ne fait rien, ou revient d'abord à l'onglet
-  principal. Sur l'APK Android, le comportement du système est conservé.
-- **Flèche « Retour »** : même flèche en haut à gauche sur toutes les
-  sous-pages (thème `actionIconTheme`), y compris le sas de paiement.
-- Limites : l'adresse du navigateur n'est plus mise à jour à chaque page
-  (les liens de notification et le rechargement fonctionnent, à
-  l'ouverture) ; dans un onglet Safari (site non installé), un geste
-  « retour » depuis l'écran d'accueil quitte le site, comme pour tout
-  site web.
-
 ### Limites connues (à traiter avant le lancement)
 
 - Suivi GPS : sur le site (et l'iPhone, qui n'a que le site), le

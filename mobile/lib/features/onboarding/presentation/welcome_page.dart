@@ -22,9 +22,12 @@ const _urlPhotoHero =
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
 
-  /// La page de connexion mène elle-même à l'accueil (`go`, qui vide la
-  /// pile) : rien à faire au retour.
-  void _seConnecter(BuildContext context) => context.push(AppRoutes.clientLogin);
+  Future<void> _seConnecter(BuildContext context) async {
+    final connecte = await context.push<bool>(AppRoutes.clientLogin);
+    if (connecte == true && context.mounted) {
+      context.go(AppRoutes.home);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

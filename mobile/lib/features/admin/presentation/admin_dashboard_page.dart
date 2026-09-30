@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/racine_de_session.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/admin_kyc_service.dart';
@@ -64,19 +63,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Racine de l'espace Admin : le geste « retour » ne mène jamais à la
-    // connexion ; depuis une autre section, il revient d'abord à la première.
-    return RacineDeSession(
-      surRetour: () {
-        if (_indexSelectionne == 0) return false;
-        setState(() => _indexSelectionne = 0);
-        return true;
-      },
-      child: _tableauDeBord(),
-    );
-  }
-
-  Widget _tableauDeBord() {
     return Scaffold(
       backgroundColor: AppColors.greyLight,
       body: Row(

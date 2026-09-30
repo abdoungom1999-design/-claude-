@@ -17,13 +17,9 @@ import '../../features/onboarding/presentation/espace_pro_page.dart';
 import '../../features/onboarding/presentation/welcome_page.dart';
 import '../navigation/home_shell_page.dart';
 import 'app_routes.dart';
-import 'garde_session.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.welcome,
-  // Garde de session : connecté, on ne revoit jamais la connexion ; déconnecté,
-  // on n'entre pas dans un espace (voir GardeSession).
-  redirect: GardeSession.instance.rediriger,
   routes: [
     GoRoute(
       path: AppRoutes.welcome,
