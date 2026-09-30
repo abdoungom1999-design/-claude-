@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import 'onyx_light.dart';
 
 /// Champ de saisie premium Sprint : carte blanche flottante avec ombre
 /// douce, icône dans un badge arrondi, bordure orange animée au focus.
@@ -34,8 +33,6 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Écran migré vers Onyx & Light : voir _construireOnyxLight.
-    if (ThemeOnyxLight.actif(context)) return _construireOnyxLight();
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -118,43 +115,6 @@ class AppTextField extends StatelessWidget {
             borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
           ),
         ),
-      ),
-    );
-  }
-
-  /// Champ Onyx & Light : fond blanc translucide, bord fin, icône simple,
-  /// focus Onyx (l'orange n'est plus qu'un accent).
-  Widget _construireOnyxLight() {
-    OutlineInputBorder bord(Color couleur, [double epaisseur = 1]) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: couleur, width: epaisseur),
-        );
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      readOnly: readOnly,
-      keyboardType: keyboardType,
-      maxLines: obscureText ? 1 : maxLines,
-      validator: validator,
-      onChanged: onChanged,
-      style: const TextStyle(color: AppColors.onyx, fontSize: 15.5, fontWeight: FontWeight.w500),
-      cursorColor: AppColors.onyx,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.texteDiscret, fontSize: 14),
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.texteDiscret, size: 20) : null,
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.85),
-        labelStyle: const TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w500),
-        floatingLabelStyle: const TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w600),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        border: bord(AppColors.bordVerre),
-        enabledBorder: bord(AppColors.bordVerre),
-        focusedBorder: bord(AppColors.onyx, 1.6),
-        errorBorder: bord(Colors.redAccent, 1.4),
-        focusedErrorBorder: bord(Colors.redAccent, 1.8),
       ),
     );
   }

@@ -104,7 +104,7 @@ class _ConducteurLoginPageState extends State<ConducteurLoginPage> {
                 ),
                 child: const Text(
                   'Mot de passe oublié ?',
-                  style: TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: TextStyle(color: AppColors.orange, fontWeight: FontWeight.w600, fontSize: 13),
                 ),
               ),
             ),
@@ -129,7 +129,7 @@ class _ConducteurLoginPageState extends State<ConducteurLoginPage> {
           onPressed: () => context.push(AppRoutes.conducteurRegister),
           child: const Text(
             'Pas encore de compte ? Créer un compte',
-            style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w500),
+            style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w500),
           ),
         ),
       ),

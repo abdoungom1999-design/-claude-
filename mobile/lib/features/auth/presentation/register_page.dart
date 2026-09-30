@@ -122,7 +122,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   _motDePasseVisible
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: AppColors.texteDiscret,
+                  color: AppColors.grey,
                   size: 20,
                 ),
                 onPressed: () =>

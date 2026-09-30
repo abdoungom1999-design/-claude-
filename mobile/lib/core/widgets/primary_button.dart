@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import 'onyx_light.dart';
 
 /// Bouton d'action principal Sprint : dégradé orange, coins arrondis,
 /// légère lueur orange pour un rendu premium.
@@ -21,8 +20,6 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final desactive = onPressed == null || isLoading;
-    // Écran migré vers Onyx & Light : bouton Onyx (l'orange devient accent).
-    final onyx = ThemeOnyxLight.actif(context);
 
     return Container(
       width: double.infinity,
@@ -31,8 +28,8 @@ class PrimaryButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         gradient: desactive
             ? null
-            : LinearGradient(
-                colors: onyx ? const [AppColors.onyxClair, AppColors.onyx] : const [AppColors.orange, AppColors.orangeDark],
+            : const LinearGradient(
+                colors: [AppColors.orange, AppColors.orangeDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -41,7 +38,7 @@ class PrimaryButton extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: (onyx ? Colors.black : AppColors.orange).withValues(alpha: onyx ? 0.22 : 0.35),
+                  color: AppColors.orange.withValues(alpha: 0.35),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),

@@ -31,16 +31,6 @@ class AppColors {
   /// et les thèmes Android (écran de démarrage) : à changer partout à la fois.
   static const Color onyx = Color(0xFF0B0B0C);
 
-  /// Charte « Onyx & Light » (migration écran par écran) : fonds très
-  /// clairs, textes Onyx, cartes « verre » (blanc translucide, bord fin,
-  /// flou), orange réservé aux accents.
-  static const Color fondClair = Color(0xFFF6F6F8);
-  static const Color fondClairHaut = Color(0xFFFFFFFF);
-  static const Color texteDiscret = Color(0xFF6E6E73);
-  static const Color verre = Color(0xB8FFFFFF);
-  static const Color bordVerre = Color(0x14000000);
-  static const Color onyxClair = Color(0xFF232326);
-
   /// Accent doré : réservé aux touches "premium" ponctuelles sur fond
   /// sombre (ex. bannière Forfait Aéroport), jamais un CTA principal.
   static const Color or = Color(0xFFD4AF37);
