@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/notifications/carte_notifications.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/adaptive_map.dart';
 import '../../../../firebase_options.dart';
@@ -90,6 +91,9 @@ class _ConducteurAccueilTabState extends State<ConducteurAccueilTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Visible seulement s'il y a quelque chose à faire (activer,
+                  // ou installer le site sur l'iPhone).
+                  const CarteNotifications(enBandeau: true, raison: 'les nouvelles courses, même quand Sprint est fermé'),
                   _CarteObjectifJour(gainsFcfa: widget.gainsJourFcfa),
                   const SizedBox(height: 12),
                   Row(

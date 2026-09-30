@@ -8,7 +8,9 @@ import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestor
 import { HttpsError } from 'firebase-functions/v2/https';
 import { FournisseurSimule } from '../src/fournisseurs';
 import {
+  LIENS,
   LONGUEUR_MAX_TEXTE,
+  SITE,
   MAX_CHAUFFEURS_PREVENUS,
   notifierAcceptation,
   notifierMessage,
@@ -95,6 +97,8 @@ test('message du chauffeur : le client reçoit son nom et le texte, une seule fo
   assert.equal(fcm.envois[0].push.corps, 'Je suis devant la pharmacie');
   assert.equal(fcm.envois[0].push.canal, 'messages');
   assert.deepEqual(fcm.envois[0].push.donnees, { type: 'message', expediteurId: 'moussa', courseId: 'c1' });
+  // Sur le site, l'appui mène à la messagerie du client.
+  assert.equal(fcm.envois[0].push.lien, LIENS.messagesClient);
 
   // Rejouer l'appel ne refait pas sonner le téléphone.
   const encore = await notifierMessage(db, fcm, 'moussa', { messageId: 'm1', destinataireId: 'awa' }, secondes(6));
@@ -109,6 +113,8 @@ test('message du client : le chauffeur est prévenu (sans nom public : « Votre 
   await notifierMessage(db, fcm, 'awa', { messageId: 'm1', destinataireId: 'moussa' }, secondes(1));
   assert.deepEqual(fcm.envois[0].jetons, ['jetonMoussa']);
   assert.equal(fcm.envois[0].push.titre, 'Votre client');
+  // Le destinataire est le chauffeur : son appui mène à son tableau de bord.
+  assert.equal(fcm.envois[0].push.lien, LIENS.chauffeur);
 });
 
 test('le texte vient du message enregistré, jamais de l\'appelant ; long texte raccourci', async () => {
@@ -194,6 +200,7 @@ test('course acceptée : le client apprend qui vient (nom, moto, plaque), une se
   assert.equal(push.corps, 'Moussa Diop arrive · Honda CB125 (2021) · DK-4821-AB');
   assert.equal(push.canal, 'courses');
   assert.deepEqual(push.donnees, { type: 'acceptee', courseId: 'c1' });
+  assert.equal(push.lien, LIENS.activiteClient);
 
   assert.deepEqual(await notifierAcceptation(db, fcm, 'moussa', { courseId: 'c1' }, secondes(2)), { envoye: false, raison: 'deja_notifie' });
   assert.equal(fcm.envois.length, 1);
@@ -246,6 +253,7 @@ test('nouvelle course : seuls les chauffeurs en ligne, validés, non sanctionné
   assert.equal(push.corps, 'Plateau → Almadies · 2 300 FCFA');
   assert.equal(push.canal, 'courses');
   assert.deepEqual(push.donnees, { type: 'course', courseId: 'nouvelle' });
+  assert.equal(push.lien, LIENS.chauffeur);
   assert.equal(push.dureeVieSecondes, 120);
 });
 
@@ -324,6 +332,7 @@ test('le chauffeur annule : le client est prévenu ; le client qui annule lui-m�
   assert.deepEqual(fcm.envois[0].jetons, ['jetonAwa']);
   assert.equal(fcm.envois[0].push.titre, 'Course annulée par votre chauffeur');
   assert.equal(fcm.envois[0].push.donnees.type, 'annulee');
+  assert.equal(fcm.envois[0].push.lien, LIENS.activiteClient);
 
   fcm.envois = [];
   await db.doc('courses/c2').set({ clientId: 'awa', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER' });
@@ -341,4 +350,12 @@ test('surveillance : course sans chauffeur au bout de 10 minutes, le client est 
   assert.equal(fcm.envois.length, 1);
   assert.equal(fcm.envois[0].push.titre, 'Aucun chauffeur disponible');
   assert.deepEqual(fcm.envois[0].jetons, ['jetonAwa']);
+});
+
+test('liens des notifications du site : adresses en # (routeur du site), toutes valides', () => {
+  for (const lien of Object.values(LIENS)) {
+    assert.match(lien, /^\/#\/[a-z/-]+$/);
+    // Absolu et en https : exigé par les navigateurs pour ouvrir le lien.
+    assert.ok(new URL(`${SITE}${lien}`).protocol === 'https:');
+  }
 });

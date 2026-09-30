@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/coming_soon_view.dart';
 import '../../../firebase_options.dart';
@@ -56,6 +57,10 @@ class _MessagesTabPageState extends State<MessagesTabPage> {
                 alignment: Alignment.centerLeft,
                 child: Text('Messages', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: CarteNotifications(enBandeau: true, raison: 'les messages de votre chauffeur, même quand Sprint est fermé'),
             ),
             Expanded(
               child: monUid == null

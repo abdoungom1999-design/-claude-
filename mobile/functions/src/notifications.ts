@@ -1,5 +1,5 @@
 import { Timestamp, type Firestore } from 'firebase-admin/firestore';
-import { getMessaging } from 'firebase-admin/messaging';
+import { getMessaging, type MulticastMessage } from 'firebase-admin/messaging';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
 
@@ -13,6 +13,12 @@ import { HttpsError } from 'firebase-functions/v2/https';
  *   - nouvelle course, aux chauffeurs en ligne, libres et non sanctionnés ;
  *   - course acceptée, au client ;
  *   - course annulée par le chauffeur ou faute de chauffeur, au client.
+ *
+ * Trois sortes de téléphones reçoivent la même notification : l'APK
+ * Android, le site ouvert dans un navigateur (Chrome, Edge, Firefox,
+ * Safari) et le site installé sur l'écran d'accueil d'un iPhone (iOS 16.4
+ * minimum). Le jeton de chacun dit où l'envoyer ; l'envoi ajoute la partie
+ * "web push" (icône, lien à ouvrir au clic) à la partie Android.
  *
  * Une notification qui échoue ne doit JAMAIS faire échouer ce qui l'a
  * déclenchée (paiement, annulation...) : [pousser] ne lève pas d'erreur.
@@ -30,6 +36,11 @@ export interface EnvoiPush {
   canal: Canal;
   /** Lu par l'app à l'appui sur la notification. Valeurs : chaînes. */
   donnees: Record<string, string>;
+  /**
+   * Où mène l'appui sur la notification quand elle vient du site : chemin
+   * dans l'app, adresses en `#` (ex. `/#/accueil/messages`).
+   */
+  lien: string;
   /** Passé ce délai, la notification n'a plus d'intérêt (course prise par un autre...). */
   dureeVieSecondes: number;
 }
@@ -39,11 +50,43 @@ export interface Messagerie {
   envoyer(jetons: string[], push: EnvoiPush): Promise<{ envoyes: number; invalides: string[] }>;
 }
 
+/** Adresse publique du site (Firebase Hosting) : les liens des notifications web sont absolus. */
+export const SITE = 'https://sprint-vtc.web.app';
+
+/** Destinations dans l'app (adresses en `#`, comme le routeur du site). */
+export const LIENS = {
+  messagesClient: '/#/accueil/messages',
+  activiteClient: '/#/accueil/activite',
+  chauffeur: '/#/conducteur',
+} as const;
+
 const CODES_JETON_MORT = [
   'messaging/registration-token-not-registered',
   'messaging/invalid-registration-token',
   'messaging/invalid-argument',
 ];
+
+/** Message FCM pour ces jetons : partie Android et partie site (web push, iPhone). */
+export function messageFcm(jetons: string[], push: EnvoiPush): MulticastMessage {
+  return {
+    tokens: jetons,
+    notification: { title: push.titre, body: push.corps },
+    data: push.donnees,
+    android: {
+      // Priorité haute : réveille le téléphone même en veille.
+      priority: 'high',
+      ttl: push.dureeVieSecondes * 1000,
+      notification: { channelId: push.canal, sound: 'default' },
+    },
+    // Site (navigateur, iPhone) : le texte est celui de `notification`,
+    // affiché par le service worker même site fermé.
+    webpush: {
+      headers: { TTL: String(push.dureeVieSecondes), Urgency: 'high' },
+      notification: { icon: `${SITE}/icons/Icon-192.png`, badge: `${SITE}/icons/Icon-192.png` },
+      fcmOptions: { link: `${SITE}${push.lien}` },
+    },
+  };
+}
 
 /** Envoi réel par Firebase Cloud Messaging. */
 export class MessagerieFcm implements Messagerie {
@@ -53,17 +96,7 @@ export class MessagerieFcm implements Messagerie {
     // 500 jetons au plus par envoi groupé.
     for (let i = 0; i < jetons.length; i += 500) {
       const lot = jetons.slice(i, i + 500);
-      const reponse = await getMessaging().sendEachForMulticast({
-        tokens: lot,
-        notification: { title: push.titre, body: push.corps },
-        data: push.donnees,
-        android: {
-          // Priorité haute : réveille le téléphone même en veille.
-          priority: 'high',
-          ttl: push.dureeVieSecondes * 1000,
-          notification: { channelId: push.canal, sound: 'default' },
-        },
-      });
+      const reponse = await getMessaging().sendEachForMulticast(messageFcm(lot, push));
       reponse.responses.forEach((r, index) => {
         if (r.success) envoyes++;
         else if (r.error && CODES_JETON_MORT.includes(r.error.code)) invalides.push(lot[index]);
@@ -218,6 +251,7 @@ export async function notifierMessage(
     titre: nom,
     corps: texte || 'Nouveau message',
     canal: 'messages',
+    lien: expediteurEstChauffeur ? LIENS.messagesClient : LIENS.chauffeur,
     donnees: { type: 'message', expediteurId: uid, courseId: course.id },
     dureeVieSecondes: 60 * 60,
   });
@@ -262,6 +296,7 @@ export async function notifierAcceptation(
     titre: 'Chauffeur trouvé !',
     corps: vehicule ? `${nom} arrive · ${vehicule}` : `${nom} arrive pour vous prendre.`,
     canal: 'courses',
+    lien: LIENS.activiteClient,
     donnees: { type: 'acceptee', courseId },
     dureeVieSecondes: 10 * 60,
   });
@@ -314,6 +349,7 @@ export async function notifierNouvelleCourse(
       titre: course.get('type') === 'COLIS' ? 'Nouveau colis à livrer' : 'Nouvelle course',
       corps: `${course.get('adresseDepart')} → ${course.get('adresseArrivee')}${typeof prix === 'number' ? ` · ${fcfa(prix)}` : ''}`,
       canal: 'courses',
+      lien: LIENS.chauffeur,
       donnees: { type: 'course', courseId },
       // Une demande non prise au bout de 2 minutes n'a plus à réveiller personne.
       dureeVieSecondes: 2 * 60,
@@ -344,6 +380,7 @@ export async function notifierAnnulation(
         ? 'Votre paiement sera remboursé. Vous pouvez commander de nouveau.'
         : 'Votre course est annulée et votre paiement sera remboursé.',
     canal: 'courses',
+    lien: LIENS.activiteClient,
     donnees: { type: 'annulee', courseId },
     dureeVieSecondes: 60 * 60,
   });

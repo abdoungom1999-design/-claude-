@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../courses/data/course_service.dart';
 import '../../courses/data/position_chauffeur.dart';
@@ -156,7 +157,10 @@ class _EtatRecherche extends StatelessWidget {
             proximite: proximite,
             coucheFond: coucheFond,
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
+          // Le bon moment pour proposer les alertes : on attend un chauffeur.
+          const CarteNotifications(enBandeau: true, raison: 'une alerte dès qu\'un chauffeur accepte votre course'),
+          const SizedBox(height: 8),
           const SizedBox(
             width: 40,
             height: 40,

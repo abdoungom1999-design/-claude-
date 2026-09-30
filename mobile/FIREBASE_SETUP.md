@@ -362,8 +362,8 @@ déploiement donne aux fonctions l'accès à ce secret. Pour changer de
 clé : ajouter une nouvelle version du secret dans Secret Manager, puis
 relancer le déploiement (onglet Actions > Run workflow).
 
-- Notifications push (APK Android ; web et iPhone dans un autre lot) :
-  elles arrivent même app fermée.
+- Notifications push (APK Android, site dans un navigateur, site installé
+  sur l'iPhone) : elles arrivent même app ou site fermé.
   - Chaque téléphone enregistre son jeton dans
     `appareils/{uid}/jetons/{jeton}` (règles : chacun écrit et supprime
     les siens, **personne ne les lit**, pas même leur propriétaire ; seul
@@ -383,7 +383,30 @@ relancer le déploiement (onglet Actions > Run workflow).
   - Une notification qui échoue ne fait jamais échouer le paiement ou
     l'annulation qui l'a déclenchée. Quand l'app est ouverte, Android
     n'affiche pas la notification : l'app a ses propres alertes.
-  - La CI vérifie que l'API Firebase Cloud Messaging répond (envoi « à
+  - **Site et iPhone** : même serveur, même texte. Le site enregistre un
+    service worker (`web/firebase-messaging-sw.js`, servi à la racine)
+    qui affiche la notification site fermé ; l'appui ouvre la bonne page
+    (`/#/accueil/messages`, `/#/accueil/activite`, `/#/conducteur`, choisie
+    par le serveur selon le rôle du destinataire). La clé « web push »
+    est celle que Firebase fournit par défaut : rien à créer dans la
+    console. Règles propres au web :
+      - l'autorisation ne peut être demandée qu'à l'appui sur un bouton
+        (carte « Notifications » : Compte, Messages, écran de recherche
+        d'un chauffeur, accueil chauffeur) ; jamais à l'ouverture ;
+      - **iPhone : seulement iOS 16.4 ou plus récent, et seulement pour
+        le site installé sur l'écran d'accueil** (Safari > Partager >
+        « Sur l'écran d'accueil », puis ouvrir Sprint depuis son icône).
+        Dans un onglet Safari, Apple n'offre pas les notifications : la
+        carte explique la marche à suivre ;
+      - une notification refusée se rouvre dans les réglages du
+        navigateur (ou de l'app installée) ;
+      - site ouvert au premier plan, rien n'est affiché par le système :
+        l'app a ses propres alertes.
+    Il n'existe pas d'app iPhone native : elle demanderait un compte
+    Apple Developer, une clé APNs et une publication sur l'App Store.
+  - La CI vérifie que le site sert bien le service worker à la racine (en
+    JavaScript, et non la page d'accueil), et que l'API Firebase Cloud
+    Messaging répond (envoi « à
     blanc » vers un jeton invalide, avertissement sinon). L'arrivée d'une
     vraie notification sur un vrai téléphone ne peut être vérifiée que par
     un test réel (deux téléphones, app fermée).

@@ -603,4 +603,12 @@ jobs:
             || { echo "::error::L'app web n'est pas servie à la racine"; exit 1; }
           curl -s "$adresse/main.dart.js" -o /dev/null -w '%{http_code}' | grep -q 200 \
             || { echo "::error::main.dart.js introuvable"; exit 1; }
+          # Notifications push du site : le service worker doit être servi
+          # à la racine, en JavaScript (et non remplacé par la page
+          # d'accueil, que le site renvoie pour toute adresse inconnue).
+          curl -s "$adresse/firebase-messaging-sw.js" -o "$RUNNER_TEMP/sw.js" -w 'firebase-messaging-sw.js : HTTP %{http_code}, %{content_type}\n'
+          grep -q 'firebase.messaging()' "$RUNNER_TEMP/sw.js" \
+            || { echo "::error::Le service worker des notifications n'est pas servi à la racine du site"; exit 1; }
+          curl -sI "$adresse/firebase-messaging-sw.js" | grep -qi '^content-type:.*javascript' \
+            || { echo "::error::Le service worker des notifications n'est pas servi en JavaScript"; exit 1; }
           echo "::notice title=Site publié::App : $adresse/ — APK $version : $adresse/sprint.apk (page : $adresse/android/)"

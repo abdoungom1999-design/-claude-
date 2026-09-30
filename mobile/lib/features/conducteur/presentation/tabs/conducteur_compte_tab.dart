@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/notifications/carte_notifications.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/image_document.dart';
@@ -111,6 +112,8 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                   'Compte',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 20),
+                const CarteNotifications(raison: 'les nouvelles courses et les messages, même quand Sprint est fermé'),
                 const SizedBox(height: 20),
                 AppCard(
                   padding: const EdgeInsets.all(20),

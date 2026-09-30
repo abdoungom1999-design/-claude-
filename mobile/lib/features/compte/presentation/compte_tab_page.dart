@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/demo/demo_data.dart';
+import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/premium_dialog.dart';
@@ -123,6 +124,8 @@ class _CompteTabPageState extends State<CompteTabPage> {
                 );
               },
             ),
+            const SizedBox(height: 22),
+            const CarteNotifications(),
             const SizedBox(height: 22),
             WalletCard(
               soldeFcfa: DemoData.soldePortefeuilleFcfa,

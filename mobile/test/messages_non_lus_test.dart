@@ -264,7 +264,7 @@ void main() {
               courseService: courses,
               chatService: chat,
               messagesNonLus: nonLus,
-              notificationsPush: NotificationsPush(estAndroid: false),
+              notificationsPush: NotificationsPush(plateforme: PlateformePush.aucune),
               monUid: 'awa',
             ),
             branches: [
@@ -338,7 +338,7 @@ void main() {
               courseService: courses,
               chatService: chat,
               messagesNonLus: nonLus,
-              notificationsPush: NotificationsPush(passerelle: passerelle, stockage: stockage, estAndroid: true),
+              notificationsPush: NotificationsPush(passerelle: passerelle, stockage: stockage, plateforme: PlateformePush.android),
               monUid: 'awa',
             ),
             branches: [
@@ -378,6 +378,12 @@ class _PasserellePush implements PasserellePush {
 
   final Stream<MessagePush> _ouvertures;
   var autorisations = 0;
+
+  @override
+  Future<bool> supporte() async => true;
+
+  @override
+  Future<EtatAutorisation> etatAutorisation() async => EtatAutorisation.aDemander;
 
   @override
   Future<bool> demanderAutorisation() async {
