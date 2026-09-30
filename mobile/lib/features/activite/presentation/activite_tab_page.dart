@@ -14,6 +14,7 @@ import '../../client/presentation/suivi_course_page.dart';
 import '../../courses/data/course_service.dart';
 import '../../support/data/support_service.dart';
 import 'detail_course_page.dart';
+import 'rangee_livrables.dart';
 import 'receipts_page.dart';
 
 /// Onglet Activité : bascule Course immédiate / Livraison / Réservations,
@@ -54,6 +55,7 @@ class _ActiviteTabPageState extends State<ActiviteTabPage> {
               ),
               _OngletActivite(
                 typeFiltre: 'COLIS',
+                livraison: true,
                 labelCta: 'Envoyer un colis',
                 onCta: () => context.push(AppRoutes.clientColis),
               ),
@@ -95,6 +97,7 @@ class _ActiviteTabPageState extends State<ActiviteTabPage> {
                   ),
                   _OngletReel(
                     courses: [for (final c in toutes) if (c.type == 'COLIS') c],
+                    livraison: true,
                     clientId: _clientId,
                     supportService: widget.supportService,
                     labelCta: 'Envoyer un colis',
@@ -170,6 +173,7 @@ class _OngletActivite extends StatelessWidget {
     required this.labelCta,
     required this.onCta,
     this.aucuneDonneePossible = false,
+    this.livraison = false,
   });
 
   /// null pour "Réservations" : aucune course historique ne correspond,
@@ -178,6 +182,9 @@ class _OngletActivite extends StatelessWidget {
   final String labelCta;
   final VoidCallback onCta;
   final bool aucuneDonneePossible;
+
+  /// Onglet Livraison : l'état vide montre ce qu'on peut se faire livrer.
+  final bool livraison;
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +225,10 @@ class _OngletActivite extends StatelessWidget {
                 style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               const SizedBox(height: 16),
+              if (livraison) ...[
+                const RangeeLivrables(),
+                const SizedBox(height: 18),
+              ],
               PrimaryButton(label: labelCta, onPressed: onCta),
             ],
           ),
@@ -325,6 +336,7 @@ class _OngletReel extends StatelessWidget {
     required this.labelCta,
     required this.onCta,
     this.supportService,
+    this.livraison = false,
   });
 
   final List<CourseFirestore> courses;
@@ -332,6 +344,9 @@ class _OngletReel extends StatelessWidget {
   final SupportService? supportService;
   final String labelCta;
   final VoidCallback onCta;
+
+  /// Onglet Livraison : l'état vide montre ce qu'on peut se faire livrer.
+  final bool livraison;
 
   void _ouvrir(BuildContext context, CourseFirestore course) {
     Navigator.of(context).push(
@@ -367,6 +382,10 @@ class _OngletReel extends StatelessWidget {
                   style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                 ),
                 const SizedBox(height: 16),
+                if (livraison) ...[
+                  const RangeeLivrables(),
+                  const SizedBox(height: 18),
+                ],
                 PrimaryButton(label: labelCta, onPressed: onCta),
               ],
             ),

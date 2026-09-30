@@ -39,3 +39,4 @@ flutter:
   assets:
     - assets/logo/tuile.png
     - assets/promo/
+    - assets/livraison/

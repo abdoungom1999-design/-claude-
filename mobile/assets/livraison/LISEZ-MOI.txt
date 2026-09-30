@@ -1,0 +1,14 @@
+Images de la rangée « Ce que vous pouvez faire livrer » (onglet Activité > Livraison,
+quand il est vide).
+
+Déposez ici des images carrées (PNG ou JPEG, 240 x 240 px environ, moins de 60 Ko chacune,
+sujet centré : elles sont rognées en cercle) :
+
+  colis.png    "Colis"
+  repas.png    "Repas"      (burger...)
+  courses.png  "Courses"    (sac de courses...)
+  cadeaux.png  "Cadeaux"
+
+Tant qu'une image est absente, le cercle affiche une icône élégante à la place
+(aucune image cassée). Les libellés et les icônes temporaires se règlent dans
+lib/features/activite/presentation/rangee_livrables.dart.

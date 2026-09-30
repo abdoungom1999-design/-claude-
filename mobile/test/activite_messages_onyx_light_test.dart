@@ -61,6 +61,28 @@ void main() {
     expect(find.text('Suivre ma course'), findsOneWidget);
   });
 
+  testWidgets('Livraison vide : rangée de 4 cercles (Colis, Repas, Courses, Cadeaux) au-dessus du bouton', (tester) async {
+    grandEcran(tester);
+    await tester.pumpWidget(MaterialApp(home: ActiviteTabPage(courseService: _Courses(), clientId: 'awa')));
+    await tester.pump();
+    // Course immédiate : pas de rangée.
+    expect(find.byKey(const ValueKey('rangee-livrables')), findsNothing);
+
+    await tester.tap(find.text('Livraison'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('rangee-livrables')), findsOneWidget);
+    for (final libelle in ['Colis', 'Repas', 'Courses', 'Cadeaux']) {
+      expect(find.descendant(of: find.byKey(const ValueKey('rangee-livrables')), matching: find.text(libelle)), findsOneWidget);
+    }
+    expect(
+      tester.getBottomLeft(find.byKey(const ValueKey('rangee-livrables'))).dy,
+      lessThan(tester.getTopLeft(find.text('Envoyer un colis')).dy),
+    );
+    // Sans les images (à venir), des icônes temporaires, sans erreur.
+    expect(find.byIcon(Icons.lunch_dining_outlined), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Messages : conversation en carte verre, avatar Onyx cerclé d\'orange', (tester) async {
     grandEcran(tester);
     await tester.pumpWidget(MaterialApp(
