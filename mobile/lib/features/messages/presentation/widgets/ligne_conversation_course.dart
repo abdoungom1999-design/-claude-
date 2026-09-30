@@ -84,21 +84,19 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
       ),
       child: Row(
         children: [
+          // Avatar Onyx cerclé d'orange (comme sur l'écran Compte).
           Container(
-            width: 46,
-            height: 46,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.orange, AppColors.orangeDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+            width: 48,
+            height: 48,
+            padding: const EdgeInsets.all(2.5),
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.orange),
+            child: Container(
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.onyx),
+              alignment: Alignment.center,
+              child: Text(
+                nom.isNotEmpty ? nom[0].toUpperCase() : '?',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17),
               ),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              nom.isNotEmpty ? nom[0].toUpperCase() : '?',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(width: 12),
@@ -106,9 +104,9 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(nom, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                Text(nom, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppColors.onyx)),
                 const SizedBox(height: 2),
-                Text(widget.detailCourse, style: const TextStyle(fontSize: 11.5, color: AppColors.grey)),
+                Text(widget.detailCourse, style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret)),
                 const SizedBox(height: 4),
                 StreamBuilder<ChatMessageFirestore?>(
                   stream: _dernierMessage,
@@ -120,7 +118,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: texte == null ? AppColors.grey : AppColors.text,
+                        color: texte == null ? AppColors.texteDiscret : AppColors.onyx,
                       ),
                     );
                   },
@@ -141,7 +139,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
                     )
                   : const SizedBox.shrink(),
             ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.texteDiscret),
         ],
       ),
     );

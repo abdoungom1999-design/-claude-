@@ -5,6 +5,7 @@ import '../../../core/demo/demo_data.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -109,36 +110,53 @@ class _ActiviteTabPageState extends State<ActiviteTabPage> {
               );
             },
           );
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Activité',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    return ThemeOnyxLight(
+      child: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          backgroundColor: AppColors.fondClair,
+          body: FondOnyxLight(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Activité',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.8, color: AppColors.onyx),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const TabBar(
-                labelColor: AppColors.orange,
-                unselectedLabelColor: AppColors.grey,
-                indicatorColor: AppColors.orange,
-                labelStyle: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
-                tabs: [
-                  Tab(text: 'Course immédiate'),
-                  Tab(text: 'Livraison'),
-                  Tab(text: 'Réservations'),
+                  // Onglets « pilule » : la sélection en Onyx dans une carte verre.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: CarteVerre(
+                      rayon: 22,
+                      padding: const EdgeInsets.all(4),
+                      child: TabBar(
+                        dividerColor: Colors.transparent,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: BoxDecoration(color: AppColors.onyx, borderRadius: BorderRadius.circular(18)),
+                        labelColor: Colors.white,
+                        unselectedLabelColor: AppColors.onyx,
+                        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+                        labelPadding: EdgeInsets.zero,
+                        labelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        unselectedLabelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                        tabs: const [
+                          Tab(height: 38, text: 'Course immédiate'),
+                          Tab(height: 38, text: 'Livraison'),
+                          Tab(height: 38, text: 'Réservations'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(child: onglets),
                 ],
               ),
-              Expanded(child: onglets),
-            ],
+            ),
           ),
         ),
       ),
@@ -177,19 +195,19 @@ class _OngletActivite extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: const BoxDecoration(
-                  color: AppColors.greyLight,
+                  color: AppColors.fondClair,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.local_taxi_outlined,
-                  color: AppColors.grey,
+                  color: AppColors.onyx,
                   size: 26,
                 ),
               ),
               const SizedBox(height: 14),
               const Text(
                 'Aucune course en cours',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.onyx),
               ),
               const SizedBox(height: 4),
               Text(
@@ -197,7 +215,7 @@ class _OngletActivite extends StatelessWidget {
                     ? 'Les réservations à l\'avance arrivent bientôt'
                     : 'Vos courses en cours apparaîtront ici',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               const SizedBox(height: 16),
               PrimaryButton(label: labelCta, onPressed: onCta),
@@ -210,9 +228,10 @@ class _OngletActivite extends StatelessWidget {
           children: [
             const Text(
               'Historique récent',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx),
             ),
             TextButton(
+              style: TextButton.styleFrom(foregroundColor: AppColors.orange, textStyle: const TextStyle(fontWeight: FontWeight.w700)),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ReceiptsPage()),
               ),
@@ -227,7 +246,7 @@ class _OngletActivite extends StatelessWidget {
             child: Center(
               child: Text(
                 'Aucun historique pour le moment',
-                style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
             ),
           )
@@ -277,19 +296,19 @@ class _CarteHistorique extends StatelessWidget {
                   '${course.adresseDepart} → ${course.adresseArrivee}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppColors.onyx),
                 ),
                 Text(
                   '${course.statut} · ${course.date.day.toString().padLeft(2, '0')}/'
                   '${course.date.month.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                 ),
               ],
             ),
           ),
           Text(
             '${course.prixFcfa} FCFA',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.onyx),
           ),
         ],
       ),
@@ -336,16 +355,16 @@ class _OngletReel extends StatelessWidget {
                 Container(
                   width: 56,
                   height: 56,
-                  decoration: const BoxDecoration(color: AppColors.greyLight, shape: BoxShape.circle),
-                  child: const Icon(Icons.two_wheeler_rounded, color: AppColors.grey, size: 26),
+                  decoration: const BoxDecoration(color: AppColors.fondClair, shape: BoxShape.circle),
+                  child: const Icon(Icons.two_wheeler_rounded, color: AppColors.onyx, size: 26),
                 ),
                 const SizedBox(height: 14),
-                const Text('Aucune course en cours', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                const Text('Aucune course en cours', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.onyx)),
                 const SizedBox(height: 4),
                 const Text(
                   'Vos courses en cours apparaîtront ici',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                 ),
                 const SizedBox(height: 16),
                 PrimaryButton(label: labelCta, onPressed: onCta),
@@ -361,13 +380,13 @@ class _OngletReel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(course.libelleStatut,
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.orangeDark)),
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.orange)),
                     const SizedBox(height: 6),
                     Text(
                       '${course.adresseDepart} → ${course.adresseArrivee}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.onyx),
                     ),
                     const SizedBox(height: 12),
                     PrimaryButton(
@@ -381,7 +400,10 @@ class _OngletReel extends StatelessWidget {
               ),
             ),
         const SizedBox(height: 28),
-        const Text('Historique', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        const Text(
+          'Historique',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx),
+        ),
         const SizedBox(height: 12),
         if (historique.isEmpty)
           const Padding(
@@ -437,19 +459,19 @@ class _CarteCourseReelle extends StatelessWidget {
                       '${course.adresseDepart} → ${course.adresseArrivee}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppColors.onyx),
                     ),
                     Text(
                       '${course.libelleStatut} · ${d.day.toString().padLeft(2, '0')}/'
                       '${d.month.toString().padLeft(2, '0')}',
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                     ),
                   ],
                 ),
               ),
-              Text(formaterFcfa(course.prixFcfa), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(formaterFcfa(course.prixFcfa), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.onyx)),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.texteDiscret),
             ],
           ),
         ),

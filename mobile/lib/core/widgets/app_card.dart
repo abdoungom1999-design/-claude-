@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'onyx_light.dart';
 
 /// Carte flottante standard Sprint : fond blanc, ombre douce, coins
 /// arrondis. Bordure très légère en complément de l'ombre (pas de plat).
@@ -17,6 +18,12 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Onyx & Light : carte « verre » (écrans migrés, voir [ThemeOnyxLight]).
+    if (ThemeOnyxLight.actif(context)) {
+      final verre = CarteVerre(rayon: 24, padding: padding, child: SizedBox(width: double.infinity, child: child));
+      if (onTap == null) return verre;
+      return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: verre);
+    }
     final card = Container(
       width: double.infinity,
       padding: padding,
