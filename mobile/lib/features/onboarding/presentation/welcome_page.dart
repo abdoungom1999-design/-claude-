@@ -100,7 +100,8 @@ class WelcomePage extends StatelessWidget {
   }
 }
 
-/// Bouton d'entrée : Onyx plein (action principale) ou blanc à bord fin.
+/// Bouton d'entrée : orange plein (action principale, la touche Sprint qui
+/// guide l'utilisateur) ou blanc à bord fin.
 class _BoutonAuth extends StatelessWidget {
   const _BoutonAuth({
     required this.label,
@@ -122,7 +123,7 @@ class _BoutonAuth extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: principal ? AppColors.onyx : Colors.white.withValues(alpha: 0.9),
+          backgroundColor: principal ? AppColors.orange : Colors.white.withValues(alpha: 0.9),
           foregroundColor: couleurTexte,
           elevation: 0,
           shape: RoundedRectangleBorder(

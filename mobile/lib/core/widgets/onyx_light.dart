@@ -106,25 +106,13 @@ class CarteVerre extends StatelessWidget {
   }
 }
 
-/// Logo dans une tuile Onyx aux coins arrondis (repère de marque des écrans
-/// clairs).
+/// Logo Sprint (tuile de marbre noir et « S » de verre), avec une ombre douce
+/// sur les écrans clairs.
 class TuileLogo extends StatelessWidget {
   const TuileLogo({super.key, this.taille = 84});
 
   final double taille;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: taille,
-      height: taille,
-      decoration: BoxDecoration(
-        color: AppColors.onyx,
-        borderRadius: BorderRadius.circular(taille * 0.3),
-        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 28, offset: Offset(0, 14))],
-      ),
-      alignment: Alignment.center,
-      child: LogoSprint(taille: taille * 0.58),
-    );
-  }
+  Widget build(BuildContext context) => LogoSprint(taille: taille, ombre: true);
 }

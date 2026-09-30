@@ -23,7 +23,7 @@ void main() {
   }
 
   group('Bienvenue', () {
-    testWidgets('fond clair, logo dans une tuile Onyx, mêmes entrées qu\'avant, plus de photo', (tester) async {
+    testWidgets('fond clair, logo (tuile Onyx), mêmes entrées qu\'avant, plus de photo', (tester) async {
       await ouvrirApp(tester);
       expect(find.byType(FondOnyxLight), findsOneWidget);
       expect(find.byType(TuileLogo), findsOneWidget);
@@ -34,17 +34,21 @@ void main() {
       expect(find.text('Continuer avec mon email'), findsOneWidget);
       expect(find.text('Continuer avec Apple'), findsOneWidget);
       expect(find.text('Espace conducteur / admin'), findsOneWidget);
-      expect(find.byType(Image), findsNothing);
+      // Aucune photo : les seules images sont le logo embarqué (celui de la
+      // page et celui de l'écran de démarrage placé dessous).
+      final images = tester.widgetList<Image>(find.byType(Image));
+      expect(images, isNotEmpty);
+      expect(images.every((i) => i.image is AssetImage && (i.image as AssetImage).assetName == 'assets/logo/tuile.png'), isTrue);
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
       expect(scaffold.backgroundColor, AppColors.fondClair);
     });
 
-    testWidgets('le bouton principal est Onyx plein, les autres blancs', (tester) async {
+    testWidgets('le bouton principal est orange plein, les autres blancs', (tester) async {
       await ouvrirApp(tester);
       ElevatedButton bouton(String texte) => tester.widget<ElevatedButton>(
             find.ancestor(of: find.text(texte), matching: find.byType(ElevatedButton)),
           );
-      expect(bouton('Continuer avec mon numéro').style!.backgroundColor!.resolve({}), AppColors.onyx);
+      expect(bouton('Continuer avec mon numéro').style!.backgroundColor!.resolve({}), AppColors.orange);
       expect(bouton('Continuer avec mon email').style!.backgroundColor!.resolve({})!.a, greaterThan(0.85));
     });
 
@@ -89,7 +93,11 @@ void main() {
       expect(find.text('Se connecter'), findsOneWidget);
       expect(find.text('Pas encore de compte ? Créer un compte'), findsOneWidget);
       expect(find.text('Accès Admin'), findsOneWidget);
-      expect(find.byType(Image), findsNothing);
+      // Aucune photo : les seules images sont le logo embarqué (celui de la
+      // page et celui de l'écran de démarrage placé dessous).
+      final images = tester.widgetList<Image>(find.byType(Image));
+      expect(images, isNotEmpty);
+      expect(images.every((i) => i.image is AssetImage && (i.image as AssetImage).assetName == 'assets/logo/tuile.png'), isTrue);
     });
 
     testWidgets('la validation des champs fonctionne toujours', (tester) async {
@@ -118,12 +126,12 @@ void main() {
       return conteneur.decoration! as BoxDecoration;
     }
 
-    testWidgets('bouton principal : orange partout ailleurs, Onyx dans un écran migré', (tester) async {
+    testWidgets('bouton principal : orange partout, y compris dans un écran migré', (tester) async {
       await tester.pumpWidget(hors(PrimaryButton(label: 'Valider', onPressed: () {})));
       expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.orange, AppColors.orangeDark]);
 
       await tester.pumpWidget(hors(ThemeOnyxLight(child: PrimaryButton(label: 'Valider', onPressed: () {}))));
-      expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.onyxClair, AppColors.onyx]);
+      expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.orange, AppColors.orangeDark]);
     });
 
     testWidgets('champ : bordure orange partout ailleurs, Onyx dans un écran migré', (tester) async {
