@@ -226,7 +226,7 @@ class _OngletActivite extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               if (livraison) ...[
-                const RangeeLivrables(),
+                const CarrouselLivrables(),
                 const SizedBox(height: 18),
               ],
               PrimaryButton(label: labelCta, onPressed: onCta),
@@ -383,7 +383,7 @@ class _OngletReel extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 if (livraison) ...[
-                  const RangeeLivrables(),
+                  const CarrouselLivrables(),
                   const SizedBox(height: 18),
                 ],
                 PrimaryButton(label: labelCta, onPressed: onCta),
