@@ -78,8 +78,9 @@ void main() {
     }
     expect(find.text('Cadeaux'), findsNothing);
     expect(tester.getBottomLeft(carrousel).dy, lessThan(tester.getTopLeft(find.text('Envoyer un colis')).dy));
-    // Sans les photos (à venir) : pictogrammes de repli, sans erreur.
-    expect(find.byIcon(Icons.lunch_dining_outlined), findsOneWidget);
+    // Les photos embarquées sont chargées (ou, si l'une manquait, le pictogramme
+    // de repli la remplacerait) : jamais d'erreur.
+    expect(find.descendant(of: carrousel, matching: find.byType(Image)), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

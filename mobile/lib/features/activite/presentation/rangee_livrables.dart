@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
@@ -17,9 +19,18 @@ class ObjetLivrable {
 
 /// Services illustrés par défaut (voir `assets/livraison/LISEZ-MOI.txt`).
 const livrablesParDefaut = <ObjetLivrable>[
-  ObjetLivrable(libelle: 'Colis', icone: Icons.inventory_2_outlined, image: 'assets/livraison/colis.jpg'),
-  ObjetLivrable(libelle: 'Repas', icone: Icons.lunch_dining_outlined, image: 'assets/livraison/repas.jpg'),
-  ObjetLivrable(libelle: 'Courses', icone: Icons.shopping_bag_outlined, image: 'assets/livraison/courses.jpg'),
+  ObjetLivrable(
+      libelle: 'Colis',
+      icone: Icons.inventory_2_outlined,
+      image: 'assets/livraison/colis.jpg'),
+  ObjetLivrable(
+      libelle: 'Repas',
+      icone: Icons.lunch_dining_outlined,
+      image: 'assets/livraison/repas.jpg'),
+  ObjetLivrable(
+      libelle: 'Courses',
+      icone: Icons.shopping_bag_outlined,
+      image: 'assets/livraison/courses.jpg'),
 ];
 
 /// Carrousel horizontal de cartes illustrées (état vide de l'onglet
@@ -51,14 +62,26 @@ class CarrouselLivrables extends StatelessWidget {
             child: SizedBox(
               width: largeur,
               height: hauteurCarte + 30,
-              child: ListView.separated(
-                key: const ValueKey('carrousel-livrables'),
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: debord),
-                itemCount: objets.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, i) => _CarteLivrable(objet: objets[i]),
+              // Doigt, souris et pavé tactile : le carrousel se fait défiler
+              // aussi à la souris sur ordinateur.
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                    PointerDeviceKind.stylus
+                  },
+                ),
+                child: ListView.separated(
+                  key: const ValueKey('carrousel-livrables'),
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: debord),
+                  itemCount: objets.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (_, i) => _CarteLivrable(objet: objets[i]),
+                ),
               ),
             ),
           ),
@@ -96,7 +119,12 @@ class _CarteLivrable extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: AppColors.bordVerre),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 6))],
+              boxShadow: const [
+                BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 6))
+              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(21),
@@ -116,7 +144,10 @@ class _CarteLivrable extends StatelessWidget {
               objet.libelle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onyx),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onyx),
             ),
           ),
         ],
