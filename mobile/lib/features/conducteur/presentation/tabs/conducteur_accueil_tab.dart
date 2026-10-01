@@ -146,11 +146,10 @@ class _ConducteurAccueilTabState extends State<ConducteurAccueilTab> {
   }
 }
 
-/// Fond plein écran du tableau de bord Conducteur : la vraie carte
-/// (voir [AdaptiveMap]), un voile sombre par-dessus pour garder le HUD
-/// en verre dépoli lisible quelle que soit la carte affichée en
-/// dessous (tuiles OSM claires aujourd'hui, Google Maps demain), et un
-/// repère central pulsant (anneaux radar quand en ligne).
+/// Fond plein écran du tableau de bord Conducteur : la vraie carte (voir
+/// [AdaptiveMap], non interactive : fond visuel seulement, le repère central
+/// est fixe), à peine voilée en haut pour garder les cartes en verre
+/// lisibles, et un repère central pulsant (anneaux radar quand en ligne).
 class _FondCarteConducteur extends StatefulWidget {
   const _FondCarteConducteur({required this.enLigne});
 
@@ -185,19 +184,18 @@ class _FondCarteConducteurState extends State<_FondCarteConducteur>
           zoom: 14,
           interactif: false,
         ),
-        // Voile clair : léger blanc en haut et en bas, pour la lisibilité des
-        // cartes en verre sur n'importe quel fond de carte.
+        // Voile très léger, seulement tout en haut (derrière les cartes en verre) :
+        // la carte reste bien visible sur tout le reste de l'écran.
         DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withValues(alpha: 0.75),
+                Colors.white.withValues(alpha: 0.45),
                 Colors.white.withValues(alpha: 0.0),
-                Colors.white.withValues(alpha: 0.6),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              stops: const [0.0, 0.4, 1.0],
+              stops: const [0.0, 0.3],
             ),
           ),
         ),
