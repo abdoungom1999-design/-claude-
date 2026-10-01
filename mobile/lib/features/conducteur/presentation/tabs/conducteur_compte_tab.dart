@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/notifications/carte_notifications.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/onyx_light.dart';
 import '../../../../core/widgets/image_document.dart';
 import '../../../../core/widgets/premium_dialog.dart';
 import '../../../auth/data/auth_repository.dart';
@@ -103,15 +104,12 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
         final photoProfil = documents['photoProfil'] as String?;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                const Text(
-                  'Compte',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
+                const Text('Compte', style: styleTitreEcran),
                 const SizedBox(height: 20),
                 const CarteNotifications(raison: 'les nouvelles courses et les messages, même quand Sprint est fermé'),
                 const SizedBox(height: 20),
@@ -126,23 +124,23 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                         onTap: () => _choisirEtTeleverser('photoProfil'),
                       ),
                       const SizedBox(height: 14),
-                      Text(nom, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(nom, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.onyx)),
                       const SizedBox(height: 4),
                       Text(
                         widget.profil?.telephone ?? '',
-                        style: const TextStyle(fontSize: 13, color: AppColors.grey),
+                        style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret),
                       ),
                       const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.greyLight,
-                          borderRadius: BorderRadius.circular(14),
+                          color: AppColors.fondClair,
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.two_wheeler_rounded, color: AppColors.text, size: 20),
+                            const Icon(Icons.two_wheeler_rounded, color: AppColors.onyx, size: 20),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -150,7 +148,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                                   widget.profil?.vehiculeId,
                                   widget.profil?.plaqueImmatriculation,
                                 ].where((v) => v != null && v.isNotEmpty).join(' - '),
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onyx),
                               ),
                             ),
                           ],
@@ -160,10 +158,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                   ),
                 ),
                 const SizedBox(height: 22),
-                const Text(
-                  'Plus',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
+                const Text('Plus', style: styleTitreSection),
                 const SizedBox(height: 12),
                 AppCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
@@ -274,13 +269,10 @@ class _AvatarConducteur extends StatelessWidget {
 
   Widget _initiale(String nom) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.orange, AppColors.orangeDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+      decoration: BoxDecoration(
+        color: AppColors.onyx,
         shape: BoxShape.circle,
+        border: Border.all(color: AppColors.orange, width: 3),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -305,9 +297,9 @@ class _ItemMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.text, size: 21),
-      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+      leading: Icon(icon, color: AppColors.onyx, size: 21),
+      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onyx)),
+      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.texteDiscret),
       onTap: onTap,
     );
   }

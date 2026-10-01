@@ -81,8 +81,8 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        color: AppColors.fondClairHaut,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -132,13 +132,13 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                       style: const TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.text,
+                        color: AppColors.onyx,
                       ),
                     ),
                     const SizedBox(height: 4),
                     const Text(
                       'Prix estimé de la course',
-                      style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                      style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                     ),
                   ],
                 ),
@@ -154,7 +154,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.greyLight,
+              color: AppColors.fondClair,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -294,7 +294,7 @@ class _LigneInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.grey),
+        Icon(icon, size: 18, color: AppColors.texteDiscret),
         const SizedBox(width: 10),
         Expanded(
           child: Text(

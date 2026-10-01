@@ -104,15 +104,15 @@ class _BoutonEnLigneCirculaireState extends State<BoutonEnLigneCirculaire>
                 gradient: LinearGradient(
                   colors: widget.enLigne
                       ? const [AppColors.orange, AppColors.orangeDark]
-                      : const [AppColors.noirProfondClair, AppColors.noirProfond],
+                      : const [AppColors.onyxClair, AppColors.onyx],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 border: Border.all(color: Colors.white, width: 5),
                 boxShadow: [
                   BoxShadow(
-                    color: (widget.enLigne ? AppColors.orange : Colors.black)
-                        .withValues(alpha: 0.45),
+                    color: (widget.enLigne ? AppColors.orange : AppColors.onyx)
+                        .withValues(alpha: 0.4),
                     blurRadius: 28,
                     offset: const Offset(0, 12),
                   ),

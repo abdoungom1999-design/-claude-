@@ -23,9 +23,12 @@ class ConducteurBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Onyx & Light : fond très clair, icônes Onyx, onglet actif orange.
     return BottomAppBar(
-      color: AppColors.background,
-      elevation: 12,
+      color: AppColors.fondBarre,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: const Color(0x33000000),
+      elevation: 10,
       padding: EdgeInsets.zero,
       child: SizedBox(
         height: 64,
@@ -64,7 +67,7 @@ class _OngletBarre extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = selectionne ? AppColors.orange : AppColors.grey;
+    final couleur = selectionne ? AppColors.orange : AppColors.onyx;
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),

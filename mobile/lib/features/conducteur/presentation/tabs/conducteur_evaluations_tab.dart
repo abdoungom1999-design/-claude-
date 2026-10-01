@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/onyx_light.dart';
 import '../../../../firebase_options.dart';
 import '../../../evaluations/data/evaluation_service.dart';
 
@@ -46,7 +47,7 @@ class _EvaluationsReellesState extends State<_EvaluationsReelles> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: StreamBuilder<NoteChauffeur>(
           stream: _note,
@@ -94,46 +95,41 @@ class _VueEvaluations extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text('Évaluations', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const Text('Évaluations', style: styleTitreEcran),
         const SizedBox(height: 18),
-        Container(
-          width: double.infinity,
+        CarteVerre(
+          rayon: 28,
           padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.noirProfond, AppColors.noirProfondClair],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
+              children: [
+                Text(
+                  moyenne == null ? '—' : note.moyenneTexte,
+                  style: const TextStyle(color: AppColors.onyx, fontSize: 52, fontWeight: FontWeight.w800, letterSpacing: -1.5),
+                ),
+                const SizedBox(height: 8),
+                _Etoiles(valeur: moyenne ?? 0, taille: 24),
+                const SizedBox(height: 8),
+                Text(
+                  note.aDesAvis
+                      ? 'Basé sur ${note.nombreTexte}'
+                      : 'Pas encore d\'avis : vos premières notes apparaîtront ici après vos courses.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
+                ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            children: [
-              Text(
-                moyenne == null ? '—' : note.moyenneTexte,
-                style: const TextStyle(color: Colors.white, fontSize: 46, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              _Etoiles(valeur: moyenne ?? 0, taille: 22, couleurVide: Colors.white24),
-              const SizedBox(height: 8),
-              Text(
-                note.aDesAvis
-                    ? 'Basé sur ${note.nombreTexte}'
-                    : 'Pas encore d\'avis : vos premières notes apparaîtront ici après vos courses.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.6)),
-              ),
-            ],
           ),
         ),
         if (avis.isNotEmpty) ...[
           const SizedBox(height: 26),
-          const Text('Répartition des notes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const Text('Répartition des notes', style: styleTitreSection),
           const SizedBox(height: 12),
           for (var etoiles = 5; etoiles >= 1; etoiles--)
             _LigneRepartition(etoiles: etoiles, nombre: repartition[etoiles - 1], total: avis.length),
           const SizedBox(height: 26),
-          const Text('Avis récents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const Text('Avis récents', style: styleTitreSection),
           const SizedBox(height: 12),
           for (final a in avis.take(50))
             Padding(
@@ -148,15 +144,14 @@ class _VueEvaluations extends StatelessWidget {
 
 /// Étoiles pleines, demi-étoile au-delà de ,25 et ,75 arrondi au-dessus.
 class _Etoiles extends StatelessWidget {
-  const _Etoiles({required this.valeur, required this.taille, this.couleurVide});
+  const _Etoiles({required this.valeur, required this.taille});
 
   final double valeur;
   final double taille;
-  final Color? couleurVide;
 
   @override
   Widget build(BuildContext context) {
-    const or = Color(0xFFFFC94D);
+    const or = AppColors.orange;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -168,7 +163,7 @@ class _Etoiles extends StatelessWidget {
                 : valeur >= i - 0.75
                     ? Icons.star_half_rounded
                     : Icons.star_outline_rounded,
-            color: valeur >= i - 0.75 ? or : (couleurVide ?? AppColors.greyBorder),
+            color: valeur >= i - 0.75 ? or : AppColors.greyBorder,
             size: taille,
           ),
       ],
@@ -195,7 +190,7 @@ class _LigneRepartition extends StatelessWidget {
               children: [
                 Text('$etoiles', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 2),
-                const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFC94D)),
+                const Icon(Icons.star_rounded, size: 14, color: AppColors.orange),
               ],
             ),
           ),
@@ -279,58 +274,37 @@ class _EvaluationsDemo extends StatelessWidget {
     final compliments = DemoData.complimentsConducteur();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text(
-              'Évaluations',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            const Text('Évaluations', style: styleTitreEcran),
             const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
+            CarteVerre(
+              rayon: 28,
               padding: const EdgeInsets.symmetric(vertical: 28),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.noirProfond, AppColors.noirProfondClair],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  children: [
+                    Text(
+                      DemoData.noteMoyenneConducteur.toStringAsFixed(2),
+                      style: const TextStyle(color: AppColors.onyx, fontSize: 52, fontWeight: FontWeight.w800, letterSpacing: -1.5),
+                    ),
+                    const SizedBox(height: 8),
+                    const _Etoiles(valeur: 5, taille: 24),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Basé sur ${avis.length} avis récents',
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
+                    ),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    DemoData.noteMoyenneConducteur.toStringAsFixed(2),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 46,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      5,
-                      (i) => const Icon(Icons.star_rounded, color: Color(0xFFFFC94D), size: 22),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Basé sur ${avis.length} avis récents',
-                    style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.6)),
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: 26),
-            const Text(
-              'Compliments reçus',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
+            const Text('Compliments reçus', style: styleTitreSection),
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,
@@ -341,10 +315,7 @@ class _EvaluationsDemo extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 26),
-            const Text(
-              'Avis récents',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
+            const Text('Avis récents', style: styleTitreSection),
             const SizedBox(height: 12),
             ...avis.map(
               (a) => Padding(
@@ -365,7 +336,7 @@ class _EvaluationsDemo extends StatelessWidget {
                               5,
                               (i) => Icon(
                                 i < a.note ? Icons.star_rounded : Icons.star_border_rounded,
-                                color: Colors.amber.shade700,
+                                color: AppColors.orange,
                                 size: 15,
                               ),
                             ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' as ll;
@@ -7,15 +6,14 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/notifications/carte_notifications.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/adaptive_map.dart';
+import '../../../../core/widgets/onyx_light.dart';
 import '../../../../firebase_options.dart';
 import '../widgets/bouton_en_ligne_circulaire.dart';
 
-/// Onglet Accueil du nouvel espace Conducteur : carte plein écran (voir
-/// [AdaptiveMap] — OpenStreetMap tant qu'aucune clé Google Maps réelle
-/// n'est configurée, voir GOOGLE_MAPS_SETUP.md) surmontée d'un voile
-/// sombre pour la lisibilité, de cartes flottantes en verre dépoli
-/// (glassmorphism) meublant l'espace autour du bouton "GO", et du
-/// statut En ligne/Hors ligne. C'est ce bouton qui déclenche l'écoute
+/// Onglet Accueil de l'espace Conducteur (charte Onyx & Light) : carte
+/// « Silver » plein écran (voir [AdaptiveMap]), cartes flottantes en verre
+/// dépoli blanc, textes Onyx, orange en accent, autour du bouton "GO" et
+/// du statut En ligne/Hors ligne. C'est ce bouton qui déclenche l'écoute
 /// de [CourseService] côté [ConducteurShellPage] — cette refonte
 /// visuelle ne touche à aucune logique de matchmaking.
 class ConducteurAccueilTab extends StatefulWidget {
@@ -80,7 +78,7 @@ class _ConducteurAccueilTabState extends State<ConducteurAccueilTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.noirProfond,
+      backgroundColor: AppColors.fondClair,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -187,20 +185,19 @@ class _FondCarteConducteurState extends State<_FondCarteConducteur>
           zoom: 14,
           interactif: false,
         ),
-        // Voile sombre : simple dégradé (plus foncé en haut/bas, plus
-        // clair au centre) pour garantir la lisibilité du HUD blanc
-        // quelle que soit la carte réelle affichée dessous.
-        const DecoratedBox(
+        // Voile clair : léger blanc en haut et en bas, pour la lisibilité des
+        // cartes en verre sur n'importe quel fond de carte.
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Color(0x8C000000),
-                Color(0x26000000),
-                Color(0x73000000),
+                Colors.white.withValues(alpha: 0.75),
+                Colors.white.withValues(alpha: 0.0),
+                Colors.white.withValues(alpha: 0.6),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              stops: [0.0, 0.45, 1.0],
+              stops: const [0.0, 0.4, 1.0],
             ),
           ),
         ),
@@ -224,13 +221,13 @@ class _FondCarteConducteurState extends State<_FondCarteConducteur>
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: widget.enLigne ? AppColors.orange : Colors.white,
+              color: widget.enLigne ? AppColors.orange : AppColors.onyx,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: (widget.enLigne ? AppColors.orange : Colors.white)
-                      .withValues(alpha: 0.4),
+                  color: (widget.enLigne ? AppColors.orange : AppColors.onyx)
+                      .withValues(alpha: 0.3),
                   blurRadius: 16,
                   spreadRadius: 2,
                 ),
@@ -264,9 +261,7 @@ class _AnneauRadar extends StatelessWidget {
   }
 }
 
-/// Carte en verre dépoli générique (glassmorphism) : fond translucide
-/// flouté + fine bordure lumineuse, pour flotter avec élégance sur le
-/// fond nocturne sans jamais devenir un bloc opaque.
+/// Carte en verre dépoli (charte Onyx & Light).
 class _CarteVerre extends StatelessWidget {
   const _CarteVerre({required this.child, this.padding = const EdgeInsets.all(16)});
 
@@ -274,23 +269,7 @@ class _CarteVerre extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => CarteVerre(rayon: 24, padding: padding, child: child);
 }
 
 class _CarteObjectifJour extends StatelessWidget {
@@ -310,8 +289,8 @@ class _CarteObjectifJour extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.orange.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(13),
+              color: AppColors.orangeLight,
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(Icons.flag_rounded, color: AppColors.orange, size: 21),
           ),
@@ -325,14 +304,14 @@ class _CarteObjectifJour extends StatelessWidget {
                   children: [
                     const Text(
                       'Objectif du jour',
-                      style: TextStyle(fontSize: 11.5, color: Colors.white70),
+                      style: TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                     ),
                     Text(
                       '$gainsFcfa / $objectif FCFA',
                       style: const TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.onyx,
                       ),
                     ),
                   ],
@@ -343,7 +322,7 @@ class _CarteObjectifJour extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progression,
                     minHeight: 7,
-                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                    backgroundColor: const Color(0x14000000),
                     valueColor: const AlwaysStoppedAnimation<Color>(AppColors.orange),
                   ),
                 ),
@@ -374,12 +353,12 @@ class _CarteStatVerre extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             valeur,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onyx),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 10.5, color: Colors.white60),
+            style: const TextStyle(fontSize: 11, color: AppColors.texteDiscret),
           ),
         ],
       ),
@@ -409,7 +388,7 @@ class _PucePastille extends StatelessWidget {
             SizedBox(width: 6),
             Text(
               'Simuler une course',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.onyx),
             ),
           ],
         ),

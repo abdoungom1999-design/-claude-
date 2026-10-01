@@ -116,3 +116,21 @@ class TuileLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LogoSprint(taille: taille, ombre: true);
 }
+
+/// Habillage d'un onglet en charte Onyx & Light : [ThemeOnyxLight] (cartes
+/// verre, champs et boutons Onyx) et fond clair à halos. L'onglet garde son
+/// propre `Scaffold` (transparent) et sa zone sûre.
+class EcranOnyxLight extends StatelessWidget {
+  const EcranOnyxLight({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ThemeOnyxLight(child: FondOnyxLight(child: child));
+}
+
+/// Titre d'un onglet (« Gains », « Compte »…) en charte Onyx & Light.
+const styleTitreEcran = TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.8, color: AppColors.onyx);
+
+/// Titre de section (« Dernières courses »…) en charte Onyx & Light.
+const styleTitreSection = TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx);

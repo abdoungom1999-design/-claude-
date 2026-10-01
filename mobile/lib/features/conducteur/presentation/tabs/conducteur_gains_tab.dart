@@ -4,6 +4,7 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/format_fcfa.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/onyx_light.dart';
 import '../../../../firebase_options.dart';
 import '../../../courses/data/course_service.dart';
 import '../../../finances/data/comptabilite.dart';
@@ -51,7 +52,7 @@ class _GainsReelsState extends State<_GainsReels> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: StreamBuilder<List<LigneCourse>>(
           stream: _courses,
@@ -118,7 +119,7 @@ class _VueGains extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text('Gains', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const Text('Gains', style: styleTitreEcran),
         const SizedBox(height: 16),
         _CarteDu(soldeFcfa: compte.soldeFcfa),
         const SizedBox(height: 16),
@@ -170,7 +171,7 @@ class _VueGains extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const Text('Dernières courses', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        const Text('Dernières courses', style: styleTitreSection),
         const SizedBox(height: 12),
         if (dernieres.isEmpty)
           const AppCard(
@@ -193,7 +194,7 @@ class _VueGains extends StatelessWidget {
           ),
         if (compte.reglements.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const Text('Versements reçus', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const Text('Versements reçus', style: styleTitreSection),
           const SizedBox(height: 12),
           AppCard(
             child: Column(
@@ -232,38 +233,36 @@ class _CarteDu extends StatelessWidget {
   Widget build(BuildContext context) {
     final enAttente = soldeFcfa > 0;
     final aDeduire = soldeFcfa < 0;
-    return Container(
-      width: double.infinity,
+    return CarteVerre(
+      rayon: 28,
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.noirProfond, AppColors.noirProfondClair],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Sprint vous doit',
+              style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              formaterFcfa(enAttente ? soldeFcfa : 0),
+              style: const TextStyle(color: AppColors.onyx, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              enAttente
+                  ? 'Votre part (${100 - Commission.pourcentage} %) de vos courses payées par Wave ou '
+                      'Orange Money, moins les versements déjà reçus.'
+                  : aDeduire
+                      ? '${formaterFcfa(-soldeFcfa)} seront déduits de vos prochains gains : une course déjà '
+                          'versée a été remboursée au client.'
+                      : 'Aucune somme en attente : tout vous a été versé.',
+              style: const TextStyle(fontSize: 12.5, height: 1.4, color: AppColors.texteDiscret),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Sprint vous doit', style: TextStyle(color: Colors.white.withValues(alpha: 0.75))),
-          const SizedBox(height: 8),
-          Text(
-            formaterFcfa(enAttente ? soldeFcfa : 0),
-            style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            enAttente
-                ? 'Votre part (${100 - Commission.pourcentage} %) de vos courses payées par Wave ou '
-                    'Orange Money, moins les versements déjà reçus.'
-                : aDeduire
-                    ? '${formaterFcfa(-soldeFcfa)} seront déduits de vos prochains gains : une course déjà '
-                        'versée a été remboursée au client.'
-                    : 'Aucune somme en attente : tout vous a été versé.',
-            style: TextStyle(fontSize: 12.5, height: 1.4, color: Colors.white.withValues(alpha: 0.6)),
-          ),
-        ],
       ),
     );
   }
@@ -331,7 +330,7 @@ class _LigneCourseReelle extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13.5,
-              color: ligne.remboursee ? AppColors.grey : AppColors.vert,
+              color: ligne.remboursee ? AppColors.grey : AppColors.orange,
             ),
           ),
         ],
@@ -349,49 +348,37 @@ class _GainsDemo extends StatelessWidget {
     final courses = DemoData.coursesTermineesConducteur();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text(
-              'Gains',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            const Text('Gains', style: styleTitreEcran),
             const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.noirProfond, AppColors.noirProfondClair],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gains cette semaine',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '${DemoData.gainsSemaineFcfa} FCFA',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
+            const CarteVerre(
+              rayon: 28,
+              padding: EdgeInsets.all(22),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gains cette semaine',
+                      style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${DemoData.coursesSemaine} courses effectuées',
-                    style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.6)),
-                  ),
-                ],
+                    SizedBox(height: 8),
+                    Text(
+                      '${DemoData.gainsSemaineFcfa} FCFA',
+                      style: TextStyle(color: AppColors.onyx, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '${DemoData.coursesSemaine} courses effectuées',
+                      style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -413,10 +400,7 @@ class _GainsDemo extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              '10 dernières courses',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
+            const Text('10 dernières courses', style: styleTitreSection),
             const SizedBox(height: 12),
             AppCard(
               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -481,7 +465,7 @@ class _LigneCourseGains extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13.5,
-              color: AppColors.vert,
+              color: AppColors.orange,
             ),
           ),
         ],

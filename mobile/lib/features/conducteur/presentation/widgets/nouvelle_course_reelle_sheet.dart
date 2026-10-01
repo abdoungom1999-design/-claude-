@@ -107,8 +107,8 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        color: AppColors.fondClairHaut,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -158,13 +158,13 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
                       style: const TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.text,
+                        color: AppColors.onyx,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.course.libellePaiement,
-                      style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                     ),
                   ],
                 ),
@@ -180,7 +180,7 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.greyLight,
+              color: AppColors.fondClair,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -316,7 +316,7 @@ class _LigneInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.grey),
+        Icon(icon, size: 18, color: AppColors.texteDiscret),
         const SizedBox(width: 10),
         Expanded(
           child: Text(

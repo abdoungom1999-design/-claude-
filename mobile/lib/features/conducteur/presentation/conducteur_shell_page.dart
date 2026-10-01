@@ -15,6 +15,7 @@ import '../../../core/notifications/notifications_push.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/email_verification_pending_page.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
@@ -599,20 +600,23 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
   Widget _tableauDeBord() {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.fondClair,
       body: IndexedStack(
         index: _indexSelectionne,
         children: [
-          ConducteurAccueilTab(
-            enLigne: _enLigne,
-            onBasculerStatut: _basculerStatut,
-            gainsJourFcfa: DemoData.gainsEstimesFcfa,
-            onSimulerCourse: _declencherNouvelleCourseDemo,
+          // Accueil : carte plein écran (charte Onyx & Light dans l'onglet).
+          ThemeOnyxLight(
+            child: ConducteurAccueilTab(
+              enLigne: _enLigne,
+              onBasculerStatut: _basculerStatut,
+              gainsJourFcfa: DemoData.gainsEstimesFcfa,
+              onSimulerCourse: _declencherNouvelleCourseDemo,
+            ),
           ),
-          const ConducteurMessagesTab(),
-          const ConducteurGainsTab(),
-          const ConducteurEvaluationsTab(),
-          ConducteurCompteTab(profil: _profil, onDeconnexion: _seDeconnecter),
+          const EcranOnyxLight(child: ConducteurMessagesTab()),
+          const EcranOnyxLight(child: ConducteurGainsTab()),
+          const EcranOnyxLight(child: ConducteurEvaluationsTab()),
+          EcranOnyxLight(child: ConducteurCompteTab(profil: _profil, onDeconnexion: _seDeconnecter)),
         ],
       ),
       bottomNavigationBar: Column(
