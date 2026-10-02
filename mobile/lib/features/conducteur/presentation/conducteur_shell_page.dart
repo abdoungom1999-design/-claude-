@@ -547,7 +547,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
     if (_profil == null) {
       return const Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.fondClair,
         body: Center(child: CircularProgressIndicator(color: AppColors.orange)),
       );
     }
@@ -569,7 +569,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       switch (_etapeKyc) {
         case _EtapeKyc.chargement:
           return const Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: AppColors.fondClair,
             body: Center(child: CircularProgressIndicator(color: AppColors.orange)),
           );
         case _EtapeKyc.nonEnvoye:

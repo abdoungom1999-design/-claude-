@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/ecran_statut_onyx.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/conducteur_documents_service.dart';
 
@@ -26,6 +27,7 @@ class ConducteurKYCPage extends StatefulWidget {
     super.key,
     required this.onDossierSoumis,
     required this.onDeconnexion,
+    this.fluxProfil,
   });
 
   /// Appelé une fois les 3 documents envoyés et le bouton "Soumettre
@@ -33,6 +35,10 @@ class ConducteurKYCPage extends StatefulWidget {
   /// d'attente directement, sans recharger tout le profil.
   final VoidCallback onDossierSoumis;
   final VoidCallback onDeconnexion;
+
+  /// Profil Firestore de l'utilisateur ; `null` : flux réel du compte
+  /// connecté. Sert aux tests et aux aperçus, sans projet Firebase.
+  final Stream<Map<String, dynamic>?>? fluxProfil;
 
   @override
   State<ConducteurKYCPage> createState() => _ConducteurKYCPageState();
@@ -86,93 +92,121 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: StreamBuilder<Map<String, dynamic>?>(
-          stream: _authRepository.profilUtilisateurStream(),
-          builder: (context, snapshot) {
-            final documents = (snapshot.data?['documents'] as Map<String, dynamic>?) ?? {};
-            final tousEnvoyes = _documentsRequis.every((cle) => _envoye(cle, documents));
+    return EcranOnyxLight(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: StreamBuilder<Map<String, dynamic>?>(
+            stream: widget.fluxProfil ?? _authRepository.profilUtilisateurStream(),
+            builder: (context, snapshot) {
+              final documents = (snapshot.data?['documents'] as Map<String, dynamic>?) ?? {};
+              final nbEnvoyes = _documentsRequis.where((cle) => _envoye(cle, documents)).length;
+              final tousEnvoyes = nbEnvoyes == _documentsRequis.length;
 
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(
-                    color: AppColors.orangeLight,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.folder_shared_outlined, color: AppColors.orange, size: 30),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Complétez votre dossier',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Avant de prendre votre première course, envoyez une photo lisible '
-                  "de chacun de ces documents. L'équipe du Groupe Santine les vérifie "
-                  "avant d'activer votre compte.",
-                  style: TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.5),
-                ),
-                const SizedBox(height: 24),
-                AppCard(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                     children: [
-                      _LigneDocumentKyc(
-                        icon: Icons.badge_outlined,
-                        label: 'Permis de conduire',
-                        envoye: _envoye('permis', documents),
-                        enCours: _enCoursTeleversement.contains('permis'),
-                        onTap: () => _choisirEtTeleverser('permis'),
+                      const Align(alignment: Alignment.centerLeft, child: TuileLogo(taille: 56)),
+                      const SizedBox(height: 24),
+                      const Text('Complétez votre dossier', style: styleTitreEcran),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Avant de prendre votre première course, envoyez une photo lisible '
+                        "de chacun de ces documents. L'équipe du Groupe Santine les vérifie "
+                        "avant d'activer votre compte.",
+                        style: TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.5),
                       ),
-                      const Divider(height: 1, color: AppColors.greyBorder),
-                      _LigneDocumentKyc(
-                        icon: Icons.description_outlined,
-                        label: 'Carte grise',
-                        envoye: _envoye('carteGrise', documents),
-                        enCours: _enCoursTeleversement.contains('carteGrise'),
-                        onTap: () => _choisirEtTeleverser('carteGrise'),
+                      const SizedBox(height: 22),
+                      _ProgressionDossier(envoyes: nbEnvoyes, total: _documentsRequis.length),
+                      const SizedBox(height: 14),
+                      AppCard(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          children: [
+                            _LigneDocumentKyc(
+                              icon: Icons.badge_outlined,
+                              label: 'Permis de conduire',
+                              envoye: _envoye('permis', documents),
+                              enCours: _enCoursTeleversement.contains('permis'),
+                              onTap: () => _choisirEtTeleverser('permis'),
+                            ),
+                            const _SeparateurKyc(),
+                            _LigneDocumentKyc(
+                              icon: Icons.description_outlined,
+                              label: 'Carte grise',
+                              envoye: _envoye('carteGrise', documents),
+                              enCours: _enCoursTeleversement.contains('carteGrise'),
+                              onTap: () => _choisirEtTeleverser('carteGrise'),
+                            ),
+                            const _SeparateurKyc(),
+                            _LigneDocumentKyc(
+                              icon: Icons.shield_outlined,
+                              label: 'Attestation VTC',
+                              envoye: _envoye('attestationVtc', documents),
+                              enCours: _enCoursTeleversement.contains('attestationVtc'),
+                              onTap: () => _choisirEtTeleverser('attestationVtc'),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Divider(height: 1, color: AppColors.greyBorder),
-                      _LigneDocumentKyc(
-                        icon: Icons.shield_outlined,
-                        label: 'Attestation VTC',
-                        envoye: _envoye('attestationVtc', documents),
-                        enCours: _enCoursTeleversement.contains('attestationVtc'),
-                        onTap: () => _choisirEtTeleverser('attestationVtc'),
+                      const SizedBox(height: 24),
+                      BoutonStatutPrincipal(
+                        label: 'Soumettre mon dossier',
+                        onPressed: tousEnvoyes ? widget.onDossierSoumis : null,
                       ),
+                      const SizedBox(height: 4),
+                      Center(child: LienStatut(label: 'Se déconnecter', onPressed: widget.onDeconnexion)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
-                PrimaryButton(
-                  label: 'Soumettre mon dossier',
-                  onPressed: tousEnvoyes ? widget.onDossierSoumis : null,
-                ),
-                const SizedBox(height: 12),
-                Center(
-                  child: TextButton(
-                    onPressed: widget.onDeconnexion,
-                    child: const Text(
-                      'Se déconnecter',
-                      style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
   }
+}
+
+/// « 2 documents sur 3 » avec une barre de progression orange.
+class _ProgressionDossier extends StatelessWidget {
+  const _ProgressionDossier({required this.envoyes, required this.total});
+
+  final int envoyes;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$envoyes document${envoyes > 1 ? 's' : ''} sur $total envoyé${envoyes > 1 ? 's' : ''}',
+          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.onyx),
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: total == 0 ? 0 : envoyes / total,
+            minHeight: 6,
+            backgroundColor: AppColors.onyx.withValues(alpha: 0.08),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.orange),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SeparateurKyc extends StatelessWidget {
+  const _SeparateurKyc();
+
+  @override
+  Widget build(BuildContext context) => const Divider(height: 1, color: AppColors.bordVerre);
 }
 
 class _LigneDocumentKyc extends StatelessWidget {
@@ -192,20 +226,27 @@ class _LigneDocumentKyc extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = envoye ? AppColors.vert : AppColors.grey;
-    final iconeEtat = envoye ? Icons.check_circle_rounded : Icons.upload_outlined;
-    final texteEtat = envoye ? 'Envoyé' : 'Ajouter';
-
     return InkWell(
       onTap: enCours ? null : onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: AppColors.text),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.onyx.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: AppColors.onyx),
+            ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(label, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onyx),
+              ),
             ),
             if (enCours)
               const SizedBox(
@@ -214,20 +255,31 @@ class _LigneDocumentKyc extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange),
               )
             else
+              // Envoyé : pastille Onyx à coche orange. À ajouter : pastille
+              // blanche à bord fin.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                 decoration: BoxDecoration(
-                  color: couleur.withValues(alpha: 0.12),
+                  color: envoye ? AppColors.onyx : Colors.white,
                   borderRadius: BorderRadius.circular(20),
+                  border: envoye ? null : Border.all(color: AppColors.bordVerre),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(iconeEtat, size: 13, color: couleur),
+                    Icon(
+                      envoye ? Icons.check_circle_rounded : Icons.upload_outlined,
+                      size: 13,
+                      color: envoye ? AppColors.orange : AppColors.onyx,
+                    ),
                     const SizedBox(width: 5),
                     Text(
-                      texteEtat,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: couleur),
+                      envoye ? 'Envoyé' : 'Ajouter',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: envoye ? Colors.white : AppColors.onyx,
+                      ),
                     ),
                   ],
                 ),

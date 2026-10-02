@@ -7,6 +7,7 @@ import '../../features/auth/data/auth_repository.dart';
 import '../network/api_exception.dart';
 import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
+import 'ecran_statut_onyx.dart';
 
 /// Écran de blocage affiché tant que l'adresse email du compte n'a pas
 /// été vérifiée (lien envoyé par email à l'inscription, via
@@ -146,120 +147,40 @@ class _EmailVerificationPendingPageState
   Widget build(BuildContext context) {
     final email = FirebaseAuth.instance.currentUser?.email;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            children: [
-              const Spacer(),
-              Container(
-                width: 120,
-                height: 120,
-                decoration: const BoxDecoration(
-                  color: AppColors.orangeLight,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.mark_email_unread_outlined,
-                  color: AppColors.orange,
-                  size: 52,
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'Vérifiez votre adresse email',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Un email de confirmation vous a été envoyé'
-                '${email != null && email.isNotEmpty ? ' à $email' : ''}. '
-                'Cliquez sur le lien dans votre boîte mail : cette page se '
-                'débloquera automatiquement, sans rien faire de plus.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: AppColors.grey, height: 1.6),
-              ),
-              const SizedBox(height: 20),
-              const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.orange),
-                ),
-              ),
-              if (_message != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  _message!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.orange,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _verificationEnCours
-                      ? null
-                      : () => _verifierEtRedirigerSiValide(depuisPolling: false),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.orange,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _verificationEnCours
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          "J'ai vérifié, réessayer",
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: _enCoursRenvoi ? null : _renvoyerEmail,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(54),
-                  side: const BorderSide(color: AppColors.greyBorder),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  _enCoursRenvoi ? 'Envoi en cours…' : "Renvoyer l'email",
-                  style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _seDeconnecter,
-                child: const Text(
-                  'Se déconnecter',
-                  style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
+    return EcranStatutOnyx(
+      icone: Icons.mark_email_unread_outlined,
+      titre: 'Vérifiez votre adresse email',
+      texte: 'Un email de confirmation vous a été envoyé'
+          '${email != null && email.isNotEmpty ? ' à $email' : ''}. '
+          'Cliquez sur le lien dans votre boîte mail : cette page se '
+          'débloquera automatiquement, sans rien faire de plus.',
+      contenu: [
+        const Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.orange),
           ),
         ),
-      ),
+        if (_message != null)
+          Text(
+            _message!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12.5, color: AppColors.orange, fontWeight: FontWeight.w700),
+          ),
+      ],
+      actions: [
+        BoutonStatutPrincipal(
+          label: "J'ai vérifié, réessayer",
+          enCours: _verificationEnCours,
+          onPressed: () => _verifierEtRedirigerSiValide(depuisPolling: false),
+        ),
+        BoutonStatutSecondaire(
+          label: _enCoursRenvoi ? 'Envoi en cours…' : "Renvoyer l'email",
+          onPressed: _enCoursRenvoi ? null : _renvoyerEmail,
+        ),
+        LienStatut(label: 'Se déconnecter', onPressed: _seDeconnecter),
+      ],
     );
   }
 }
