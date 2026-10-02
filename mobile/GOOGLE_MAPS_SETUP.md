@@ -60,6 +60,29 @@ Platform, même si l'usage réel reste gratuit.
    **alerte de budget** (Facturation > Budgets et alertes) pour être
    prévenu avant tout dépassement — recommandé dès le départ.
 
+### Plafonner les dépenses (configuré dans la console, pas dans le code)
+
+Un budget Google **n'arrête rien** : il alerte seulement, et ses chiffres
+arrivent avec du retard (de quelques heures à plus d'un jour). Dispositif
+retenu pour le projet `sprint-vtc` :
+
+- **A. Alertes e-mail** : Facturation > Budgets et alertes > Créer un budget,
+  périmètre = projet `sprint-vtc`, montant **15 €**, seuils **50 %** (7,50 €),
+  **67 %** (≈ 10 €) et **100 %** (15 €) en « Réel ». Vérifier que l'e-mail du
+  propriétaire est administrateur du compte de facturation (Gestion des
+  comptes).
+- **B. Quotas stricts sur les API Maps** : API et services > API activées >
+  (Places API (New), Routes API, Map Tiles API) > onglet **Quotas et limites
+  système** > baisser les limites par jour. Au-delà, Google refuse les
+  appels (la carte ou la recherche d'adresse tombe en panne) **sans
+  dépense**, et le reste de l'app continue de fonctionner.
+- **C. Coupure automatique de la facturation (Pub/Sub + fonction)** :
+  **non retenue**. Elle arrêterait aussi les Cloud Functions (commandes,
+  paiements, notifications, portefeuille) et peut se déclencher à tort.
+
+Les libellés exacts de la console changent : en cas de différence, suivre
+l'esprit de l'étape.
+
 ## 3. Activer les 4 API nécessaires
 
 Menu ☰ → **API et services** → **Bibliothèque**, puis recherche et
