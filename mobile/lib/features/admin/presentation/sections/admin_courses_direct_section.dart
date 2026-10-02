@@ -286,7 +286,7 @@ class _MarqueurChauffeur extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final perdu = etat == EtatSignal.perdu;
-    final couleur = perdu ? AppColors.grey : (enCourse ? AppColors.orange : AppColors.vert);
+    final couleur = perdu ? AppColors.grey : (enCourse ? AppColors.orange : AppColors.onyx);
     final libelle = perdu ? 'Signal perdu' : (enCourse ? 'En course' : 'Disponible');
 
     return Tooltip(
@@ -351,7 +351,7 @@ class _Legende extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           element(AppColors.orange, 'En course : $enCourse'),
-          element(AppColors.vert, 'Disponibles : $disponibles'),
+          element(AppColors.onyx, 'Disponibles : $disponibles'),
           element(AppColors.grey, 'Signal perdu : $perdus'),
         ],
       ),
@@ -406,7 +406,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: clientABord ? AppColors.vert : AppColors.orange,
+                  color: clientABord ? AppColors.onyx : AppColors.orange,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -422,7 +422,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: clientABord ? AppColors.vert : AppColors.orange,
+                  color: clientABord ? AppColors.onyx : AppColors.orange,
                 ),
               ),
             ],
@@ -446,7 +446,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
             },
             style: TextStyle(
               fontSize: 11.5,
-              color: signal == EtatSignal.actif ? AppColors.vert : AppColors.grey,
+              color: signal == EtatSignal.actif ? AppColors.onyx : AppColors.grey,
               fontWeight: FontWeight.w600,
             ),
           ),

@@ -11,13 +11,22 @@ import 'logo_sprint.dart';
 /// que ses champs et boutons prennent le style Onyx & Light, sans toucher
 /// aux écrans pas encore migrés.
 class ThemeOnyxLight extends InheritedWidget {
-  const ThemeOnyxLight({super.key, required super.child});
+  const ThemeOnyxLight({super.key, required super.child, this.flou = true});
+
+  /// Flou de fond des cartes « verre ». Désactivé (`false`) sur les écrans
+  /// denses (tableaux de bord Admin, longues listes) : la carte reste
+  /// blanche, translucide, sans flou, ce qui est bien plus léger à afficher.
+  final bool flou;
 
   /// Vrai si l'écran courant est en style Onyx & Light.
   static bool actif(BuildContext context) => context.dependOnInheritedWidgetOfExactType<ThemeOnyxLight>() != null;
 
+  /// Flou activé pour les cartes de cet écran (vrai par défaut).
+  static bool flouActif(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ThemeOnyxLight>()?.flou ?? true;
+
   @override
-  bool updateShouldNotify(ThemeOnyxLight ancien) => false;
+  bool updateShouldNotify(ThemeOnyxLight ancien) => ancien.flou != flou;
 }
 
 /// Fond d'écran Onyx & Light : dégradé gris très clair vers blanc, avec deux
@@ -83,6 +92,14 @@ class CarteVerre extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final contenu = DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.verre,
+        borderRadius: BorderRadius.circular(rayon),
+        border: Border.all(color: AppColors.bordVerre),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(rayon),
@@ -90,17 +107,9 @@ class CarteVerre extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(rayon),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.verre,
-              borderRadius: BorderRadius.circular(rayon),
-              border: Border.all(color: AppColors.bordVerre),
-            ),
-            child: Padding(padding: padding, child: child),
-          ),
-        ),
+        child: ThemeOnyxLight.flouActif(context)
+            ? BackdropFilter(filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20), child: contenu)
+            : contenu,
       ),
     );
   }
@@ -121,12 +130,15 @@ class TuileLogo extends StatelessWidget {
 /// verre, champs et boutons Onyx) et fond clair à halos. L'onglet garde son
 /// propre `Scaffold` (transparent) et sa zone sûre.
 class EcranOnyxLight extends StatelessWidget {
-  const EcranOnyxLight({super.key, required this.child});
+  const EcranOnyxLight({super.key, required this.child, this.flou = true});
 
   final Widget child;
 
+  /// Voir [ThemeOnyxLight.flou].
+  final bool flou;
+
   @override
-  Widget build(BuildContext context) => ThemeOnyxLight(child: FondOnyxLight(child: child));
+  Widget build(BuildContext context) => ThemeOnyxLight(flou: flou, child: FondOnyxLight(child: child));
 }
 
 /// Titre d'un onglet (« Gains », « Compte »…) en charte Onyx & Light.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../../core/utils/flux_partage.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../courses/data/course_service.dart';
@@ -154,10 +155,18 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
       builder: (context, instantaneTicket) {
         final ticket = instantaneTicket.data;
         if (ticket != null) _marquerLu(ticket);
-        return Scaffold(
-          backgroundColor: AppColors.background,
+        return EcranOnyxLight(
+          flou: false,
+          child: Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
-            title: Text(ticket == null ? 'Ticket' : CategorieTicket.libelle(ticket.categorie)),
+            backgroundColor: AppColors.fondClairHaut,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: AppColors.onyx,
+            title: Text(
+              ticket == null ? 'Ticket' : CategorieTicket.libelle(ticket.categorie),
+              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
+            ),
             actions: [
               if (ticket != null)
                 Padding(
@@ -177,6 +186,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
                       : const Text('Ticket introuvable.', style: TextStyle(color: AppColors.grey)),
                 )
               : _corps(ticket),
+          ),
         );
       },
     );
@@ -286,7 +296,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
 
   Widget _boutonRemboursement(CourseFirestore course) {
     if (course.rembourseeLe != null) {
-      return Text('Course déjà remboursée.', style: TextStyle(fontSize: 13, color: Colors.green.shade700));
+      return const Text('Course déjà remboursée.', style: TextStyle(fontSize: 13, color: AppColors.onyx));
     }
     if (course.commandeId == null) {
       return const Text(
@@ -304,7 +314,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
       stream: _commande?.flux,
       builder: (context, c) {
         if (c.data?.statut == 'remboursee') {
-          return Text('Client déjà remboursé (annulation).', style: TextStyle(fontSize: 13, color: Colors.green.shade700));
+          return const Text('Client déjà remboursé (annulation).', style: TextStyle(fontSize: 13, color: AppColors.onyx));
         }
         return FilledButton.icon(
           onPressed: _action ? null : () => _rembourser(course),

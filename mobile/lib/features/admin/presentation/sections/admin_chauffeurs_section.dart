@@ -240,7 +240,7 @@ class _LigneChauffeur extends StatelessWidget {
             child: conducteur.note > 0
                 ? Row(
                     children: [
-                      const Icon(Icons.star_rounded, size: 15, color: Colors.amber),
+                      const Icon(Icons.star_rounded, size: 15, color: AppColors.orange),
                       const SizedBox(width: 3),
                       Text(conducteur.note.toStringAsFixed(1)),
                     ],
@@ -264,7 +264,7 @@ class _LigneChauffeur extends StatelessWidget {
                           tooltip: 'Valider les documents',
                           icon: const Icon(
                             Icons.verified_outlined,
-                            color: AppColors.vert,
+                            color: AppColors.onyx,
                             size: 20,
                           ),
                         ),
@@ -275,13 +275,13 @@ class _LigneChauffeur extends StatelessWidget {
                               ? Icons.lock_open_rounded
                               : Icons.block_rounded,
                           size: 16,
-                          color: conducteur.suspendu ? AppColors.vert : Colors.redAccent,
+                          color: conducteur.suspendu ? AppColors.onyx : Colors.redAccent,
                         ),
                         label: Text(
                           conducteur.suspendu ? 'Débloquer' : 'Bloquer',
                           style: TextStyle(
                             fontSize: 12,
-                            color: conducteur.suspendu ? AppColors.vert : Colors.redAccent,
+                            color: conducteur.suspendu ? AppColors.onyx : Colors.redAccent,
                           ),
                         ),
                       ),
@@ -304,7 +304,7 @@ class _BadgeStatutChauffeur extends StatelessWidget {
     final (label, couleur) = conducteur.suspendu
         ? ('Suspendu', Colors.redAccent)
         : conducteur.estValide
-        ? ('Actif', AppColors.vert)
+        ? ('Actif', AppColors.onyx)
         : ('En attente', AppColors.orange);
 
     return Container(
@@ -524,7 +524,7 @@ class _BadgeStatutValidation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutValidation) {
-      'valide' => ('Validé', AppColors.vert),
+      'valide' => ('Validé', AppColors.onyx),
       'en_attente' => ('En attente', AppColors.orange),
       'rejete' => ('Rejeté', Colors.redAccent),
       _ => ('Non soumis', AppColors.grey),

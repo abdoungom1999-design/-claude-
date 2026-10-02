@@ -18,14 +18,14 @@ class AdminTopbar extends StatelessWidget {
       height: 76,
       padding: const EdgeInsets.symmetric(horizontal: 32),
       decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(bottom: BorderSide(color: AppColors.greyBorder)),
+        color: AppColors.fondBarre,
+        border: Border(bottom: BorderSide(color: AppColors.bordVerre)),
       ),
       child: Row(
         children: [
           Text(
             titreSection,
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.onyx),
           ),
           const SizedBox(width: 32),
           if (compteAdmin != null)
@@ -38,17 +38,18 @@ class AdminTopbar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   height: 42,
                   decoration: BoxDecoration(
-                    color: AppColors.greyLight,
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(21),
+                    border: Border.all(color: AppColors.bordVerre),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.search, size: 19, color: AppColors.grey),
+                      Icon(Icons.search, size: 19, color: AppColors.texteDiscret),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Rechercher une course, un chauffeur, un client…',
-                          style: TextStyle(fontSize: 13, color: AppColors.grey),
+                          style: TextStyle(fontSize: 13, color: AppColors.texteDiscret),
                         ),
                       ),
                     ],
@@ -82,11 +83,12 @@ class _BoutonIcone extends StatelessWidget {
         Container(
           width: 42,
           height: 42,
-          decoration: const BoxDecoration(
-            color: AppColors.greyLight,
+          decoration: BoxDecoration(
+            color: Colors.white,
             shape: BoxShape.circle,
+            border: Border.all(color: AppColors.bordVerre),
           ),
-          child: Icon(icon, size: 19, color: AppColors.text),
+          child: Icon(icon, size: 19, color: AppColors.onyx),
         ),
         if (badge)
           Positioned(
@@ -120,12 +122,9 @@ class _ProfilAdmin extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.noirProfondClair, AppColors.noirProfond],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(12),
+            color: AppColors.onyx,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.orange, width: 2),
           ),
           alignment: Alignment.center,
           child: const Text(
@@ -139,15 +138,16 @@ class _ProfilAdmin extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Admin Santine',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.onyx),
             ),
             Text(
               compte ?? 'Super administrateur',
-              style: const TextStyle(fontSize: 11, color: AppColors.grey),
+              style: const TextStyle(fontSize: 11, color: AppColors.texteDiscret),
             ),
           ],
         ),

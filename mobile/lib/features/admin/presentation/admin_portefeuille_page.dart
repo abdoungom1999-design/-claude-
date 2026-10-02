@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -86,12 +87,19 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return EcranOnyxLight(
+      flou: false,
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.fondClairHaut,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text('Portefeuille · ${widget.nomClient}'),
+        foregroundColor: AppColors.onyx,
+        title: Text(
+          'Portefeuille · ${widget.nomClient}',
+          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -117,10 +125,10 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
                       ),
                       const SizedBox(height: 10),
                       if (coherent == true)
-                        Row(children: [
-                          Icon(Icons.verified_outlined, size: 18, color: Colors.green.shade700),
-                          const SizedBox(width: 6),
-                          Text('Livre de comptes cohérent', style: TextStyle(color: Colors.green.shade700, fontSize: 13)),
+                        const Row(children: [
+                          Icon(Icons.verified_outlined, size: 18, color: AppColors.onyx),
+                          SizedBox(width: 6),
+                          Text('Livre de comptes cohérent', style: TextStyle(color: AppColors.onyx, fontSize: 13)),
                         ])
                       else if (coherent == false)
                         Row(children: [
@@ -173,9 +181,10 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Mouvements', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const Text('Mouvements', style: styleTitreSection),
           ListeMouvements(flux: _mouvements, shrinkWrap: true),
         ],
+      ),
       ),
     );
   }

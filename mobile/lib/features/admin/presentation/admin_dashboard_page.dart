@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/admin_kyc_service.dart';
@@ -63,8 +63,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.greyLight,
+    // Charte Onyx & Light, sans flou : tableau de bord dense (tableaux, listes).
+    return EcranOnyxLight(
+      flou: false,
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: Row(
         children: [
           AdminSidebar(
@@ -98,6 +101,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

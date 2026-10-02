@@ -53,7 +53,7 @@ class AdminSupportSection extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.greyLight,
+                  color: AppColors.fondClair,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -95,7 +95,7 @@ class _BadgeTicket extends StatelessWidget {
     final (label, couleur) = switch (statut) {
       StatutTicket.ouvert => ('Ouvert', Colors.redAccent),
       StatutTicket.enCours => ('En cours', AppColors.orange),
-      StatutTicket.resolu => ('Résolu', AppColors.vert),
+      StatutTicket.resolu => ('Résolu', AppColors.onyx),
     };
 
     return Container(
@@ -231,7 +231,7 @@ class _LigneTicket extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: ticket.nonLuAdmin ? AppColors.orangeLight.withValues(alpha: 0.5) : AppColors.greyLight,
+        color: ticket.nonLuAdmin ? AppColors.orangeLight.withValues(alpha: 0.5) : AppColors.fondClair,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -289,7 +289,7 @@ class _LigneTicket extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: ticket.estResolu ? Colors.green.shade700 : AppColors.orangeDark,
+                        color: ticket.estResolu ? AppColors.onyx : AppColors.orangeDark,
                       ),
                     ),
                   ],

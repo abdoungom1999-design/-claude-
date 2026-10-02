@@ -135,9 +135,9 @@ class _VueFinances extends StatelessWidget {
             tuile("CA aujourd'hui", aujourdhui.chiffreAffairesFcfa, Icons.today_outlined),
             tuile('CA cette semaine', semaine.chiffreAffairesFcfa, Icons.date_range_outlined),
             tuile('CA total', compte.chiffreAffairesFcfa, Icons.account_balance_outlined),
-            tuile('Commissions Sprint (total)', compte.commissionsFcfa, Icons.percent_rounded, accent: AppColors.vert),
+            tuile('Commissions Sprint (total)', compte.commissionsFcfa, Icons.percent_rounded, accent: AppColors.onyx),
             tuile('Versé aux chauffeurs', compte.versementsFcfa, Icons.check_circle_outline_rounded),
-            tuile('Reste à verser aux chauffeurs', duAuxChauffeurs, Icons.call_made_rounded, accent: Colors.blue.shade700),
+            tuile('Reste à verser aux chauffeurs', duAuxChauffeurs, Icons.call_made_rounded, accent: AppColors.onyx),
           ],
         ),
         const SizedBox(height: 10),
@@ -226,7 +226,7 @@ class _LigneTableau extends StatelessWidget {
                     style: style.copyWith(
                       fontWeight: FontWeight.w800,
                       color: solde > 0
-                          ? Colors.blue.shade700
+                          ? AppColors.onyx
                           : solde < 0
                               ? Colors.red.shade700
                               : AppColors.grey,
@@ -483,7 +483,7 @@ class _ChampFinance extends StatelessWidget {
           decoration: InputDecoration(
             suffixText: suffixe,
             filled: true,
-            fillColor: AppColors.greyLight,
+            fillColor: AppColors.fondClair,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

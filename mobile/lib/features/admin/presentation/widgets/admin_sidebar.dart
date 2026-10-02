@@ -37,7 +37,10 @@ class AdminSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 248,
-      color: AppColors.noirProfond,
+      decoration: const BoxDecoration(
+        color: AppColors.fondBarre,
+        border: Border(right: BorderSide(color: AppColors.bordVerre)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -58,7 +61,7 @@ class AdminSidebar extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(color: Colors.white12, height: 1),
+          const Divider(color: AppColors.bordVerre, height: 1),
           _ItemMenu(
             section: const AdminSection(
               icon: Icons.logout_rounded,
@@ -89,14 +92,15 @@ class _LogoSantine extends StatelessWidget {
             Text(
               'Sprint',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.onyx,
                 fontSize: 17,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
               ),
             ),
             Text(
               'Groupe Santine',
-              style: TextStyle(color: Colors.white54, fontSize: 11),
+              style: TextStyle(color: AppColors.texteDiscret, fontSize: 11),
             ),
           ],
         ),
@@ -124,35 +128,28 @@ class _ItemMenu extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            // Onglet actif : pastille Onyx, icône orange.
             decoration: BoxDecoration(
-              color: selectionne
-                  ? AppColors.orange.withValues(alpha: 0.16)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-              border: Border(
-                left: BorderSide(
-                  color: selectionne ? AppColors.orange : Colors.transparent,
-                  width: 3,
-                ),
-              ),
+              color: selectionne ? AppColors.onyx : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               children: [
                 Icon(
                   section.icon,
                   size: 19,
-                  color: selectionne ? AppColors.orange : Colors.white70,
+                  color: selectionne ? AppColors.orange : AppColors.onyx,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   section.label,
                   style: TextStyle(
-                    color: selectionne ? Colors.white : Colors.white70,
+                    color: selectionne ? Colors.white : AppColors.onyx,
                     fontSize: 13.5,
-                    fontWeight: selectionne ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: selectionne ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
               ],

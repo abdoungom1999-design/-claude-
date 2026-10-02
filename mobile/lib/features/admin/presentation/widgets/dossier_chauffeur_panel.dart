@@ -150,7 +150,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
                       child: _BoutonAction(
                         label: 'Approuver le chauffeur',
                         icone: Icons.check_rounded,
-                        couleur: AppColors.vert,
+                        couleur: AppColors.onyx,
                         onPressed: _enCours || c.statutValidation == 'valide' || !c.aDesDocuments
                             ? null
                             : () => _executer(() => widget.service.approuverConducteur(c.id)),
@@ -359,7 +359,7 @@ class _ZoneModeration extends StatelessWidget {
                   ? _BoutonAction(
                       label: 'Réactiver le compte',
                       icone: Icons.lock_open_rounded,
-                      couleur: AppColors.vert,
+                      couleur: AppColors.onyx,
                       onPressed: enCours ? null : () => onModerer(StatutCompte.actif),
                     )
                   : _BoutonAction(
@@ -446,7 +446,7 @@ class BadgeStatutValidation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutValidation) {
-      'valide' => ('KYC validé', AppColors.vert),
+      'valide' => ('KYC validé', AppColors.onyx),
       'en_attente' => ('KYC en attente', AppColors.orange),
       'rejete' => ('KYC rejeté', Colors.redAccent),
       _ => ('KYC non soumis', AppColors.grey),
@@ -465,7 +465,7 @@ class BadgeStatutCompte extends StatelessWidget {
     final (label, couleur) = switch (statutCompte) {
       StatutCompte.suspendu => ('Suspendu', AppColors.orange),
       StatutCompte.banni => ('Banni', Colors.red.shade700),
-      _ => ('Actif', AppColors.vert),
+      _ => ('Actif', AppColors.onyx),
     };
     return _Pastille(label: label, couleur: couleur);
   }

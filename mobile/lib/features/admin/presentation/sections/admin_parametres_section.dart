@@ -84,7 +84,7 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
                       fontWeight: FontWeight.w600,
                       fontSize: 12.5,
                     ),
-                    backgroundColor: AppColors.greyLight,
+                    backgroundColor: AppColors.fondClair,
                     side: BorderSide.none,
                     onSelected: (selectionne) => setState(() {
                       if (selectionne) {
@@ -100,7 +100,7 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.greyLight,
+                color: AppColors.fondClair,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -125,7 +125,11 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
                   ),
                   Switch(
                     value: _modeMaintenance,
-                    activeThumbColor: AppColors.orange,
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.orange,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: const Color(0xFFD1D1D6),
+                    trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
                     onChanged: (valeur) => setState(() => _modeMaintenance = valeur),
                   ),
                 ],
