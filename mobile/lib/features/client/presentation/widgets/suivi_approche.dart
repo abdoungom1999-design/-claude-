@@ -446,8 +446,8 @@ class EncartApproche extends StatelessWidget {
         : '${approche.distanceKm.toStringAsFixed(1).replaceAll('.', ',')} km';
     if (approche.arrive) {
       return clientABord
-          ? (Icons.flag_rounded, AppColors.vert, 'Vous êtes arrivé', null)
-          : (Icons.check_circle_rounded, AppColors.vert, 'Votre chauffeur est arrivé', 'Il vous attend au point de départ.');
+          ? (Icons.flag_rounded, AppColors.orange, 'Vous êtes arrivé', null)
+          : (Icons.check_circle_rounded, AppColors.orange, 'Votre chauffeur est arrivé', 'Il vous attend au point de départ.');
     }
     return (
       Icons.schedule_rounded,
@@ -532,7 +532,7 @@ class _BadgeDirectState extends State<BadgeDirect> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    final couleur = widget.enDirect ? AppColors.vert : AppColors.grey;
+    final couleur = widget.enDirect ? AppColors.orange : AppColors.grey;
     return Semantics(
       label: widget.enDirect ? 'Position en direct' : 'Signal faible',
       child: Container(
@@ -570,7 +570,7 @@ class _MarqueurCible extends StatelessWidget {
   Widget build(BuildContext context) {
     return Icon(
       destination ? Icons.location_on_rounded : Icons.person_pin_circle_rounded,
-      color: destination ? AppColors.orangeDark : AppColors.vert,
+      color: destination ? AppColors.orangeDark : AppColors.onyx,
       size: 40,
     );
   }

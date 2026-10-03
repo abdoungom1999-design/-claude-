@@ -3,16 +3,22 @@ import 'package:go_router/go_router.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
-import '../../compte/presentation/centre_aide_page.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../support/presentation/contact_support.dart';
 
 /// Écran affiché au chauffeur dont le compte a été suspendu ou banni par
-/// l'Admin (`statutCompte`, voir [StatutCompte]). Le chauffeur est déjà
-/// déconnecté quand cet écran apparaît (voir le "Gardien" de
-/// `ConducteurShellPage`) : il ne peut que lire le motif et quitter.
+/// l'Admin (`statutCompte`, voir [StatutCompte]). Il reste connecté (voir
+/// le "Gardien" de `ConducteurShellPage`) pour pouvoir écrire au support
+/// (ticket traité par l'Admin) ; il ne peut sinon que lire et se déconnecter.
 class ConducteurCompteBloquePage extends StatelessWidget {
   const ConducteurCompteBloquePage({super.key, required this.statutCompte});
 
   final String statutCompte;
+
+  Future<void> _seDeconnecter(BuildContext context) async {
+    await AuthRepository().deconnecter();
+    if (context.mounted) context.go(AppRoutes.espacePro);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +36,12 @@ class ConducteurCompteBloquePage extends StatelessWidget {
           : "Votre compte chauffeur a été suspendu par l'équipe du Groupe Santine. Vous ne pouvez "
               'plus prendre de courses pour le moment. Contactez le support pour en connaître la raison.',
       actions: [
-        BoutonStatutSecondaire(
+        BoutonStatutPrincipal(
           label: 'Contacter le support',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CentreAidePage()),
-          ),
+          icone: Icons.chat_bubble_outline_rounded,
+          onPressed: () => ouvrirContactSupport(context),
         ),
-        LienStatut(label: "Retour à l'accueil", onPressed: () => context.go(AppRoutes.espacePro)),
+        LienStatut(label: 'Se déconnecter', onPressed: () => _seDeconnecter(context)),
       ],
     );
   }

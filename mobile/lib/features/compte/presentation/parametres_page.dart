@@ -9,6 +9,7 @@ import 'conditions_utilisation_page.dart';
 import 'notifications_page.dart';
 import 'politique_confidentialite_page.dart';
 import 'preferences_page.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Menu Paramètres : notifications, préférences, informations légales,
 /// support et suppression de compte.
@@ -76,7 +77,7 @@ class ParametresPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Paramètres')),
       body: SafeArea(
         child: ListView(
@@ -101,7 +102,7 @@ class ParametresPage extends StatelessWidget {
               padding: EdgeInsets.only(top: 16, bottom: 6),
               child: Text(
                 'Légal & support',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.grey),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texteDiscret),
               ),
             ),
             SectionListTile(
@@ -146,6 +147,6 @@ class ParametresPage extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

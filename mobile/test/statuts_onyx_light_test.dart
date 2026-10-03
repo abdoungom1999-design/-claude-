@@ -8,6 +8,7 @@ import 'package:sprint/features/conducteur/presentation/conducteur_compte_bloque
 import 'package:sprint/features/conducteur/presentation/conducteur_en_attente_page.dart';
 import 'package:sprint/features/conducteur/presentation/conducteur_kyc_page.dart';
 import 'package:sprint/features/conducteur/presentation/validation_pending_page.dart';
+import 'package:sprint/features/support/presentation/contact_support.dart';
 
 Future<void> _ecran(WidgetTester tester, Widget page, {Size taille = const Size(390, 844)}) async {
   tester.view.physicalSize = taille;
@@ -83,6 +84,8 @@ void main() {
   });
 
   testWidgets("Centre d'aide : charte Onyx & Light, accordéon, aucun débordement à 320 px", (tester) async {
+    supportEnModeDemo = () => true;
+    addTearDown(() => supportEnModeDemo = () => false);
     await _ecran(tester, const CentreAidePage(), taille: const Size(320, 640));
 
     expect(find.byType(EcranOnyxLight), findsOneWidget);
@@ -100,5 +103,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Message envoyé'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Contacter le support : sans compte connecté, invite à se connecter (aucun faux « message envoyé »)', (tester) async {
+    supportEnModeDemo = () => false;
+    chargerIdentiteSupport = () async => null;
+    await _ecran(tester, const CentreAidePage());
+    await tester.scrollUntilVisible(find.text('Contacter le support'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Contacter le support'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Contacter le support'));
+    await tester.pumpAndSettle();
+    expect(find.text('Connexion nécessaire'), findsOneWidget);
+    expect(find.text('Message envoyé'), findsNothing);
+  });
+
+  testWidgets('Compte désactivé ou suspendu : « Contacter le support » en action principale, pas de retour sans déconnexion', (tester) async {
+    for (final statut in [StatutCompte.suspendu, StatutCompte.banni]) {
+      await _ecran(tester, ConducteurCompteBloquePage(statutCompte: statut));
+      expect(find.widgetWithText(ElevatedButton, 'Contacter le support'), findsOneWidget);
+      expect(find.text('Se déconnecter'), findsOneWidget);
+      expect(find.text("Retour à l'accueil"), findsNothing);
+    }
   });
 }

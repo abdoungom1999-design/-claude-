@@ -5,6 +5,7 @@ import '../../messages/presentation/chat_page.dart';
 import 'a_propos_page.dart';
 import 'centre_aide_page.dart';
 import 'nous_contacter_page.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Menu Aide & Support : Centre d'aide, Nous contacter, Mes échanges,
 /// À propos de Sprint.
@@ -17,7 +18,7 @@ class AideSupportPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Aide & Support')),
       body: SafeArea(
         child: ListView(
@@ -59,6 +60,6 @@ class AideSupportPage extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

@@ -16,6 +16,7 @@ import '../../courses/data/estimation_course_controller.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
 import 'payment_processing_page.dart';
 import 'widgets/carte_commande.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Écran de réservation d'une course "Passager" (moto-taxi), connecté à
 /// l'API. Carte réelle (OpenStreetMap), géocodage d'adresses (Nominatim)
@@ -142,7 +143,7 @@ class _PassagerPageState extends State<PassagerPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Réserver une course')),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -195,7 +196,7 @@ class _PassagerPageState extends State<PassagerPage> {
                               ? 'Calcul du prix en cours…'
                               : 'Le prix doit être calculé avant de commander.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                          style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
                         ),
                       ],
                     ],
@@ -207,6 +208,6 @@ class _PassagerPageState extends State<PassagerPage> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

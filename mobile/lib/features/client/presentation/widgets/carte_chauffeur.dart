@@ -82,7 +82,7 @@ class _Etat extends StatelessWidget {
         Container(
           width: 9,
           height: 9,
-          decoration: const BoxDecoration(color: AppColors.vert, shape: BoxShape.circle),
+          decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -90,7 +90,7 @@ class _Etat extends StatelessWidget {
             clientABord ? 'Course en cours' : 'Chauffeur trouvé · il arrive',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.vert),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.orange),
           ),
         ),
       ],

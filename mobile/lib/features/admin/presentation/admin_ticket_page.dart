@@ -53,7 +53,9 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
 
   // Flux Firestore partagés : plusieurs zones de la page les affichent.
   late final FluxPartage<TicketSupport?> _ticket = FluxPartage(_support.streamTicket(widget.courseId));
-  late final FluxPartage<CourseFirestore?> _course = FluxPartage(_courses.streamCourse(widget.courseId));
+  bool get _estAide => widget.courseId.startsWith('aide_');
+  late final FluxPartage<CourseFirestore?>? _course =
+      _estAide ? null : FluxPartage(_courses.streamCourse(widget.courseId));
   late final Stream<List<MessageTicket>> _messages = _support.streamMessages(widget.courseId);
   FluxPartage<CommandePaiement?>? _commande;
   String? _commandeId;
@@ -79,7 +81,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
   @override
   void dispose() {
     _ticket.fermer();
-    _course.fermer();
+    _course?.fermer();
     _commande?.fermer();
     _chauffeur?.fermer();
     super.dispose();
@@ -140,6 +142,32 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
     });
   }
 
+  Future<void> _reactiver(ConducteurKycAdmin chauffeur) async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Réactiver ${chauffeur.nom} ?'),
+        content: const Text(
+          'Le chauffeur retrouve l\'accès à son compte : il repart sans se reconnecter et peut de nouveau '
+          'prendre des courses. L\'action est tracée dans le journal.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
+            child: const Text('Réactiver'),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true) return;
+    await _executer(() async {
+      await _kyc.definirStatutCompte(chauffeur.id, StatutCompte.actif);
+      return '${chauffeur.nom} est réactivé.';
+    });
+  }
+
   Future<void> _changerStatut(TicketSupport ticket) async {
     final statut = ticket.estResolu ? StatutTicket.ouvert : StatutTicket.resolu;
     await _executer(() async {
@@ -164,7 +192,11 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
             surfaceTintColor: Colors.transparent,
             foregroundColor: AppColors.onyx,
             title: Text(
-              ticket == null ? 'Ticket' : CategorieTicket.libelle(ticket.categorie),
+              ticket == null
+                  ? 'Ticket'
+                  : ticket.estDemandeAide
+                      ? "Demande d'aide · ${CategorieTicket.libelle(ticket.categorie)}"
+                      : CategorieTicket.libelle(ticket.categorie),
               style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
             ),
             actions: [
@@ -221,9 +253,62 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
     );
   }
 
+  /// Demande d'aide hors course : qui écrit, et l'état de son compte pour un
+  /// chauffeur (avec la réactivation d'une suspension).
+  Widget _ficheDemandeur(TicketSupport ticket) {
+    final chauffeur = ticket.demandeur == 'conducteur';
+    if (chauffeur) _suivreChauffeur(ticket.clientId);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Titre("Demande d'aide"),
+        _Info('Demandeur', chauffeur ? 'Chauffeur' : 'Client'),
+        _Personne(uid: ticket.clientId, chargerProfil: _profil),
+        if (chauffeur && _chauffeur != null) ...[
+          const SizedBox(height: 8),
+          StreamBuilder<ConducteurKycAdmin?>(
+            stream: _chauffeur!.flux,
+            builder: (context, c) {
+              final compte = c.data;
+              if (compte == null) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Info(
+                    'Compte',
+                    switch (compte.statutCompte) {
+                      StatutCompte.suspendu => 'Suspendu',
+                      StatutCompte.banni => 'Désactivé définitivement',
+                      _ => 'Actif',
+                    },
+                  ),
+                  if (compte.statutCompte == StatutCompte.suspendu) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _action ? null : () => _reactiver(compte),
+                      icon: const Icon(Icons.play_circle_outline_rounded),
+                      label: const Text('Réactiver le compte'),
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.onyx),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+        const SizedBox(height: 16),
+        const Text(
+          'Le demandeur voit votre réponse dans son application, y compris un chauffeur suspendu.',
+          style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
+        ),
+      ],
+    );
+  }
+
   Widget _fiche(TicketSupport ticket) {
+    if (ticket.estDemandeAide) return _ficheDemandeur(ticket);
     return StreamBuilder<CourseFirestore?>(
-      stream: _course.flux,
+      stream: _course!.flux,
       builder: (context, instantane) {
         final course = instantane.data;
         if (course == null) {

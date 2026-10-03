@@ -4,6 +4,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Formulaire de contact direct du support Sprint.
 class NousContacterPage extends StatefulWidget {
@@ -41,7 +42,7 @@ class _NousContacterPageState extends State<NousContacterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Nous contacter')),
       body: SafeArea(
         child: ListView(
@@ -54,7 +55,7 @@ class _NousContacterPageState extends State<NousContacterPage> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.orangeLight,
+                      color: AppColors.onyx,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.phone_outlined, color: AppColors.orange, size: 20),
@@ -65,7 +66,7 @@ class _NousContacterPageState extends State<NousContacterPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('+221 33 800 00 00', style: TextStyle(fontWeight: FontWeight.w700)),
-                        Text('support@groupesantine.sn', style: TextStyle(fontSize: 12, color: AppColors.grey)),
+                        Text('support@groupesantine.sn', style: TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
                       ],
                     ),
                   ),
@@ -107,6 +108,6 @@ class _NousContacterPageState extends State<NousContacterPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }

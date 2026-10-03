@@ -112,7 +112,7 @@ class _Prix extends StatelessWidget {
         const SizedBox(height: 12),
         const Row(
           children: [
-            Icon(Icons.verified_user_outlined, size: 16, color: AppColors.vert),
+            Icon(Icons.verified_user_outlined, size: 16, color: AppColors.onyx),
             SizedBox(width: 6),
             Expanded(
               child: Text(

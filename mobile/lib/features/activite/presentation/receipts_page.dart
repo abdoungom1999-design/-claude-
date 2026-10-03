@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Liste des reçus (factures) des courses passées.
 class ReceiptsPage extends StatelessWidget {
@@ -11,13 +12,13 @@ class ReceiptsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final historique = DemoData.historique();
 
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Reçus')),
       body: historique.isEmpty
           ? const Center(
               child: Text(
                 'Aucun reçu pour le moment',
-                style: TextStyle(color: AppColors.grey),
+                style: TextStyle(color: AppColors.texteDiscret),
               ),
             )
           : ListView.separated(
@@ -33,12 +34,12 @@ class ReceiptsPage extends StatelessWidget {
                         width: 42,
                         height: 42,
                         decoration: BoxDecoration(
-                          color: AppColors.greyLight,
+                          color: AppColors.fondClair,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
                           Icons.receipt_long_outlined,
-                          color: AppColors.text,
+                          color: AppColors.onyx,
                           size: 20,
                         ),
                       ),
@@ -57,7 +58,7 @@ class ReceiptsPage extends StatelessWidget {
                               '${course.date.year}',
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: AppColors.grey,
+                                color: AppColors.texteDiscret,
                               ),
                             ),
                           ],
@@ -72,6 +73,6 @@ class ReceiptsPage extends StatelessWidget {
                 );
               },
             ),
-    );
+    ));
   }
 }

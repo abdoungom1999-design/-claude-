@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
 import '../../../core/widgets/onyx_light.dart';
-import '../../../core/widgets/premium_dialog.dart';
+import '../../support/presentation/contact_support.dart';
 
 class _Question {
   const _Question(this.question, this.reponse);
@@ -57,18 +57,9 @@ class CentreAidePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EcranOnyxLight(
+    return SousPageOnyx(
       child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          foregroundColor: AppColors.onyx,
-          title: const Text(
-            "Centre d'aide",
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
-          ),
-        ),
+        appBar: AppBar(title: const Text("Centre d'aide")),
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(
@@ -120,15 +111,7 @@ class CentreAidePage extends StatelessWidget {
                         BoutonStatutPrincipal(
                           label: 'Contacter le support',
                           icone: Icons.chat_bubble_outline_rounded,
-                          onPressed: () => PremiumDialog.afficher(
-                            context,
-                            icon: Icons.mark_email_read_outlined,
-                            titre: 'Message envoyé',
-                            message:
-                                'Notre équipe support a bien reçu votre demande et vous '
-                                'répondra très prochainement.',
-                            succes: true,
-                          ),
+                          onPressed: () => ouvrirContactSupport(context),
                         ),
                       ],
                     ),

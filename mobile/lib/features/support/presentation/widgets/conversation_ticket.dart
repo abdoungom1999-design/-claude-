@@ -84,7 +84,7 @@ class _ConversationTicketState extends State<ConversationTicket> {
             builder: (context, instantane) {
               if (instantane.hasError) {
                 return const Center(
-                  child: Text('Impossible de charger la conversation.', style: TextStyle(color: AppColors.grey)),
+                  child: Text('Impossible de charger la conversation.', style: TextStyle(color: AppColors.texteDiscret)),
                 );
               }
               if (!instantane.hasData) {
@@ -112,19 +112,24 @@ class _ConversationTicketState extends State<ConversationTicket> {
         if (widget.indication case final texte?)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(texte, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+            child: Text(texte, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
           ),
         Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
           decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: AppColors.greyBorder)),
+            color: AppColors.fondBarre,
+            border: Border(top: BorderSide(color: AppColors.bordVerre)),
           ),
           child: Row(
             children: [
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(color: AppColors.greyLight, borderRadius: BorderRadius.circular(24)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.bordVerre),
+                  ),
                   child: TextField(
                     controller: _saisie,
                     minLines: 1,
@@ -133,7 +138,7 @@ class _ConversationTicketState extends State<ConversationTicket> {
                     onSubmitted: (_) => _envoyer(),
                     decoration: const InputDecoration(
                       hintText: 'Écrire un message...',
-                      hintStyle: TextStyle(color: AppColors.grey, fontSize: 13.5),
+                      hintStyle: TextStyle(color: AppColors.texteDiscret, fontSize: 13.5),
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(vertical: 12),
@@ -185,7 +190,8 @@ class _Bulle extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: moi ? AppColors.orange : AppColors.greyLight,
+            color: moi ? AppColors.orange : Colors.white,
+            border: moi ? null : Border.all(color: AppColors.bordVerre),
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(16),
               topRight: const Radius.circular(16),
@@ -202,14 +208,14 @@ class _Bulle extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text(
                     nomAutre,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.orangeDark),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.orange),
                   ),
                 ),
-              Text(message.texte, style: TextStyle(color: moi ? Colors.white : AppColors.text, fontSize: 13.5)),
+              Text(message.texte, style: TextStyle(color: moi ? Colors.white : AppColors.onyx, fontSize: 13.5)),
               const SizedBox(height: 3),
               Text(
                 _heure(message.creeLe),
-                style: TextStyle(fontSize: 10, color: moi ? Colors.white.withValues(alpha: 0.8) : AppColors.grey),
+                style: TextStyle(fontSize: 10, color: moi ? Colors.white.withValues(alpha: 0.8) : AppColors.texteDiscret),
               ),
             ],
           ),
@@ -232,19 +238,19 @@ class _MessageSysteme extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 440),
         decoration: BoxDecoration(
-          color: Colors.green.shade50,
+          color: AppColors.onyx.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green.shade100),
+          border: Border.all(color: AppColors.bordVerre),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.verified_rounded, size: 16, color: Colors.green.shade700),
+            const Icon(Icons.verified_rounded, size: 16, color: AppColors.orange),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 message.texte,
-                style: TextStyle(fontSize: 12.5, color: Colors.green.shade900, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.onyx, fontWeight: FontWeight.w600),
               ),
             ),
           ],

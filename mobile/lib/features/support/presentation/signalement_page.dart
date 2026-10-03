@@ -1,27 +1,45 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
-import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/ecran_statut_onyx.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../courses/data/course_service.dart';
 import '../data/support_service.dart';
 import 'widgets/conversation_ticket.dart';
 
-/// "Signaler un problème" sur une course de l'historique : choix du
-/// motif et premier message, puis conversation en temps réel avec le
-/// support Sprint (un seul ticket par course, retrouvé ici ensuite).
+/// Échange avec le support Sprint, en temps réel, sur un ticket :
+///  - "Signaler un problème" sur une course de l'historique (un seul ticket
+///    par course, retrouvé ici ensuite) ;
+///  - [SignalementPage.aide] : demande d'aide hors course depuis le Centre
+///    d'aide, pour un client ou un chauffeur (un seul fil par compte, qui
+///    reste accessible à un chauffeur suspendu).
+/// Choix du motif et premier message, puis conversation.
 class SignalementPage extends StatefulWidget {
   const SignalementPage({
     super.key,
-    required this.course,
+    required CourseFirestore this.course,
     required this.clientId,
     this.service,
-  });
+  }) : role = null;
 
-  final CourseFirestore course;
+  /// Demande d'aide hors course de [clientId] ; [role] : `'client'` ou
+  /// `'conducteur'`.
+  const SignalementPage.aide({
+    super.key,
+    required this.clientId,
+    required String this.role,
+    this.service,
+  }) : course = null;
+
+  /// Course signalée ; `null` pour une demande d'aide.
+  final CourseFirestore? course;
   final String clientId;
+  final String? role;
 
   /// Injectable pour les tests.
   final SupportService? service;
+
+  bool get estAide => course == null;
 
   @override
   State<SignalementPage> createState() => _SignalementPageState();
@@ -29,38 +47,46 @@ class SignalementPage extends StatefulWidget {
 
 class _SignalementPageState extends State<SignalementPage> {
   late final SupportService _service = widget.service ?? SupportService();
-  late final Stream<TicketSupport?> _ticket = _service.streamTicket(widget.course.id);
+  late final Stream<TicketSupport?> _ticket = _service.streamTicket(
+    widget.estAide ? SupportService.idAide(widget.clientId) : widget.course!.id,
+  );
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Signaler un problème')),
-      body: SafeArea(
-        child: StreamBuilder<TicketSupport?>(
-          stream: _ticket,
-          builder: (context, instantane) {
-            if (instantane.hasError) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text(
-                    'Impossible de joindre le support. Vérifiez votre connexion.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.grey),
+    return SousPageOnyx(
+      child: Scaffold(
+        appBar: AppBar(title: Text(widget.estAide ? 'Contacter le support' : 'Signaler un problème')),
+        body: SafeArea(
+          child: StreamBuilder<TicketSupport?>(
+            stream: _ticket,
+            builder: (context, instantane) {
+              if (instantane.hasError) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text(
+                      'Impossible de joindre le support. Vérifiez votre connexion.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.texteDiscret),
+                    ),
                   ),
-                ),
-              );
-            }
-            if (instantane.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.orange));
-            }
-            final ticket = instantane.data;
-            if (ticket == null) {
-              return _NouveauSignalement(course: widget.course, clientId: widget.clientId, service: _service);
-            }
-            return _SuiviSignalement(ticket: ticket, clientId: widget.clientId, service: _service);
-          },
+                );
+              }
+              if (instantane.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+              }
+              final ticket = instantane.data;
+              if (ticket == null) {
+                return _NouveauSignalement(
+                  course: widget.course,
+                  clientId: widget.clientId,
+                  role: widget.role,
+                  service: _service,
+                );
+              }
+              return _SuiviSignalement(ticket: ticket, clientId: widget.clientId, service: _service);
+            },
+          ),
         ),
       ),
     );
@@ -75,14 +101,20 @@ class _RappelCourse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = course.timestamp;
-    return Container(
+    return CarteVerre(
+      rayon: 20,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.greyLight, borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
-          Icon(
-            course.type == 'COLIS' ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-            color: AppColors.orange,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: AppColors.onyx, borderRadius: BorderRadius.circular(12)),
+            child: Icon(
+              course.type == 'COLIS' ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
+              color: AppColors.orange,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -93,13 +125,13 @@ class _RappelCourse extends StatelessWidget {
                   '${course.adresseDepart} → ${course.adresseArrivee}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.onyx),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} · '
                   '${formaterFcfa(course.prixFcfa)}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                  style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
                 ),
               ],
             ),
@@ -111,10 +143,16 @@ class _RappelCourse extends StatelessWidget {
 }
 
 class _NouveauSignalement extends StatefulWidget {
-  const _NouveauSignalement({required this.course, required this.clientId, required this.service});
+  const _NouveauSignalement({
+    required this.course,
+    required this.clientId,
+    required this.role,
+    required this.service,
+  });
 
-  final CourseFirestore course;
+  final CourseFirestore? course;
   final String clientId;
+  final String? role;
   final SupportService service;
 
   @override
@@ -126,6 +164,8 @@ class _NouveauSignalementState extends State<_NouveauSignalement> {
   String? _categorie;
   bool _envoi = false;
   String? _erreur;
+
+  bool get _estAide => widget.course == null;
 
   @override
   void dispose() {
@@ -149,12 +189,21 @@ class _NouveauSignalementState extends State<_NouveauSignalement> {
       _erreur = null;
     });
     try {
-      await widget.service.ouvrirTicket(
-        course: widget.course,
-        clientId: widget.clientId,
-        categorie: categorie,
-        texte: texte,
-      );
+      if (_estAide) {
+        await widget.service.ouvrirDemandeAide(
+          uid: widget.clientId,
+          role: widget.role!,
+          categorie: categorie,
+          texte: texte,
+        );
+      } else {
+        await widget.service.ouvrirTicket(
+          course: widget.course!,
+          clientId: widget.clientId,
+          categorie: categorie,
+          texte: texte,
+        );
+      }
       // La page bascule d'elle-même sur la conversation (flux du ticket).
     } catch (_) {
       if (mounted) setState(() => _erreur = "L'envoi a échoué. Vérifiez votre connexion et réessayez.");
@@ -165,58 +214,82 @@ class _NouveauSignalementState extends State<_NouveauSignalement> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _RappelCourse(course: widget.course),
-        const SizedBox(height: 24),
-        const Text('Quel est le problème ?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+    final categories = _estAide ? CategorieTicket.pourAide : CategorieTicket.toutes;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            for (final c in CategorieTicket.toutes)
-              ChoiceChip(
-                label: Text(CategorieTicket.libelle(c)),
-                selected: _categorie == c,
-                selectedColor: AppColors.orangeLight,
-                labelStyle: TextStyle(
-                  color: _categorie == c ? AppColors.orangeDark : AppColors.text,
-                  fontWeight: _categorie == c ? FontWeight.w700 : FontWeight.w500,
+            if (widget.course case final course?) ...[
+              _RappelCourse(course: course),
+              const SizedBox(height: 24),
+            ],
+            const Text('Quel est le problème ?', style: styleTitreSection),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final c in categories)
+                  ChoiceChip(
+                    label: Text(CategorieTicket.libelle(c)),
+                    selected: _categorie == c,
+                    showCheckmark: false,
+                    selectedColor: AppColors.onyx,
+                    backgroundColor: Colors.white.withValues(alpha: 0.9),
+                    side: const BorderSide(color: AppColors.bordVerre),
+                    shape: const StadiumBorder(),
+                    labelStyle: TextStyle(
+                      color: _categorie == c ? Colors.white : AppColors.onyx,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    onSelected: (_) => setState(() => _categorie = c),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _texte,
+              minLines: 4,
+              maxLines: 8,
+              maxLength: SupportService.longueurMaxMessage,
+              style: const TextStyle(color: AppColors.onyx, fontSize: 14.5),
+              decoration: InputDecoration(
+                hintText: "Racontez-nous ce qui s'est passé...",
+                hintStyle: const TextStyle(color: AppColors.texteDiscret),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.9),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(color: AppColors.bordVerre),
                 ),
-                onSelected: (_) => setState(() => _categorie = c),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(color: AppColors.orange, width: 1.6),
+                ),
               ),
+            ),
+            if (_erreur case final texte?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(texte, style: TextStyle(color: Colors.red.shade700, fontSize: 12.5)),
+              ),
+            const SizedBox(height: 8),
+            BoutonStatutPrincipal(label: 'Envoyer au support', onPressed: _envoyer, enCours: _envoi),
+            const SizedBox(height: 14),
+            Text(
+              _estAide
+                  ? 'Le support Sprint vous répond ici, dans cette conversation.'
+                  : 'Le support Sprint vous répond ici. Si un remboursement est accordé, il est versé sur votre '
+                      'compte mobile money.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
+            ),
           ],
         ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _texte,
-          minLines: 4,
-          maxLines: 8,
-          maxLength: SupportService.longueurMaxMessage,
-          decoration: InputDecoration(
-            hintText: 'Racontez-nous ce qui s\'est passé...',
-            filled: true,
-            fillColor: AppColors.greyLight,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-          ),
-        ),
-        if (_erreur case final texte?)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(texte, style: const TextStyle(color: Colors.redAccent, fontSize: 12.5)),
-          ),
-        const SizedBox(height: 8),
-        PrimaryButton(label: 'Envoyer au support', onPressed: _envoi ? null : _envoyer, isLoading: _envoi),
-        const SizedBox(height: 12),
-        const Text(
-          'Le support Sprint vous répond ici. Si un remboursement est accordé, il est versé sur votre compte '
-          'mobile money.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -261,20 +334,20 @@ class _SuiviSignalementState extends State<_SuiviSignalement> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          color: ticket.estResolu ? Colors.green.shade50 : AppColors.orangeLight,
+          color: ticket.estResolu ? AppColors.onyx.withValues(alpha: 0.06) : AppColors.orange.withValues(alpha: 0.10),
           child: Row(
             children: [
               Icon(
                 ticket.estResolu ? Icons.check_circle_rounded : Icons.support_agent_rounded,
                 size: 20,
-                color: ticket.estResolu ? Colors.green.shade700 : AppColors.orangeDark,
+                color: ticket.estResolu ? AppColors.onyx : AppColors.orange,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   '${CategorieTicket.libelle(ticket.categorie)} · '
                   '${ticket.estResolu ? 'Résolu' : 'En cours de traitement'}',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.onyx),
                 ),
               ),
             ],

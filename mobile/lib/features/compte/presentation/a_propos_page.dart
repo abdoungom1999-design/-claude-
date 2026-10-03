@@ -4,6 +4,7 @@ import '../../../core/widgets/logo_sprint.dart';
 import '../../../core/widgets/section_list_tile.dart';
 import 'conditions_utilisation_page.dart';
 import 'politique_confidentialite_page.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// À propos de Sprint (Groupe Santine).
 class AProposPage extends StatelessWidget {
@@ -11,7 +12,7 @@ class AProposPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('À propos de Sprint')),
       body: SafeArea(
         child: ListView(
@@ -28,7 +29,7 @@ class AProposPage extends StatelessWidget {
             const Text(
               'Version 1.4.0',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.grey),
+              style: TextStyle(fontSize: 13, color: AppColors.texteDiscret),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -37,7 +38,7 @@ class AProposPage extends StatelessWidget {
               'en toute sécurité les habitants de Dakar à des chauffeurs '
               'partenaires vérifiés.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.grey, height: 1.5),
+              style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.5),
             ),
             const SizedBox(height: 28),
             SectionListTile(
@@ -58,12 +59,12 @@ class AProposPage extends StatelessWidget {
             const Center(
               child: Text(
                 '© 2026 Groupe Santine. Tous droits réservés.',
-                style: TextStyle(fontSize: 11, color: AppColors.grey),
+                style: TextStyle(fontSize: 11, color: AppColors.texteDiscret),
               ),
             ),
           ],
         ),
       ),
-    );
+    ));
   }
 }

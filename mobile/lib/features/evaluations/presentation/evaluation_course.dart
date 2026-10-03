@@ -101,7 +101,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.vert),
+          const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.orange),
           const SizedBox(height: 14),
           Text(
             widget.titre,

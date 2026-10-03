@@ -362,6 +362,75 @@ describe('courses : cycle de vie côté chauffeur', () => {
   });
 });
 
+describe('support : demandes d\'aide hors course', () => {
+  const aide = (uid, extra = {}) => ({
+    clientId: uid, categorie: 'compte', statut: 'ouvert', creeLe: serverTimestamp(), majLe: serverTimestamp(),
+    dernierMessage: 'Mon compte est suspendu', nonLuAdmin: true, nonLuClient: false,
+    demandeur: uid === 'client' ? 'client' : 'conducteur', ...extra,
+  });
+  const message = (auteurId, auteurRole, texte = 'Bonjour') => ({ auteurId, auteurRole, texte, creeLe: serverTimestamp() });
+
+  async function ouvrir(db, uid, extra = {}) {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'tickets', `aide_${uid}`), aide(uid, extra));
+    batch.set(doc(db, 'tickets', `aide_${uid}`, 'messages', 'm1'), message(uid, 'client', 'Mon compte est suspendu'));
+    return batch.commit();
+  }
+
+  test('un client, un chauffeur et un chauffeur suspendu ou banni ouvrent leur demande d\'aide', async () => {
+    for (const uid of ['client', 'chauffeur', 'suspendu', 'banni']) {
+      await assertSucceeds(ouvrir(en(uid), uid));
+      await assertSucceeds(getDoc(doc(en(uid), 'tickets', `aide_${uid}`)));
+      await assertSucceeds(getDocs(collection(en(uid), 'tickets', `aide_${uid}`, 'messages')));
+    }
+  });
+
+  test('au nom d\'un autre, mauvais rôle, catégorie, statut ou champ inventés : refusé', async () => {
+    const db = en('suspendu');
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_chauffeur'), aide('suspendu')));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { clientId: 'chauffeur' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { demandeur: 'client' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { demandeur: 'admin' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { categorie: 'prix' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { statut: 'resolu' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { priorite: 'haute' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { courseId: 'c9' })));
+    await assertFails(setDoc(doc(db, 'tickets', 'autre_id'), aide('suspendu')));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { nonLuAdmin: false })));
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu'), aide('suspendu', { dernierMessage: 'x'.repeat(201) })));
+  });
+
+  test('personne d\'autre ne lit ni n\'alimente la conversation ; l\'Admin lit et répond', async () => {
+    await ouvrir(en('suspendu'), 'suspendu');
+    for (const uid of ['client', 'chauffeur', 'banni']) {
+      await assertFails(getDoc(doc(en(uid), 'tickets', 'aide_suspendu')));
+      await assertFails(getDocs(collection(en(uid), 'tickets', 'aide_suspendu', 'messages')));
+      await assertFails(setDoc(doc(en(uid), 'tickets', 'aide_suspendu', 'messages', 'x'), message(uid, 'client')));
+    }
+    const admin = en('admin');
+    await assertSucceeds(getDoc(doc(admin, 'tickets', 'aide_suspendu')));
+    const batch = writeBatch(admin);
+    batch.set(doc(admin, 'tickets', 'aide_suspendu', 'messages', 'r1'), message('admin', 'admin', 'Nous réexaminons votre dossier'));
+    batch.update(doc(admin, 'tickets', 'aide_suspendu'), { majLe: serverTimestamp(), dernierMessage: 'Nous réexaminons', nonLuAdmin: false, nonLuClient: true });
+    await assertSucceeds(batch.commit());
+  });
+
+  test('le demandeur relit la réponse, relance la conversation, mais ne peut ni clore ni usurper l\'Admin', async () => {
+    await ouvrir(en('suspendu'), 'suspendu');
+    const db = en('suspendu');
+    await assertSucceeds(updateDoc(doc(db, 'tickets', 'aide_suspendu'), { nonLuClient: false }));
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'tickets', 'aide_suspendu', 'messages', 'm2'), message('suspendu', 'client', 'Merci de me répondre'));
+    batch.update(doc(db, 'tickets', 'aide_suspendu'), {
+      majLe: serverTimestamp(), dernierMessage: 'Merci de me répondre', nonLuAdmin: true, nonLuClient: false, statut: 'ouvert',
+    });
+    await assertSucceeds(batch.commit());
+    await assertFails(setDoc(doc(db, 'tickets', 'aide_suspendu', 'messages', 'm3'), message('suspendu', 'admin')));
+    await assertFails(updateDoc(doc(db, 'tickets', 'aide_suspendu'), { statut: 'resolu' }));
+    await assertFails(updateDoc(doc(db, 'tickets', 'aide_suspendu'), { demandeur: 'client' }));
+  });
+});
+
 describe('support : tickets par course', () => {
   beforeEach(() => env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();

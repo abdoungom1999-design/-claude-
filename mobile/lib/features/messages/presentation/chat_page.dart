@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Interface de chat (style messagerie) générique : bulles alignées à
 /// droite (moi, orange) ou à gauche (interlocuteur, gris), champ de
@@ -97,8 +98,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,7 +106,7 @@ class _ChatPageState extends State<ChatPage> {
             Text(widget.titre, style: const TextStyle(fontSize: 16)),
             Text(
               widget.sousTitre,
-              style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+              style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
             ),
           ],
         ),
@@ -122,7 +122,7 @@ class _ChatPageState extends State<ChatPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(widget.emptyIcon, size: 44, color: AppColors.greyBorder),
+                            Icon(widget.emptyIcon, size: 44, color: AppColors.bordVerre),
                             const SizedBox(height: 14),
                             Text(
                               widget.emptyTitre,
@@ -132,7 +132,7 @@ class _ChatPageState extends State<ChatPage> {
                             Text(
                               widget.emptyMessage,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                              style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                             ),
                           ],
                         ),
@@ -149,7 +149,7 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -177,7 +177,7 @@ class _Bulle extends StatelessWidget {
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: moi ? null : AppColors.greyLight,
+          color: moi ? null : AppColors.fondClair,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -192,7 +192,7 @@ class _Bulle extends StatelessWidget {
             Text(
               message.texte,
               style: TextStyle(
-                color: moi ? Colors.white : AppColors.text,
+                color: moi ? Colors.white : AppColors.onyx,
                 fontSize: 13.5,
               ),
             ),
@@ -202,7 +202,7 @@ class _Bulle extends StatelessWidget {
               '${message.heure.minute.toString().padLeft(2, '0')}',
               style: TextStyle(
                 fontSize: 10,
-                color: moi ? Colors.white.withValues(alpha: 0.75) : AppColors.grey,
+                color: moi ? Colors.white.withValues(alpha: 0.75) : AppColors.texteDiscret,
               ),
             ),
           ],
@@ -223,8 +223,8 @@ class _BarreSaisie extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.greyBorder)),
+        color: AppColors.fondBarre,
+        border: Border(top: BorderSide(color: AppColors.bordVerre)),
       ),
       child: Row(
         children: [
@@ -232,7 +232,7 @@ class _BarreSaisie extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.greyLight,
+                color: AppColors.fondClair,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: TextField(
@@ -243,7 +243,7 @@ class _BarreSaisie extends StatelessWidget {
                 onSubmitted: (_) => onEnvoyer(),
                 decoration: const InputDecoration(
                   hintText: 'Écrire un message...',
-                  hintStyle: TextStyle(color: AppColors.grey, fontSize: 13.5),
+                  hintStyle: TextStyle(color: AppColors.texteDiscret, fontSize: 13.5),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 12),

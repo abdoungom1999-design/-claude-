@@ -17,6 +17,7 @@ import '../../courses/data/estimation_course_controller.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
 import 'payment_processing_page.dart';
 import 'widgets/carte_commande.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Écran d'envoi d'un colis, connecté à l'API. Carte réelle
 /// (OpenStreetMap), géocodage d'adresses (Nominatim) et prix estimé
@@ -144,7 +145,7 @@ class _ColisPageState extends State<ColisPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Envoyer un colis')),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -215,7 +216,7 @@ class _ColisPageState extends State<ColisPage> {
                               ? 'Calcul du prix en cours…'
                               : 'Le prix doit être calculé avant de commander.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                          style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
                         ),
                       ],
                     ],
@@ -227,6 +228,6 @@ class _ColisPageState extends State<ColisPage> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

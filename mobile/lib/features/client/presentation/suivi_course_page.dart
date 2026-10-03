@@ -18,6 +18,7 @@ import '../../../core/maps/proximite_service.dart';
 import 'widgets/carte_chauffeur.dart';
 import 'widgets/carte_recherche.dart';
 import 'widgets/suivi_approche.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Suivi temps réel d'une course, depuis sa création jusqu'à
 /// l'acceptation par un chauffeur : un `StreamBuilder` unique, branché
@@ -84,8 +85,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Votre course')),
       body: SafeArea(
         child: StreamBuilder<CourseFirestore?>(
@@ -124,7 +124,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
           },
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -177,14 +177,14 @@ class _EtatRecherche extends StatelessWidget {
             'Votre demande a été envoyée aux chauffeurs à proximité pour '
             '${course.prixFcfa} FCFA. Cette page se mettra à jour dès que quelqu\'un accepte.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.5),
+            style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.5),
           ),
           const SizedBox(height: 24),
           OutlinedButton(
             onPressed: enCours ? null : onAnnuler,
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(220, 52),
-              side: const BorderSide(color: AppColors.greyBorder),
+              side: const BorderSide(color: AppColors.bordVerre),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: enCours
@@ -195,7 +195,7 @@ class _EtatRecherche extends StatelessWidget {
                   )
                 : const Text(
                     'Annuler la demande',
-                    style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
+                    style: TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w700),
                   ),
           ),
         ],
@@ -378,7 +378,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
                   label: const Text('Appeler'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
-                    side: const BorderSide(color: AppColors.greyBorder),
+                    side: const BorderSide(color: AppColors.bordVerre),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                 ),
@@ -397,7 +397,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
                   label: const Text('Discuter'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
-                    side: const BorderSide(color: AppColors.greyBorder),
+                    side: const BorderSide(color: AppColors.bordVerre),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                 ),
@@ -409,7 +409,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.greyLight,
+              color: AppColors.fondClair,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -437,7 +437,7 @@ class _LigneAdresse extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.grey),
+        Icon(icon, size: 18, color: AppColors.texteDiscret),
         const SizedBox(width: 10),
         Expanded(
           child: Text(texte, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
@@ -476,7 +476,7 @@ class _EtatAnnulee extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cancel_outlined, size: 48, color: AppColors.grey),
+            const Icon(Icons.cancel_outlined, size: 48, color: AppColors.texteDiscret),
             const SizedBox(height: 16),
             const Text(
               'Course annulée',
@@ -487,7 +487,7 @@ class _EtatAnnulee extends StatelessWidget {
               Text(
                 texte,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.5),
+                style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.5),
               ),
             ],
             const SizedBox(height: 20),

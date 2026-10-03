@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Snackbar stylée (icône, coins arrondis, flottante) pour les
 /// notifications de confirmation — remplace les SnackBar texte brut par
@@ -15,7 +16,7 @@ class AppSnackbar {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          backgroundColor: Colors.green.shade600,
+          backgroundColor: AppColors.onyx,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/coming_soon_view.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Boîte de réception des notifications (cloche de l'onglet Accueil).
 /// Toujours vide pour l'instant : aucun backend de notifications
@@ -9,7 +10,7 @@ class MesNotificationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: const SafeArea(
         child: ComingSoonView(
@@ -18,6 +19,6 @@ class MesNotificationsPage extends StatelessWidget {
           message: 'Vous serez alerté ici dès qu\'il y aura du nouveau.',
         ),
       ),
-    );
+    ));
   }
 }

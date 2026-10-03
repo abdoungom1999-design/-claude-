@@ -4,6 +4,7 @@ import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Parrainage : code personnel copiable (Clipboard réel) et statistiques
 /// de parrainage.
@@ -26,7 +27,7 @@ class InviterAmisPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Inviter des amis')),
       body: SafeArea(
         child: ListView(
@@ -64,14 +65,14 @@ class InviterAmisPage extends StatelessWidget {
               'leur première course, et vous une course offerte dès leur '
               'première commande.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.grey, height: 1.5),
+              style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.5),
             ),
             const SizedBox(height: 24),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 18),
               decoration: BoxDecoration(
-                color: AppColors.greyLight,
+                color: AppColors.fondClair,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppColors.orange.withValues(alpha: 0.3)),
               ),
@@ -79,7 +80,7 @@ class InviterAmisPage extends StatelessWidget {
                 children: [
                   const Text(
                     'Votre code de parrainage',
-                    style: TextStyle(fontSize: 12, color: AppColors.grey),
+                    style: TextStyle(fontSize: 12, color: AppColors.texteDiscret),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -103,7 +104,7 @@ class InviterAmisPage extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.greyBorder),
+                            border: Border.all(color: AppColors.bordVerre),
                           ),
                           child: const Icon(
                             Icons.copy_all_rounded,
@@ -157,7 +158,7 @@ class InviterAmisPage extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -172,9 +173,9 @@ class _BlocStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.greyBorder),
+        border: Border.all(color: AppColors.bordVerre),
       ),
       child: Column(
         children: [
@@ -183,7 +184,7 @@ class _BlocStat extends StatelessWidget {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.grey)),
+          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.texteDiscret)),
         ],
       ),
     );

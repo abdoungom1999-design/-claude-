@@ -11,13 +11,25 @@ abstract final class CategorieTicket {
   static const securite = 'securite';
   static const autre = 'autre';
 
+  /// Motifs propres aux demandes d'aide hors course.
+  static const compte = 'compte';
+  static const paiement = 'paiement';
+  static const technique = 'technique';
+
+  /// Signalement d'une course.
   static const toutes = [chauffeur, prix, objetPerdu, securite, autre];
+
+  /// Demande d'aide depuis le Centre d'aide (sans course).
+  static const pourAide = [compte, paiement, technique, securite, autre];
 
   static String libelle(String categorie) => switch (categorie) {
         chauffeur => 'Problème avec le chauffeur',
         prix => 'Prix ou paiement',
         objetPerdu => 'Objet perdu',
         securite => 'Sécurité',
+        compte => 'Mon compte',
+        paiement => 'Paiement ou portefeuille',
+        technique => "Problème dans l'application",
         _ => 'Autre problème',
       };
 }
@@ -28,7 +40,9 @@ abstract final class StatutTicket {
 }
 
 /// Signalement d'un client sur une de ses courses (collection `tickets`,
-/// identifiant = courseId : un seul ticket par course).
+/// identifiant = courseId : un seul ticket par course), ou demande d'aide
+/// hors course d'un client ou d'un chauffeur (identifiant `aide_<uid>` :
+/// un seul fil par compte, voir [SupportService.idAide]).
 class TicketSupport {
   const TicketSupport({
     required this.courseId,
@@ -41,8 +55,10 @@ class TicketSupport {
     required this.dernierMessage,
     required this.nonLuAdmin,
     required this.nonLuClient,
+    this.demandeur,
   });
 
+  /// Identifiant du ticket : la course concernée, ou `aide_<uid>`.
   final String courseId;
   final String clientId;
   final String? chauffeurId;
@@ -54,7 +70,14 @@ class TicketSupport {
   final bool nonLuAdmin;
   final bool nonLuClient;
 
+  /// `'client'` ou `'conducteur'` pour une demande d'aide hors course ;
+  /// `null` pour le signalement d'une course.
+  final String? demandeur;
+
   bool get estResolu => statut == StatutTicket.resolu;
+
+  /// Demande d'aide du Centre d'aide (pas de course derrière).
+  bool get estDemandeAide => demandeur != null;
 
   factory TicketSupport.depuisDocument(String id, Map<String, dynamic> d) => TicketSupport(
         courseId: id,
@@ -67,6 +90,7 @@ class TicketSupport {
         dernierMessage: d['dernierMessage'] as String? ?? '',
         nonLuAdmin: d['nonLuAdmin'] == true,
         nonLuClient: d['nonLuClient'] == true,
+        demandeur: d['demandeur'] as String?,
       );
 }
 
@@ -172,6 +196,35 @@ class SupportService {
       'nonLuClient': false,
     });
     batch.set(ticket.collection('messages').doc(), _message(clientId, AuteurMessage.client, texte));
+    return batch.commit();
+  }
+
+  /// Identifiant du fil d'aide d'un compte.
+  static String idAide(String uid) => 'aide_$uid';
+
+  /// Ouvre la demande d'aide (hors course) de [uid], avec son premier
+  /// message, dans la même écriture. [role] : `'client'` ou `'conducteur'`
+  /// (le rôle du profil, vérifié par les règles).
+  Future<void> ouvrirDemandeAide({
+    required String uid,
+    required String role,
+    required String categorie,
+    required String texte,
+  }) {
+    final batch = _firestore.batch();
+    final ticket = _ticket(idAide(uid));
+    batch.set(ticket, {
+      'clientId': uid,
+      'demandeur': role,
+      'categorie': categorie,
+      'statut': StatutTicket.ouvert,
+      'creeLe': FieldValue.serverTimestamp(),
+      'majLe': FieldValue.serverTimestamp(),
+      'dernierMessage': _apercu(texte),
+      'nonLuAdmin': true,
+      'nonLuClient': false,
+    });
+    batch.set(ticket.collection('messages').doc(), _message(uid, AuteurMessage.client, texte));
     return batch.commit();
   }
 

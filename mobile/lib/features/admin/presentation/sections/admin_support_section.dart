@@ -253,7 +253,10 @@ class _LigneTicket extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              support.CategorieTicket.libelle(ticket.categorie),
+                              ticket.estDemandeAide
+                                  ? "Aide ${ticket.demandeur == 'conducteur' ? 'chauffeur' : 'client'} · "
+                                      '${support.CategorieTicket.libelle(ticket.categorie)}'
+                                  : support.CategorieTicket.libelle(ticket.categorie),
                               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                             ),
                           ),

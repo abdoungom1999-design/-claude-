@@ -3,6 +3,7 @@ import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/premium_dialog.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 IconData _iconePour(String type) {
   switch (type) {
@@ -23,7 +24,7 @@ class FavorisPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final favoris = DemoData.favoris();
 
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(
         title: const Text('Favoris'),
         actions: [
@@ -41,7 +42,7 @@ class FavorisPage extends StatelessWidget {
             ? const Center(
                 child: Text(
                   'Aucune adresse enregistrée',
-                  style: TextStyle(color: AppColors.grey),
+                  style: TextStyle(color: AppColors.texteDiscret),
                 ),
               )
             : ListView.separated(
@@ -57,7 +58,7 @@ class FavorisPage extends StatelessWidget {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: AppColors.orangeLight,
+                            color: AppColors.onyx,
                             borderRadius: BorderRadius.circular(13),
                           ),
                           child: Icon(
@@ -78,19 +79,19 @@ class FavorisPage extends StatelessWidget {
                                 favori.adresse,
                                 style: const TextStyle(
                                   fontSize: 12.5,
-                                  color: AppColors.grey,
+                                  color: AppColors.texteDiscret,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+                        const Icon(Icons.chevron_right_rounded, color: AppColors.texteDiscret),
                       ],
                     ),
                   );
                 },
               ),
       ),
-    );
+    ));
   }
 }

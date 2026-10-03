@@ -250,10 +250,9 @@ class AuthRepository {
   /// `null` en mode démo (pas de projet Firebase configuré) ou si
   /// personne n'est connecté — l'appelant retombe alors sur [DemoData].
   Stream<Map<String, dynamic>?> profilUtilisateurStream() {
+    if (!DefaultFirebaseOptions.estConfigure) return Stream.value(null);
     final uid = _auth.currentUser?.uid;
-    if (!DefaultFirebaseOptions.estConfigure || uid == null) {
-      return Stream.value(null);
-    }
+    if (uid == null) return Stream.value(null);
     return _firestore.collection('users').doc(uid).snapshots().map((doc) => doc.data());
   }
 
@@ -261,8 +260,9 @@ class AuthRepository {
   /// pour pré-remplir le formulaire "Informations personnelles". `null`
   /// en mode démo ou si personne n'est connecté.
   Future<Map<String, dynamic>?> chargerProfilUtilisateur() async {
+    if (!DefaultFirebaseOptions.estConfigure) return null;
     final uid = _auth.currentUser?.uid;
-    if (!DefaultFirebaseOptions.estConfigure || uid == null) return null;
+    if (uid == null) return null;
     final doc = await _firestore.collection('users').doc(uid).get();
     return doc.data();
   }

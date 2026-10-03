@@ -10,6 +10,7 @@ import '../../../core/widgets/stat_tile.dart';
 import '../../../firebase_options.dart';
 import '../../evaluations/data/evaluation_service.dart';
 import '../../evaluations/presentation/evaluation_course.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Courses terminées non encore notées par le client, avec notation en
 /// retard. En Firebase réel : courses `terminee` du client sans entrée
@@ -64,7 +65,7 @@ class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
   Future<void> _noter(CourseANoter aNoter) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (pageContext) => Scaffold(
+        builder: (pageContext) => SousPageOnyx(child: Scaffold(
           appBar: AppBar(title: const Text('Noter la course')),
           body: EvaluationCourse(
             course: aNoter.course,
@@ -75,7 +76,7 @@ class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
             libelleRetour: 'Retour à la liste',
             onTerminer: () => Navigator.of(pageContext).pop(),
           ),
-        ),
+        )),
       ),
     );
     // Une course notée disparaît de la liste.
@@ -84,7 +85,7 @@ class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Courses à noter')),
       body: SafeArea(
         child: FutureBuilder<List<CourseANoter>>(
@@ -129,7 +130,7 @@ class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
           },
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -147,7 +148,7 @@ class _CompteurAvis extends StatelessWidget {
       label: 'Avis en attente',
       valeur: '$nombre',
       icon: Icons.star_border_rounded,
-      accent: nombre == 0 ? Colors.green.shade600 : AppColors.orange,
+      accent: nombre == 0 ? AppColors.onyx : AppColors.orange,
     );
   }
 }
@@ -170,7 +171,7 @@ class _ToutEstNote extends StatelessWidget {
           Text(
             'Merci de partager vos retours sur vos dernières courses.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+            style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
           ),
         ],
       ),
@@ -202,7 +203,7 @@ class _CarteCourseANoter extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           ),
           const SizedBox(height: 4),
-          Text(detail, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+          Text(detail, style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
           const SizedBox(height: 12),
           PrimaryButton(
             label: 'Noter cette course',
@@ -228,7 +229,7 @@ class _Erreur extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 44, color: AppColors.grey),
+            const Icon(Icons.cloud_off_rounded, size: 44, color: AppColors.texteDiscret),
             const SizedBox(height: 12),
             const Text(
               'Impossible de charger vos courses.',
@@ -277,7 +278,7 @@ class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
   Widget build(BuildContext context) {
     final courses = _aNoter;
 
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Courses à noter')),
       body: SafeArea(
         child: ListView(
@@ -287,7 +288,7 @@ class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
               label: 'Avis en attente',
               valeur: '${courses.length}',
               icon: Icons.star_border_rounded,
-              accent: courses.isEmpty ? Colors.green.shade600 : AppColors.orange,
+              accent: courses.isEmpty ? AppColors.onyx : AppColors.orange,
             ),
             const SizedBox(height: 20),
             if (courses.isEmpty)
@@ -304,7 +305,7 @@ class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
                     Text(
                       'Merci de partager vos retours sur vos dernières courses.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                      style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                     ),
                   ],
                 ),
@@ -326,7 +327,7 @@ class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
                           '${course.prixFcfa} FCFA · '
                           '${course.date.day.toString().padLeft(2, '0')}/'
                           '${course.date.month.toString().padLeft(2, '0')}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                          style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
                         ),
                         const SizedBox(height: 12),
                         PrimaryButton(
@@ -342,7 +343,7 @@ class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

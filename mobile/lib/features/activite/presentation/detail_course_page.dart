@@ -6,6 +6,7 @@ import '../../client/presentation/suivi_course_page.dart';
 import '../../courses/data/course_service.dart';
 import '../../support/data/support_service.dart';
 import '../../support/presentation/signalement_page.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Détail d'une course de l'historique (tient lieu de reçu) : trajet,
 /// prix, paiement, remboursement éventuel, et accès au support
@@ -34,8 +35,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
   @override
   Widget build(BuildContext context) {
     final c = widget.course;
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: Text(c.type == 'COLIS' ? 'Livraison de colis' : 'Course moto')),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -47,7 +47,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(_date(c.timestamp), style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
+                    Text(_date(c.timestamp), style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
                     _Pastille(texte: c.libelleStatut, active: c.estActive),
                   ],
                 ),
@@ -55,11 +55,11 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                 _Ligne(icone: Icons.my_location, texte: c.adresseDepart),
                 const SizedBox(height: 10),
                 _Ligne(icone: Icons.location_on_outlined, texte: c.adresseArrivee),
-                const Divider(height: 28, color: AppColors.greyBorder),
+                const Divider(height: 28, color: AppColors.bordVerre),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(c.libellePaiement, style: const TextStyle(fontSize: 13, color: AppColors.grey)),
+                    Text(c.libellePaiement, style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret)),
                     Text(formaterFcfa(c.prixFcfa), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                   ],
                 ),
@@ -67,7 +67,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                   const SizedBox(height: 10),
                   Text(
                     'Remboursée intégralement le ${_date(c.rembourseeLe!)}.',
-                    style: TextStyle(fontSize: 12.5, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.onyx, fontWeight: FontWeight.w700),
                   ),
                 ],
               ],
@@ -120,9 +120,9 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                 ),
                 label: Text(libelle),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.text,
+                  foregroundColor: AppColors.onyx,
                   minimumSize: const Size.fromHeight(52),
-                  side: const BorderSide(color: AppColors.greyBorder),
+                  side: const BorderSide(color: AppColors.bordVerre),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               );
@@ -130,7 +130,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -145,7 +145,7 @@ class _Ligne extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icone, size: 18, color: AppColors.grey),
+        Icon(icone, size: 18, color: AppColors.texteDiscret),
         const SizedBox(width: 10),
         Expanded(child: Text(texte, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500))),
       ],
@@ -164,7 +164,7 @@ class _Pastille extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: active ? AppColors.orangeLight : AppColors.greyLight,
+        color: active ? AppColors.orangeLight : AppColors.fondClair,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -172,7 +172,7 @@ class _Pastille extends StatelessWidget {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w700,
-          color: active ? AppColors.orangeDark : AppColors.grey,
+          color: active ? AppColors.orangeDark : AppColors.texteDiscret,
         ),
       ),
     );

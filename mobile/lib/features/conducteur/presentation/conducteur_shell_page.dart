@@ -160,6 +160,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     final statutCompte = donnees?['statutCompte'] as String?;
     if (StatutCompte.estBloque(statutCompte)) {
       await _ejecter(statutCompte!);
+      _surveillerStatutCompte();
       return;
     }
     _surveillerStatutCompte();
@@ -177,20 +178,40 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   /// chauffeur suspendu ou banni pendant qu'il est en ligne est éjecté
   /// immédiatement, sans attendre sa prochaine connexion.
   void _surveillerStatutCompte() {
+    _abonnementStatutCompte?.cancel();
     _abonnementStatutCompte = _authRepository.profilUtilisateurStream().listen(
       (donnees) {
         final statut = donnees?['statutCompte'] as String?;
-        if (StatutCompte.estBloque(statut)) _ejecter(statut!);
+        if (StatutCompte.estBloque(statut)) {
+          if (_statutBloque == null) {
+            _ejecter(statut!);
+          } else if (_statutBloque != statut && mounted) {
+            // Suspendu puis banni (ou l'inverse) : le texte de l'écran suit.
+            setState(() => _statutBloque = statut);
+          }
+        } else if (_statutBloque != null) {
+          _leverBlocage();
+        }
       },
       onError: (_) {},
     );
   }
 
-  /// Coupe tout (radar, position, fenêtres ouvertes), déconnecte le
-  /// chauffeur et affiche [ConducteurCompteBloquePage].
+  /// L'Admin a réactivé le compte : le chauffeur reste connecté (voir
+  /// [_ejecter]), l'app repart comme à une connexion normale.
+  void _leverBlocage() {
+    if (!mounted) return;
+    setState(() => _statutBloque = null);
+    unawaited(_chargerProfil());
+  }
+
+  /// Coupe tout (radar, position, fenêtres ouvertes) et affiche
+  /// [ConducteurCompteBloquePage]. Le chauffeur reste connecté, sans
+  /// notifications ni accès aux courses (les règles Firestore l'excluent
+  /// déjà) : il peut écrire au support depuis cet écran et, une fois son
+  /// compte réactivé, repartir sans se reconnecter.
   Future<void> _ejecter(String statut) async {
     if (_statutBloque != null || !mounted) return;
-    _abonnementStatutCompte?.cancel();
     _abonnementCourseActive?.cancel();
     _abonnementMessages?.cancel();
     _arreterRadarCourses();
@@ -201,7 +222,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       _enLigne = false;
     });
     await _arreterEnvoiPosition();
-    await _authRepository.deconnecter();
+    await NotificationsPush.instance.desactiver();
   }
 
   /// Vrai une fois le dossier du chauffeur validé — condition d'accès

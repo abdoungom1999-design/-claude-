@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../data/portefeuille_service.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Sas de recharge du portefeuille, piloté par le serveur (même principe
 /// que `PaymentProcessingPage`) :
@@ -140,11 +141,8 @@ class _RechargePortefeuillePageState extends State<RechargePortefeuillePage> {
     return PopScope(
       // Pas de retour arrière accidentel : la flèche du haut annule.
       canPop: false,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
+      child: SousPageOnyx(child: Scaffold(
         appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
           title: const Text('Recharger mon portefeuille'),
           automaticallyImplyLeading: false,
           leading: _etape == _Etape.creditee
@@ -177,7 +175,7 @@ class _RechargePortefeuillePageState extends State<RechargePortefeuillePage> {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -207,7 +205,7 @@ class _Attente extends StatelessWidget {
             Text(
               texte,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.4),
+              style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.4),
             ),
           ],
         ],
@@ -256,7 +254,7 @@ class _APayer extends StatelessWidget {
                 'Rechargez votre portefeuille Sprint avec $operateur. Le solde sera crédité dès que '
                 '$operateur aura confirmé le paiement.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.4),
+                style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.4),
               ),
               const SizedBox(height: 28),
             ],
@@ -276,7 +274,7 @@ class _APayer extends StatelessWidget {
             const SizedBox(height: 10),
             TextButton(
               onPressed: onAnnuler,
-              child: const Text('Annuler', style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600)),
+              child: const Text('Annuler', style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -300,16 +298,16 @@ class _Creditee extends StatelessWidget {
           Container(
             width: 76,
             height: 76,
-            decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: AppColors.onyx, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: Icon(Icons.check_circle_rounded, color: Colors.green.shade600, size: 44),
+            child: const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 44),
           ),
           const SizedBox(height: 24),
           const Text('Portefeuille rechargé !', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text(
             '${formaterFcfa(montantFcfa)} ajoutés à votre solde.',
-            style: const TextStyle(fontSize: 14, color: AppColors.grey),
+            style: const TextStyle(fontSize: 14, color: AppColors.texteDiscret),
           ),
         ],
       ),

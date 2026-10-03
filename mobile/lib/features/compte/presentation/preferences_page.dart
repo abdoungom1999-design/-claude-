@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Préférences d'utilisation de l'app (démo : état conservé en mémoire,
 /// n'affecte pas le thème réel de l'application — voir note dans le
@@ -39,7 +40,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Préférences')),
       body: SafeArea(
         child: ListView(
@@ -85,7 +86,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -118,7 +119,7 @@ class _BlocRadio<T> extends StatelessWidget {
               children: [
                 Text(titre, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                 if (sousTitre != null)
-                  Text(sousTitre!, style: const TextStyle(fontSize: 11.5, color: AppColors.grey)),
+                  Text(sousTitre!, style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret)),
               ],
             ),
           ),

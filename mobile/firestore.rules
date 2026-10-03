@@ -471,11 +471,35 @@ service cloud.firestore {
       return ticket != null && ticket.data.clientId == moi();
     }
 
+    function demandeAideValide(ticketId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+             'clientId', 'categorie', 'statut', 'creeLe', 'majLe',
+             'dernierMessage', 'nonLuAdmin', 'nonLuClient', 'demandeur'])
+        && ticketId == 'aide_' + moi()
+        && d.clientId == moi()
+        && d.demandeur in ['client', 'conducteur']
+        && d.demandeur == profil().role
+        && d.categorie in ['compte', 'paiement', 'technique', 'securite', 'autre']
+        && d.statut == 'ouvert'
+        && d.creeLe == request.time
+        && d.majLe == request.time
+        && d.dernierMessage is string
+        && d.dernierMessage.size() <= 200
+        && d.nonLuAdmin == true
+        && d.nonLuClient == false;
+    }
+
     match /tickets/{courseId} {
       // resource == null : savoir si un ticket existe déjà pour la course.
       allow get: if connecte()
         && (resource == null || resource.data.clientId == moi() || estAdmin());
       allow list: if estAdmin() || (connecte() && resource.data.clientId == moi());
+
+      // Demande d'aide hors course (Centre d'aide, y compris un chauffeur
+      // suspendu qui reste connecté sur son écran de blocage) : un seul
+      // fil par compte, identifiant "aide_<uid>".
+      allow create: if connecte() && demandeAideValide(courseId);
 
       allow create: if connecte()
         && request.resource.data.keys().hasOnly([

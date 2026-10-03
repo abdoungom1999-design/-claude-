@@ -8,6 +8,7 @@ import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../courses/data/course_service.dart';
 import 'suivi_course_page.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Sas de paiement obligatoire (100% mobile money), piloté par le
 /// serveur :
@@ -177,8 +178,7 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
       // Pas de retour arrière accidentel pendant le paiement : seul le
       // bouton "Annuler" referme le sas.
       canPop: false,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
+      child: SousPageOnyx(child: Scaffold(
         body: SafeArea(
           child: Center(
             child: AnimatedSwitcher(
@@ -203,7 +203,7 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -237,7 +237,7 @@ class _VueAttente extends StatelessWidget {
             Text(
               texte,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.4),
+              style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.4),
             ),
           ],
         ],
@@ -302,7 +302,7 @@ class _VueAPayer extends StatelessWidget {
                 'Payez votre course avec $operateur. Elle sera envoyée aux chauffeurs '
                 'dès que $operateur aura confirmé le paiement.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.grey, height: 1.4),
+                style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.4),
               ),
               const SizedBox(height: 28),
             ],
@@ -310,7 +310,7 @@ class _VueAPayer extends StatelessWidget {
             const SizedBox(height: 10),
             TextButton(
               onPressed: onAnnuler,
-              child: const Text('Annuler', style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600)),
+              child: const Text('Annuler', style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -333,12 +333,12 @@ class _VueConfirmee extends StatelessWidget {
           Container(
             width: 76,
             height: 76,
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
+            decoration: const BoxDecoration(
+              color: AppColors.onyx,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Icon(Icons.check_circle_rounded, color: Colors.green.shade600, size: 44),
+            child: const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 44),
           ),
           const SizedBox(height: 24),
           const Text(

@@ -4,6 +4,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 class _Appareil {
   _Appareil({
@@ -103,7 +104,7 @@ class _SecuritePageState extends State<SecuritePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Sécurité')),
       body: SafeArea(
         child: ListView(
@@ -113,9 +114,9 @@ class _SecuritePageState extends State<SecuritePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.08),
+                color: AppColors.onyx.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                border: Border.all(color: AppColors.bordVerre),
               ),
               child: Row(
                 children: [
@@ -123,10 +124,10 @@ class _SecuritePageState extends State<SecuritePage> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.15),
+                      color: AppColors.onyx,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.verified_user_rounded, color: Colors.green.shade700, size: 20),
+                    child: const Icon(Icons.verified_user_rounded, color: AppColors.orange, size: 20),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -170,7 +171,7 @@ class _SecuritePageState extends State<SecuritePage> {
                         _motDePasseVisible
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
-                        color: AppColors.grey,
+                        color: AppColors.texteDiscret,
                         size: 20,
                       ),
                       onPressed: () =>
@@ -205,7 +206,7 @@ class _SecuritePageState extends State<SecuritePage> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.orangeLight,
+                      color: AppColors.onyx,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -225,7 +226,7 @@ class _SecuritePageState extends State<SecuritePage> {
                         ),
                         Text(
                           'Sécurité renforcée par code SMS',
-                          style: TextStyle(fontSize: 11.5, color: AppColors.grey),
+                          style: TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                         ),
                       ],
                     ),
@@ -254,7 +255,7 @@ class _SecuritePageState extends State<SecuritePage> {
                         appareil.nom.contains('iPhone')
                             ? Icons.phone_iphone_rounded
                             : Icons.devices_other_rounded,
-                        color: AppColors.grey,
+                        color: AppColors.texteDiscret,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -272,7 +273,7 @@ class _SecuritePageState extends State<SecuritePage> {
                               '${appareil.localisation} · ${appareil.date}',
                               style: const TextStyle(
                                 fontSize: 11.5,
-                                color: AppColors.grey,
+                                color: AppColors.texteDiscret,
                               ),
                             ),
                           ],
@@ -286,7 +287,7 @@ class _SecuritePageState extends State<SecuritePage> {
                       else
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Icon(Icons.check_circle, color: Colors.green, size: 18),
+                          child: Icon(Icons.check_circle, color: AppColors.onyx, size: 18),
                         ),
                     ],
                   ),
@@ -296,6 +297,6 @@ class _SecuritePageState extends State<SecuritePage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }

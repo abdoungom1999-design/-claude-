@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Préférences de notifications (démo : état conservé en mémoire).
 class NotificationsPage extends StatefulWidget {
@@ -14,7 +15,7 @@ class NotificationsPage extends StatefulWidget {
 class _NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: SafeArea(
         child: ListView(
@@ -52,7 +53,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -79,7 +80,7 @@ class _LigneToggle extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppColors.orangeLight,
+            color: AppColors.onyx,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: AppColors.orange, size: 19),
@@ -90,7 +91,7 @@ class _LigneToggle extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(titre, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              Text(sousTitre, style: const TextStyle(fontSize: 11.5, color: AppColors.grey)),
+              Text(sousTitre, style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret)),
             ],
           ),
         ),

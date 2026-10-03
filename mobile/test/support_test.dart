@@ -29,12 +29,20 @@ CourseFirestore _course(String id, String statut, {String type = 'PASSAGER', Str
       rembourseeLe: rembourseeLe,
     );
 
-TicketSupport _ticket({String statut = StatutTicket.ouvert, bool nonLuAdmin = true, bool nonLuClient = false, String courseId = 'c1'}) =>
+TicketSupport _ticket({
+  String statut = StatutTicket.ouvert,
+  bool nonLuAdmin = true,
+  bool nonLuClient = false,
+  String courseId = 'c1',
+  String? demandeur,
+  String categorie = CategorieTicket.chauffeur,
+}) =>
     TicketSupport(
       courseId: courseId,
-      clientId: 'awa',
+      clientId: demandeur == null ? 'awa' : 'moussa',
+      demandeur: demandeur,
       chauffeurId: 'moussa',
-      categorie: CategorieTicket.chauffeur,
+      categorie: categorie,
       statut: statut,
       creeLe: DateTime(2026, 9, 28, 19),
       majLe: DateTime.now(),
@@ -63,6 +71,7 @@ class _SupportFactice extends SupportService {
   final List<TicketSupport> tickets;
   final appels = <String>[];
   (String, String, String)? ticketOuvert;
+  (String, String, String, String)? aideOuverte;
 
   @override
   Stream<TicketSupport?> streamTicket(String courseId) => Stream.value(ticket);
@@ -81,6 +90,15 @@ class _SupportFactice extends SupportService {
     required String texte,
   }) async =>
       ticketOuvert = (course.id, categorie, texte);
+
+  @override
+  Future<void> ouvrirDemandeAide({
+    required String uid,
+    required String role,
+    required String categorie,
+    required String texte,
+  }) async =>
+      aideOuverte = (uid, role, categorie, texte);
 
   @override
   Future<void> envoyerMessageClient(String courseId, String clientId, String texte) async =>
@@ -124,6 +142,9 @@ class _CoursesFactices extends CourseService {
 }
 
 class _KycFactice extends AdminKycService {
+  _KycFactice({this.statutCompte = StatutCompte.actif});
+
+  final String statutCompte;
   final sanctions = <(String, String, String?)>[];
 
   @override
@@ -134,7 +155,7 @@ class _KycFactice extends AdminKycService {
         vehiculeId: 'Yamaha',
         plaqueImmatriculation: 'DK-1',
         statutValidation: 'valide',
-        statutCompte: StatutCompte.actif,
+        statutCompte: statutCompte,
         documents: const {},
       ));
 
@@ -341,6 +362,129 @@ void main() {
         ),
       );
       expect(find.text('Course déjà remboursée.'), findsOneWidget);
+    });
+  });
+
+  group("Demande d'aide (Centre d'aide) : tickets hors course", () {
+    Future<void> afficher(WidgetTester tester, Widget page) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(home: page));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('Un chauffeur écrit au support : motif, message, puis ticket aide_<uid> ouvert avec son rôle', (tester) async {
+      final support = _SupportFactice();
+      await afficher(tester, SignalementPage.aide(clientId: 'moussa', role: 'conducteur', service: support));
+
+      expect(find.text('Contacter le support'), findsOneWidget);
+      // Motifs propres à l'aide, pas ceux d'une course.
+      expect(find.text('Mon compte'), findsOneWidget);
+      expect(find.text('Objet perdu'), findsNothing);
+
+      await tester.tap(find.text('Envoyer au support'));
+      await tester.pump();
+      expect(find.text('Choisissez le type de problème.'), findsOneWidget);
+
+      await tester.tap(find.text('Mon compte'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'Mon compte a été suspendu, pourquoi ?');
+      await tester.tap(find.text('Envoyer au support'));
+      await tester.pumpAndSettle();
+      expect(support.aideOuverte, ('moussa', 'conducteur', CategorieTicket.compte, 'Mon compte a été suspendu, pourquoi ?'));
+      expect(support.ticketOuvert, isNull);
+    });
+
+    testWidgets('Conversation d\'aide existante : la réponse de l\'Admin est lue et on peut relancer', (tester) async {
+      final support = _SupportFactice(
+        ticket: _ticket(courseId: 'aide_moussa', demandeur: 'conducteur', categorie: CategorieTicket.compte, nonLuClient: true),
+      );
+      await afficher(tester, SignalementPage.aide(clientId: 'moussa', role: 'conducteur', service: support));
+
+      expect(find.text('Mon compte · En cours de traitement'), findsOneWidget);
+      expect(find.text('Nous regardons.'), findsOneWidget);
+      expect(support.appels, contains('lu-client:aide_moussa'));
+      await tester.enterText(find.byType(TextField), 'Merci');
+      await tester.tap(find.byTooltip('Envoyer'));
+      await tester.pumpAndSettle();
+      expect(support.appels, contains('client:aide_moussa:Merci'));
+    });
+
+    testWidgets('Admin : la file distingue une demande d\'aide chauffeur d\'un signalement de course', (tester) async {
+      await afficher(
+        tester,
+        Scaffold(
+          body: SingleChildScrollView(
+            child: AdminSupportSection(
+              demo: false,
+              service: _SupportFactice(tickets: [
+                _ticket(courseId: 'aide_moussa', demandeur: 'conducteur', categorie: CategorieTicket.compte),
+                _ticket(courseId: 'c1'),
+              ]),
+              ouvrirTicket: (_, __) {},
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Aide chauffeur · Mon compte'), findsOneWidget);
+      expect(find.text('Problème avec le chauffeur'), findsOneWidget);
+    });
+
+    testWidgets('Admin : demande d\'aide d\'un chauffeur suspendu, réactivation avec confirmation', (tester) async {
+      final support = _SupportFactice(
+        ticket: _ticket(courseId: 'aide_moussa', demandeur: 'conducteur', categorie: CategorieTicket.compte),
+      );
+      final kyc = _KycFactice(statutCompte: StatutCompte.suspendu);
+      await afficher(
+        tester,
+        AdminTicketPage(
+          courseId: 'aide_moussa',
+          adminId: 'chef',
+          supportService: support,
+          // Pas de course derrière : ce service ne doit jamais être interrogé.
+          courseService: _CoursesFactices(),
+          kycService: kyc,
+          chargerProfil: (uid) async => {'nom': 'Moussa Diop', 'telephone': '+221770000001'},
+        ),
+      );
+
+      expect(find.text("Demande d'aide · Mon compte"), findsOneWidget);
+      expect(find.text('Chauffeur'), findsOneWidget);
+      expect(find.text('Moussa Diop'), findsOneWidget);
+      expect(find.text('Suspendu'), findsOneWidget);
+      expect(find.text('Course introuvable.'), findsNothing);
+      expect(find.textContaining('Rembourser'), findsNothing);
+      expect(support.appels, contains('lu-admin:aide_moussa'));
+
+      await tester.enterText(find.byType(TextField), 'Nous réexaminons votre dossier.');
+      await tester.tap(find.byTooltip('Envoyer'));
+      await tester.pumpAndSettle();
+      expect(support.appels, contains('admin:aide_moussa:chef:Nous réexaminons votre dossier.'));
+
+      await tester.tap(find.text('Réactiver le compte'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Réactiver'));
+      await tester.pumpAndSettle();
+      expect(kyc.sanctions, [('moussa', StatutCompte.actif, null)]);
+    });
+
+    testWidgets('Admin : un chauffeur banni n\'a pas de bouton de réactivation', (tester) async {
+      await afficher(
+        tester,
+        AdminTicketPage(
+          courseId: 'aide_moussa',
+          adminId: 'chef',
+          supportService: _SupportFactice(
+            ticket: _ticket(courseId: 'aide_moussa', demandeur: 'conducteur', categorie: CategorieTicket.compte),
+          ),
+          courseService: _CoursesFactices(),
+          kycService: _KycFactice(statutCompte: StatutCompte.banni),
+          chargerProfil: (uid) async => null,
+        ),
+      );
+      expect(find.text('Désactivé définitivement'), findsOneWidget);
+      expect(find.text('Réactiver le compte'), findsNothing);
     });
   });
 }

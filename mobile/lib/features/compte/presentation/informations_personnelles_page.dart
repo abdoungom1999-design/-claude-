@@ -5,6 +5,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../../core/widgets/onyx_light.dart';
 
 /// Formulaire des informations personnelles du client, chargé et
 /// enregistré depuis le vrai document Firestore `users/{uid}` (voir
@@ -80,7 +81,7 @@ class _InformationsPersonnellesPageState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: const Text('Informations personnelles')),
       body: SafeArea(
         child: _chargement
@@ -140,7 +141,7 @@ class _InformationsPersonnellesPageState
                         padding: EdgeInsets.only(top: 6, left: 4),
                         child: Text(
                           'La modification de l\'email n\'est pas encore disponible ici.',
-                          style: TextStyle(fontSize: 11.5, color: AppColors.grey),
+                          style: TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -161,6 +162,6 @@ class _InformationsPersonnellesPageState
                 ),
               ),
       ),
-    );
+    ));
   }
 }

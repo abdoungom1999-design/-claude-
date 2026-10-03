@@ -98,7 +98,9 @@ class CarteVerre extends StatelessWidget {
         borderRadius: BorderRadius.circular(rayon),
         border: Border.all(color: AppColors.bordVerre),
       ),
-      child: Padding(padding: padding, child: child),
+      // Material transparent : les ListTile / InkWell de la carte y peignent
+      // leur effet de pression au-dessus du fond verre (sinon masqué).
+      child: Padding(padding: padding, child: Material(type: MaterialType.transparency, child: child)),
     );
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -139,6 +141,47 @@ class EcranOnyxLight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ThemeOnyxLight(flou: flou, child: FondOnyxLight(child: child));
+}
+
+/// Habillage d'une sous-page ouverte par `Navigator.push` (Compte, Aide,
+/// Support, reçus…) en charte Onyx & Light : [EcranOnyxLight] + `Scaffold`
+/// et `AppBar` transparents à texte Onyx. Une route poussée n'hérite pas du
+/// [ThemeOnyxLight] de l'écran qui l'ouvre : chaque sous-page s'habille
+/// elle-même. Le `Scaffold` de la page ne doit pas fixer son
+/// `backgroundColor`.
+class SousPageOnyx extends StatelessWidget {
+  const SousPageOnyx({super.key, required this.child, this.flou = true});
+
+  final Widget child;
+
+  /// Voir [ThemeOnyxLight.flou].
+  final bool flou;
+
+  @override
+  Widget build(BuildContext context) {
+    return EcranOnyxLight(
+      flou: flou,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          scaffoldBackgroundColor: Colors.transparent,
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: AppColors.onyx,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            titleTextStyle: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              color: AppColors.onyx,
+            ),
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
 }
 
 /// Titre d'un onglet (« Gains », « Compte »…) en charte Onyx & Light.

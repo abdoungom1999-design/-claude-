@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../../core/widgets/onyx_light.dart';
 
 class SectionJuridique {
   const SectionJuridique(this.titre, this.corps);
@@ -29,7 +30,7 @@ class LegalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SousPageOnyx(child: Scaffold(
       appBar: AppBar(title: Text(titre)),
       body: SafeArea(
         child: ListView(
@@ -86,7 +87,7 @@ class LegalPage extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               intro,
-              style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.grey),
+              style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.texteDiscret),
             ),
             const SizedBox(height: 24),
             for (var i = 0; i < sections.length; i++)
@@ -103,7 +104,7 @@ class LegalPage extends StatelessWidget {
                           height: 26,
                           margin: const EdgeInsets.only(right: 10, top: 1),
                           decoration: BoxDecoration(
-                            color: AppColors.orangeLight,
+                            color: AppColors.onyx,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
@@ -135,7 +136,7 @@ class LegalPage extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 13,
                           height: 1.55,
-                          color: AppColors.text,
+                          color: AppColors.onyx,
                         ),
                       ),
                     ),
@@ -145,6 +146,6 @@ class LegalPage extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
