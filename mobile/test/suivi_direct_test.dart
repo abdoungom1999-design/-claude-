@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sprint/features/admin/data/suivi_direct_service.dart';
@@ -182,6 +183,45 @@ void main() {
       // Marqueurs : Moussa (en course) et Awa (signal perdu) ; Fatou masquée.
       expect(find.byIcon(Icons.two_wheeler_rounded), findsOneWidget);
       expect(find.byIcon(Icons.signal_wifi_off_rounded), findsOneWidget);
+    });
+
+    testWidgets('un chauffeur loin de Dakar (France) : la carte se cadre sur lui, le marqueur est visible', (tester) async {
+      await _afficherSection(
+        tester,
+        _SuiviDirectFactice(
+          positions: [PositionChauffeurDirect(uid: 'moussa', latitude: 48.8566, longitude: 2.3522, majLe: DateTime.now())],
+          courses: const [],
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Disponibles : 1'), findsOneWidget);
+      final carte = tester.getRect(find.byType(FlutterMap));
+      final moto = tester.getCenter(find.byIcon(Icons.two_wheeler_rounded));
+      expect(carte.contains(moto), isTrue, reason: 'marqueur hors champ : $moto pour une carte $carte');
+    });
+
+    testWidgets('Dakar + un chauffeur en France : les deux marqueurs sont dans le champ', (tester) async {
+      final maintenant = DateTime.now();
+      await _afficherSection(
+        tester,
+        _SuiviDirectFactice(
+          positions: [
+            PositionChauffeurDirect(uid: 'moussa', latitude: 14.69, longitude: -17.44, majLe: maintenant),
+            PositionChauffeurDirect(uid: 'awa', latitude: 48.8566, longitude: 2.3522, majLe: maintenant),
+          ],
+          courses: const [],
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final carte = tester.getRect(find.byType(FlutterMap));
+      final motos = find.byIcon(Icons.two_wheeler_rounded);
+      expect(motos, findsNWidgets(2));
+      for (var i = 0; i < 2; i++) {
+        expect(carte.contains(tester.getCenter(motos.at(i))), isTrue);
+      }
+      expect(find.text('Tout voir'), findsOneWidget);
     });
 
     testWidgets('aucune donnée : états vides explicites', (tester) async {

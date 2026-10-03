@@ -144,6 +144,27 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
 
   final _carte = MapController();
 
+  /// La carte s'ouvre sur Dakar, puis se cadre une seule fois sur les
+  /// chauffeurs dès que le premier signal arrive : un chauffeur loin de
+  /// Dakar (compte de test, déplacement) n'est plus hors champ. Ensuite
+  /// l'Admin garde la main ; le bouton « Tout voir » recadre à la demande.
+  bool _cadrageInitialFait = false;
+
+  void _cadrerSur(List<PositionChauffeurDirect> positions) {
+    if (positions.isEmpty) return;
+    if (positions.length == 1) {
+      _carte.move(LatLng(positions.first.latitude, positions.first.longitude), 14);
+      return;
+    }
+    _carte.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints([for (final p in positions) LatLng(p.latitude, p.longitude)]),
+        padding: const EdgeInsets.all(70),
+        maxZoom: 15,
+      ),
+    );
+  }
+
   String _nom(String? uid) => widget.noms[uid] ?? 'Chauffeur';
 
   @override
@@ -152,6 +173,12 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
       for (final p in widget.positions)
         if (EtatSignal.pour(p.majLe, widget.maintenant) != EtatSignal.expire) p,
     ];
+    if (!_cadrageInitialFait && visibles.isNotEmpty) {
+      _cadrageInitialFait = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _cadrerSur(visibles);
+      });
+    }
     final positionsParUid = {for (final p in visibles) p.uid: p};
     final enCourse = {for (final c in widget.courses) c.chauffeurId};
 
@@ -211,6 +238,12 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
                       left: 14,
                       child: _Legende(enCourse: nbEnCourse, disponibles: nbDisponibles, perdus: nbPerdus),
                     ),
+                    if (visibles.isNotEmpty)
+                      Positioned(
+                        top: 14,
+                        right: 14,
+                        child: _BoutonToutVoir(onTap: () => _cadrerSur(visibles)),
+                      ),
                     if (!widget.chargement && visibles.isEmpty)
                       const Positioned(
                         bottom: 36,
@@ -309,6 +342,37 @@ class _MarqueurChauffeur extends StatelessWidget {
           perdu ? Icons.signal_wifi_off_rounded : Icons.two_wheeler_rounded,
           color: Colors.white,
           size: 20,
+        ),
+      ),
+    );
+  }
+}
+
+class _BoutonToutVoir extends StatelessWidget {
+  const _BoutonToutVoir({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.92),
+      shape: const StadiumBorder(side: BorderSide(color: AppColors.bordVerre)),
+      elevation: 2,
+      shadowColor: const Color(0x22000000),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.zoom_out_map_rounded, size: 16, color: AppColors.onyx),
+              SizedBox(width: 7),
+              Text('Tout voir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onyx)),
+            ],
+          ),
         ),
       ),
     );
