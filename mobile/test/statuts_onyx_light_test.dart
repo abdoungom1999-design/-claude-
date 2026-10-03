@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/core/models/statut_compte.dart';
 import 'package:sprint/core/theme/app_colors.dart';
 import 'package:sprint/core/widgets/onyx_light.dart';
+import 'package:sprint/features/compte/presentation/centre_aide_page.dart';
 import 'package:sprint/features/conducteur/presentation/conducteur_compte_bloque_page.dart';
 import 'package:sprint/features/conducteur/presentation/conducteur_en_attente_page.dart';
 import 'package:sprint/features/conducteur/presentation/conducteur_kyc_page.dart';
@@ -79,5 +80,25 @@ void main() {
     expect(find.text('3 documents sur 3 envoyés'), findsOneWidget);
     await tester.tap(find.text('Soumettre mon dossier'));
     expect(soumis, isTrue);
+  });
+
+  testWidgets("Centre d'aide : charte Onyx & Light, accordéon, aucun débordement à 320 px", (tester) async {
+    await _ecran(tester, const CentreAidePage(), taille: const Size(320, 640));
+
+    expect(find.byType(EcranOnyxLight), findsOneWidget);
+    expect(find.text('Questions fréquentes'), findsOneWidget);
+    expect(find.textContaining('Trois moyens de paiement'), findsNothing);
+    await tester.tap(find.text('Comment payer ma course ?'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Trois moyens de paiement'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.scrollUntilVisible(find.text('Contacter le support'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Contacter le support'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Contacter le support'));
+    await tester.pumpAndSettle();
+    expect(find.text('Message envoyé'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

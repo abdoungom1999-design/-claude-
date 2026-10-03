@@ -126,11 +126,13 @@ class BoutonStatutPrincipal extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.enCours = false,
+    this.icone,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool enCours;
+  final IconData? icone;
 
   @override
   Widget build(BuildContext context) {
@@ -153,7 +155,20 @@ class BoutonStatutPrincipal extends StatelessWidget {
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
               )
-            : Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5)),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icone != null) ...[Icon(icone, size: 20), const SizedBox(width: 8)],
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

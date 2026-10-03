@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/ecran_statut_onyx.dart';
+import '../../../core/widgets/onyx_light.dart';
 import '../../../core/widgets/premium_dialog.dart';
-import '../../../core/widgets/primary_button.dart';
 
 class _Question {
   const _Question(this.question, this.reponse);
@@ -50,81 +50,93 @@ const _questions = [
   ),
 ];
 
-/// Centre d'aide : FAQ en accordéon + carte de contact du support.
+/// Centre d'aide : FAQ en accordéon + carte de contact du support, en
+/// charte « Onyx & Light » (cartes verre, accents orange).
 class CentreAidePage extends StatelessWidget {
   const CentreAidePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Centre d\'aide')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const Text(
-              'Questions fréquentes',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            ..._questions.map(
-              (q) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _CarteQuestion(question: q),
-              ),
-            ),
-            const SizedBox(height: 16),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return EcranOnyxLight(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          foregroundColor: AppColors.onyx,
+          title: const Text(
+            "Centre d'aide",
+            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
+          ),
+        ),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: AppColors.orangeLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.support_agent_outlined,
-                          color: AppColors.orange,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Besoin d\'aide supplémentaire ?',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Notre équipe support est disponible 24/7 au +221 33 800 00 00 '
-                    'ou support@groupesantine.sn.',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.grey, height: 1.4),
+                  const Text('Questions fréquentes', style: styleTitreSection),
+                  const SizedBox(height: 12),
+                  ..._questions.map(
+                    (q) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _CarteQuestion(question: q),
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  PrimaryButton(
-                    label: 'Contacter le support',
-                    icon: Icons.chat_bubble_outline_rounded,
-                    onPressed: () => PremiumDialog.afficher(
-                      context,
-                      icon: Icons.mark_email_read_outlined,
-                      titre: 'Message envoyé',
-                      message:
-                          'Notre équipe support a bien reçu votre demande et vous '
-                          'répondra très prochainement.',
-                      succes: true,
+                  CarteVerre(
+                    rayon: 24,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.onyx,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.support_agent_outlined, color: AppColors.orange, size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                "Besoin d'aide supplémentaire ?",
+                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.onyx),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Notre équipe support est disponible 24/7 au +221 33 800 00 00 '
+                          'ou support@groupesantine.sn.',
+                          style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.5),
+                        ),
+                        const SizedBox(height: 16),
+                        BoutonStatutPrincipal(
+                          label: 'Contacter le support',
+                          icone: Icons.chat_bubble_outline_rounded,
+                          onPressed: () => PremiumDialog.afficher(
+                            context,
+                            icon: Icons.mark_email_read_outlined,
+                            titre: 'Message envoyé',
+                            message:
+                                'Notre équipe support a bien reçu votre demande et vous '
+                                'répondra très prochainement.',
+                            succes: true,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -138,31 +150,36 @@ class _CarteQuestion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyBorder.withValues(alpha: 0.6)),
-      ),
+    return CarteVerre(
+      rayon: 20,
+      padding: EdgeInsets.zero,
       child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
+        ),
         child: ExpansionTile(
+          backgroundColor: Colors.transparent,
+          collapsedBackgroundColor: Colors.transparent,
           shape: const RoundedRectangleBorder(side: BorderSide.none),
           collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
           title: Text(
             question.question,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.onyx),
           ),
           iconColor: AppColors.orange,
-          collapsedIconColor: AppColors.grey,
+          collapsedIconColor: AppColors.onyx,
           children: [
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 question.reponse,
-                style: const TextStyle(fontSize: 12.5, color: AppColors.grey, height: 1.5),
+                style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.55),
               ),
             ),
           ],
