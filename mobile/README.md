@@ -23,6 +23,7 @@ Briques dans `lib/core/widgets/onyx_light.dart` (`EcranOnyxLight`, `CarteVerre`,
 `ThemeOnyxLight`) et jetons dans `AppColors`.
 
 Écrans migrés : Bienvenue/Connexion, Accueil, Compte et portefeuille,
-Activité et Messages, Chauffeur, Admin. L'Admin désactive le flou
+Activité et Messages, Chauffeur (dont dossier KYC et écrans d'attente/blocage),
+Admin, Centre d'aide. L'Admin désactive le flou
 (`EcranOnyxLight(flou: false)`) pour rester fluide sur les longs tableaux ;
 le rouge reste réservé aux alertes critiques.
