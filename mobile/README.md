@@ -24,6 +24,12 @@ Briques dans `lib/core/widgets/onyx_light.dart` (`EcranOnyxLight`, `CarteVerre`,
 
 Écrans migrés : Bienvenue/Connexion, Accueil, Compte et portefeuille,
 Activité et Messages, Chauffeur (dont dossier KYC et écrans d'attente/blocage),
-Admin, Centre d'aide. L'Admin désactive le flou
+Admin, Centre d'aide, sous-pages du Compte, commande et support.
+
+## Support
+
+« Contacter le support » ouvre un fil de demande d'aide (ticket `aide_<uid>`, collection
+`tickets`) pour un client ou un chauffeur, traité dans l'onglet Support de l'Admin. Un
+chauffeur suspendu ou banni reste connecté sur son écran de blocage pour y écrire. L'Admin désactive le flou
 (`EcranOnyxLight(flou: false)`) pour rester fluide sur les longs tableaux ;
 le rouge reste réservé aux alertes critiques.
