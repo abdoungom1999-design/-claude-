@@ -71,6 +71,35 @@ class SanctionAppliquee {
   final int remboursements;
 }
 
+/// Bilan de la migration des pièces KYC (Base64 dans Firestore → Firebase
+/// Storage), renvoyé par la Cloud Function `migrerDocumentsKyc`.
+class BilanMigrationKyc {
+  const BilanMigrationKyc({
+    required this.documentsAMigrer,
+    required this.chauffeursConcernes,
+    required this.migres,
+    required this.ignores,
+    required this.restants,
+  });
+
+  /// Pièces encore en Base64 avant l'appel.
+  final int documentsAMigrer;
+  final int chauffeursConcernes;
+  final int migres;
+  final int ignores;
+
+  /// Pièces encore en Base64 après l'appel (0 : migration terminée).
+  final int restants;
+
+  factory BilanMigrationKyc.depuisJson(Map<String, dynamic> r) => BilanMigrationKyc(
+        documentsAMigrer: (r['documentsABMigrer'] as num?)?.toInt() ?? 0,
+        chauffeursConcernes: (r['chauffeursConcernes'] as num?)?.toInt() ?? 0,
+        migres: (r['migres'] as num?)?.toInt() ?? 0,
+        ignores: (r['ignores'] as num?)?.toInt() ?? 0,
+        restants: (r['restants'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// Supervision KYC côté Admin : liste en temps réel des chauffeurs
 /// (collection Firestore `users`, `role == 'conducteur'`) et
 /// approbation/rejet de leur dossier. Écrit directement dans le même
@@ -122,6 +151,17 @@ class AdminKycService {
         coursesAnnulees: (r['coursesAnnulees'] as num?)?.toInt() ?? 0,
         remboursements: (r['remboursements'] as num?)?.toInt() ?? 0,
       );
+    } on FirebaseFunctionsException catch (e) {
+      throw FonctionsCloud.versApiException(e);
+    }
+  }
+
+  /// Pièces KYC encore stockées en Base64 dans Firestore. [apercu] : compte
+  /// seulement ; sinon déplace un lot de chauffeurs vers Firebase Storage
+  /// (à relancer tant que [BilanMigrationKyc.restants] n'est pas 0).
+  Future<BilanMigrationKyc> migrerDocumentsKyc({bool apercu = false}) async {
+    try {
+      return BilanMigrationKyc.depuisJson(await FonctionsCloud.appeler('migrerDocumentsKyc', {'apercu': apercu}));
     } on FirebaseFunctionsException catch (e) {
       throw FonctionsCloud.versApiException(e);
     }

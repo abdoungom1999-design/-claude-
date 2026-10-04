@@ -8,6 +8,7 @@ import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/utils/format_fcfa.dart';
 import '../../../../firebase_options.dart';
 import '../../../courses/data/course_service.dart';
+import '../widgets/carte_stockage_kyc.dart';
 
 /// Page "Paramètres". En Firebase réel : les règles réellement
 /// appliquées par l'application (grille tarifaire, commission, moyens de
@@ -173,7 +174,7 @@ class _ReglesEnVigueur extends StatelessWidget {
         );
     const titre = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
 
-    return ConstrainedBox(
+    final regles = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 620),
       child: AppCard(
         padding: const EdgeInsets.all(28),
@@ -216,6 +217,11 @@ class _ReglesEnVigueur extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [regles, const SizedBox(height: 20), const CarteStockageKyc()],
     );
   }
 }

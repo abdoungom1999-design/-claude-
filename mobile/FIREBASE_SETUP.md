@@ -66,29 +66,44 @@ côté Admin, etc. restent sur les données de démonstration
 ## 5. Activer Firebase Storage (documents KYC)
 
 Les documents chauffeur (permis, carte grise, attestation VTC, photo de
-profil) sont désormais envoyés dans Firebase Storage
+profil) partent dans Firebase Storage
 (`kyc_documents/{uid}/{document}.jpg`), et seule leur URL est gardée
 dans Firestore. **Tant que Storage n'est pas activé, l'app retombe
-automatiquement sur l'ancien stockage Base64 dans Firestore** : rien
-ne casse, mais la migration n'est pas effective.
+automatiquement sur le stockage Base64 dans Firestore** (plafond 700 Ko
+par pièce) : rien ne casse, mais la migration n'est pas effective. La CI
+vérifie à chaque déploiement si le bucket existe et le signale par un
+avertissement jaune « Firebase Storage » dans le job `firebase`.
+
+À faire une seule fois, dans la Console (c'est la seule étape manuelle) :
 
 1. Menu de gauche : **Build > Storage** > **Commencer**.
-2. Firebase demande de passer au **plan Blaze** (paiement à l'usage) :
-   c'est obligatoire pour Storage. Un quota gratuit couvre la phase de
-   lancement ; pose une **alerte de budget** (Google Cloud Console >
-   Facturation > Budgets et alertes) dès l'activation.
-3. Choisis la même région que Firestore, puis mode **production**.
-4. Onglet **Règles** : remplace le contenu par celui du fichier
-   `storage.rules` de ce dépôt, puis **Publier**.
+2. Plan **Blaze** (déjà actif pour les Cloud Functions). Pose une
+   **alerte de budget** (Google Cloud Console > Facturation > Budgets).
+3. Même région que Firestore, mode **production**.
+4. C'est tout : au déploiement suivant, la CI publie `storage.rules`
+   (étape « Règles Firebase Storage (documents KYC) »). Il n'y a plus
+   rien à coller à la main.
 
-Aucune modification de code n'est nécessaire ensuite : le bucket
-(`sprint-vtc.firebasestorage.app`) est déjà déclaré dans
-`lib/firebase_options.dart`.
+Ensuite, pour les pièces déjà envoyées en Base64 : **Admin > Paramètres >
+Stockage des documents KYC**. « Actualiser » compte les pièces restantes
+(sans rien écrire), « Migrer vers Storage » en déplace un lot de 10
+chauffeurs à la fois : on relance jusqu'à « Aucune pièce en Base64 ». La
+migration est rejouable, ne touche pas les pièces déjà dans Storage, ne
+remet pas en cause la validation d'un dossier, et ne remplace jamais une
+pièce que le chauffeur renverrait pendant ce temps. Chaque lot est tracé
+dans le journal Admin (`migration_kyc_storage`).
 
-Sécurité : l'URL de téléchargement enregistrée dans Firestore donne
-accès à la photo à quiconque la possède. Les règles Firestore de la
-collection `users` doivent donc réserver la lecture des documents
-chauffeur au chauffeur lui-même et à l'Admin.
+Règles (`storage.rules`, testées sur l'émulateur : `firestore_rules_test/storage.test.mjs`) :
+seul le chauffeur lit, écrit, remplace ou supprime ses 4 pièces ; pas de
+liste de fichiers ; images (jpeg, png, webp) de 5 Mo au plus ; tout le
+reste est fermé.
+
+Sécurité : l'URL de téléchargement enregistrée dans Firestore contient un
+jeton secret qui donne accès à la photo à quiconque la possède. Les règles
+Firestore de `users` réservent donc la lecture des documents au chauffeur
+et à l'Admin. L'Admin affiche les pièces avec cette URL (pas de règle
+croisée Firestore ↔ Storage, qui exigerait un droit IAM supplémentaire
+impossible à accorder depuis la CI).
 
 ## 6. Sécurité Firestore et rôle Admin
 

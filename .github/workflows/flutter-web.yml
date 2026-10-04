@@ -206,7 +206,7 @@ jobs:
           for service in estimerprix creerpaiement annulercourse webhookpaiement pagepaiementsimule \
                          rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte \
                          chauffeursproches notifiermessage notifieracceptation \
-                         creerrecharge ajusterportefeuille; do
+                         creerrecharge ajusterportefeuille migrerdocumentskyc; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
               --member=allUsers --role=roles/run.invoker --quiet > /dev/null
@@ -223,7 +223,8 @@ jobs:
           base=https://europe-west1-sprint-vtc.cloudfunctions.net
           for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
                           rembourserCourseAdmin sanctionnerCompte chauffeursProches \
-                          notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille; do
+                          notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille \
+                          migrerDocumentsKyc; do
             reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
             echo "$fonction : $reponse"
             echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }
@@ -262,6 +263,24 @@ jobs:
       - name: Publier les règles Firestore
         if: steps.secret.outputs.present == 'true'
         run: npx --yes firebase-tools@15 deploy --only firestore:rules --project sprint-vtc --non-interactive
+
+      # Documents KYC des chauffeurs : règles Firebase Storage, publiées
+      # seulement si Storage est activé sur le projet (Console > Build >
+      # Storage > Commencer, voir FIREBASE_SETUP.md étape 5). Sans bucket
+      # (HTTP 404), simple avertissement : l'app garde son repli Base64.
+      # Jamais bloquant : le site et l'APK doivent partir dans tous les cas.
+      - name: Règles Firebase Storage (documents KYC)
+        if: steps.secret.outputs.present == 'true'
+        continue-on-error: true
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "https://firebasestorage.googleapis.com/v0/b/sprint-vtc.firebasestorage.app/o?maxResults=1")
+          echo "Bucket Storage sprint-vtc.firebasestorage.app : HTTP $code"
+          if [ "$code" = 404 ]; then
+            echo "::warning title=Firebase Storage::Storage n'est pas activé sur le projet (bucket introuvable). Les pièces KYC des chauffeurs restent stockées en Base64 dans Firestore. À faire : Console Firebase > Build > Storage > Commencer (voir mobile/FIREBASE_SETUP.md, étape 5). Règles Storage non publiées."
+          else
+            npx --yes firebase-tools@15 deploy --only storage --project sprint-vtc --non-interactive
+          fi
 
   # Ancienne adresse (GitHub Pages) : page de redirection vers
   # https://sprint-vtc.web.app, publiée une fois le nouveau site en ligne.

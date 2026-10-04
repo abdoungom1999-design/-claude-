@@ -12,6 +12,7 @@ import {
   sanctionnerCompte as sanctionnerCore,
 } from './admin';
 import { estimer } from './commandes';
+import { migrerDocumentsKyc as migrerKycCore, StockageFirebase } from './kyc_stockage';
 import { chauffeursProches as chauffeursProchesCore } from './proximite';
 import { calculDistance } from './distances';
 import { corpsWebhook, ErreurSignature, FournisseurSimule, signer, type FournisseurPaiement } from './fournisseurs';
@@ -222,6 +223,11 @@ export const ajusterPortefeuille = onCall(async (requete) =>
 /** Admin : suspension, bannissement ou réactivation d'un compte. */
 export const sanctionnerCompte = onCall(async (requete) =>
   sanctionnerCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
+);
+
+/** Admin : déplace les pièces KYC encore en Base64 (Firestore) vers Firebase Storage. */
+export const migrerDocumentsKyc = onCall(async (requete) =>
+  migrerKycCore(getFirestore(), new StockageFirebase(), requete.auth?.uid, requete.data, new Date()),
 );
 
 /** Paiements jamais finalisés et courses restées sans chauffeur. */

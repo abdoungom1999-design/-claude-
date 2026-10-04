@@ -32,6 +32,7 @@ void main() {
       'lib/features/admin/presentation/sections/admin_finances_section.dart',
       'lib/features/admin/presentation/admin_ticket_page.dart',
       'lib/features/admin/presentation/widgets/dialogue_sanction.dart',
+      'lib/features/admin/presentation/widgets/carte_stockage_kyc.dart',
       'lib/features/activite/presentation/detail_course_page.dart',
       'lib/features/portefeuille/presentation/recharge_portefeuille_page.dart',
       'lib/features/client/presentation/payment_processing_page.dart',

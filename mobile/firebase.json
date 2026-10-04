@@ -78,6 +78,9 @@
     },
     "hosting": {
       "port": 5000
+    },
+    "storage": {
+      "port": 9199
     }
   }
 }

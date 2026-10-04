@@ -1,21 +1,40 @@
 rules_version = '2';
 
-// Règles Firebase Storage du projet Sprint VTC (à coller dans Console
-// Firebase > Storage > Règles). Voir FIREBASE_SETUP.md, étape 5.
+// Règles Firebase Storage du projet Sprint VTC (publiées par la CI dès que
+// Storage est activé, voir FIREBASE_SETUP.md, étape 5).
+//
+// Seules les 4 pièces d'un chauffeur existent, à un emplacement fixe :
+//   kyc_documents/{uid}/permis.jpg | carteGrise.jpg | attestationVtc.jpg
+//   | photoProfil.jpg
+// Le chauffeur est le seul à pouvoir les écrire, remplacer, relire ou
+// supprimer. L'Admin les affiche via l'URL de téléchargement (jeton
+// secret) enregistrée dans Firestore (`users/{uid}.documents`), lisible par
+// le seul propriétaire et l'Admin : aucune règle croisée Firestore ↔ Storage,
+// qui exigerait un droit supplémentaire non automatisable dans la CI.
 service firebase.storage {
   match /b/{bucket}/o {
-    // Documents KYC et photo de profil d'un chauffeur : seul le
-    // chauffeur lui-même peut écrire ou relire son propre dossier.
-    // L'Admin affiche les photos via l'URL de téléchargement enregistrée
-    // dans Firestore, qui ne passe pas par ces règles.
     match /kyc_documents/{uid}/{fichier} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null
-        && request.auth.uid == uid
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      function proprietaire() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      function pieceConnue() {
+        return fichier in ['permis.jpg', 'carteGrise.jpg', 'attestationVtc.jpg', 'photoProfil.jpg'];
+      }
+
+      // Pas de liste des fichiers : on lit une pièce précise ou rien.
+      allow get: if proprietaire() && pieceConnue();
+      allow list: if false;
+
+      // Même plafond que l'app (5 Mo), images uniquement.
+      allow create, update: if proprietaire() && pieceConnue()
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+
+      allow delete: if proprietaire() && pieceConnue();
     }
 
+    // Tout le reste est fermé.
     match /{autre=**} {
       allow read, write: if false;
     }
