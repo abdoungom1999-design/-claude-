@@ -110,7 +110,7 @@ class _Medaillon extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         border: alerte == null ? null : Border.all(color: alerte.withValues(alpha: 0.35)),
         boxShadow: alerte == null
-            ? const [BoxShadow(color: Color(0x401D4ED8), blurRadius: 24, offset: Offset(0, 12))]
+            ? const [BoxShadow(color: Color(0x401E40AF), blurRadius: 24, offset: Offset(0, 12))]
             : null,
       ),
       alignment: Alignment.center,

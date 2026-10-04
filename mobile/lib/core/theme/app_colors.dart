@@ -12,11 +12,11 @@ class AppColors {
   static const Color orangeDark = Color(0xFFCC4E00);
   static const Color orangeLight = Color(0xFFFFE9DB);
 
-  /// Bleu de Confiance : accent principal (bleu roi profond). Contraste
-  /// 6,7:1 sur blanc ; sur fond Onyx, on l'utilise en aplat avec un
+  /// Bleu de Confiance : accent principal (bleu profond #1E40AF). Contraste
+  /// 8,7:1 sur blanc ; sur fond Onyx, on l'utilise en aplat avec un
   /// pictogramme blanc, jamais en pictogramme bleu sur noir.
-  static const Color bleu = Color(0xFF1D4ED8);
-  static const Color bleuFonce = Color(0xFF1E3A8A);
+  static const Color bleu = Color(0xFF1E40AF);
+  static const Color bleuFonce = Color(0xFF172554);
   static const Color bleuClair = Color(0xFFE6ECFC);
   static const Color background = Color(0xFFFFFFFF);
   static const Color text = Color(0xFF000000);
