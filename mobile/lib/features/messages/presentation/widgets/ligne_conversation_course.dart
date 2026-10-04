@@ -89,7 +89,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
             width: 48,
             height: 48,
             padding: const EdgeInsets.all(2.5),
-            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.orange),
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.bleu),
             child: Container(
               decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.onyx),
               alignment: Alignment.center,
@@ -134,7 +134,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
                       padding: const EdgeInsets.only(right: 14),
                       child: PastilleNonLus(
                         nombre: nonLus.nonLus,
-                        child: const Icon(Icons.mark_chat_unread_rounded, color: AppColors.orange, size: 22),
+                        child: const Icon(Icons.mark_chat_unread_rounded, color: AppColors.bleu, size: 22),
                       ),
                     )
                   : const SizedBox.shrink(),

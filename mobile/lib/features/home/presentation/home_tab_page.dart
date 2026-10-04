@@ -411,13 +411,13 @@ class _CarteDestination extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      key: const ValueKey('point-orange'),
+                      key: const ValueKey('point-accent'),
                       width: 11,
                       height: 11,
                       decoration: BoxDecoration(
-                        color: AppColors.orange,
+                        color: AppColors.bleu,
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.orange.withValues(alpha: 0.35), blurRadius: 0, spreadRadius: 4)],
+                        boxShadow: [BoxShadow(color: AppColors.bleu.withValues(alpha: 0.35), blurRadius: 0, spreadRadius: 4)],
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -470,7 +470,7 @@ class _CarteDestination extends StatelessWidget {
                 width: 7,
                 height: 7,
                 decoration: BoxDecoration(
-                  color: motos.motos.isEmpty ? AppColors.texteDiscret.withValues(alpha: 0.5) : AppColors.orange,
+                  color: motos.motos.isEmpty ? AppColors.texteDiscret.withValues(alpha: 0.5) : AppColors.bleu,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -516,8 +516,8 @@ class _Service extends StatelessWidget {
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(color: AppColors.fondClair, borderRadius: BorderRadius.circular(12)),
-              child: Icon(icone, color: AppColors.onyx, size: 20),
+              decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icone, color: AppColors.bleu, size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(

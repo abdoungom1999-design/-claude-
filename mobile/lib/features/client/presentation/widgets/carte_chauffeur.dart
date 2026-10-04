@@ -82,7 +82,7 @@ class _Etat extends StatelessWidget {
         Container(
           width: 9,
           height: 9,
-          decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
+          decoration: const BoxDecoration(color: AppColors.bleu, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -90,7 +90,7 @@ class _Etat extends StatelessWidget {
             clientABord ? 'Course en cours' : 'Chauffeur trouvé · il arrive',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.orange),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.bleu),
           ),
         ),
       ],
@@ -119,7 +119,7 @@ class _Identite extends StatelessWidget {
               height: 62,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.orange, AppColors.orangeDark],
+                  colors: [AppColors.bleu, AppColors.bleuFonce],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -173,8 +173,8 @@ class _Identite extends StatelessWidget {
                     Container(
                       width: 40,
                       height: 40,
-                      decoration: BoxDecoration(color: AppColors.orangeLight, borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.two_wheeler_rounded, color: AppColors.orange, size: 22),
+                      decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.two_wheeler_rounded, color: AppColors.bleu, size: 22),
                     ),
                     const SizedBox(width: 12),
                     ...vehiculeEtPlaque,

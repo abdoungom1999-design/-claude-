@@ -58,12 +58,12 @@ class FavorisPage extends StatelessWidget {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: AppColors.onyx,
+                            color: AppColors.bleu,
                             borderRadius: BorderRadius.circular(13),
                           ),
                           child: Icon(
                             _iconePour(favori.icon),
-                            color: AppColors.orange,
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(width: 14),

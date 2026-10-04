@@ -7,20 +7,20 @@ import 'package:sprint/features/conducteur/presentation/widgets/bouton_en_ligne_
 import 'package:sprint/features/conducteur/presentation/widgets/conducteur_bottom_nav.dart';
 
 void main() {
-  testWidgets('Chauffeur : barre du bas Onyx & Light (fond clair, icônes Onyx, onglet actif orange)', (tester) async {
+  testWidgets('Chauffeur : barre du bas Onyx & Light (fond clair, icônes Onyx, onglet actif bleu)', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(bottomNavigationBar: ConducteurBottomNav(indexSelectionne: 0, onSelection: (_) {})),
     ));
     final barre = tester.widget<BottomAppBar>(find.byType(BottomAppBar));
     expect(barre.color, AppColors.fondBarre);
     Color? couleur(String libelle) => tester.widget<Text>(find.text(libelle)).style?.color;
-    expect(couleur('Accueil'), AppColors.orange);
+    expect(couleur('Accueil'), AppColors.bleu);
     for (final inactif in ['Messages', 'Gains', 'Évaluations', 'Compte']) {
       expect(couleur(inactif), AppColors.onyx);
     }
   });
 
-  testWidgets('Chauffeur : bouton GO Onyx hors ligne, orange en ligne', (tester) async {
+  testWidgets('Chauffeur : bouton GO orange (action) hors ligne, bleu en ligne', (tester) async {
     Future<Color> premiereCouleur(bool enLigne) async {
       await tester.pumpWidget(MaterialApp(home: Scaffold(body: BoutonEnLigneCirculaire(enLigne: enLigne, onTap: () {}))));
       await tester.pump(const Duration(milliseconds: 500));
@@ -28,8 +28,8 @@ void main() {
       return ((bouton.decoration! as BoxDecoration).gradient! as LinearGradient).colors.last;
     }
 
-    expect(await premiereCouleur(false), AppColors.onyx);
-    expect(await premiereCouleur(true), AppColors.orangeDark);
+    expect(await premiereCouleur(false), AppColors.orangeDark);
+    expect(await premiereCouleur(true), AppColors.bleuFonce);
   });
 
   testWidgets('Chauffeur : un onglet enveloppé dans EcranOnyxLight prend la charte (fond clair, cartes verre)', (tester) async {

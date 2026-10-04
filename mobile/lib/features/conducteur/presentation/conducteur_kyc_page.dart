@@ -194,7 +194,7 @@ class _ProgressionDossier extends StatelessWidget {
             value: total == 0 ? 0 : envoyes / total,
             minHeight: 6,
             backgroundColor: AppColors.onyx.withValues(alpha: 0.08),
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.orange),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.bleu),
           ),
         ),
       ],
@@ -236,10 +236,10 @@ class _LigneDocumentKyc extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: AppColors.onyx.withValues(alpha: 0.06),
+                color: AppColors.bleuClair,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 20, color: AppColors.onyx),
+              child: Icon(icon, size: 20, color: AppColors.bleu),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -252,7 +252,7 @@ class _LigneDocumentKyc extends StatelessWidget {
               const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange),
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bleu),
               )
             else
               // Envoyé : pastille Onyx à coche orange. À ajouter : pastille
@@ -260,7 +260,7 @@ class _LigneDocumentKyc extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                 decoration: BoxDecoration(
-                  color: envoye ? AppColors.onyx : Colors.white,
+                  color: envoye ? AppColors.bleu : Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: envoye ? null : Border.all(color: AppColors.bordVerre),
                 ),
@@ -270,7 +270,7 @@ class _LigneDocumentKyc extends StatelessWidget {
                     Icon(
                       envoye ? Icons.check_circle_rounded : Icons.upload_outlined,
                       size: 13,
-                      color: envoye ? AppColors.orange : AppColors.onyx,
+                      color: envoye ? Colors.white : AppColors.onyx,
                     ),
                     const SizedBox(width: 5),
                     Text(

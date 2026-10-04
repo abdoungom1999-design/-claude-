@@ -18,7 +18,11 @@ samples, guidance on mobile development, and a full API reference.
 
 ## Charte « Onyx & Light »
 
-Fonds clairs, texte Onyx, cartes en verre dépoli, accents orange Sprint.
+Fonds clairs, texte Onyx, cartes en verre dépoli. Duo de couleurs : **Bleu de Confiance**
+(`AppColors.bleu`) pour les accents (icônes, pastilles, menus, états) et **orange vif**
+(`AppColors.orange`) exclusivement pour les boutons d'action (Commander, Soumettre,
+Contacter, Payer…). Un test (`palette_bleu_orange_test.dart`) liste les fichiers autorisés
+à utiliser l'orange.
 Briques dans `lib/core/widgets/onyx_light.dart` (`EcranOnyxLight`, `CarteVerre`,
 `ThemeOnyxLight`) et jetons dans `AppColors`.
 

@@ -61,7 +61,7 @@ class ListeMouvements extends StatelessWidget {
         if (mouvements == null) {
           return const Padding(
             padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+            child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
           );
         }
         if (mouvements.isEmpty) {
@@ -93,7 +93,7 @@ class _LigneMouvement extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final credit = mouvement.montantFcfa > 0;
-    final couleur = credit ? AppColors.orange : AppColors.onyx;
+    final couleur = credit ? AppColors.bleu : AppColors.onyx;
     final creeLe = mouvement.creeLe;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -103,7 +103,7 @@ class _LigneMouvement extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: credit ? AppColors.orangeLight : AppColors.fondClair,
+              color: credit ? AppColors.bleuClair : AppColors.fondClair,
               shape: BoxShape.circle,
             ),
             child: Icon(

@@ -84,7 +84,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
     if (clients == null) {
       return const Padding(
         padding: EdgeInsets.all(40),
-        child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+        child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
       );
     }
 

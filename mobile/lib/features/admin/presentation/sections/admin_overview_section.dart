@@ -102,7 +102,7 @@ class _OverviewReelState extends State<_OverviewReel> {
     if (terminees == null || dernieres == null) {
       return const Padding(
         padding: EdgeInsets.all(40),
-        child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+        child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
       );
     }
 
@@ -154,7 +154,7 @@ class _OverviewReelState extends State<_OverviewReel> {
                 icon: Icons.task_alt_rounded,
                 valeur: '${jour.nombreCourses}',
                 label: "Courses terminées aujourd'hui",
-                accent: AppColors.onyx,
+                accent: AppColors.bleu,
                 detail: '${semaine.nombreCourses} cette semaine',
               ),
             ),
@@ -164,7 +164,7 @@ class _OverviewReelState extends State<_OverviewReel> {
                 icon: Icons.two_wheeler_rounded,
                 valeur: '$enLigne',
                 label: 'Chauffeurs en ligne',
-                accent: AppColors.orange,
+                accent: AppColors.bleu,
                 detail: signalPerdu > 0
                     ? '$signalPerdu signal perdu · $valides validés'
                     : 'sur $valides chauffeurs validés',
@@ -176,7 +176,7 @@ class _OverviewReelState extends State<_OverviewReel> {
                 icon: Icons.person_add_alt_1_rounded,
                 valeur: '${nouveauxClients + nouveauxChauffeurs}',
                 label: "Nouveaux inscrits aujourd'hui",
-                accent: AppColors.onyx,
+                accent: AppColors.bleu,
                 detail: '${_pluriel(nouveauxClients, 'client')} · ${_pluriel(nouveauxChauffeurs, 'chauffeur')}',
               ),
             ),
@@ -263,7 +263,7 @@ class _OverviewReelState extends State<_OverviewReel> {
   static (String, Color) _statut(String statut) => switch (statut) {
         StatutCourse.enAttente => ('En attente', AppColors.grey),
         StatutCourse.acceptee => ('Acceptée', Colors.blue),
-        StatutCourse.enCours => ('En cours', AppColors.orange),
+        StatutCourse.enCours => ('En cours', AppColors.bleu),
         StatutCourse.terminee => ('Terminée', AppColors.onyx),
         StatutCourse.annulee => ('Annulée', Colors.redAccent),
         _ => (statut, AppColors.grey),
@@ -296,7 +296,7 @@ class _OverviewDemo extends StatelessWidget {
                 icon: Icons.task_alt_rounded,
                 valeur: '${AdminDemoData.coursesTermineesJour}',
                 label: 'Courses terminées',
-                accent: AppColors.onyx,
+                accent: AppColors.bleu,
               ),
             ),
             const SizedBox(width: 18),
@@ -305,7 +305,7 @@ class _OverviewDemo extends StatelessWidget {
                 icon: Icons.two_wheeler_rounded,
                 valeur: '${AdminDemoData.chauffeursEnLigne}',
                 label: 'Chauffeurs en ligne',
-                accent: AppColors.orange,
+                accent: AppColors.bleu,
               ),
             ),
             const SizedBox(width: 18),
@@ -314,7 +314,7 @@ class _OverviewDemo extends StatelessWidget {
                 icon: Icons.person_add_alt_1_rounded,
                 valeur: '${AdminDemoData.nouveauxInscritsJour}',
                 label: 'Nouveaux inscrits',
-                accent: AppColors.onyx,
+                accent: AppColors.bleu,
               ),
             ),
           ],
@@ -403,7 +403,7 @@ class _TableauDernieresCourses extends StatelessWidget {
               statut: switch (course.statut) {
                 StatutCourseAdmin.terminee => ('Terminée', AppColors.onyx),
                 StatutCourseAdmin.annulee => ('Annulée', Colors.redAccent),
-                StatutCourseAdmin.enCours => ('En cours', AppColors.orange),
+                StatutCourseAdmin.enCours => ('En cours', AppColors.bleu),
               },
             ),
           ),

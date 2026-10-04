@@ -73,7 +73,7 @@ class _SignalementPageState extends State<SignalementPage> {
                 );
               }
               if (instantane.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+                return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
               }
               final ticket = instantane.data;
               if (ticket == null) {
@@ -109,10 +109,10 @@ class _RappelCourse extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: AppColors.onyx, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.bleu, borderRadius: BorderRadius.circular(12)),
             child: Icon(
               course.type == 'COLIS' ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-              color: AppColors.orange,
+              color: Colors.white,
               size: 20,
             ),
           ),
@@ -267,7 +267,7 @@ class _NouveauSignalementState extends State<_NouveauSignalement> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: AppColors.orange, width: 1.6),
+                  borderSide: const BorderSide(color: AppColors.bleu, width: 1.6),
                 ),
               ),
             ),
@@ -334,13 +334,13 @@ class _SuiviSignalementState extends State<_SuiviSignalement> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          color: ticket.estResolu ? AppColors.onyx.withValues(alpha: 0.06) : AppColors.orange.withValues(alpha: 0.10),
+          color: ticket.estResolu ? AppColors.onyx.withValues(alpha: 0.06) : AppColors.bleu.withValues(alpha: 0.10),
           child: Row(
             children: [
               Icon(
                 ticket.estResolu ? Icons.check_circle_rounded : Icons.support_agent_rounded,
                 size: 20,
-                color: ticket.estResolu ? AppColors.onyx : AppColors.orange,
+                color: ticket.estResolu ? AppColors.onyx : AppColors.bleu,
               ),
               const SizedBox(width: 10),
               Expanded(

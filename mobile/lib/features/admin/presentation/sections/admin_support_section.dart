@@ -94,7 +94,7 @@ class _BadgeTicket extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statut) {
       StatutTicket.ouvert => ('Ouvert', Colors.redAccent),
-      StatutTicket.enCours => ('En cours', AppColors.orange),
+      StatutTicket.enCours => ('En cours', AppColors.bleu),
       StatutTicket.resolu => ('Résolu', AppColors.onyx),
     };
 
@@ -150,7 +150,7 @@ class _FileTicketsState extends State<_FileTickets> {
           if (!instantane.hasData) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+              child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
             );
           }
           final tous = instantane.data!;
@@ -188,7 +188,7 @@ class _FileTicketsState extends State<_FileTickets> {
                     ChoiceChip(
                       label: Text(libelle),
                       selected: _filtre == filtre,
-                      selectedColor: AppColors.orangeLight,
+                      selectedColor: AppColors.bleuClair,
                       onSelected: (_) => setState(() => _filtre = filtre),
                     ),
                 ],
@@ -231,7 +231,7 @@ class _LigneTicket extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: ticket.nonLuAdmin ? AppColors.orangeLight.withValues(alpha: 0.5) : AppColors.fondClair,
+        color: ticket.nonLuAdmin ? AppColors.bleuClair.withValues(alpha: 0.5) : AppColors.fondClair,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -242,7 +242,7 @@ class _LigneTicket extends StatelessWidget {
               children: [
                 Icon(
                   ticket.categorie == support.CategorieTicket.securite ? Icons.warning_amber_rounded : Icons.support_agent_rounded,
-                  color: ticket.categorie == support.CategorieTicket.securite ? Colors.redAccent : AppColors.orange,
+                  color: ticket.categorie == support.CategorieTicket.securite ? Colors.redAccent : AppColors.bleu,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -264,7 +264,7 @@ class _LigneTicket extends StatelessWidget {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(color: AppColors.orange, borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(color: AppColors.bleu, borderRadius: BorderRadius.circular(8)),
                               child: const Text('Nouveau',
                                   style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
                             ),
@@ -292,7 +292,7 @@ class _LigneTicket extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: ticket.estResolu ? AppColors.onyx : AppColors.orangeDark,
+                        color: ticket.estResolu ? AppColors.onyx : AppColors.bleuFonce,
                       ),
                     ),
                   ],

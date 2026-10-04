@@ -27,7 +27,7 @@ class IndicateurEtapes extends StatelessWidget {
                   duration: const Duration(milliseconds: 250),
                   height: 5,
                   decoration: BoxDecoration(
-                    color: i <= etapeActuelle ? AppColors.orange : AppColors.greyBorder,
+                    color: i <= etapeActuelle ? AppColors.bleu : AppColors.greyBorder,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -45,7 +45,7 @@ class IndicateurEtapes extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: i == etapeActuelle ? FontWeight.w700 : FontWeight.w500,
-                  color: i <= etapeActuelle ? AppColors.orange : AppColors.grey,
+                  color: i <= etapeActuelle ? AppColors.bleu : AppColors.grey,
                 ),
               ),
           ],

@@ -196,7 +196,7 @@ class _Attente extends StatelessWidget {
           const SizedBox(
             width: 64,
             height: 64,
-            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.orange),
+            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.bleu),
           ),
           const SizedBox(height: 28),
           Text(titre, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -246,7 +246,7 @@ class _APayer extends StatelessWidget {
                     'votre solde sera crédité dès la confirmation.',
               )
             else ...[
-              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.orange),
+              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.bleu),
               const SizedBox(height: 18),
               Text(formaterFcfa(montantFcfa), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
@@ -298,9 +298,9 @@ class _Creditee extends StatelessWidget {
           Container(
             width: 76,
             height: 76,
-            decoration: const BoxDecoration(color: AppColors.onyx, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: AppColors.bleu, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 44),
+            child: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 44),
           ),
           const SizedBox(height: 24),
           const Text('Portefeuille rechargé !', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),

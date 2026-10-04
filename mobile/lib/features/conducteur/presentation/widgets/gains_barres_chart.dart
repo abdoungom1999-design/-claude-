@@ -36,7 +36,7 @@ class GainsBarresChart extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 9.5,
                         fontWeight: i == jourMax ? FontWeight.w700 : FontWeight.w500,
-                        color: i == jourMax ? AppColors.orange : AppColors.grey,
+                        color: i == jourMax ? AppColors.bleu : AppColors.grey,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -48,7 +48,7 @@ class GainsBarresChart extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: i == jourMax
                               ? const LinearGradient(
-                                  colors: [AppColors.orange, AppColors.orangeDark],
+                                  colors: [AppColors.bleu, AppColors.bleuFonce],
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                 )

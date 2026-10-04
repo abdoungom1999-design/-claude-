@@ -84,7 +84,7 @@ class _FinancesReellesState extends State<_FinancesReelles> {
             if (!courses.hasData || !reglements.hasData) {
               return const Padding(
                 padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+                child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
               );
             }
             return _VueFinances(
@@ -120,7 +120,7 @@ class _VueFinances extends StatelessWidget {
       ..sort((a, b) => b.$2.soldeFcfa.compareTo(a.$2.soldeFcfa));
     final duAuxChauffeurs = comptes.fold(0, (t, e) => e.$2.soldeFcfa > 0 ? t + e.$2.soldeFcfa : t);
 
-    Widget tuile(String libelle, int montant, IconData icone, {Color accent = AppColors.orange}) => SizedBox(
+    Widget tuile(String libelle, int montant, IconData icone, {Color accent = AppColors.bleu}) => SizedBox(
           width: 250,
           child: StatTile(label: libelle, valeur: formaterFcfa(montant), icon: icone, accent: accent),
         );

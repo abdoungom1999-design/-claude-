@@ -117,7 +117,7 @@ class _AdminChauffeursSectionState extends State<AdminChauffeursSection> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 60),
               child: Center(
-                child: CircularProgressIndicator(color: AppColors.orange),
+                child: CircularProgressIndicator(color: AppColors.bleu),
               ),
             )
           else ...[
@@ -198,7 +198,7 @@ class _LigneChauffeur extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.orange, AppColors.orangeDark],
+                colors: [AppColors.bleu, AppColors.bleuFonce],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -240,7 +240,7 @@ class _LigneChauffeur extends StatelessWidget {
             child: conducteur.note > 0
                 ? Row(
                     children: [
-                      const Icon(Icons.star_rounded, size: 15, color: AppColors.orange),
+                      const Icon(Icons.star_rounded, size: 15, color: AppColors.bleu),
                       const SizedBox(width: 3),
                       Text(conducteur.note.toStringAsFixed(1)),
                     ],
@@ -254,7 +254,7 @@ class _LigneChauffeur extends StatelessWidget {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bleu),
                   )
                 : Row(
                     children: [
@@ -305,7 +305,7 @@ class _BadgeStatutChauffeur extends StatelessWidget {
         ? ('Suspendu', Colors.redAccent)
         : conducteur.estValide
         ? ('Actif', AppColors.onyx)
-        : ('En attente', AppColors.orange);
+        : ('En attente', AppColors.bleu);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -359,7 +359,7 @@ class _ChauffeursReelsSection extends StatelessWidget {
               if (!snapshot.hasData)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 60),
-                  child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+                  child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
                 )
               else if (conducteurs.isEmpty)
                 const Padding(
@@ -446,7 +446,7 @@ class _LigneChauffeurReel extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.orange, AppColors.orangeDark],
+                colors: [AppColors.bleu, AppColors.bleuFonce],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -525,7 +525,7 @@ class _BadgeStatutValidation extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutValidation) {
       'valide' => ('Validé', AppColors.onyx),
-      'en_attente' => ('En attente', AppColors.orange),
+      'en_attente' => ('En attente', AppColors.bleu),
       'rejete' => ('Rejeté', Colors.redAccent),
       _ => ('Non soumis', AppColors.grey),
     };

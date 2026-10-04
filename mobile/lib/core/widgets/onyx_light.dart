@@ -50,7 +50,7 @@ class FondOnyxLight extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          const Positioned(top: -140, right: -120, child: _Halo(taille: 380, couleur: AppColors.orange, opacite: 0.16)),
+          const Positioned(top: -140, right: -120, child: _Halo(taille: 380, couleur: AppColors.bleu, opacite: 0.16)),
           const Positioned(bottom: -160, left: -140, child: _Halo(taille: 400, couleur: Color(0xFF8E8E93), opacite: 0.14)),
           child,
         ],

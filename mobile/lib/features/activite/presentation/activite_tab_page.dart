@@ -83,7 +83,7 @@ class _ActiviteTabPageState extends State<ActiviteTabPage> {
                 );
               }
               if (!instantane.hasData) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+                return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
               }
               final toutes = instantane.data!;
               return TabBarView(
@@ -242,7 +242,7 @@ class _OngletActivite extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx),
             ),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.orange, textStyle: const TextStyle(fontWeight: FontWeight.w700)),
+              style: TextButton.styleFrom(foregroundColor: AppColors.bleu, textStyle: const TextStyle(fontWeight: FontWeight.w700)),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ReceiptsPage()),
               ),
@@ -287,14 +287,14 @@ class _CarteHistorique extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColors.orangeLight,
+              color: AppColors.bleuClair,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               course.type == 'COLIS'
                   ? Icons.inventory_2_outlined
                   : Icons.two_wheeler_rounded,
-              color: AppColors.orange,
+              color: AppColors.bleu,
               size: 20,
             ),
           ),
@@ -399,7 +399,7 @@ class _OngletReel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(course.libelleStatut,
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.orange)),
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.bleu)),
                     const SizedBox(height: 6),
                     Text(
                       '${course.adresseDepart} → ${course.adresseArrivee}',
@@ -462,10 +462,10 @@ class _CarteCourseReelle extends StatelessWidget {
               Container(
                 width: 42,
                 height: 42,
-                decoration: BoxDecoration(color: AppColors.orangeLight, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(12)),
                 child: Icon(
                   course.type == 'COLIS' ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-                  color: AppColors.orange,
+                  color: AppColors.bleu,
                   size: 20,
                 ),
               ),

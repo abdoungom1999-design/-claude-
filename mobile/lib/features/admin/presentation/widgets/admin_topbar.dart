@@ -98,7 +98,7 @@ class _BoutonIcone extends StatelessWidget {
               width: 11,
               height: 11,
               decoration: BoxDecoration(
-                color: AppColors.orange,
+                color: AppColors.bleu,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
@@ -124,7 +124,7 @@ class _ProfilAdmin extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.onyx,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.orange, width: 2),
+            border: Border.all(color: AppColors.bleu, width: 2),
           ),
           alignment: Alignment.center,
           child: const Text(

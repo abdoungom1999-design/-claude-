@@ -219,12 +219,12 @@ class _FondCarteConducteurState extends State<_FondCarteConducteur>
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: widget.enLigne ? AppColors.orange : AppColors.onyx,
+              color: widget.enLigne ? AppColors.bleu : AppColors.onyx,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: (widget.enLigne ? AppColors.orange : AppColors.onyx)
+                  color: (widget.enLigne ? AppColors.bleu : AppColors.onyx)
                       .withValues(alpha: 0.3),
                   blurRadius: 16,
                   spreadRadius: 2,
@@ -253,7 +253,7 @@ class _AnneauRadar extends StatelessWidget {
       height: taille,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.orange.withValues(alpha: opacite), width: 1.5),
+        border: Border.all(color: AppColors.bleu.withValues(alpha: opacite), width: 1.5),
       ),
     );
   }
@@ -287,10 +287,10 @@ class _CarteObjectifJour extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.orangeLight,
+              color: AppColors.bleuClair,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.flag_rounded, color: AppColors.orange, size: 21),
+            child: const Icon(Icons.flag_rounded, color: AppColors.bleu, size: 21),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -321,7 +321,7 @@ class _CarteObjectifJour extends StatelessWidget {
                     value: progression,
                     minHeight: 7,
                     backgroundColor: const Color(0x14000000),
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.orange),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.bleu),
                   ),
                 ),
               ],
@@ -347,7 +347,7 @@ class _CarteStatVerre extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.orange, size: 18),
+          Icon(icon, color: AppColors.bleu, size: 18),
           const SizedBox(height: 8),
           Text(
             valeur,
@@ -382,7 +382,7 @@ class _PucePastille extends StatelessWidget {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.radar_rounded, size: 14, color: AppColors.orange),
+            Icon(Icons.radar_rounded, size: 14, color: AppColors.bleu),
             SizedBox(width: 6),
             Text(
               'Simuler une course',

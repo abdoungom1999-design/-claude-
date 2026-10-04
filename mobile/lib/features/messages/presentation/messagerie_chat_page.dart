@@ -177,7 +177,7 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.call_rounded, color: AppColors.orange),
+              icon: const Icon(Icons.call_rounded, color: AppColors.bleu),
               tooltip: 'Appeler',
               onPressed: _telephoneCharge ? _appeler : null,
             ),
@@ -207,7 +207,7 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
                           child: CircularProgressIndicator(
-                              color: AppColors.orange),
+                              color: AppColors.bleu),
                         );
                       }
                       final messages = snapshot.data ?? [];

@@ -131,9 +131,9 @@ class _ItemMenu extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            // Onglet actif : pastille Onyx, icône orange.
+            // Onglet actif : pastille bleue, icône et texte blancs.
             decoration: BoxDecoration(
-              color: selectionne ? AppColors.onyx : Colors.transparent,
+              color: selectionne ? AppColors.bleu : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -141,7 +141,7 @@ class _ItemMenu extends StatelessWidget {
                 Icon(
                   section.icon,
                   size: 19,
-                  color: selectionne ? AppColors.orange : AppColors.onyx,
+                  color: selectionne ? Colors.white : AppColors.onyx,
                 ),
                 const SizedBox(width: 12),
                 Text(

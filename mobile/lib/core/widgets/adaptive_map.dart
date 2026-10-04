@@ -106,7 +106,7 @@ class AdaptiveMap extends StatelessWidget {
                   points: polylignePoints!
                       .map((p) => gmaps.LatLng(p.latitude, p.longitude))
                       .toList(),
-                  color: AppColors.orange,
+                  color: AppColors.bleu,
                   width: 3,
                 ),
               },
@@ -136,7 +136,7 @@ class AdaptiveMap extends StatelessWidget {
             polylines: [
               osm.Polyline(
                 points: polylignePoints!,
-                color: AppColors.orange,
+                color: AppColors.bleu,
                 strokeWidth: 3,
               ),
             ],
@@ -161,7 +161,7 @@ class AdaptiveMap extends StatelessWidget {
                   width: 36,
                   height: 36,
                   child: m.type == TypeMarqueur.arrivee
-                      ? const Icon(Icons.location_on, color: AppColors.orange, size: 36)
+                      ? const Icon(Icons.location_on, color: AppColors.bleu, size: 36)
                       : const Icon(Icons.trip_origin, color: AppColors.text, size: 26),
                 ),
               )

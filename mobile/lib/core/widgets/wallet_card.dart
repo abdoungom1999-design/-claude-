@@ -77,7 +77,7 @@ class WalletCard extends StatelessWidget {
                 value: payerAvecSolde,
                 onChanged: onTogglePaiement,
                 activeThumbColor: Colors.white,
-                activeTrackColor: AppColors.orange,
+                activeTrackColor: AppColors.bleu,
                 inactiveThumbColor: Colors.white,
                 inactiveTrackColor: const Color(0xFFD1D1D6),
                 trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),

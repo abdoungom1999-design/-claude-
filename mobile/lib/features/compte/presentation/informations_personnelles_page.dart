@@ -85,7 +85,7 @@ class _InformationsPersonnellesPageState
       appBar: AppBar(title: const Text('Informations personnelles')),
       body: SafeArea(
         child: _chargement
-            ? const Center(child: CircularProgressIndicator(color: AppColors.orange))
+            ? const Center(child: CircularProgressIndicator(color: AppColors.bleu))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Form(
@@ -99,7 +99,7 @@ class _InformationsPersonnellesPageState
                           height: 76,
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [AppColors.orange, AppColors.orangeDark],
+                              colors: [AppColors.bleu, AppColors.bleuFonce],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),

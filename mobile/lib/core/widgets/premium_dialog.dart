@@ -57,7 +57,7 @@ class PremiumDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const accent = AppColors.orange;
+    const accent = AppColors.bleu;
 
     return Dialog(
       backgroundColor: Colors.transparent,

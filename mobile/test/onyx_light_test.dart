@@ -134,11 +134,11 @@ void main() {
       expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.orange, AppColors.orangeDark]);
     });
 
-    testWidgets('champ : bordure orange partout ailleurs, Onyx dans un écran migré', (tester) async {
+    testWidgets('champ : bordure bleue partout ailleurs, Onyx dans un écran migré', (tester) async {
       InputDecoration decoration() => tester.widget<InputDecorator>(find.byType(InputDecorator)).decoration;
 
       await tester.pumpWidget(hors(const AppTextField(label: 'Nom', prefixIcon: Icons.person_outline)));
-      expect((decoration().focusedBorder! as OutlineInputBorder).borderSide.color, AppColors.orange);
+      expect((decoration().focusedBorder! as OutlineInputBorder).borderSide.color, AppColors.bleu);
 
       await tester.pumpWidget(hors(const ThemeOnyxLight(child: AppTextField(label: 'Nom', prefixIcon: Icons.person_outline))));
       expect((decoration().focusedBorder! as OutlineInputBorder).borderSide.color, AppColors.onyx);

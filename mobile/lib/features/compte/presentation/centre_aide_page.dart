@@ -87,10 +87,10 @@ class CentreAidePage extends StatelessWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: AppColors.onyx,
+                                color: AppColors.bleu,
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.support_agent_outlined, color: AppColors.orange, size: 22),
+                              child: const Icon(Icons.support_agent_outlined, color: Colors.white, size: 22),
                             ),
                             const SizedBox(width: 12),
                             const Expanded(
@@ -155,7 +155,7 @@ class _CarteQuestion extends StatelessWidget {
             question.question,
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.onyx),
           ),
-          iconColor: AppColors.orange,
+          iconColor: AppColors.bleu,
           collapsedIconColor: AppColors.onyx,
           children: [
             Align(

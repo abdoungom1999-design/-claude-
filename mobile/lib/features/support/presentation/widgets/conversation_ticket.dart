@@ -88,7 +88,7 @@ class _ConversationTicketState extends State<ConversationTicket> {
                 );
               }
               if (!instantane.hasData) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+                return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
               }
               final messages = instantane.data!;
               _allerEnBas();
@@ -190,7 +190,7 @@ class _Bulle extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: moi ? AppColors.orange : Colors.white,
+            color: moi ? AppColors.bleu : Colors.white,
             border: moi ? null : Border.all(color: AppColors.bordVerre),
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(16),
@@ -208,7 +208,7 @@ class _Bulle extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text(
                     nomAutre,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.orange),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.bleu),
                   ),
                 ),
               Text(message.texte, style: TextStyle(color: moi ? Colors.white : AppColors.onyx, fontSize: 13.5)),
@@ -245,7 +245,7 @@ class _MessageSysteme extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.verified_rounded, size: 16, color: AppColors.orange),
+            const Icon(Icons.verified_rounded, size: 16, color: AppColors.bleu),
             const SizedBox(width: 8),
             Flexible(
               child: Text(

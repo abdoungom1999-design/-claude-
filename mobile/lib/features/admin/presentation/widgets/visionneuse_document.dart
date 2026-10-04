@@ -159,7 +159,7 @@ class _BoutonOutil extends StatelessWidget {
       onPressed: onTap,
       iconSize: 26,
       color: Colors.white,
-      hoverColor: AppColors.orange.withValues(alpha: 0.25),
+      hoverColor: AppColors.bleu.withValues(alpha: 0.25),
       icon: Icon(icone),
     );
   }

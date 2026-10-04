@@ -92,14 +92,14 @@ class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
           future: _courses,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+              return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
             }
             if (snapshot.hasError) {
               return _Erreur(onReessayer: _recharger);
             }
             final courses = snapshot.data ?? const [];
             return RefreshIndicator(
-              color: AppColors.orange,
+              color: AppColors.bleu,
               onRefresh: _recharger,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -148,7 +148,7 @@ class _CompteurAvis extends StatelessWidget {
       label: 'Avis en attente',
       valeur: '$nombre',
       icon: Icons.star_border_rounded,
-      accent: nombre == 0 ? AppColors.onyx : AppColors.orange,
+      accent: nombre == 0 ? AppColors.onyx : AppColors.bleu,
     );
   }
 }
@@ -288,7 +288,7 @@ class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
               label: 'Avis en attente',
               valeur: '${courses.length}',
               icon: Icons.star_border_rounded,
-              accent: courses.isEmpty ? AppColors.onyx : AppColors.orange,
+              accent: courses.isEmpty ? AppColors.onyx : AppColors.bleu,
             ),
             const SizedBox(height: 20),
             if (courses.isEmpty)

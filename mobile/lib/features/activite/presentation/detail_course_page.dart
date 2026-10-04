@@ -112,10 +112,10 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                 icon: Badge(
                   isLabelVisible: ticket?.nonLuClient ?? false,
                   smallSize: 9,
-                  backgroundColor: AppColors.orange,
+                  backgroundColor: AppColors.bleu,
                   child: Icon(
                     ticket == null ? Icons.flag_outlined : Icons.support_agent_rounded,
-                    color: AppColors.orange,
+                    color: AppColors.bleu,
                   ),
                 ),
                 label: Text(libelle),
@@ -164,7 +164,7 @@ class _Pastille extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: active ? AppColors.orangeLight : AppColors.fondClair,
+        color: active ? AppColors.bleuClair : AppColors.fondClair,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -172,7 +172,7 @@ class _Pastille extends StatelessWidget {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w700,
-          color: active ? AppColors.orangeDark : AppColors.texteDiscret,
+          color: active ? AppColors.bleuFonce : AppColors.texteDiscret,
         ),
       ),
     );

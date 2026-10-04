@@ -67,7 +67,7 @@ class _OngletBarre extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = selectionne ? AppColors.orange : AppColors.onyx;
+    final couleur = selectionne ? AppColors.bleu : AppColors.onyx;
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),

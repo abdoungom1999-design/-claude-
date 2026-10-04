@@ -124,10 +124,10 @@ class _SecuritePageState extends State<SecuritePage> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.onyx,
+                      color: AppColors.bleu,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.verified_user_rounded, color: AppColors.orange, size: 20),
+                    child: const Icon(Icons.verified_user_rounded, color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -206,12 +206,12 @@ class _SecuritePageState extends State<SecuritePage> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.onyx,
+                      color: AppColors.bleu,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.shield_outlined,
-                      color: AppColors.orange,
+                      color: Colors.white,
                       size: 20,
                     ),
                   ),
@@ -233,7 +233,7 @@ class _SecuritePageState extends State<SecuritePage> {
                   ),
                   Switch(
                     value: _authDeuxFacteurs,
-                    activeThumbColor: AppColors.orange,
+                    activeThumbColor: AppColors.bleu,
                     onChanged: (v) => setState(() => _authDeuxFacteurs = v),
                   ),
                 ],

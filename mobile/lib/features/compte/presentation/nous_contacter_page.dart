@@ -55,10 +55,10 @@ class _NousContacterPageState extends State<NousContacterPage> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.onyx,
+                      color: AppColors.bleu,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.phone_outlined, color: AppColors.orange, size: 20),
+                    child: const Icon(Icons.phone_outlined, color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(

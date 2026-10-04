@@ -19,8 +19,8 @@ class StatusBadge extends StatelessWidget {
 
     switch (tone) {
       case StatusTone.attention:
-        background = AppColors.orangeLight;
-        foreground = AppColors.orange;
+        background = AppColors.bleuClair;
+        foreground = AppColors.bleu;
         break;
       case StatusTone.actif:
         background = AppColors.text;

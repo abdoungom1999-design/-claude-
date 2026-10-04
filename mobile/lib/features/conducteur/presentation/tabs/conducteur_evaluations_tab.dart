@@ -67,7 +67,7 @@ class _EvaluationsReellesState extends State<_EvaluationsReelles> {
                 );
               }
               if (!note.hasData || !avis.hasData) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+                return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
               }
               return _VueEvaluations(note: note.data!, avis: avis.data!);
             },
@@ -151,7 +151,7 @@ class _Etoiles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const or = AppColors.orange;
+    const or = AppColors.bleu;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -190,7 +190,7 @@ class _LigneRepartition extends StatelessWidget {
               children: [
                 Text('$etoiles', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 2),
-                const Icon(Icons.star_rounded, size: 14, color: AppColors.orange),
+                const Icon(Icons.star_rounded, size: 14, color: AppColors.bleu),
               ],
             ),
           ),
@@ -201,7 +201,7 @@ class _LigneRepartition extends StatelessWidget {
                 value: total == 0 ? 0 : nombre / total,
                 minHeight: 8,
                 backgroundColor: AppColors.greyLight,
-                color: AppColors.orange,
+                color: AppColors.bleu,
               ),
             ),
           ),
@@ -336,7 +336,7 @@ class _EvaluationsDemo extends StatelessWidget {
                               5,
                               (i) => Icon(
                                 i < a.note ? Icons.star_rounded : Icons.star_border_rounded,
-                                color: AppColors.orange,
+                                color: AppColors.bleu,
                                 size: 15,
                               ),
                             ),
@@ -378,13 +378,13 @@ class _BadgeCompliment extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.orangeLight,
+        color: AppColors.bleuClair,
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon ?? Icons.emoji_events_outlined, size: 16, color: AppColors.orange),
+          Icon(icon ?? Icons.emoji_events_outlined, size: 16, color: AppColors.bleu),
           const SizedBox(width: 8),
           Text(
             compliment.label,
@@ -394,7 +394,7 @@ class _BadgeCompliment extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-              color: AppColors.orange,
+              color: AppColors.bleu,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(

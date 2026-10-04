@@ -65,7 +65,7 @@ class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
                           );
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+                          return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
                         }
                         final course = snapshot.data;
                         if (course == null || course.clientId.isEmpty) {

@@ -86,7 +86,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
   @override
   Widget build(BuildContext context) {
     return switch (_etape) {
-      _Etape.verification => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
+      _Etape.verification => const Center(child: CircularProgressIndicator(color: AppColors.bleu)),
       _Etape.merci => _Merci(onTerminer: widget.onTerminer, libelle: widget.libelleRetour),
       _ => _saisie(context),
     };
@@ -101,7 +101,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.orange),
+          const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.bleu),
           const SizedBox(height: 14),
           Text(
             widget.titre,
@@ -202,7 +202,7 @@ class _Merci extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.favorite_rounded, size: 52, color: AppColors.orange),
+            const Icon(Icons.favorite_rounded, size: 52, color: AppColors.bleu),
             const SizedBox(height: 16),
             const Text(
               'Merci pour votre avis !',

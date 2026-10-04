@@ -255,7 +255,7 @@ class _AvatarConducteur extends StatelessWidget {
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                color: AppColors.orange,
+                color: AppColors.bleu,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
@@ -272,7 +272,7 @@ class _AvatarConducteur extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.onyx,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.orange, width: 3),
+        border: Border.all(color: AppColors.bleu, width: 3),
       ),
       alignment: Alignment.center,
       child: Text(

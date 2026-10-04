@@ -133,7 +133,7 @@ class _BlocRadio<T> extends StatelessWidget {
                   .map(
                     (option) => RadioListTile<T>(
                       value: option,
-                      activeColor: AppColors.orange,
+                      activeColor: AppColors.bleu,
                       dense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                       title: Text('$option', style: const TextStyle(fontSize: 13.5)),

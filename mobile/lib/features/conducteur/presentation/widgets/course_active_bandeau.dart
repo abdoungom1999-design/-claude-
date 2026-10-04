@@ -59,10 +59,10 @@ class CourseActiveBandeau extends StatelessWidget {
                   Container(
                     width: 42,
                     height: 42,
-                    decoration: BoxDecoration(color: AppColors.orangeLight, borderRadius: BorderRadius.circular(14)),
+                    decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(14)),
                     child: Icon(
                       colis ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-                      color: AppColors.orange,
+                      color: AppColors.bleu,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -75,7 +75,7 @@ class CourseActiveBandeau extends StatelessWidget {
                           _clientABord
                               ? (colis ? 'Livraison en cours' : 'Course en cours')
                               : (colis ? 'Récupérez le colis' : 'Rejoignez votre client'),
-                          style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w800, fontSize: 13.5),
+                          style: const TextStyle(color: AppColors.bleu, fontWeight: FontWeight.w800, fontSize: 13.5),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -188,7 +188,7 @@ class _BoutonContact extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: plein ? Colors.white : AppColors.onyx,
-        backgroundColor: plein ? AppColors.onyx : (badge ? AppColors.orangeLight : null),
+        backgroundColor: plein ? AppColors.onyx : (badge ? AppColors.bleuClair : null),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         side: BorderSide(color: plein ? AppColors.onyx : const Color(0x26000000)),
         minimumSize: const Size.fromHeight(40),

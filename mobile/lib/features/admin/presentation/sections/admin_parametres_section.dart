@@ -75,11 +75,11 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
                   FilterChip(
                     label: Text(ville),
                     selected: _villesActives.contains(ville),
-                    selectedColor: AppColors.orangeLight,
-                    checkmarkColor: AppColors.orange,
+                    selectedColor: AppColors.bleuClair,
+                    checkmarkColor: AppColors.bleu,
                     labelStyle: TextStyle(
                       color: _villesActives.contains(ville)
-                          ? AppColors.orangeDark
+                          ? AppColors.bleuFonce
                           : AppColors.text,
                       fontWeight: FontWeight.w600,
                       fontSize: 12.5,
@@ -126,7 +126,7 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
                   Switch(
                     value: _modeMaintenance,
                     activeThumbColor: Colors.white,
-                    activeTrackColor: AppColors.orange,
+                    activeTrackColor: AppColors.bleu,
                     inactiveThumbColor: Colors.white,
                     inactiveTrackColor: const Color(0xFFD1D1D6),
                     trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),

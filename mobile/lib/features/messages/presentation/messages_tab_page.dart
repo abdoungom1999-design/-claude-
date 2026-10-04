@@ -105,7 +105,7 @@ class _MessagesTabPageState extends State<MessagesTabPage> {
                                 ConnectionState.waiting) {
                               return const Center(
                                   child: CircularProgressIndicator(
-                                      color: AppColors.orange));
+                                      color: AppColors.bleu));
                             }
                             // Seules les courses en cours avec un chauffeur attribué.
                             final actives = [

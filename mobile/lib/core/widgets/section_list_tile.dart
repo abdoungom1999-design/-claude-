@@ -32,10 +32,10 @@ class SectionListTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: claire ? AppColors.fondClair : AppColors.greyLight,
+                color: claire ? AppColors.bleuClair : AppColors.greyLight,
                 borderRadius: BorderRadius.circular(claire ? 12 : 11),
               ),
-              child: Icon(icon, color: claire ? AppColors.onyx : AppColors.text, size: 19),
+              child: Icon(icon, color: claire ? AppColors.bleu : AppColors.text, size: 19),
             ),
             const SizedBox(width: 14),
             Expanded(

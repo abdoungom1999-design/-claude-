@@ -267,16 +267,16 @@ class _AvertissementSolde extends StatelessWidget {
     return Container(
       key: const ValueKey('solde-insuffisant'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(color: AppColors.orangeLight, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.orangeDark),
+          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.bleuFonce),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Votre solde (${formaterFcfa(soldeFcfa)}) ne couvre pas cette course : '
               'payez le total avec Wave ou Orange Money.',
-              style: const TextStyle(fontSize: 12.5, color: AppColors.orangeDark, height: 1.35),
+              style: const TextStyle(fontSize: 12.5, color: AppColors.bleuFonce, height: 1.35),
             ),
           ),
         ],

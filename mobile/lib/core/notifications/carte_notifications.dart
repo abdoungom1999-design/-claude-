@@ -35,7 +35,7 @@ class CarteNotifications extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: contenu.action ? AppColors.orangeLight : AppColors.greyLight,
+              color: contenu.action ? AppColors.bleuClair : AppColors.greyLight,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -80,7 +80,7 @@ class CarteNotifications extends StatelessWidget {
       case EtatNotifications.aActiver:
         return (
           icone: Icons.notifications_active_rounded,
-          couleur: AppColors.orange,
+          couleur: AppColors.bleu,
           titre: 'Activez les notifications',
           texte: 'Recevez $apport.',
           action: true,
@@ -88,7 +88,7 @@ class CarteNotifications extends StatelessWidget {
       case EtatNotifications.iphoneHorsEcranAccueil:
         return (
           icone: Icons.ios_share_rounded,
-          couleur: AppColors.orange,
+          couleur: AppColors.bleu,
           titre: 'Installez Sprint sur votre iPhone',
           texte: 'Pour recevoir les notifications : dans Safari, touchez Partager puis « Sur l\'écran d\'accueil », '
               'ouvrez Sprint depuis son icône, puis activez les notifications (iOS 16.4 ou plus récent).',

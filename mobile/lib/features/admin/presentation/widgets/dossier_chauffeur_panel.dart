@@ -109,7 +109,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
             if (c == null) {
               return Center(
                 child: snapshot.connectionState == ConnectionState.waiting
-                    ? const CircularProgressIndicator(color: AppColors.orange)
+                    ? const CircularProgressIndicator(color: AppColors.bleu)
                     : const Text('Chauffeur introuvable.'),
               );
             }
@@ -202,7 +202,7 @@ class _EnTete extends StatelessWidget {
             placeholder: Container(
               width: 68,
               height: 68,
-              color: AppColors.orange,
+              color: AppColors.bleu,
               alignment: Alignment.center,
               child: Text(
                 c.nom.isNotEmpty ? c.nom[0].toUpperCase() : '?',
@@ -365,7 +365,7 @@ class _ZoneModeration extends StatelessWidget {
                   : _BoutonAction(
                       label: 'Suspendre le compte',
                       icone: Icons.pause_circle_outline_rounded,
-                      couleur: AppColors.orange,
+                      couleur: AppColors.bleu,
                       onPressed: enCours ? null : () => onModerer(StatutCompte.suspendu),
                     ),
             ),
@@ -447,7 +447,7 @@ class BadgeStatutValidation extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutValidation) {
       'valide' => ('KYC validé', AppColors.onyx),
-      'en_attente' => ('KYC en attente', AppColors.orange),
+      'en_attente' => ('KYC en attente', AppColors.bleu),
       'rejete' => ('KYC rejeté', Colors.redAccent),
       _ => ('KYC non soumis', AppColors.grey),
     };
@@ -463,7 +463,7 @@ class BadgeStatutCompte extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutCompte) {
-      StatutCompte.suspendu => ('Suspendu', AppColors.orange),
+      StatutCompte.suspendu => ('Suspendu', AppColors.bleu),
       StatutCompte.banni => ('Banni', Colors.red.shade700),
       _ => ('Actif', AppColors.onyx),
     };

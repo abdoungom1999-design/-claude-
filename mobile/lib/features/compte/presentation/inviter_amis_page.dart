@@ -40,7 +40,7 @@ class InviterAmisPage extends StatelessWidget {
                 height: 84,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [AppColors.orange, AppColors.orangeDark],
+                    colors: [AppColors.bleu, AppColors.bleuFonce],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -74,7 +74,7 @@ class InviterAmisPage extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.fondClair,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.orange.withValues(alpha: 0.3)),
+                border: Border.all(color: AppColors.bleu.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
@@ -92,7 +92,7 @@ class InviterAmisPage extends StatelessWidget {
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 3,
-                          color: AppColors.orange,
+                          color: AppColors.bleu,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -109,7 +109,7 @@ class InviterAmisPage extends StatelessWidget {
                           child: const Icon(
                             Icons.copy_all_rounded,
                             size: 16,
-                            color: AppColors.orange,
+                            color: AppColors.bleu,
                           ),
                         ),
                       ),

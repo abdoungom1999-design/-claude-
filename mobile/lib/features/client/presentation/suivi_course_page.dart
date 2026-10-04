@@ -92,7 +92,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
           stream: _course,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+              return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
             }
             final course = snapshot.data;
             if (course == null || course.statut == 'annulee') {
@@ -164,7 +164,7 @@ class _EtatRecherche extends StatelessWidget {
           const SizedBox(
             width: 40,
             height: 40,
-            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.orange),
+            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.bleu),
           ),
           const SizedBox(height: 20),
           const Text(
@@ -374,7 +374,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _appeler,
-                  icon: const Icon(Icons.call_rounded, color: AppColors.orange),
+                  icon: const Icon(Icons.call_rounded, color: AppColors.bleu),
                   label: const Text('Appeler'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
@@ -391,7 +391,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
                     listenable: _nonLus,
                     builder: (context, _) => PastilleNonLus(
                       nombre: _nonLus.nonLus,
-                      child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.orange),
+                      child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.bleu),
                     ),
                   ),
                   label: const Text('Discuter'),

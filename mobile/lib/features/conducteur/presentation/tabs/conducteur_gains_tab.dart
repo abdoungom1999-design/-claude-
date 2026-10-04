@@ -74,7 +74,7 @@ class _GainsReelsState extends State<_GainsReels> {
                   );
                 }
                 if (!courses.hasData || !reglements.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: AppColors.orange));
+                  return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
                 }
                 return _VueGains(
                   compte: Compte(courses: courses.data!, reglements: reglements.data!),
@@ -330,7 +330,7 @@ class _LigneCourseReelle extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13.5,
-              color: ligne.remboursee ? AppColors.grey : AppColors.orange,
+              color: ligne.remboursee ? AppColors.grey : AppColors.bleu,
             ),
           ),
         ],
@@ -465,7 +465,7 @@ class _LigneCourseGains extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13.5,
-              color: AppColors.orange,
+              color: AppColors.bleu,
             ),
           ),
         ],

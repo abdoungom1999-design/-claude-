@@ -293,7 +293,7 @@ class _CompteTabPageState extends State<CompteTabPage> {
               width: 62,
               height: 62,
               padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.orange),
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.bleu),
               child: Container(
                 decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.onyx),
                 alignment: Alignment.center,
@@ -464,7 +464,7 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                       _autreMontant.clear();
                       _montantChoisi = montant;
                     }),
-                    selectedColor: AppColors.orange,
+                    selectedColor: AppColors.bleu,
                     showCheckmark: false,
                     side: BorderSide.none,
                     labelStyle: TextStyle(

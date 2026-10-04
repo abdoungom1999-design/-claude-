@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
-/// Identité visuelle Sprint : dominante blanche, appels à l'action en orange,
-/// textes et structures en noir.
+/// Identité visuelle Sprint : dominante blanche, textes et structures en
+/// Onyx, accent principal en « Bleu de Confiance » (icônes, pastilles,
+/// menus, états), orange vif réservé aux appels à l'action (Commander,
+/// Soumettre, Contacter, Payer…).
 class AppColors {
   AppColors._();
 
+  /// Orange Sprint : EXCLUSIVEMENT les boutons d'action majeurs.
   static const Color orange = Color(0xFFFF6600);
   static const Color orangeDark = Color(0xFFCC4E00);
   static const Color orangeLight = Color(0xFFFFE9DB);
+
+  /// Bleu de Confiance : accent principal (bleu roi profond). Contraste
+  /// 6,7:1 sur blanc ; sur fond Onyx, on l'utilise en aplat avec un
+  /// pictogramme blanc, jamais en pictogramme bleu sur noir.
+  static const Color bleu = Color(0xFF1D4ED8);
+  static const Color bleuFonce = Color(0xFF1E3A8A);
+  static const Color bleuClair = Color(0xFFE6ECFC);
   static const Color background = Color(0xFFFFFFFF);
   static const Color text = Color(0xFF000000);
   static const Color grey = Color(0xFF6B6B6B);

@@ -9,8 +9,8 @@ class AppTheme {
       useMaterial3: true,
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.orange,
-        primary: AppColors.orange,
+        seedColor: AppColors.bleu,
+        primary: AppColors.bleu,
         onPrimary: AppColors.background,
         surface: AppColors.background,
         onSurface: AppColors.text,
@@ -21,6 +21,7 @@ class AppTheme {
         foregroundColor: AppColors.text,
         elevation: 0,
       ),
+      // Orange = action : les boutons surélevés (Commander, Payer…) le gardent.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.orange,

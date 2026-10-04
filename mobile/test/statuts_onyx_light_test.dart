@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/core/models/statut_compte.dart';
-import 'package:sprint/core/theme/app_colors.dart';
 import 'package:sprint/core/widgets/onyx_light.dart';
 import 'package:sprint/features/compte/presentation/centre_aide_page.dart';
 import 'package:sprint/features/conducteur/presentation/conducteur_compte_bloque_page.dart';
@@ -53,14 +52,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Compte désactivé : rouge d\'alerte ; compte suspendu : médaillon Onyx à icône orange', (tester) async {
+  testWidgets('Compte désactivé : rouge d\'alerte ; compte suspendu : médaillon bleu à icône blanche', (tester) async {
     await _ecran(tester, const ConducteurCompteBloquePage(statutCompte: StatutCompte.banni));
     expect(find.text('Compte désactivé'), findsOneWidget);
     expect(tester.widget<Icon>(find.byIcon(Icons.block_rounded)).color, Colors.red.shade700);
 
     await _ecran(tester, const ConducteurCompteBloquePage(statutCompte: StatutCompte.suspendu));
     expect(find.text('Compte suspendu'), findsOneWidget);
-    expect(tester.widget<Icon>(find.byIcon(Icons.pause_circle_outline_rounded)).color, AppColors.orange);
+    expect(tester.widget<Icon>(find.byIcon(Icons.pause_circle_outline_rounded)).color, Colors.white);
   });
 
   testWidgets('Dossier KYC : bouton inactif tant que les 3 documents ne sont pas envoyés', (tester) async {

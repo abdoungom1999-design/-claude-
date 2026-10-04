@@ -106,20 +106,20 @@ class _Medaillon extends StatelessWidget {
       width: 88,
       height: 88,
       decoration: BoxDecoration(
-        color: alerte == null ? AppColors.onyx : alerte.withValues(alpha: 0.10),
+        color: alerte == null ? AppColors.bleu : alerte.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(28),
         border: alerte == null ? null : Border.all(color: alerte.withValues(alpha: 0.35)),
         boxShadow: alerte == null
-            ? const [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 12))]
+            ? const [BoxShadow(color: Color(0x401D4ED8), blurRadius: 24, offset: Offset(0, 12))]
             : null,
       ),
       alignment: Alignment.center,
-      child: Icon(icone, size: 40, color: alerte ?? AppColors.orange),
+      child: Icon(icone, size: 40, color: alerte ?? Colors.white),
     );
   }
 }
 
-/// Action principale d'un écran d'état : orange plein, la touche Sprint.
+/// Action principale d'un écran d'état : orange plein (appel à l'action).
 class BoutonStatutPrincipal extends StatelessWidget {
   const BoutonStatutPrincipal({
     super.key,
@@ -235,13 +235,13 @@ class PastilleStatut extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: AppColors.orange.withValues(alpha: 0.10),
+          color: AppColors.bleu.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icone, size: 16, color: AppColors.orange),
+            Icon(icone, size: 16, color: AppColors.bleu),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
@@ -277,7 +277,7 @@ class EtapesDossier extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 13),
                 child: Container(
                   height: 2,
-                  color: i <= etapeCourante ? AppColors.orange : AppColors.onyx.withValues(alpha: 0.12),
+                  color: i <= etapeCourante ? AppColors.bleu : AppColors.onyx.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -308,14 +308,14 @@ class _Etape extends StatelessWidget {
             height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: terminee ? AppColors.onyx : (enCours ? AppColors.orange : Colors.white),
+              color: terminee || enCours ? AppColors.bleu : Colors.white,
               border: Border.all(
                 color: terminee || enCours ? Colors.transparent : AppColors.onyx.withValues(alpha: 0.18),
               ),
             ),
             alignment: Alignment.center,
             child: terminee
-                ? const Icon(Icons.check_rounded, size: 16, color: AppColors.orange)
+                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
                 : (enCours ? const Icon(Icons.hourglass_top_rounded, size: 15, color: Colors.white) : null),
           ),
           const SizedBox(height: 8),

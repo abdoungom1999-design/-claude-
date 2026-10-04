@@ -34,7 +34,7 @@ class PastilleMotos extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: chargement || aucune ? AppColors.grey : AppColors.orange,
+              color: chargement || aucune ? AppColors.grey : AppColors.bleu,
               shape: BoxShape.circle,
             ),
           ),

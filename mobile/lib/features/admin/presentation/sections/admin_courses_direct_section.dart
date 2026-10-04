@@ -278,7 +278,7 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
                 else if (widget.chargement)
                   const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.orange)),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
                   )
                 else if (widget.courses.isEmpty)
                   const _Bulle(texte: 'Aucune course en cours.')
@@ -319,7 +319,7 @@ class _MarqueurChauffeur extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final perdu = etat == EtatSignal.perdu;
-    final couleur = perdu ? AppColors.grey : (enCourse ? AppColors.orange : AppColors.onyx);
+    final couleur = perdu ? AppColors.grey : (enCourse ? AppColors.bleu : AppColors.onyx);
     final libelle = perdu ? 'Signal perdu' : (enCourse ? 'En course' : 'Disponible');
 
     return Tooltip(
@@ -414,7 +414,7 @@ class _Legende extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          element(AppColors.orange, 'En course : $enCourse'),
+          element(AppColors.bleu, 'En course : $enCourse'),
           element(AppColors.onyx, 'Disponibles : $disponibles'),
           element(AppColors.grey, 'Signal perdu : $perdus'),
         ],
@@ -470,7 +470,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: clientABord ? AppColors.onyx : AppColors.orange,
+                  color: clientABord ? AppColors.onyx : AppColors.bleu,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -486,7 +486,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: clientABord ? AppColors.onyx : AppColors.orange,
+                  color: clientABord ? AppColors.onyx : AppColors.bleu,
                 ),
               ),
             ],

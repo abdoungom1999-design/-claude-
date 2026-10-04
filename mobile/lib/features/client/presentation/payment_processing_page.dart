@@ -224,7 +224,7 @@ class _VueAttente extends StatelessWidget {
           const SizedBox(
             width: 64,
             height: 64,
-            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.orange),
+            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.bleu),
           ),
           const SizedBox(height: 28),
           Text(
@@ -291,7 +291,7 @@ class _VueAPayer extends StatelessWidget {
                     'votre course partira aux chauffeurs dès la confirmation.',
               )
             else ...[
-              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.orange),
+              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.bleu),
               const SizedBox(height: 18),
               Text(
                 formaterFcfa(prixFcfa),
@@ -334,11 +334,11 @@ class _VueConfirmee extends StatelessWidget {
             width: 76,
             height: 76,
             decoration: const BoxDecoration(
-              color: AppColors.onyx,
+              color: AppColors.bleu,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 44),
+            child: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 44),
           ),
           const SizedBox(height: 24),
           const Text(

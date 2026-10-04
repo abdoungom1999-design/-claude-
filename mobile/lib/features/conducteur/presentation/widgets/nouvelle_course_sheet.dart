@@ -103,12 +103,12 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: AppColors.orangeLight,
+                  color: AppColors.bleuClair,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   estColis ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-                  color: AppColors.orange,
+                  color: AppColors.bleu,
                   size: 18,
                 ),
               ),
@@ -206,7 +206,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.orange.withValues(alpha: eclat),
+                            color: AppColors.bleu.withValues(alpha: eclat),
                             blurRadius: 22,
                             spreadRadius: 1,
                           ),
@@ -271,7 +271,7 @@ class _CompteARebours extends StatelessWidget {
               value: progression,
               strokeWidth: 5,
               backgroundColor: AppColors.greyLight,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.orange),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.bleu),
             ),
           ),
           Text(

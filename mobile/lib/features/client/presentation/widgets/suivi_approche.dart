@@ -329,7 +329,7 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
                   heroTag: null,
                   tooltip: 'Recentrer',
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.orange,
+                  foregroundColor: AppColors.bleu,
                   onPressed: () {
                     setState(() => _suiviManuel = false);
                     _cadrer(force: true);
@@ -418,7 +418,7 @@ class EncartApproche extends StatelessWidget {
     if (enAttente || position == null) {
       return (
         Icons.two_wheeler_rounded,
-        AppColors.orange,
+        AppColors.bleu,
         'Localisation du chauffeur…',
         'Sa position apparaîtra dès qu\'il partage son GPS.',
       );
@@ -433,7 +433,7 @@ class EncartApproche extends StatelessWidget {
     }
     final cible = this.cible;
     if (cible == null) {
-      return (Icons.two_wheeler_rounded, AppColors.orange, clientABord ? 'Course en cours' : 'Votre chauffeur est en route', null);
+      return (Icons.two_wheeler_rounded, AppColors.bleu, clientABord ? 'Course en cours' : 'Votre chauffeur est en route', null);
     }
     final approche = Approche.estimer(
       latChauffeur: position.latitude,
@@ -446,12 +446,12 @@ class EncartApproche extends StatelessWidget {
         : '${approche.distanceKm.toStringAsFixed(1).replaceAll('.', ',')} km';
     if (approche.arrive) {
       return clientABord
-          ? (Icons.flag_rounded, AppColors.orange, 'Vous êtes arrivé', null)
-          : (Icons.check_circle_rounded, AppColors.orange, 'Votre chauffeur est arrivé', 'Il vous attend au point de départ.');
+          ? (Icons.flag_rounded, AppColors.bleu, 'Vous êtes arrivé', null)
+          : (Icons.check_circle_rounded, AppColors.bleu, 'Votre chauffeur est arrivé', 'Il vous attend au point de départ.');
     }
     return (
       Icons.schedule_rounded,
-      AppColors.orange,
+      AppColors.bleu,
       clientABord ? 'Arrivée dans ~${approche.minutes} min' : 'Votre chauffeur arrive dans ~${approche.minutes} min',
       clientABord ? 'Encore $distance jusqu\'à destination' : 'À $distance de vous',
     );
@@ -469,7 +469,7 @@ class _MarqueurChauffeur extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = signalPerdu ? AppColors.grey : AppColors.orange;
+    final couleur = signalPerdu ? AppColors.grey : AppColors.bleu;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -532,7 +532,7 @@ class _BadgeDirectState extends State<BadgeDirect> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    final couleur = widget.enDirect ? AppColors.orange : AppColors.grey;
+    final couleur = widget.enDirect ? AppColors.bleu : AppColors.grey;
     return Semantics(
       label: widget.enDirect ? 'Position en direct' : 'Signal faible',
       child: Container(
@@ -570,7 +570,7 @@ class _MarqueurCible extends StatelessWidget {
   Widget build(BuildContext context) {
     return Icon(
       destination ? Icons.location_on_rounded : Icons.person_pin_circle_rounded,
-      color: destination ? AppColors.orangeDark : AppColors.onyx,
+      color: destination ? AppColors.bleuFonce : AppColors.onyx,
       size: 40,
     );
   }

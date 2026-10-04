@@ -80,10 +80,10 @@ class _LigneToggle extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppColors.onyx,
+            color: AppColors.bleu,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AppColors.orange, size: 19),
+          child: Icon(icon, color: Colors.white, size: 19),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -95,7 +95,7 @@ class _LigneToggle extends StatelessWidget {
             ],
           ),
         ),
-        Switch(value: valeur, activeThumbColor: AppColors.orange, onChanged: onChanged),
+        Switch(value: valeur, activeThumbColor: AppColors.bleu, onChanged: onChanged),
       ],
     );
   }

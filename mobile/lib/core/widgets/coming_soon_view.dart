@@ -65,10 +65,10 @@ class ComingSoonView extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.orangeLight,
+                color: AppColors.bleuClair,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(icon, color: AppColors.orange, size: 32),
+              child: Icon(icon, color: AppColors.bleu, size: 32),
             ),
             const SizedBox(height: 20),
             Text(

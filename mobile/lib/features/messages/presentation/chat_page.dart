@@ -172,7 +172,7 @@ class _Bulle extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: moi
               ? const LinearGradient(
-                  colors: [AppColors.orange, AppColors.orangeDark],
+                  colors: [AppColors.bleu, AppColors.bleuFonce],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )

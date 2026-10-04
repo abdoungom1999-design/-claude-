@@ -78,9 +78,9 @@ void main() {
     expect(find.text('Colis'), findsOneWidget);
     expect(find.text('Découvrez nos univers'), findsNothing);
     expect(find.text('Pourquoi Sprint'), findsNothing);
-    // Onyx & Light : point orange dans la barre de recherche.
-    final point = tester.widget<Container>(find.byKey(const ValueKey('point-orange')));
-    expect((point.decoration! as BoxDecoration).color, AppColors.orange);
+    // Onyx & Light : point d'accent bleu dans la barre de recherche.
+    final point = tester.widget<Container>(find.byKey(const ValueKey('point-accent')));
+    expect((point.decoration! as BoxDecoration).color, AppColors.bleu);
   });
 
   testWidgets('bandeau promo : trois bannières, message, pastilles, défilement automatique', (tester) async {

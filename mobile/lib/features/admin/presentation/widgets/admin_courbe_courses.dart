@@ -90,8 +90,8 @@ class _CourbePainter extends CustomPainter {
       Paint()
         ..shader = LinearGradient(
           colors: [
-            AppColors.orange.withValues(alpha: 0.28),
-            AppColors.orange.withValues(alpha: 0.0),
+            AppColors.bleu.withValues(alpha: 0.28),
+            AppColors.bleu.withValues(alpha: 0.0),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -102,7 +102,7 @@ class _CourbePainter extends CustomPainter {
     canvas.drawPath(
       chemin,
       Paint()
-        ..color = AppColors.orange
+        ..color = AppColors.bleu
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round
@@ -116,7 +116,7 @@ class _CourbePainter extends CustomPainter {
         point,
         4.5,
         Paint()
-          ..color = AppColors.orange
+          ..color = AppColors.bleu
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );

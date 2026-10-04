@@ -9,7 +9,7 @@ import 'package:sprint/features/admin/presentation/widgets/admin_sidebar.dart';
 import 'package:sprint/features/admin/presentation/widgets/admin_topbar.dart';
 
 void main() {
-  testWidgets('Admin : menu latéral clair, onglet actif en pastille Onyx avec icône orange', (tester) async {
+  testWidgets('Admin : menu latéral clair, onglet actif en pastille bleue avec icône blanche', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -24,7 +24,7 @@ void main() {
     Color? texte(String libelle) => tester.widget<Text>(find.text(libelle)).style?.color;
     expect(texte('Chauffeurs'), Colors.white);
     expect(texte('Clients'), AppColors.onyx);
-    expect(tester.widget<Icon>(find.byIcon(Icons.two_wheeler_outlined)).color, AppColors.orange);
+    expect(tester.widget<Icon>(find.byIcon(Icons.two_wheeler_outlined)).color, Colors.white);
     expect(tester.widget<Icon>(find.byIcon(Icons.people_outline_rounded)).color, AppColors.onyx);
   });
 

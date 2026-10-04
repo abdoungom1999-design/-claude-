@@ -242,7 +242,7 @@ class _OngletBarre extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = selectionne ? AppColors.orange : AppColors.onyx;
+    final couleur = selectionne ? AppColors.bleu : AppColors.onyx;
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),
@@ -381,10 +381,10 @@ class _ActionRapide extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.orangeLight,
+                color: AppColors.bleuClair,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, color: AppColors.orange, size: 24),
+              child: Icon(icon, color: AppColors.bleu, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(

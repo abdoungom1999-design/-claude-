@@ -214,7 +214,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
           body: ticket == null
               ? Center(
                   child: instantaneTicket.connectionState == ConnectionState.waiting
-                      ? const CircularProgressIndicator(color: AppColors.orange)
+                      ? const CircularProgressIndicator(color: AppColors.bleu)
                       : const Text('Ticket introuvable.', style: TextStyle(color: AppColors.grey)),
                 )
               : _corps(ticket),
@@ -313,7 +313,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
         final course = instantane.data;
         if (course == null) {
           return instantane.connectionState == ConnectionState.waiting
-              ? const Center(child: CircularProgressIndicator(color: AppColors.orange))
+              ? const Center(child: CircularProgressIndicator(color: AppColors.bleu))
               : const Text('Course introuvable.', style: TextStyle(color: AppColors.grey));
         }
         _suivreCommande(course.commandeId);

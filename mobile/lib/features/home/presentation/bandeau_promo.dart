@@ -268,7 +268,7 @@ class _FondOnyx extends StatelessWidget {
               height: 190,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [AppColors.orange.withValues(alpha: 0.32), AppColors.orange.withValues(alpha: 0)]),
+                gradient: RadialGradient(colors: [AppColors.bleu.withValues(alpha: 0.32), AppColors.bleu.withValues(alpha: 0)]),
               ),
             ),
           ),

@@ -65,7 +65,7 @@ class _Calcul extends StatelessWidget {
           SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange),
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bleu),
           ),
           SizedBox(width: 12),
           Text('Calcul du prix…', style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600)),
@@ -93,7 +93,7 @@ class _Prix extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '~${formaterFcfa(estimation.prixFcfa)}',
-          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.orange, height: 1.1),
+          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.bleu, height: 1.1),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -171,7 +171,7 @@ class _Erreur extends StatelessWidget {
         if (!memeAdresse)
           TextButton(
             onPressed: controller.reessayer,
-            child: const Text('Réessayer', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.orange)),
+            child: const Text('Réessayer', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.bleu)),
           ),
       ],
     );

@@ -12,7 +12,7 @@ class StatTile extends StatelessWidget {
     required this.label,
     required this.valeur,
     this.icon,
-    this.accent = AppColors.orange,
+    this.accent = AppColors.bleu,
   });
 
   final String label;
@@ -34,8 +34,8 @@ class StatTile extends StatelessWidget {
               Container(
                 width: 34,
                 height: 34,
-                decoration: BoxDecoration(color: AppColors.fondClair, borderRadius: BorderRadius.circular(11)),
-                child: Icon(icon, color: AppColors.onyx, size: 18),
+                decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(11)),
+                child: Icon(icon, color: AppColors.bleu, size: 18),
               ),
               const SizedBox(height: 12),
             ],

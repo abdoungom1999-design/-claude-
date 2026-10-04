@@ -83,7 +83,7 @@ class _BoutonEnLigneCirculaireState extends State<BoutonEnLigneCirculaire>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.orange.withValues(alpha: 0.16 + t * 0.28),
+                        color: AppColors.bleu.withValues(alpha: 0.16 + t * 0.28),
                         blurRadius: 32 + t * 24,
                         spreadRadius: 2 + t * 12,
                       ),
@@ -103,15 +103,15 @@ class _BoutonEnLigneCirculaireState extends State<BoutonEnLigneCirculaire>
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: widget.enLigne
-                      ? const [AppColors.orange, AppColors.orangeDark]
-                      : const [AppColors.onyxClair, AppColors.onyx],
+                      ? const [AppColors.bleu, AppColors.bleuFonce]
+                      : const [AppColors.orange, AppColors.orangeDark],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 border: Border.all(color: Colors.white, width: 5),
                 boxShadow: [
                   BoxShadow(
-                    color: (widget.enLigne ? AppColors.orange : AppColors.onyx)
+                    color: (widget.enLigne ? AppColors.bleu : AppColors.orange)
                         .withValues(alpha: 0.4),
                     blurRadius: 28,
                     offset: const Offset(0, 12),
@@ -184,7 +184,7 @@ class _CercleRadar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: AppColors.orange.withValues(alpha: opacite),
+          color: AppColors.bleu.withValues(alpha: opacite),
           width: 2,
         ),
       ),
@@ -205,8 +205,8 @@ class _BalayageRadarPainter extends CustomPainter {
         startAngle: 0,
         endAngle: pi / 3.5,
         colors: [
-          AppColors.orange.withValues(alpha: 0.0),
-          AppColors.orange.withValues(alpha: 0.4),
+          AppColors.bleu.withValues(alpha: 0.0),
+          AppColors.bleu.withValues(alpha: 0.4),
         ],
       ).createShader(rect);
     canvas.drawArc(rect, 0, pi / 3.5, true, peinture);

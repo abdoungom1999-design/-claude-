@@ -9,7 +9,7 @@ class AdminKpiCard extends StatelessWidget {
     required this.icon,
     required this.valeur,
     required this.label,
-    this.accent = AppColors.orange,
+    this.accent = AppColors.bleu,
     this.detail,
   });
 

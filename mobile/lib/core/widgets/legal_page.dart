@@ -40,7 +40,7 @@ class LegalPage extends StatelessWidget {
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.orange, AppColors.orangeDark],
+                  colors: [AppColors.bleu, AppColors.bleuFonce],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -104,14 +104,14 @@ class LegalPage extends StatelessWidget {
                           height: 26,
                           margin: const EdgeInsets.only(right: 10, top: 1),
                           decoration: BoxDecoration(
-                            color: AppColors.onyx,
+                            color: AppColors.bleu,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             '${i + 1}',
                             style: const TextStyle(
-                              color: AppColors.orange,
+                              color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
