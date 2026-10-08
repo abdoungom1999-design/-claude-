@@ -6,12 +6,12 @@ import 'package:go_router/go_router.dart';
 import '../../features/courses/data/course_service.dart';
 import '../../features/messages/data/chat_service.dart';
 import '../../features/messages/data/messages_non_lus.dart';
-import '../../features/messages/presentation/widgets/pastille_non_lus.dart';
 import '../../firebase_options.dart';
 import '../notifications/notifications_push.dart';
 import '../alertes/alerte_sonore.dart';
 import '../router/app_routes.dart';
 import '../theme/app_colors.dart';
+import '../widgets/barre_navigation.dart';
 import '../widgets/email_verification_pending_page.dart';
 import '../widgets/logo_sprint.dart';
 import '../widgets/premium_dialog.dart';
@@ -147,123 +147,66 @@ class _HomeShellPageState extends State<HomeShellPage> {
     return Listener(
       onPointerDown: (_) => AlerteSonore.preparer(),
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.fond,
         body: navigationShell,
         floatingActionButton: Padding(
           padding: const EdgeInsets.only(top: 28),
-          child: SizedBox(
-            width: 64,
-            height: 64,
-            child: FloatingActionButton(
-              onPressed: () => _ouvrirMenuActions(context),
-              backgroundColor: AppColors.onyx,
-              elevation: 4,
-              shape: const CircleBorder(),
-              // Logo Sprint (marbre noir et « S » de verre) rogné en rond.
-              child: const ClipOval(child: LogoSprint(taille: 64)),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: AppColors.vert.withValues(alpha: 0.38), blurRadius: 26, spreadRadius: 1)],
+            ),
+            child: SizedBox(
+              width: 64,
+              height: 64,
+              child: FloatingActionButton(
+                onPressed: () => _ouvrirMenuActions(context),
+                backgroundColor: AppColors.onyx,
+                elevation: 0,
+                shape: const CircleBorder(side: BorderSide(color: AppColors.vert, width: 2)),
+                // Logo Sprint (marbre noir, « S » blanc et liseré vert) rogné en rond.
+                child: const ClipOval(child: LogoSprint(taille: 64)),
+              ),
             ),
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        // Onyx & Light : fond très clair, icônes Onyx, onglet actif orange.
-        bottomNavigationBar: BottomAppBar(
-          color: AppColors.fondBarre,
-          surfaceTintColor: Colors.transparent,
-          shadowColor: const Color(0x33000000),
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 10,
-          elevation: 10,
-          padding: EdgeInsets.zero,
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _OngletBarre(
-                  icon: Icons.home_outlined,
-                  iconActif: Icons.home_rounded,
-                  label: 'Accueil',
-                  selectionne: navigationShell.currentIndex == 0,
-                  onTap: () => navigationShell.goBranch(0),
-                ),
-                _OngletBarre(
-                  icon: Icons.receipt_long_outlined,
-                  iconActif: Icons.receipt_long_rounded,
-                  label: 'Activité',
-                  selectionne: navigationShell.currentIndex == 1,
-                  onTap: () => navigationShell.goBranch(1),
-                ),
-                const SizedBox(width: 56),
-                ListenableBuilder(
-                  listenable: _nonLus,
-                  builder: (context, _) => _OngletBarre(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    iconActif: Icons.chat_bubble_rounded,
-                    label: 'Messages',
-                    selectionne: navigationShell.currentIndex == 2,
-                    nonLus: _nonLus.nonLus,
-                    onTap: () => navigationShell.goBranch(2),
-                  ),
-                ),
-                _OngletBarre(
-                  icon: Icons.person_outline_rounded,
-                  iconActif: Icons.person_rounded,
-                  label: 'Compte',
-                  selectionne: navigationShell.currentIndex == 3,
-                  onTap: () => navigationShell.goBranch(3),
-                ),
-              ],
+        // Onyx & Vert : fond Onyx, icônes grises, onglet actif vert.
+        bottomNavigationBar: BarreNavigation(
+          avecEncoche: true,
+          onglets: [
+            OngletBarre(
+              icon: Icons.home_outlined,
+              iconActif: Icons.home_rounded,
+              label: 'Accueil',
+              selectionne: navigationShell.currentIndex == 0,
+              onTap: () => navigationShell.goBranch(0),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _OngletBarre extends StatelessWidget {
-  const _OngletBarre({
-    required this.icon,
-    required this.iconActif,
-    required this.label,
-    required this.selectionne,
-    required this.onTap,
-    this.nonLus = 0,
-  });
-
-  final IconData icon;
-  final IconData iconActif;
-  final String label;
-  final bool selectionne;
-  final VoidCallback onTap;
-
-  /// Messages non lus : pastille rouge sur l'icône.
-  final int nonLus;
-
-  @override
-  Widget build(BuildContext context) {
-    final couleur = selectionne ? AppColors.bleu : AppColors.onyx;
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PastilleNonLus(
-              nombre: nonLus,
-              child: Icon(selectionne ? iconActif : icon,
-                  color: couleur, size: 24),
+            OngletBarre(
+              icon: Icons.receipt_long_outlined,
+              iconActif: Icons.receipt_long_rounded,
+              label: 'Activité',
+              selectionne: navigationShell.currentIndex == 1,
+              onTap: () => navigationShell.goBranch(1),
             ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: couleur,
+            const SizedBox(width: 56),
+            ListenableBuilder(
+              listenable: _nonLus,
+              builder: (context, _) => OngletBarre(
+                icon: Icons.chat_bubble_outline_rounded,
+                iconActif: Icons.chat_bubble_rounded,
+                label: 'Messages',
+                selectionne: navigationShell.currentIndex == 2,
+                nonLus: _nonLus.nonLus,
+                onTap: () => navigationShell.goBranch(2),
               ),
+            ),
+            OngletBarre(
+              icon: Icons.person_outline_rounded,
+              iconActif: Icons.person_rounded,
+              label: 'Compte',
+              selectionne: navigationShell.currentIndex == 3,
+              onTap: () => navigationShell.goBranch(3),
             ),
           ],
         ),
@@ -285,8 +228,9 @@ class _MenuActionsRapides extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       decoration: const BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.carte,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(top: BorderSide(color: AppColors.bordVerre)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -297,7 +241,7 @@ class _MenuActionsRapides extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.greyBorder,
+                color: AppColors.bord,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -305,7 +249,7 @@ class _MenuActionsRapides extends StatelessWidget {
           const SizedBox(height: 20),
           const Text(
             'Que voulez-vous faire ?',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.texte),
           ),
           const SizedBox(height: 20),
           _ActionRapide(
@@ -381,10 +325,10 @@ class _ActionRapide extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.bleuClair,
+                color: AppColors.vertTeinte,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, color: AppColors.bleu, size: 24),
+              child: Icon(icon, color: AppColors.vert, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -396,17 +340,18 @@ class _ActionRapide extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
+                      color: AppColors.texte,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     description,
-                    style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                    style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.texteDiscret),
           ],
         ),
       ),

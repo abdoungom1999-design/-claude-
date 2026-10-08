@@ -11,7 +11,7 @@ class SprintApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Sprint',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme: AppTheme.sombre,
       routerConfig: appRouter,
       // Écran de démarrage sous les pages : visible tant que le routeur n'a
       // rien à afficher (jamais d'écran blanc), entièrement recouvert dès

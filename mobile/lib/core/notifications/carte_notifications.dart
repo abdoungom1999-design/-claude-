@@ -35,8 +35,9 @@ class CarteNotifications extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: contenu.action ? AppColors.bleuClair : AppColors.greyLight,
+              color: contenu.action ? AppColors.vertTeinte : AppColors.carteHaute,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: contenu.action ? AppColors.vert.withValues(alpha: 0.45) : AppColors.bordVerre),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,15 +48,16 @@ class CarteNotifications extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(contenu.titre, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                      Text(contenu.titre, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.texte)),
                       const SizedBox(height: 3),
-                      Text(contenu.texte, style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppColors.grey)),
+                      Text(contenu.texte, style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppColors.texteDiscret)),
                       if (etat == EtatNotifications.aActiver) ...[
                         const SizedBox(height: 10),
                         FilledButton(
                           onPressed: service.demander,
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.orange,
+                            backgroundColor: AppColors.vert,
+                            foregroundColor: AppColors.onyx,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           child: const Text('Activer les notifications'),
@@ -80,7 +82,7 @@ class CarteNotifications extends StatelessWidget {
       case EtatNotifications.aActiver:
         return (
           icone: Icons.notifications_active_rounded,
-          couleur: AppColors.bleu,
+          couleur: AppColors.vert,
           titre: 'Activez les notifications',
           texte: 'Recevez $apport.',
           action: true,
@@ -88,7 +90,7 @@ class CarteNotifications extends StatelessWidget {
       case EtatNotifications.iphoneHorsEcranAccueil:
         return (
           icone: Icons.ios_share_rounded,
-          couleur: AppColors.bleu,
+          couleur: AppColors.vert,
           titre: 'Installez Sprint sur votre iPhone',
           texte: 'Pour recevoir les notifications : dans Safari, touchez Partager puis « Sur l\'écran d\'accueil », '
               'ouvrez Sprint depuis son icône, puis activez les notifications (iOS 16.4 ou plus récent).',
@@ -97,7 +99,7 @@ class CarteNotifications extends StatelessWidget {
       case EtatNotifications.bloquees:
         return (
           icone: Icons.notifications_off_rounded,
-          couleur: AppColors.grey,
+          couleur: AppColors.texteDiscret,
           titre: 'Notifications bloquées',
           texte: estWeb
               ? 'Vous les avez refusées. Pour les recevoir, autorisez-les pour Sprint dans les réglages de votre '
@@ -108,7 +110,7 @@ class CarteNotifications extends StatelessWidget {
       case EtatNotifications.nonSupportees:
         return (
           icone: Icons.notifications_off_outlined,
-          couleur: AppColors.grey,
+          couleur: AppColors.texteDiscret,
           titre: 'Notifications indisponibles',
           texte: 'Ce navigateur ne permet pas les notifications. Essayez Chrome, Edge, Firefox ou Safari récents.',
           action: false,
