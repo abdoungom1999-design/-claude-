@@ -563,6 +563,26 @@ Le test `test/splash_test.dart` vérifie qu'ils restent d'accord.
 - **PWA Android** : `background_color` du manifeste en Onyx ; l'icône de
   l'écran d'accueil est le même logo (tuile).
 
+### Après la publication de la charte « Onyx & Vert » (8 octobre 2026)
+
+- **iPhone (site installé sur l'écran d'accueil)** : fermer complètement
+  l'app (la balayer vers le haut dans le sélecteur d'apps) puis la rouvrir
+  pour charger la nouvelle version. iOS garde en cache l'icône et les
+  images de démarrage : pour voir le nouveau logo, supprimer l'icône de
+  l'écran d'accueil puis réinstaller le site depuis Safari.
+- **Android (APK)** : la nouvelle version s'installe par-dessus l'ancienne
+  depuis la page `/android/` ; l'icône, la couleur des notifications et
+  l'écran de démarrage changent avec elle.
+- **Carte** : le style « Sprint sombre » est envoyé à Google à l'ouverture
+  de chaque session de carte. La CI le fait valider par Google à chaque
+  déploiement (étapes « Vérifier la carte Google ») ; s'il était refusé, un
+  avertissement apparaît dans le résumé du run et la carte reste sur le
+  style Google standard, clair, jusqu'à correction.
+- **Aucun orange** : `test/palette_onyx_vert_test.dart` refuse tout retour
+  de l'orange (noms et valeurs de couleur, logo) et le texte blanc sur le
+  vert ; les statuts d'alerte et d'attente restent en jaune, comme les
+  étoiles de notation (choix du client).
+
 ## 9. Sécurité : contrôles automatiques, en-têtes du site, secrets
 
 - **Contrôles de la CI** (`securite/`, voir `securite/LISEZMOI.md`) : aucun
