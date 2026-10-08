@@ -63,7 +63,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Charte Onyx & Light, sans flou : tableau de bord dense (tableaux, listes).
+    // Charte Onyx & Vert, sans flou : tableau de bord dense (tableaux, listes).
     return EcranOnyxVert(
       flou: false,
       child: Scaffold(

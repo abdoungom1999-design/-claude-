@@ -76,7 +76,7 @@ class _CourbePainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), peintureGrille);
     }
 
-    // Zone sous la courbe, en dégradé orange qui s'estompe.
+    // Zone sous la courbe, en dégradé vert qui s'estompe.
     final chemin = Path()..moveTo(points.first.dx, points.first.dy);
     for (final point in points.skip(1)) {
       chemin.lineTo(point.dx, point.dy);

@@ -51,7 +51,7 @@ const _questions = [
 ];
 
 /// Centre d'aide : FAQ en accordéon + carte de contact du support, en
-/// charte « Onyx & Light » (cartes verre, accents orange).
+/// charte « Onyx & Vert » (cartes verre, accents verts).
 class CentreAidePage extends StatelessWidget {
   const CentreAidePage({super.key});
 

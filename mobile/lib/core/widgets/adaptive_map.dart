@@ -120,6 +120,8 @@ class AdaptiveMap extends StatelessWidget {
       options: osm.MapOptions(
         initialCenter: centre,
         initialZoom: zoom,
+        // Fond sombre pendant le chargement des images (sinon le gris clair par défaut de flutter_map).
+        backgroundColor: AppColors.fondHaut,
         // Pas de rotation : les motos sont orientées selon le nord.
         interactionOptions: osm.InteractionOptions(
           flags: interactif ? osm.InteractiveFlag.all & ~osm.InteractiveFlag.rotate : osm.InteractiveFlag.none,

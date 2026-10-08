@@ -265,6 +265,8 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
               options: MapOptions(
                 initialCenter: cible ?? _centreDakar,
                 initialZoom: 14,
+                // Fond sombre pendant le chargement des images (sinon le gris clair par défaut de flutter_map).
+                backgroundColor: AppColors.fondHaut,
                 onMapReady: () {
                   _carteChargee = true;
                   _cadrer();

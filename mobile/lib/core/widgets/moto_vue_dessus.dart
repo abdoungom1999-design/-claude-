@@ -22,7 +22,7 @@ class MotoVueDessus extends StatelessWidget {
   /// Hauteur de la moto (la largeur en est la moitié environ).
   final double taille;
 
-  /// Couleur de la tenue du pilote (orange Sprint par défaut).
+  /// Couleur de la tenue du pilote (vert Sprint par défaut).
   final Color couleur;
 
   /// Texte lu par les lecteurs d'écran.

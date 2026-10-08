@@ -132,6 +132,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
               options: MapOptions(
                 initialCenter: HomeTabPage.centreDakar,
                 initialZoom: 14.5,
+                // Fond sombre pendant le chargement des images (sinon le gris clair par défaut de flutter_map).
+                backgroundColor: AppColors.fondHaut,
                 minZoom: 11,
                 maxZoom: 18,
                 interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),

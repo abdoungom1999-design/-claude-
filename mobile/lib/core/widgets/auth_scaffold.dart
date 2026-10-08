@@ -5,10 +5,10 @@ import '../theme/app_colors.dart';
 import 'onyx_vert.dart';
 
 /// Structure commune aux écrans de connexion et d'inscription Sprint, en
-/// charte « Onyx & Light » : fond très clair, repère de marque (logo dans
-/// une tuile Onyx), titre en Onyx, formulaire dans une carte « verre ».
+/// charte « Onyx & Vert » : fond Onyx à halos verts, repère de marque (logo
+/// dans sa tuile), titre en clair, formulaire dans une carte « verre ».
 /// Pas de photo. Les champs et boutons du formulaire prennent le style
-/// Onyx & Light par [ThemeOnyxVert].
+/// Onyx & Vert par [ThemeOnyxVert].
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,

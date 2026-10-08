@@ -211,6 +211,8 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
                       options: const MapOptions(
                         initialCenter: _centreDakar,
                         initialZoom: 12.5,
+                        // Fond sombre pendant le chargement des images (sinon le gris clair par défaut de flutter_map).
+                        backgroundColor: AppColors.fondHaut,
                       ),
                       children: [
                         const CoucheFondCarte(),
