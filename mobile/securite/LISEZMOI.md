@@ -58,9 +58,17 @@ node securite/outils_design.mjs diff <base> HEAD   # liste des fichiers d'un lot
 Règle des zones autorisée / interdite, fixée par le client : voir
 `ZONES_DESIGN.md`.
 
-**Installé** (8 octobre 2026) : `ui-ux-pro-max`, en texte seul, sous
-`.claude/skills/ui-ux-pro-max/` (licence MIT, commit figé `1a2c459b…` ;
-détail dans son `PROVENANCE.md`, empreintes dans `outils_externes.json`).
+**Installés** (8 octobre 2026), en texte seul, sous `.claude/skills/` ; détail
+dans le `PROVENANCE.md` de chacun, empreintes dans `outils_externes.json` :
+
+- `ui-ux-pro-max` : règles et liste de contrôle de design (licence MIT, commit
+  figé `1a2c459b…`).
+- `frontend-design` : démarche de design et rédaction d'interface, d'Anthropic
+  (licence Apache-2.0, dépôt `anthropics/skills`, commit figé `683bc88e…`),
+  indiquée par le client via la liste `travisvn/awesome-claude-skills`. Cette
+  liste n'est qu'un ensemble de liens, sans compétence propre ni licence. Le
+  texte d'origine est conservé sans changement dans `references/` ; le
+  `SKILL.md` est une adaptation écrite par nous, en français.
 
 **Examinés et refusés** (8 octobre 2026), car ils violent la règle 3
 (« aucun script tiers, aucun hook, aucun service en arrière-plan ») :
@@ -77,6 +85,12 @@ détail dans son `PROVENANCE.md`, empreintes dans `outils_externes.json`).
   un serveur local, des flux de fusion, de pull request et de worktrees. C'est
   une méthode de travail générale, qui ne se limite pas au visuel :
   incompatible avec la zone.
+
+Les autres compétences de `anthropics/skills` (art génératif, affiches,
+thèmes de présentation, charte d'Anthropic, scripts Python et shell) et celles
+de la communauté citées par `awesome-claude-skills` (web, React, agents
+autonomes, tests d'intrusion…) ont été écartées : voir le `PROVENANCE.md` de
+`frontend-design`.
 
 Un nouvel outil externe suppose : lecture intégrale, commit figé, licence
 vérifiée, entrée au manifeste `outils_externes.json` et accord du client.

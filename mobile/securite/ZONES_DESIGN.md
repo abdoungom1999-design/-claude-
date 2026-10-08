@@ -73,5 +73,7 @@ Les protections 3 et 4 ne reposent pas sur ma seule vigilance
   admis : aucun script, aucun exécutable, aucun crochet, aucun réglage de
   projet, aucun serveur MCP.
 
-Outils examinés le 8 octobre 2026 : `ui-ux-pro-max` installé en texte seul ;
-`claude-mem` et `superpowers` refusés (motifs dans `LISEZMOI.md`).
+Outils examinés le 8 octobre 2026 : `ui-ux-pro-max` et `frontend-design`
+installés en texte seul ; `claude-mem` et `superpowers` refusés ; le reste de la
+liste `awesome-claude-skills` écarté (motifs dans `LISEZMOI.md` et dans les
+`PROVENANCE.md`).
