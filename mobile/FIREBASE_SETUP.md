@@ -535,12 +535,15 @@ npm run test:emulateur    # paiement, courses, annulations, surveillance, rembou
 
 ## 8. Écran de démarrage « Onyx »
 
-Fond noir profond (`#0B0B0C`, « Onyx »), logo « S » blanc terminé par un
-point orange, rien d'autre. Un seul dessin, repris à cinq endroits (à
-changer ensemble) : `web/index.html`, `web/splash/logo-s.svg`,
-`lib/core/widgets/logo_sprint.dart`, `android/.../drawable/ic_splash_s*.xml`
-et les images `web/splash/ios-*.png`. Le test `test/splash_test.dart`
-vérifie qu'ils restent d'accord.
+Fond noir profond (`#0B0B0C`, « Onyx »), logo Sprint au centre (tuile de
+marbre noir, « S » blanc de verre, liseré et point verts), rien d'autre. Un
+seul dessin (`assets/logo/source-1024.jpg`), décliné par
+`tool/generer_icones.cjs` à plusieurs endroits, à régénérer ensemble :
+`web/index.html` (image intégrée), `assets/logo/tuile.png` (écran Flutter,
+`lib/core/widgets/logo_sprint.dart`), les icônes (`web/icons/`,
+`web/favicon.png`, `android/.../mipmap-*`), l'écran de démarrage Android
+(`drawable-nodpi/splash_logo.png`) et les images `web/splash/ios-*.png`.
+Le test `test/splash_test.dart` vérifie qu'ils restent d'accord.
 
 - **Site (navigateur, PWA)** : l'écran est dans `index.html` lui-même
   (CSS et logo en ligne, aucun fichier à attendre) et s'affiche avant tout
@@ -557,8 +560,8 @@ vérifie qu'ils restent d'accord.
 - **Android (APK)** : `launch_background.xml` (fond Onyx, logo) avant
   Android 12 ; thèmes `values-v31` et `values-night-v31` (écran de
   démarrage système) à partir d'Android 12.
-- **PWA Android** : `background_color` du manifeste en Onyx. L'icône de
-  l'écran d'accueil (éclair blanc sur orange) n'est pas changée.
+- **PWA Android** : `background_color` du manifeste en Onyx ; l'icône de
+  l'écran d'accueil est le même logo (tuile).
 
 ## 9. Sécurité : contrôles automatiques, en-têtes du site, secrets
 
