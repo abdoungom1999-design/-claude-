@@ -99,11 +99,17 @@ jobs:
   # Firestore.
   backend:
     runs-on: ubuntu-latest
+    # Ce job ne publie rien : lecture du code, et des runs passés pour
+    # retrouver le dernier déploiement réussi (étape « Plage à contrôler »).
+    permissions:
+      contents: read
+      actions: read
     defaults:
       run:
         working-directory: mobile
     steps:
-      # Historique complet : le garde-fou analyse les lignes ajoutées par le push.
+      # Historique complet : le garde-fou analyse les lignes ajoutées depuis
+      # le dernier déploiement réussi.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -135,11 +141,52 @@ jobs:
       - name: Sécurité · aucun secret dans les fichiers du dépôt
         run: node securite/garde_fuites.mjs fichiers
 
-      - name: Sécurité · aucun secret dans les lignes ajoutées par ce push
+      # Début de la plage à contrôler : le dernier déploiement RÉUSSI de cette
+      # branche, pas seulement le dernier push. Les commits « [skip ci] »
+      # poussés entre-temps passent ainsi, eux aussi, par les contrôles de
+      # lignes ajoutées (github.event.before ne couvre que le dernier push).
+      # Repli : le point de départ du push. Une base introuvable n'est jamais
+      # bloquante : les contrôles concernés le disent et se contentent de
+      # l'état actuel des fichiers.
+      - name: Plage à contrôler (depuis le dernier déploiement réussi)
+        id: plage
         env:
-          AVANT: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+          AVANT_PUSH: ${{ github.event.before }}
+        run: |
+          base=""
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/flutter-web.yml/runs?branch=$GITHUB_REF_NAME&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty' 2>/dev/null || true)
+          if [ -n "$sha" ] && git cat-file -e "$sha^{commit}" 2>/dev/null; then
+            base="$sha"
+            origine="dernier déploiement réussi"
+          elif [ -n "$AVANT_PUSH" ] && ! echo "$AVANT_PUSH" | grep -qE '^0+$' && git cat-file -e "$AVANT_PUSH^{commit}" 2>/dev/null; then
+            base="$AVANT_PUSH"
+            origine="point de départ du push, faute de dernier déploiement trouvé"
+          else
+            origine="aucune base trouvée"
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "Plage contrôlée : ${base:-?}..$GITHUB_SHA ($origine)"
+          [ -n "$base" ] && echo "Commits dans la plage : $(git rev-list --count "$base..$GITHUB_SHA")" || true
+
+      - name: Sécurité · aucun secret dans les lignes ajoutées depuis le dernier déploiement
+        env:
+          AVANT: ${{ steps.plage.outputs.base }}
           APRES: ${{ github.sha }}
         run: node securite/garde_fuites.mjs diff "$AVANT" "$APRES"
+
+      # Outils de design externes (securite/ZONES_DESIGN.md) : seul du texte
+      # conforme au manifeste sous .claude/, et les commits déclarés
+      # « Lot-Design: oui » restent dans la zone visuelle autorisée.
+      - name: Sécurité · outils externes (.claude/) en texte seul, conformes au manifeste
+        run: node securite/outils_design.mjs integrite
+
+      - name: Sécurité · lots de design dans la zone visuelle autorisée
+        env:
+          AVANT: ${{ steps.plage.outputs.base }}
+          APRES: ${{ github.sha }}
+        run: node securite/outils_design.mjs commits "$AVANT" "$APRES"
 
       - name: Sécurité · vulnérabilités connues des Cloud Functions (production)
         run: node securite/audit_npm.mjs functions --prod --seuil high

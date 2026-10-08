@@ -1,0 +1,40 @@
+{
+  "_lisez_moi": "Outils externes installés sous .claude/ (règle des zones : securite/ZONES_DESIGN.md). Chaque fichier a une empreinte sha256 ; tout écart, tout fichier en plus, tout script ou exécutable fait échouer `node securite/outils_design.mjs integrite` (CI, job backend). Ajouter ou mettre à jour un outil suppose lecture intégrale, commit figé, licence vérifiée et accord du client.",
+  "outils": [
+    {
+      "nom": "ui-ux-pro-max",
+      "dossier": ".claude/skills/ui-ux-pro-max",
+      "origine": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+      "commit": "1a2c459b35f26116fd165b0a0f30597f252749ff",
+      "licence": "MIT",
+      "installe_le": "2026-10-08",
+      "fichiers": {
+        "SKILL.md": {
+          "sha256": "3c7be50845505a99c9814aaa33ff2d79bda66907138f39d1bf3512c8c01265e1",
+          "nature": "adapté par nous",
+          "sha256_amont": "ea087c341bfb5b23195c7302027268ede86da802554c18a5c4896a6017b439f9"
+        },
+        "PROVENANCE.md": {
+          "sha256": "df5cc514877f4cfdfdfe4be48d42f8fda95a47dedb4ef51288c3d0f0ef66a010",
+          "nature": "écrit par nous"
+        },
+        "LICENSE": {
+          "sha256": "738f69dfa83db5c347c678fb9d90e560877059f0de93a327c39001bff92dc014",
+          "nature": "identique à l'amont"
+        },
+        "references/pro-rules.md": {
+          "sha256": "d28442d61c310b49c054a4ea736f89fb3008beebdbbc38c4b3a540b8f7fadf23",
+          "nature": "identique à l'amont"
+        },
+        "references/quick-reference.md": {
+          "sha256": "0609bc7c89dacb40472465d8fc14257b56b2c43439660fc8d6fa3b8c022e1876",
+          "nature": "identique à l'amont"
+        },
+        "data/stacks/flutter.csv": {
+          "sha256": "64dba0ac17349f28bce517a0f5f48c54d9ed2e487ec0c0258303463b382f41a0",
+          "nature": "identique à l'amont"
+        }
+      }
+    }
+  ]
+}

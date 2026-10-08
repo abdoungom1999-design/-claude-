@@ -51,3 +51,27 @@ messages d'erreur du serveur.
 
 Chaque lot de design reste soumis à la validation du client (captures) avant
 publication.
+
+## Application : ce qui est contrôlé automatiquement
+
+Les protections 3 et 4 ne reposent pas sur ma seule vigilance
+(`outils_design.mjs`, exécuté par la CI à chaque publication) :
+
+- **Zone autorisée = liste blanche.** Un fichier qui n'est écrit ni dans la
+  zone autorisée ni dans la zone interdite est refusé comme un fichier
+  interdit, jusqu'à ce que le client l'ajoute à la zone.
+- **Lots déclarés.** Un commit de design porte la ligne `Lot-Design: oui` ;
+  la CI refuse tout commit ainsi déclaré qui touche un fichier hors de la zone
+  autorisée, supprime un test, modifie un test de logique ou le garde-fou de la
+  palette.
+- **Lignes nouvelles.** Dans un lot de design, une ligne nouvelle ne peut pas
+  appeler le serveur, la base, l'authentification ou le stockage de secrets, ni
+  rouvrir Orange Money, ni ajouter ou retirer `moyensMobileMoneyDisponibles`.
+  Un déplacement ou une réindentation de code existant passe.
+- **Outils externes.** Sous `.claude/`, seuls les fichiers du manifeste
+  `outils_externes.json`, de type texte et avec l'empreinte validée, sont
+  admis : aucun script, aucun exécutable, aucun crochet, aucun réglage de
+  projet, aucun serveur MCP.
+
+Outils examinés le 8 octobre 2026 : `ui-ux-pro-max` installé en texte seul ;
+`claude-mem` et `superpowers` refusés (motifs dans `LISEZMOI.md`).
