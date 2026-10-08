@@ -32,7 +32,7 @@ export const INTERDITES = [
   { regex: /^mobile\/lib\/firebase_options\.dart$/, raison: 'configuration Firebase' },
   { regex: /^mobile\/pubspec\.(?:yaml|lock)$/, raison: 'dépendances : une nouvelle dépendance passe par un contrôle de sécurité et par le client' },
   { regex: /^mobile\/web\/firebase-messaging-sw\.js$/, raison: 'notifications push (service worker)' },
-  { regex: /^mobile\/test\/palette_bleu_orange_test\.dart$/, raison: 'garde-fou de la charte du client (modifiable sur son ordre seulement)' },
+  { regex: /^mobile\/test\/palette_onyx_vert_test\.dart$/, raison: 'garde-fou de la charte du client (modifiable sur son ordre seulement)' },
   { regex: /(?:^|\/)\.env(?:\.|$)/, raison: 'fichier de secrets' },
   { regex: /\.(?:pem|key|p12|pfx|jks|keystore)$/i, raison: 'clé ou certificat' },
   { regex: /(?:^|\/)(?:google-services\.json|GoogleService-Info\.plist|key\.properties)$/, raison: 'clés et configuration Firebase ou Android' },

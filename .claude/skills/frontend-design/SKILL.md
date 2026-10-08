@@ -1,6 +1,6 @@
 ---
 name: frontend-design
-description: "Direction de design et rédaction d'interface pour l'app Flutter Sprint, UNIQUEMENT pour le visuel et les textes affichés : démarche (plan, revue face au brief, réalisation, critique par captures), retenue, libellés, messages d'erreur et états vides en français. L'identité visuelle (Onyx & Light) est fixée par le client. Jamais pour le serveur, les paiements, les règles de base de données, les secrets ni la chaîne de publication."
+description: "Direction de design et rédaction d'interface pour l'app Flutter Sprint, UNIQUEMENT pour le visuel et les textes affichés : démarche (plan, revue face au brief, réalisation, critique par captures), retenue, libellés, messages d'erreur et états vides en français. L'identité visuelle (Onyx & Vert) est fixée par le client. Jamais pour le serveur, les paiements, les règles de base de données, les secrets ni la chaîne de publication."
 ---
 
 # Direction de design · version encadrée pour Sprint
@@ -48,13 +48,13 @@ prendre un risque esthétique et d'inventer une identité distincte. Pour Sprint
 **l'identité est le brief du client, et elle l'emporte** (l'original le dit
 lui-même : « the brief's own words always win »).
 
-- Charte « Onyx & Light » (`lib/core/theme/app_colors.dart`) : accent
-  principal = Bleu de Confiance (`AppColors.bleu`, #1E40AF) ; **orange
-  exclusivement pour les boutons d'action majeurs** ; garde-fou :
-  `test/palette_bleu_orange_test.dart`. Onyx (#0B0B0C) est un choix du client,
-  même si l'original range les « noirs teintés » parmi les réflexes de
-  génération.
-- Thème clair unique et polices du système : aucune nouvelle police, aucun
+- Charte « Onyx & Vert » (`lib/core/theme/app_colors.dart`) : fonds Onyx et
+  gris très sombres, **vert vibrant pour tout ce qui agit** (boutons d'action
+  avec texte Onyx, icônes et onglets actifs, contours), verre et dégradés
+  conservés, plus aucun orange ; garde-fou : `test/palette_onyx_vert_test.dart`.
+  Onyx (#0B0B0C) est un choix du client, même si l'original range les « noirs
+  teintés » parmi les réflexes de génération.
+- Thème sombre unique et polices du système : aucune nouvelle police, aucun
   nouveau paquet (`pubspec.yaml` est en zone interdite).
 - La « prise de risque » se limite à ce que le client a demandé. Une idée
   d'évolution de l'identité se présente sous forme de maquette et attend son

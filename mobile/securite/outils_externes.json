@@ -10,7 +10,7 @@
       "installe_le": "2026-10-08",
       "fichiers": {
         "SKILL.md": {
-          "sha256": "3c7be50845505a99c9814aaa33ff2d79bda66907138f39d1bf3512c8c01265e1",
+          "sha256": "96e0073df12264bda5d2409e3dae81d215c39e5d0575d2265a571ff95ffaefa5",
           "nature": "adapté par nous",
           "sha256_amont": "ea087c341bfb5b23195c7302027268ede86da802554c18a5c4896a6017b439f9"
         },
@@ -45,7 +45,7 @@
       "installe_le": "2026-10-08",
       "fichiers": {
         "SKILL.md": {
-          "sha256": "7a2b4c759b0d6e15346209fe9f423bd7a1c16fa26a386d8fbe86a06cbb73dc9c",
+          "sha256": "dd7cdd6505b3716c8f4da9eab62569f58ab70f4a60d5ce63483b5dd4fa05e5b5",
           "nature": "écrit par nous (adaptation en français ; l'original est dans references/)"
         },
         "PROVENANCE.md": {

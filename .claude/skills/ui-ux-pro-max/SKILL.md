@@ -36,13 +36,14 @@ Avant toute chose, relire `mobile/securite/ZONES_DESIGN.md`. En résumé :
 
 ## 2. L'identité visuelle est fixée par le client, pas par ce skill
 
-- Charte « Onyx & Light » : `lib/core/theme/app_colors.dart`. Accent principal
-  = Bleu de Confiance (`AppColors.bleu`, #1E40AF). **Orange
-  (`AppColors.orange`) exclusivement pour les boutons d'action majeurs** ;
-  garde-fou : `test/palette_bleu_orange_test.dart`.
-- Thème unique clair (`AppTheme.light`, pas de thème sombre aujourd'hui) et
-  polices du système (aucun paquet de polices). Ne pas affirmer le contraire
-  sans l'avoir vérifié dans le code.
+- Charte « Onyx & Vert » (voulue par le client, octobre 2026) :
+  `lib/core/theme/app_colors.dart`. Fonds noir Onyx et gris très sombres ;
+  **vert vibrant (`AppColors.vert`) pour les boutons d'action (Commander,
+  Payer…), les icônes actives et les contours, avec du texte Onyx sur les
+  boutons** ; verre translucide et dégradés conservés ; **plus aucun orange**.
+  Garde-fou : `test/palette_onyx_vert_test.dart`.
+- Thème unique sombre (`AppTheme.sombre`) et polices du système (aucun paquet
+  de polices). Ne pas affirmer le contraire sans l'avoir vérifié dans le code.
 - Les générateurs de palettes, de styles et de polices de l'outil d'origine ne
   sont **pas installés**. Ne jamais proposer de nouvelle palette, de nouveau
   style ni de nouvelle police de ma propre initiative : une idée de ce genre

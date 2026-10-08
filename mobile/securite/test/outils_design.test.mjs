@@ -33,7 +33,7 @@ test('zone autorisée : l’apparence de l’app, et rien d’autre', () => {
     'mobile/web/favicon.png',
     'mobile/web/index.html',
     'mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.png',
-    'mobile/test/onyx_light_test.dart',
+    'mobile/test/onyx_vert_test.dart',
   ];
   for (const chemin of autorises) assert.equal(classer(chemin).zone, 'autorisee', chemin);
 });
@@ -60,7 +60,7 @@ test('zone interdite : serveur, règles, secrets, accès aux données, chaîne d
     'mobile/pubspec.yaml',
     'mobile/pubspec.lock',
     'mobile/web/firebase-messaging-sw.js',
-    'mobile/test/palette_bleu_orange_test.dart',
+    'mobile/test/palette_onyx_vert_test.dart',
     'mobile/.env',
     'mobile/functions/.env.local',
     'mobile/android/app/google-services.json',
@@ -276,7 +276,7 @@ test('lot : suppression d’un test, test de logique et palette refusés ; test 
       'mobile/test/accueil_test.dart': `${widget}// retouché\n`,
       'mobile/test/calcul_test.dart': `${logique}// retouché\n`,
       'mobile/test/supprime_test.dart': null,
-      'mobile/test/palette_bleu_orange_test.dart': logique,
+      'mobile/test/palette_onyx_vert_test.dart': logique,
     });
     const bilan = lotEntre(d.dossier, base, 'HEAD');
     const parChemin = Object.fromEntries(bilan.fichiers.map((f) => [path.basename(f.chemin), f]));
@@ -285,7 +285,7 @@ test('lot : suppression d’un test, test de logique et palette refusés ; test 
     assert.match(parChemin['calcul_test.dart'].raison, /logique/);
     assert.equal(parChemin['supprime_test.dart'].zone, 'interdite');
     assert.match(parChemin['supprime_test.dart'].raison, /suppression/);
-    assert.equal(parChemin['palette_bleu_orange_test.dart'].zone, 'interdite');
+    assert.equal(parChemin['palette_onyx_vert_test.dart'].zone, 'interdite');
     assert.equal(bilan.conforme, false);
   } finally {
     d.nettoyer();
