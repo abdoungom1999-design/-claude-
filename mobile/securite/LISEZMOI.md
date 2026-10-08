@@ -49,6 +49,11 @@ node securite/audit_npm.mjs functions --prod --seuil high
 node securite/avis_dart.mjs pubspec.lock
 ```
 
+## Outils de design externes
+
+Règle des zones autorisée / interdite, fixée par le client : voir
+`ZONES_DESIGN.md`.
+
 ## Ce que ces contrôles ne font pas
 
 - Ils ne détectent que les failles **déjà publiées** et les secrets **de
