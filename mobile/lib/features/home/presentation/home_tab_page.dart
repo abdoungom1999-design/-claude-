@@ -37,7 +37,7 @@ class HomeTabPage extends StatefulWidget {
   final Localiser? localiser;
   final FondCarte? fond;
 
-  /// Fond de carte ; par défaut les images Google « Sprint clair » (ou
+  /// Fond de carte ; par défaut les images Google « Sprint sombre » (ou
   /// OpenStreetMap). Les tests le remplacent (pas de réseau).
   final Widget? coucheFond;
 

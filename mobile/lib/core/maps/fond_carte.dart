@@ -5,7 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'style_sprint_clair.dart';
+import '../theme/app_colors.dart';
+import 'style_sprint_sombre.dart';
 
 /// Fond de carte de toute l'app : images Google Maps (Map Tiles API) dès
 /// qu'une clé web est fournie à la compilation
@@ -21,7 +22,7 @@ import 'style_sprint_clair.dart';
 /// la vérifie grâce aux en-têtes [entetesAndroid], joints à chaque appel
 /// (session et images).
 ///
-/// Style : « Sprint clair » ([styleSprintClair]) sur toutes les cartes.
+/// Style : « Sprint sombre » ([styleSprintSombre]) sur toutes les cartes.
 /// Un style refusé par Google (400) fait redemander une session sans
 /// style, puis seulement OpenStreetMap en dernier recours.
 ///
@@ -32,7 +33,7 @@ class FondCarte {
     required String cle,
     Dio? dio,
     DateTime Function()? maintenant,
-    this.styles = styleSprintClair,
+    this.styles = styleSprintSombre,
     this.entetes = const {},
   })  : _cle = cle,
         _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 8))),
@@ -157,15 +158,20 @@ class SessionTuiles {
   final DateTime expire;
 }
 
-/// Passe les images OpenStreetMap en gris très clair (≈ 12 % de la couleur
-/// d'origine, contraste réduit, +24 de luminosité) : même rendu « Silver »
-/// que le style Google, sans le vert ni le jaune d'OpenStreetMap.
-const filtreClair = ColorFilter.matrix(<double>[
-  0.20, 0.62, 0.065, 0, 24, //
-  0.19, 0.63, 0.065, 0, 24, //
-  0.19, 0.62, 0.075, 0, 24, //
+/// Matrice du filtre sombre des images OpenStreetMap : luminance inversée puis
+/// ramenée dans les gris très sombres (terre ≈ 14/255, bâti et eau ≈ 40,
+/// contours de routes ≈ 80), sans aucune couleur : les trois canaux reçoivent
+/// la même valeur, donc plus de vert de parc ni de jaune d'axe.
+const matriceSombre = <double>[
+  -0.1913, -0.6437, -0.0650, 0, 229, //
+  -0.1913, -0.6437, -0.0650, 0, 229, //
+  -0.1913, -0.6437, -0.0650, 0, 229, //
   0, 0, 0, 1, 0, //
-]);
+];
+
+/// Même rendu « Sprint sombre » que le style Google, pour les images
+/// OpenStreetMap (qui ne se stylisent pas).
+const filtreSombre = ColorFilter.matrix(matriceSombre);
 
 /// Couche de fond à placer en premier dans `FlutterMap(children: …)`.
 class CoucheFondCarte extends StatefulWidget {
@@ -219,9 +225,9 @@ class _CoucheFondCarteState extends State<CoucheFondCarte> {
       return TileLayer(
         urlTemplate: FondCarte.urlOpenStreetMap,
         userAgentPackageName: 'sn.groupesantine.sprint',
-        // OpenStreetMap ne se stylise pas : couleurs atténuées et
-        // éclaircies pour rester proche du style « Sprint clair ».
-        tileBuilder: (context, image, tuile) => ColorFiltered(colorFilter: filtreClair, child: image),
+        // OpenStreetMap ne se stylise pas : gris très sombres, pour rester
+        // proche du style « Sprint sombre ».
+        tileBuilder: (context, image, tuile) => ColorFiltered(colorFilter: filtreSombre, child: image),
       );
     }
     return TileLayer(
@@ -258,7 +264,7 @@ class MentionsFondCarte extends StatelessWidget {
               margin: const EdgeInsets.all(4),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.8),
+                color: AppColors.carte.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text.rich(
@@ -271,7 +277,7 @@ class MentionsFondCarte extends StatelessWidget {
                         TextSpan(text: '  Données cartographiques ©${DateTime.now().year} Google'),
                       ])
                     : const TextSpan(text: '© OpenStreetMap contributors'),
-                style: const TextStyle(fontSize: 10, color: Color(0xFF444444)),
+                style: const TextStyle(fontSize: 10, color: AppColors.texteDiscret),
               ),
             ),
           ),

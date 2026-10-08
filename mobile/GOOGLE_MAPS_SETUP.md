@@ -9,11 +9,12 @@
 >   fournie à la compilation par le secret GitHub `GOOGLE_MAPS_WEB_KEY`.
 >   Sans cette clé, ou si Google ne répond pas, la carte reste sur
 >   OpenStreetMap. Les mentions Google sont affichées sur chaque carte.
-> - Style « Sprint clair » (`lib/core/maps/style_sprint_clair.dart`) :
->   envoyé à la création de la session Map Tiles (fonds clairs, routes
->   blanches, commerces et transports masqués). Style refusé par Google :
->   carte Google sans style ; Google indisponible : OpenStreetMap, aux
->   couleurs adoucies dans le même esprit.
+> - Style « Sprint sombre » (`lib/core/maps/style_sprint_sombre.dart`) :
+>   envoyé à la création de la session Map Tiles (terre et routes en gris
+>   très sombres, noms de rues en gris clair, commerces et transports
+>   masqués). Style refusé par Google : carte Google sans style (claire et
+>   colorée) ; Google indisponible : OpenStreetMap passé en gris très
+>   sombres dans le même esprit.
 > - APK Android : clé dédiée `sprint-carte-android` (secret GitHub
 >   `GOOGLE_MAPS_ANDROID_KEY`), restreinte à l'app Android
 >   (`sn.groupesantine.sprint`, SHA-1
@@ -22,7 +23,7 @@
 >   et `X-Android-Cert`) à chaque appel. La CI vérifie que cette empreinte
 >   est bien celle du certificat de l'APK.
 > - Vérification réelle à chaque déploiement : la CI ouvre une session
->   Google avec chaque clé (site et APK) et le style « Sprint clair »
+>   Google avec chaque clé (site et APK) et le style « Sprint sombre »
 >   (`tool/verifier_session_carte.sh`). Un refus apparaît en
 >   avertissement dans le résumé du run.
 > - Le composant Google Maps officiel (Maps JavaScript API, décrit

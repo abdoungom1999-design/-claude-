@@ -4,7 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sprint/core/maps/fond_carte.dart';
-import 'package:sprint/core/maps/style_sprint_clair.dart';
+import 'package:sprint/core/maps/style_sprint_sombre.dart';
 
 /// Dio dont chaque requête reçoit [reponse] (ou échoue si `null`, avec
 /// le code [codeErreur]). [refuserStyle] : une demande avec style est
@@ -43,7 +43,7 @@ Future<void> _carte(WidgetTester tester, FondCarte fond) async {
 }
 
 void main() {
-  test('session Google : carte routière en français pour le Sénégal, style Sprint clair, réutilisée puis renouvelée', () async {
+  test('session Google : carte routière en français pour le Sénégal, style Sprint sombre, réutilisée puis renouvelée', () async {
     final requetes = <RequestOptions>[];
     var maintenant = _maintenant;
     final fond = FondCarte(
@@ -58,7 +58,7 @@ void main() {
     final session = await fond.session();
     expect(session!.jeton, 'JETON');
     expect(requetes.single.uri.toString(), 'https://tile.googleapis.com/v1/createSession?key=CLE-WEB');
-    expect(requetes.single.data, {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN', 'styles': styleSprintClair});
+    expect(requetes.single.data, {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN', 'styles': styleSprintSombre});
     expect(fond.optionsGoogle(session), {'session': 'JETON', 'key': 'CLE-WEB'});
 
     await fond.session();
@@ -133,7 +133,7 @@ void main() {
   });
 
   test('style : aucune règle vide, couleurs au format #rrggbb', () {
-    for (final regle in styleSprintClair) {
+    for (final regle in styleSprintSombre) {
       final stylers = regle['stylers']! as List;
       expect(stylers, isNotEmpty);
       for (final s in stylers.cast<Map<String, Object>>()) {
@@ -143,36 +143,40 @@ void main() {
     }
   });
 
-  test('style Silver : uniquement des gris (ni vert, ni jaune, ni bleu franc)', () {
-    for (final regle in styleSprintClair) {
+  test('style sombre : uniquement des gris (ni vert, ni jaune, ni bleu franc)', () {
+    for (final regle in styleSprintSombre) {
       for (final s in (regle['stylers']! as List).cast<Map<String, Object>>()) {
         final couleur = s['color'] as String?;
         if (couleur == null) continue;
         final canaux = [for (var i = 1; i < 7; i += 2) int.parse(couleur.substring(i, i + 2), radix: 16)];
         final ecart = canaux.reduce((a, b) => a > b ? a : b) - canaux.reduce((a, b) => a < b ? a : b);
-        expect(ecart, lessThanOrEqualTo(20), reason: '$couleur est trop colorée pour un style Silver');
+        expect(ecart, lessThanOrEqualTo(20), reason: '$couleur est trop colorée pour un style sombre');
       }
     }
   });
 
-  test('images OpenStreetMap : le filtre les passe en gris (vert et jaune disparaissent)', () {
-    // Un vert de parc OSM (#cdebb0) et un jaune de route (#f7fabf) : après le
-    // filtre, les trois canaux doivent être proches.
-    double sortie(List<double> ligne, List<int> rgb) =>
-        ligne[0] * rgb[0] + ligne[1] * rgb[1] + ligne[2] * rgb[2] + ligne[4];
-    const m = <List<double>>[
-      [0.20, 0.62, 0.065, 0, 24],
-      [0.19, 0.63, 0.065, 0, 24],
-      [0.19, 0.62, 0.075, 0, 24],
-    ];
+  test('images OpenStreetMap : le filtre sombre les passe en gris très sombres (vert et jaune disparaissent)', () {
+    double sortie(int ligne, List<int> rgb) =>
+        matriceSombre[ligne * 5] * rgb[0] +
+        matriceSombre[ligne * 5 + 1] * rgb[1] +
+        matriceSombre[ligne * 5 + 2] * rgb[2] +
+        matriceSombre[ligne * 5 + 4];
+    // Terre OSM (#f2efe9), vert de parc (#cdebb0), jaune de route (#f7fabf) et
+    // route blanche : les trois canaux reçoivent la même valeur (aucune
+    // couleur) et rien ne dépasse un gris moyen.
     for (final rgb in [
+      [0xf2, 0xef, 0xe9],
       [0xcd, 0xeb, 0xb0],
       [0xf7, 0xfa, 0xbf],
+      [0xff, 0xff, 0xff],
     ]) {
-      final valeurs = [for (final l in m) sortie(l, rgb)];
+      final valeurs = [for (var l = 0; l < 3; l++) sortie(l, rgb)];
       final ecart = valeurs.reduce((a, b) => a > b ? a : b) - valeurs.reduce((a, b) => a < b ? a : b);
-      expect(ecart, lessThan(12));
+      expect(ecart, lessThan(0.001));
+      expect(valeurs.first, lessThan(100));
     }
+    // La terre devient un gris très sombre, comme le fond du style Google.
+    expect(sortie(0, [0xf2, 0xef, 0xe9]), inInclusiveRange(0, 24));
   });
 
   test('images Google en erreur à répétition : secours OpenStreetMap', () {

@@ -1,18 +1,19 @@
-/// Style « Sprint clair » des images Google (Map Tiles API, paramètre
+/// Style « Sprint sombre » des images Google (Map Tiles API, paramètre
 /// `styles` de `createSession`, même format que les cartes stylées Google
-/// Maps), version « Silver » de la charte Onyx & Light : uniquement des gris
-/// et du blanc (plus de vert des parcs, de jaune/orange des grands axes ni de
-/// bleu franc de la mer), commerces et transports masqués, pour que les
-/// motos et le trajet ressortent. Un test garde la palette sans couleur.
+/// Maps), version « Onyx & Vert » : uniquement des gris très sombres (terre,
+/// routes) et des gris moyens (noms de rues), sans le vert des parcs, le
+/// jaune ou l'orange des grands axes ni le bleu de la mer ; commerces et
+/// transports masqués, pour que les motos et le trajet verts ressortent.
+/// Un test garde la palette sans couleur.
 ///
 /// Si Google refusait ce style, [FondCarte] redemande une session sans
 /// style avant de repasser sur OpenStreetMap : la carte ne reste jamais
 /// vide à cause de lui.
-const styleSprintClair = <Map<String, Object>>[
+const styleSprintSombre = <Map<String, Object>>[
   {
     'elementType': 'geometry',
     'stylers': [
-      {'color': '#f1f2f4'},
+      {'color': '#131316'},
     ],
   },
   {
@@ -24,13 +25,13 @@ const styleSprintClair = <Map<String, Object>>[
   {
     'elementType': 'labels.text.fill',
     'stylers': [
-      {'color': '#8a8d93'},
+      {'color': '#8f8f98'},
     ],
   },
   {
     'elementType': 'labels.text.stroke',
     'stylers': [
-      {'color': '#f1f2f4'},
+      {'color': '#0b0b0c'},
     ],
   },
   {
@@ -44,7 +45,7 @@ const styleSprintClair = <Map<String, Object>>[
     'elementType': 'geometry',
     'stylers': [
       {'visibility': 'on'},
-      {'color': '#e9ebee'},
+      {'color': '#18181b'},
     ],
   },
   {
@@ -57,28 +58,28 @@ const styleSprintClair = <Map<String, Object>>[
     'featureType': 'road',
     'elementType': 'geometry.fill',
     'stylers': [
-      {'color': '#ffffff'},
+      {'color': '#2b2b31'},
     ],
   },
   {
     'featureType': 'road',
     'elementType': 'geometry.stroke',
     'stylers': [
-      {'color': '#e2e4e8'},
+      {'color': '#19191d'},
     ],
   },
   {
     'featureType': 'road.highway',
     'elementType': 'geometry.fill',
     'stylers': [
-      {'color': '#ffffff'},
+      {'color': '#3b3b43'},
     ],
   },
   {
     'featureType': 'road.highway',
     'elementType': 'geometry.stroke',
     'stylers': [
-      {'color': '#d9dce1'},
+      {'color': '#1f1f24'},
     ],
   },
   {
@@ -92,21 +93,21 @@ const styleSprintClair = <Map<String, Object>>[
     'featureType': 'water',
     'elementType': 'geometry',
     'stylers': [
-      {'color': '#dde2e8'},
+      {'color': '#08080a'},
     ],
   },
   {
     'featureType': 'water',
     'elementType': 'labels.text.fill',
     'stylers': [
-      {'color': '#9aa1ab'},
+      {'color': '#55555e'},
     ],
   },
   {
     'featureType': 'administrative',
     'elementType': 'geometry.stroke',
     'stylers': [
-      {'color': '#d3d6db'},
+      {'color': '#34343b'},
     ],
   },
 ];

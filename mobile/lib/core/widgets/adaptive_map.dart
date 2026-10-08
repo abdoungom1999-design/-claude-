@@ -55,7 +55,7 @@ class AdaptiveMap extends StatelessWidget {
   final List<ll.LatLng>? polylignePoints;
 
   /// Motos disponibles alentour (anonymes), dessinées sous les repères.
-  /// Uniquement sur la carte OpenStreetMap / Google « Sprint clair »
+  /// Uniquement sur la carte OpenStreetMap / Google « Sprint sombre »
   /// (`flutter_map`) ; le composant Google Maps officiel, non utilisé
   /// aujourd'hui (voir GOOGLE_MAPS_SETUP.md), ne les affiche pas.
   final List<MotoProche> motos;
