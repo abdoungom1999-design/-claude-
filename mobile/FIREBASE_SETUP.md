@@ -180,11 +180,14 @@ depuis la Console.
   récupérer son e-mail. Maintenant la connexion passe par la fonction
   `connexionTelephone` (voir section 7), qui vérifie le mot de passe et ne
   rend l'e-mail qu'à son propriétaire ; l'entrée du compte est publiée par
-  `synchroniserAnnuaire`. Mise en place en deux temps : (1) fonctions et
-  app, la lecture publique restant ouverte pour les anciennes versions de
-  l'app ; (2) une fois la connexion par téléphone validée sur de vrais
-  téléphones, fermeture des règles (plus aucune lecture ni écriture par
-  l'app ; l'Admin garde l'écriture pour son rattrapage).
+  `synchroniserAnnuaire`. Mise en place en deux temps, terminée le 8
+  octobre 2026 : (1) fonctions et app, la lecture publique restant ouverte
+  pour les anciennes versions de l'app ; (2) après validation par le client
+  de la connexion par téléphone sur de vrais téléphones, fermeture des
+  règles : plus aucune lecture ni écriture par l'app ; l'Admin garde la
+  lecture unitaire et l'écriture pour son rattrapage. Les versions de l'app
+  antérieures à la 0.1.0 (94) ne peuvent donc plus se connecter par numéro
+  (par e-mail, oui) tant qu'elles ne sont pas mises à jour.
 - `courses` : un client ne crée et ne liste que ses propres demandes,
   sans pouvoir s'attribuer un chauffeur ni antidater ; seuls les chauffeurs validés
   et non sanctionnés voient et acceptent les courses en attente.

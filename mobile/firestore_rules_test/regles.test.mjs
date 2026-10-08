@@ -187,45 +187,51 @@ describe('profils_publics', () => {
   });
 });
 
-describe('annuaire_telephones (connexion par téléphone)', () => {
-  test('publier sa propre entrée : accepté ; lecture unitaire publique : acceptée', async () => {
-    await assertSucceeds(setDoc(doc(en('client'), 'annuaire_telephones', `client_${TEL_CLIENT}`), { uid: 'client', email: 'client@test.sn' }));
-    await assertSucceeds(getDoc(doc(anonyme(), 'annuaire_telephones', `client_${TEL_CLIENT}`)));
+describe('annuaire_telephones (réservé au serveur depuis la phase 2)', () => {
+  const cle = `client_${TEL_CLIENT}`;
+  const entree = { uid: 'client', email: 'client@test.sn' };
+  const preparer = () =>
+    env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'annuaire_telephones', cle), entree));
+
+  test('lire une entrée : refusé à un visiteur et à tout utilisateur connecté, même au propriétaire', async () => {
+    await preparer();
+    await assertFails(getDoc(doc(anonyme(), 'annuaire_telephones', cle)));
+    for (const uid of ['client', 'autreClient', 'chauffeur']) {
+      await assertFails(getDoc(doc(en(uid), 'annuaire_telephones', cle)));
+    }
   });
 
-  test('lister l\'annuaire : refusé', async () => {
-    await assertFails(getDocs(collection(anonyme(), 'annuaire_telephones')));
-    await assertFails(getDocs(collection(en('client'), 'annuaire_telephones')));
+  test('lister l\'annuaire : refusé à tous, administrateur compris', async () => {
+    await preparer();
+    for (const db of [anonyme(), en('client'), en('chauffeur'), en('admin')]) {
+      await assertFails(getDocs(collection(db, 'annuaire_telephones')));
+    }
   });
 
-  test('publier une entrée pour un autre numéro, un autre rôle ou un autre email : refusé', async () => {
+  test('l\'app n\'écrit plus dans l\'annuaire : même sa propre entrée, parfaitement formée, est refusée', async () => {
     const db = en('client');
-    await assertFails(setDoc(doc(db, 'annuaire_telephones', 'client_+221700000000'), { uid: 'client', email: 'client@test.sn' }));
-    await assertFails(setDoc(doc(db, 'annuaire_telephones', `conducteur_${TEL_CLIENT}`), { uid: 'client', email: 'client@test.sn' }));
-    await assertFails(setDoc(doc(db, 'annuaire_telephones', `client_${TEL_CLIENT}`), { uid: 'client', email: 'pirate@test.sn' }));
-    await assertFails(setDoc(doc(db, 'annuaire_telephones', `client_${TEL_CLIENT}`), { uid: 'autreClient', email: 'client@test.sn' }));
+    await assertFails(setDoc(doc(db, 'annuaire_telephones', cle), entree));
+    await assertFails(setDoc(doc(db, 'annuaire_telephones', 'client_+221700000000'), entree));
+    await assertFails(setDoc(doc(anonyme(), 'annuaire_telephones', cle), entree));
+    await preparer();
+    await assertFails(updateDoc(doc(db, 'annuaire_telephones', cle), { email: 'client@test.sn' }));
+    await assertFails(deleteDoc(doc(db, 'annuaire_telephones', cle)));
   });
 
-  test('changement de numéro : nouvelle entrée acceptée, ancienne supprimable par son propriétaire', async () => {
-    const ancienne = `client_${TEL_CLIENT}`;
-    await env.withSecurityRulesDisabled((ctx) =>
-      setDoc(doc(ctx.firestore(), 'annuaire_telephones', ancienne), { uid: 'client', email: 'client@test.sn' }));
-    const db = en('client');
-    await assertSucceeds(updateDoc(doc(db, 'users', 'client'), { telephone: '+221760000000' }));
-    await assertSucceeds(setDoc(doc(db, 'annuaire_telephones', 'client_+221760000000'), { uid: 'client', email: 'client@test.sn' }));
-    await assertSucceeds(deleteDoc(doc(db, 'annuaire_telephones', ancienne)));
+  test('écraser, détourner ou supprimer l\'entrée de quelqu\'un d\'autre : refusé', async () => {
+    await preparer();
+    await assertFails(setDoc(doc(en('autreClient'), 'annuaire_telephones', cle), { uid: 'autreClient', email: 'autreClient@test.sn' }));
+    await assertFails(updateDoc(doc(en('autreClient'), 'annuaire_telephones', cle), { email: 'pirate@test.sn' }));
+    await assertFails(deleteDoc(doc(en('autreClient'), 'annuaire_telephones', cle)));
+    await assertFails(setDoc(doc(en('chauffeur'), 'annuaire_telephones', cle), entree));
   });
 
-  test('l\'admin rattrape l\'annuaire des comptes existants : accepté', async () => {
-    await assertSucceeds(setDoc(doc(en('admin'), 'annuaire_telephones', `conducteur_${TEL_CHAUFFEUR}`), { uid: 'chauffeur', email: 'chauffeur@test.sn' }));
-    await assertFails(setDoc(doc(en('chauffeur'), 'annuaire_telephones', `client_${TEL_CLIENT}`), { uid: 'client', email: 'client@test.sn' }));
-  });
-
-  test('écraser ou supprimer l\'entrée de quelqu\'un d\'autre : refusé', async () => {
-    await env.withSecurityRulesDisabled((ctx) =>
-      setDoc(doc(ctx.firestore(), 'annuaire_telephones', `client_${TEL_CLIENT}`), { uid: 'client', email: 'client@test.sn' }));
-    await assertFails(setDoc(doc(en('autreClient'), 'annuaire_telephones', `client_${TEL_CLIENT}`), { uid: 'autreClient', email: 'autreClient@test.sn' }));
-    await assertFails(deleteDoc(doc(en('autreClient'), 'annuaire_telephones', `client_${TEL_CLIENT}`)));
+  test('l\'admin garde la lecture unitaire et l\'écriture, pour rattraper les comptes existants : accepté', async () => {
+    const admin = en('admin');
+    await assertSucceeds(setDoc(doc(admin, 'annuaire_telephones', `conducteur_${TEL_CHAUFFEUR}`), { uid: 'chauffeur', email: 'chauffeur@test.sn' }));
+    await assertSucceeds(getDoc(doc(admin, 'annuaire_telephones', `conducteur_${TEL_CHAUFFEUR}`)));
+    await assertSucceeds(updateDoc(doc(admin, 'annuaire_telephones', `conducteur_${TEL_CHAUFFEUR}`), { email: 'chauffeur@test.sn' }));
+    await assertSucceeds(deleteDoc(doc(admin, 'annuaire_telephones', `conducteur_${TEL_CHAUFFEUR}`)));
   });
 });
 

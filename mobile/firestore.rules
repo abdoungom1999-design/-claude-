@@ -176,30 +176,19 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------
     // Annuaire de connexion par téléphone : "{role}_{telephone}" -> email.
-    // Lecture unitaire publique (nécessaire avant d'être connecté), jamais
-    // de listage. Chacun ne peut publier que sa propre entrée, alignée sur
-    // le rôle et le téléphone de son profil privé ; l'Admin peut tout
-    // corriger (rattrapage des comptes existants).
+    // FERMÉ à l'app depuis la phase 2 (8 octobre 2026). Avant, une entrée
+    // était lisible par tous : on pouvait y tester des numéros pour savoir
+    // qui a un compte et récupérer son e-mail. Maintenant seul le serveur
+    // lit et écrit l'annuaire (fonctions "connexionTelephone" et
+    // "synchroniserAnnuaire", par le SDK Admin qui ignore ces règles).
+    // L'Admin garde la lecture unitaire et l'écriture pour le rattrapage
+    // des comptes existants (AdminKycService.synchroniserProfilsPublics) ;
+    // jamais de listage, pour personne.
     // ---------------------------------------------------------------
     match /annuaire_telephones/{cle} {
-      allow get: if true;
+      allow get: if estAdmin();
       allow list: if false;
-
       allow write: if estAdmin();
-
-      allow create: if connecte()
-        && request.resource.data.keys().hasOnly(['uid', 'email'])
-        && request.resource.data.uid == moi()
-        && request.resource.data.email == request.auth.token.email
-        && cle == profil().role + '_' + profil().telephone;
-
-      allow update: if connecte()
-        && resource.data.uid == moi()
-        && request.resource.data.keys().hasOnly(['uid', 'email'])
-        && request.resource.data.uid == moi()
-        && request.resource.data.email == request.auth.token.email;
-
-      allow delete: if connecte() && resource.data.uid == moi();
     }
 
     // ---------------------------------------------------------------
