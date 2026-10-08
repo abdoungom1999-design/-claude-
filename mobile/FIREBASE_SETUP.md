@@ -65,6 +65,12 @@ côté Admin, etc. restent sur les données de démonstration
 
 ## 5. Activer Firebase Storage (documents KYC)
 
+**État : activé le 8 octobre 2026** par le client (bucket
+`gs://sprint-vtc.firebasestorage.app`, mode production, région
+`europe-west1`). La CI publie `storage.rules` à partir de la publication
+suivante ; la migration des pièces déjà envoyées en Base64 se lance ensuite
+depuis Admin > Paramètres (voir plus bas).
+
 Les documents chauffeur (permis, carte grise, attestation VTC, photo de
 profil) partent dans Firebase Storage
 (`kyc_documents/{uid}/{document}.jpg`), et seule leur URL est gardée
