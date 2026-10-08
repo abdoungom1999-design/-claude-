@@ -9,7 +9,7 @@ import '../../features/courses/data/pricing_repository.dart';
 /// aucun appel réseau tant qu'aucun backend public n'est configuré.
 ///
 /// L'algorithme de tarification est une réplique exacte de celui du
-/// backend (voir `backend/src/pricing/pricing.service.ts`) : même
+/// serveur (Cloud Functions, voir `functions/src/tarification.ts`) : même
 /// formule, mêmes tarifs par défaut, pour que les prix affichés en mode
 /// démo restent cohérents avec ceux que produirait le vrai serveur.
 class DemoData {

@@ -2,7 +2,10 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-/// URL de base de l'API Sprint (NestJS).
+/// URL de base de l'ancienne API REST de Sprint (NestJS, retirée du dépôt :
+/// tout passe désormais par Firebase et les Cloud Functions). Ce code client
+/// ne sert plus qu'au mode démo (voir [modeDemo]) ; son retrait complet est
+/// un chantier à part.
 ///
 /// Peut être fixée à la compilation avec `--dart-define=API_BASE_URL=...`
 /// (utilisé par le build web pour cibler un backend accessible
