@@ -72,7 +72,7 @@ jobs:
 
       # Vérification réelle auprès de Google : la clé web, présentée comme
       # venant du site, ouvre une session de carte avec le style « Sprint
-      # clair ». Non bloquant (avertissement dans le résumé du run).
+      # sombre ». Non bloquant (avertissement dans le résumé du run).
       - name: Vérifier la carte Google du site (clé web + style)
         env:
           CLE: ${{ secrets.GOOGLE_MAPS_WEB_KEY }}
@@ -567,7 +567,7 @@ jobs:
 
       # Vérification réelle auprès de Google : la clé Android, présentée
       # avec l'identité de l'APK, ouvre une session de carte avec le style
-      # « Sprint clair ». Non bloquant (avertissement dans le résumé).
+      # « Sprint sombre ». Non bloquant (avertissement dans le résumé).
       - name: Vérifier la carte Google de l'APK (clé Android + style)
         if: steps.secret.outputs.present == 'true'
         env:
