@@ -4,7 +4,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Formulaire de contact direct du support Sprint.
 class NousContacterPage extends StatefulWidget {
@@ -55,10 +55,10 @@ class _NousContacterPageState extends State<NousContacterPage> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.bleu,
+                      color: AppColors.vertTeinte,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.phone_outlined, color: Colors.white, size: 20),
+                    child: const Icon(Icons.phone_outlined, color: AppColors.vert, size: 20),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/coming_soon_view.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Boîte de réception des notifications (cloche de l'onglet Accueil).
 /// Toujours vide pour l'instant : aucun backend de notifications

@@ -10,7 +10,7 @@ import '../../../core/widgets/stat_tile.dart';
 import '../../../firebase_options.dart';
 import '../../evaluations/data/evaluation_service.dart';
 import '../../evaluations/presentation/evaluation_course.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Courses terminées non encore notées par le client, avec notation en
 /// retard. En Firebase réel : courses `terminee` du client sans entrée
@@ -92,14 +92,14 @@ class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
           future: _courses,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
+              return const Center(child: CircularProgressIndicator(color: AppColors.vert));
             }
             if (snapshot.hasError) {
               return _Erreur(onReessayer: _recharger);
             }
             final courses = snapshot.data ?? const [];
             return RefreshIndicator(
-              color: AppColors.bleu,
+              color: AppColors.vert,
               onRefresh: _recharger,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -148,7 +148,7 @@ class _CompteurAvis extends StatelessWidget {
       label: 'Avis en attente',
       valeur: '$nombre',
       icon: Icons.star_border_rounded,
-      accent: nombre == 0 ? AppColors.onyx : AppColors.bleu,
+      accent: nombre == 0 ? AppColors.texteDiscret : AppColors.vert,
     );
   }
 }
@@ -288,7 +288,7 @@ class _CoursesANoterDemoState extends State<_CoursesANoterDemo> {
               label: 'Avis en attente',
               valeur: '${courses.length}',
               icon: Icons.star_border_rounded,
-              accent: courses.isEmpty ? AppColors.onyx : AppColors.bleu,
+              accent: courses.isEmpty ? AppColors.texteDiscret : AppColors.vert,
             ),
             const SizedBox(height: 20),
             if (courses.isEmpty)
@@ -366,8 +366,9 @@ class _DialogNotationState extends State<_DialogNotation> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppColors.background,
+          color: AppColors.carte,
           borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.bordVerre),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -386,7 +387,7 @@ class _DialogNotationState extends State<_DialogNotation> {
                   onPressed: () => setState(() => _note = valeur),
                   icon: Icon(
                     valeur <= _note ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: Colors.amber.shade700,
+                    color: AppColors.etoile,
                     size: 32,
                   ),
                 );

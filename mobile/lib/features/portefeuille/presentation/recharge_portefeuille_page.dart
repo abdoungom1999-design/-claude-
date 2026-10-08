@@ -7,7 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../data/portefeuille_service.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Sas de recharge du portefeuille, piloté par le serveur (même principe
 /// que `PaymentProcessingPage`) :
@@ -196,7 +196,7 @@ class _Attente extends StatelessWidget {
           const SizedBox(
             width: 64,
             height: 64,
-            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.bleu),
+            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.vert),
           ),
           const SizedBox(height: 28),
           Text(titre, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -246,7 +246,7 @@ class _APayer extends StatelessWidget {
                     'votre solde sera crédité dès la confirmation.',
               )
             else ...[
-              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.bleu),
+              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.vert),
               const SizedBox(height: 18),
               Text(formaterFcfa(montantFcfa), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
@@ -265,7 +265,7 @@ class _APayer extends StatelessWidget {
                 pageOuverte ? 'Rouvrir la page de paiement' : 'Payer avec $operateur · ${formaterFcfa(montantFcfa)}',
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.orange,
+                backgroundColor: AppColors.vert,
                 minimumSize: const Size.fromHeight(54),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 textStyle: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
@@ -298,9 +298,9 @@ class _Creditee extends StatelessWidget {
           Container(
             width: 76,
             height: 76,
-            decoration: const BoxDecoration(color: AppColors.bleu, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: AppColors.vert, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 44),
+            child: const Icon(Icons.check_circle_rounded, color: AppColors.onyx, size: 44),
           ),
           const SizedBox(height: 24),
           const Text('Portefeuille rechargé !', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),

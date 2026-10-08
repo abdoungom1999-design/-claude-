@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../../core/utils/flux_partage.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../courses/data/course_service.dart';
@@ -155,7 +155,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuler')),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.vert),
             child: const Text('Réactiver'),
           ),
         ],
@@ -183,21 +183,21 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
       builder: (context, instantaneTicket) {
         final ticket = instantaneTicket.data;
         if (ticket != null) _marquerLu(ticket);
-        return EcranOnyxLight(
+        return EcranOnyxVert(
           flou: false,
           child: Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: AppColors.fondClairHaut,
+            backgroundColor: AppColors.fondHaut,
             surfaceTintColor: Colors.transparent,
-            foregroundColor: AppColors.onyx,
+            foregroundColor: AppColors.texte,
             title: Text(
               ticket == null
                   ? 'Ticket'
                   : ticket.estDemandeAide
                       ? "Demande d'aide · ${CategorieTicket.libelle(ticket.categorie)}"
                       : CategorieTicket.libelle(ticket.categorie),
-              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
+              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.texte),
             ),
             actions: [
               if (ticket != null)
@@ -214,8 +214,8 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
           body: ticket == null
               ? Center(
                   child: instantaneTicket.connectionState == ConnectionState.waiting
-                      ? const CircularProgressIndicator(color: AppColors.bleu)
-                      : const Text('Ticket introuvable.', style: TextStyle(color: AppColors.grey)),
+                      ? const CircularProgressIndicator(color: AppColors.vert)
+                      : const Text('Ticket introuvable.', style: TextStyle(color: AppColors.texteDiscret)),
                 )
               : _corps(ticket),
           ),
@@ -239,7 +239,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(width: 400, child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: fiche)),
-          const VerticalDivider(width: 1, color: AppColors.greyBorder),
+          const VerticalDivider(width: 1, color: AppColors.bord),
           Expanded(child: conversation),
         ],
       );
@@ -247,7 +247,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
     return Column(
       children: [
         Flexible(child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: fiche)),
-        const Divider(height: 1, color: AppColors.greyBorder),
+        const Divider(height: 1, color: AppColors.bord),
         SizedBox(height: taille.height * 0.5, child: conversation),
       ],
     );
@@ -288,7 +288,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
                       onPressed: _action ? null : () => _reactiver(compte),
                       icon: const Icon(Icons.play_circle_outline_rounded),
                       label: const Text('Réactiver le compte'),
-                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.onyx),
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.texte),
                     ),
                   ],
                 ],
@@ -313,8 +313,8 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
         final course = instantane.data;
         if (course == null) {
           return instantane.connectionState == ConnectionState.waiting
-              ? const Center(child: CircularProgressIndicator(color: AppColors.bleu))
-              : const Text('Course introuvable.', style: TextStyle(color: AppColors.grey));
+              ? const Center(child: CircularProgressIndicator(color: AppColors.vert))
+              : const Text('Course introuvable.', style: TextStyle(color: AppColors.texteDiscret));
         }
         _suivreCommande(course.commandeId);
         _suivreChauffeur(course.chauffeurId);
@@ -342,7 +342,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
             const SizedBox(height: 16),
             const _Titre('Chauffeur'),
             if (_chauffeur == null)
-              const Text('Aucun chauffeur attribué.', style: TextStyle(fontSize: 13, color: AppColors.grey))
+              const Text('Aucun chauffeur attribué.', style: TextStyle(fontSize: 13, color: AppColors.texteDiscret))
             else
               StreamBuilder<ConducteurKycAdmin?>(
                 stream: _chauffeur!.flux,
@@ -359,11 +359,11 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
                       if (!chauffeur.estBloque)
                         OutlinedButton.icon(
                           onPressed: _action ? null : () => _suspendre(chauffeur),
-                          icon: const Icon(Icons.block_rounded, color: Colors.redAccent),
+                          icon: const Icon(Icons.block_rounded, color: AppColors.danger),
                           label: const Text('Suspendre le chauffeur'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.redAccent,
-                            side: const BorderSide(color: Colors.redAccent),
+                            foregroundColor: AppColors.danger,
+                            side: const BorderSide(color: AppColors.danger),
                           ),
                         ),
                     ],
@@ -381,31 +381,31 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
 
   Widget _boutonRemboursement(CourseFirestore course) {
     if (course.rembourseeLe != null) {
-      return const Text('Course déjà remboursée.', style: TextStyle(fontSize: 13, color: AppColors.onyx));
+      return const Text('Course déjà remboursée.', style: TextStyle(fontSize: 13, color: AppColors.texte));
     }
     if (course.commandeId == null) {
       return const Text(
         'Course payée avant le paiement par le serveur : remboursement à faire à la main.',
-        style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+        style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
       );
     }
     if (course.estActive) {
       return const Text(
         'Course en cours : remboursable une fois terminée ou annulée.',
-        style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+        style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
       );
     }
     return StreamBuilder<CommandePaiement?>(
       stream: _commande?.flux,
       builder: (context, c) {
         if (c.data?.statut == 'remboursee') {
-          return const Text('Client déjà remboursé (annulation).', style: TextStyle(fontSize: 13, color: AppColors.onyx));
+          return const Text('Client déjà remboursé (annulation).', style: TextStyle(fontSize: 13, color: AppColors.texte));
         }
         return FilledButton.icon(
           onPressed: _action ? null : () => _rembourser(course),
           icon: const Icon(Icons.undo_rounded),
           label: Text('Rembourser ${formaterFcfa(course.prixFcfa)}'),
-          style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.vert),
         );
       },
     );
@@ -446,7 +446,7 @@ class _Info extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 90, child: Text(libelle, style: const TextStyle(fontSize: 12.5, color: AppColors.grey))),
+          SizedBox(width: 90, child: Text(libelle, style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret))),
           Expanded(child: Text(valeur, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
         ],
       ),
@@ -522,7 +522,7 @@ class _DialogueRemboursementState extends State<_DialogueRemboursement> {
               Text(
                 'Le chauffeur n\'est pas payé pour cette course : sa part (${formaterFcfa(widget.partChauffeurFcfa)}) '
                 'est retirée de ce que Sprint lui doit, ou déduite de ses prochains gains si elle lui a déjà été versée.',
-                style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
               ),
             ],
             const SizedBox(height: 16),
@@ -550,7 +550,7 @@ class _DialogueRemboursementState extends State<_DialogueRemboursement> {
             }
             Navigator.of(context).pop(motif);
           },
-          style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.vert),
           child: const Text('Rembourser'),
         ),
       ],

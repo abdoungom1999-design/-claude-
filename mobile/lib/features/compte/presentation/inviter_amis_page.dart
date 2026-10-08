@@ -4,7 +4,7 @@ import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Parrainage : code personnel copiable (Clipboard réel) et statistiques
 /// de parrainage.
@@ -40,7 +40,7 @@ class InviterAmisPage extends StatelessWidget {
                 height: 84,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [AppColors.bleu, AppColors.bleuFonce],
+                    colors: [AppColors.vert, AppColors.vertFonce],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -48,7 +48,7 @@ class InviterAmisPage extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.card_giftcard_rounded,
-                  color: Colors.white,
+                  color: AppColors.onyx,
                   size: 38,
                 ),
               ),
@@ -72,9 +72,9 @@ class InviterAmisPage extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 18),
               decoration: BoxDecoration(
-                color: AppColors.fondClair,
+                color: AppColors.carteHaute,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.bleu.withValues(alpha: 0.3)),
+                border: Border.all(color: AppColors.vert.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
@@ -92,7 +92,7 @@ class InviterAmisPage extends StatelessWidget {
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 3,
-                          color: AppColors.bleu,
+                          color: AppColors.vert,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -102,14 +102,14 @@ class InviterAmisPage extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.vertTeinte,
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.bordVerre),
+                            border: Border.all(color: AppColors.vert.withValues(alpha: 0.5)),
                           ),
                           child: const Icon(
                             Icons.copy_all_rounded,
                             size: 16,
-                            color: AppColors.bleu,
+                            color: AppColors.vert,
                           ),
                         ),
                       ),
@@ -173,7 +173,7 @@ class _BlocStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: AppColors.verre,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.bordVerre),
       ),
@@ -181,7 +181,7 @@ class _BlocStat extends StatelessWidget {
         children: [
           Text(
             valeur,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.texte),
           ),
           const SizedBox(height: 2),
           Text(label, style: const TextStyle(fontSize: 11, color: AppColors.texteDiscret)),

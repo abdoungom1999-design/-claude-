@@ -112,17 +112,17 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.fond,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.fond,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.text),
+          icon: const Icon(Icons.arrow_back, color: AppColors.texte),
           onPressed: _etapePrecedente,
         ),
         title: const Text(
           'Devenir chauffeur Sprint',
-          style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700),
+          style: TextStyle(color: AppColors.texte, fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -174,14 +174,14 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
                         onPressed: _etapePrecedente,
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(56),
-                          side: const BorderSide(color: AppColors.greyBorder),
+                          side: const BorderSide(color: AppColors.bord),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                         child: const Text(
                           'Précédent',
-                          style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
+                          style: TextStyle(color: AppColors.texte, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -286,7 +286,7 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
             suffixIcon: IconButton(
               icon: Icon(
                 motDePasseVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                color: AppColors.grey,
+                color: AppColors.texteDiscret,
                 size: 20,
               ),
               onPressed: onToggleMotDePasseVisible,
@@ -396,7 +396,7 @@ class _EnTeteEtape extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           sousTitre,
-          style: const TextStyle(fontSize: 13, color: AppColors.grey, height: 1.4),
+          style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
         ),
       ],
     );

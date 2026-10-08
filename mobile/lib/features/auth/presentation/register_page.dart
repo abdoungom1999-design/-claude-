@@ -152,7 +152,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 12),
               Text(
                 _erreur!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                style: const TextStyle(color: AppColors.danger, fontSize: 13),
               ),
             ],
             const SizedBox(height: 24),

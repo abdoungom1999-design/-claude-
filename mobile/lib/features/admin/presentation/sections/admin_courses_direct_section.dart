@@ -278,7 +278,7 @@ class _VueCoursesEnDirectState extends State<_VueCoursesEnDirect> {
                 else if (widget.chargement)
                   const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.vert)),
                   )
                 else if (widget.courses.isEmpty)
                   const _Bulle(texte: 'Aucune course en cours.')
@@ -319,8 +319,11 @@ class _MarqueurChauffeur extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final perdu = etat == EtatSignal.perdu;
-    final couleur = perdu ? AppColors.grey : (enCourse ? AppColors.bleu : AppColors.onyx);
+    final couleur = perdu ? AppColors.texteDiscret : (enCourse ? AppColors.vert : AppColors.onyx);
     final libelle = perdu ? 'Signal perdu' : (enCourse ? 'En course' : 'Disponible');
+    // Pictogramme lisible sur sa pastille : Onyx sur le vert et le gris, clair
+    // sur l'Onyx (le blanc sur le vert ne ferait que 1,5:1).
+    final couleurIcone = (perdu || enCourse) ? AppColors.onyx : AppColors.texte;
 
     return Tooltip(
       message: '$nom · $libelle · $derniereMaj',
@@ -340,7 +343,7 @@ class _MarqueurChauffeur extends StatelessWidget {
         alignment: Alignment.center,
         child: Icon(
           perdu ? Icons.signal_wifi_off_rounded : Icons.two_wheeler_rounded,
-          color: Colors.white,
+          color: couleurIcone,
           size: 20,
         ),
       ),
@@ -356,10 +359,10 @@ class _BoutonToutVoir extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.92),
+      color: AppColors.carte,
       shape: const StadiumBorder(side: BorderSide(color: AppColors.bordVerre)),
       elevation: 2,
-      shadowColor: const Color(0x22000000),
+      shadowColor: AppColors.shadow,
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: onTap,
@@ -368,9 +371,9 @@ class _BoutonToutVoir extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.zoom_out_map_rounded, size: 16, color: AppColors.onyx),
+              Icon(Icons.zoom_out_map_rounded, size: 16, color: AppColors.texte),
               SizedBox(width: 7),
-              Text('Tout voir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onyx)),
+              Text('Tout voir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.texte)),
             ],
           ),
         ),
@@ -396,7 +399,12 @@ class _Legende extends StatelessWidget {
               Container(
                 width: 9,
                 height: 9,
-                decoration: BoxDecoration(color: couleur, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: couleur,
+                  shape: BoxShape.circle,
+                  // Liseré clair : le point « Onyx » reste visible sur la carte sombre.
+                  border: Border.all(color: AppColors.texte, width: 1.2),
+                ),
               ),
               const SizedBox(width: 6),
               Text(texte, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -407,16 +415,17 @@ class _Legende extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.carte,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.bordVerre),
         boxShadow: const [BoxShadow(color: AppColors.shadowSoft, blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          element(AppColors.bleu, 'En course : $enCourse'),
+          element(AppColors.vert, 'En course : $enCourse'),
           element(AppColors.onyx, 'Disponibles : $disponibles'),
-          element(AppColors.grey, 'Signal perdu : $perdus'),
+          element(AppColors.texteDiscret, 'Signal perdu : $perdus'),
         ],
       ),
     );
@@ -432,7 +441,7 @@ class _Bulle extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       padding: const EdgeInsets.all(16),
-      child: Text(texte, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
+      child: Text(texte, style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
     );
   }
 }
@@ -470,7 +479,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: clientABord ? AppColors.onyx : AppColors.bleu,
+                  color: clientABord ? AppColors.texte : AppColors.vert,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -486,7 +495,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: clientABord ? AppColors.onyx : AppColors.bleu,
+                  color: clientABord ? AppColors.texte : AppColors.vert,
                 ),
               ),
             ],
@@ -494,12 +503,12 @@ class _CarteCourseEnDirect extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${course.adresseDepart} → ${course.adresseArrivee}',
-            style: const TextStyle(fontSize: 12.5, color: AppColors.text),
+            style: const TextStyle(fontSize: 12.5, color: AppColors.texte),
           ),
           const SizedBox(height: 6),
           Text(
             'Chauffeur : $chauffeur',
-            style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+            style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
           ),
           const SizedBox(height: 2),
           Text(
@@ -510,7 +519,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
             },
             style: TextStyle(
               fontSize: 11.5,
-              color: signal == EtatSignal.actif ? AppColors.onyx : AppColors.grey,
+              color: signal == EtatSignal.actif ? AppColors.texte : AppColors.texteDiscret,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -518,7 +527,7 @@ class _CarteCourseEnDirect extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               '${course.prixFcfa} FCFA',
-              style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+              style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
             ),
           ],
         ],

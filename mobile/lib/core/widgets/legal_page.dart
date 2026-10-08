@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../../core/widgets/onyx_light.dart';
+import '../../core/widgets/onyx_vert.dart';
 
 class SectionJuridique {
   const SectionJuridique(this.titre, this.corps);
@@ -40,7 +40,7 @@ class LegalPage extends StatelessWidget {
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.bleu, AppColors.bleuFonce],
+                  colors: [AppColors.vert, AppColors.vertFonce],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -52,10 +52,10 @@ class LegalPage extends StatelessWidget {
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      color: AppColors.onyx.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(13),
                     ),
-                    child: Icon(icon, color: Colors.white, size: 22),
+                    child: Icon(icon, color: AppColors.onyx, size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -65,8 +65,8 @@ class LegalPage extends StatelessWidget {
                         const Text(
                           'Groupe Santine — Sprint',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                            color: AppColors.onyx,
+                            fontWeight: FontWeight.w800,
                             fontSize: 14,
                           ),
                         ),
@@ -74,7 +74,7 @@ class LegalPage extends StatelessWidget {
                         Text(
                           'Dernière mise à jour : $derniereMiseAJour',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
+                            color: AppColors.onyx.withValues(alpha: 0.78),
                             fontSize: 11.5,
                           ),
                         ),
@@ -104,15 +104,15 @@ class LegalPage extends StatelessWidget {
                           height: 26,
                           margin: const EdgeInsets.only(right: 10, top: 1),
                           decoration: BoxDecoration(
-                            color: AppColors.bleu,
+                            color: AppColors.vert,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             '${i + 1}',
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              color: AppColors.onyx,
+                              fontWeight: FontWeight.w800,
                               fontSize: 12,
                             ),
                           ),
@@ -136,7 +136,7 @@ class LegalPage extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 13,
                           height: 1.55,
-                          color: AppColors.onyx,
+                          color: AppColors.texte,
                         ),
                       ),
                     ),

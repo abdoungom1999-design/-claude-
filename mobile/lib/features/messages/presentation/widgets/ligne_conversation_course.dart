@@ -84,18 +84,18 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
       ),
       child: Row(
         children: [
-          // Avatar Onyx cerclé d'orange (comme sur l'écran Compte).
+          // Avatar Onyx cerclé de vert (comme sur l'écran Compte).
           Container(
             width: 48,
             height: 48,
             padding: const EdgeInsets.all(2.5),
-            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.bleu),
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.vert),
             child: Container(
               decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.onyx),
               alignment: Alignment.center,
               child: Text(
                 nom.isNotEmpty ? nom[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17),
+                style: const TextStyle(color: AppColors.texte, fontWeight: FontWeight.w700, fontSize: 17),
               ),
             ),
           ),
@@ -104,7 +104,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(nom, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppColors.onyx)),
+                Text(nom, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppColors.texte)),
                 const SizedBox(height: 2),
                 Text(widget.detailCourse, style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret)),
                 const SizedBox(height: 4),
@@ -118,7 +118,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: texte == null ? AppColors.texteDiscret : AppColors.onyx,
+                        color: texte == null ? AppColors.texteDiscret : AppColors.texte,
                       ),
                     );
                   },
@@ -134,7 +134,7 @@ class _LigneConversationCourseState extends State<LigneConversationCourse> {
                       padding: const EdgeInsets.only(right: 14),
                       child: PastilleNonLus(
                         nombre: nonLus.nonLus,
-                        child: const Icon(Icons.mark_chat_unread_rounded, color: AppColors.bleu, size: 22),
+                        child: const Icon(Icons.mark_chat_unread_rounded, color: AppColors.vert, size: 22),
                       ),
                     )
                   : const SizedBox.shrink(),

@@ -23,9 +23,10 @@ class PastilleMotos extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.fond.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 12, offset: Offset(0, 3))],
+        border: Border.all(color: AppColors.bordVerre),
+        boxShadow: const [BoxShadow(color: AppColors.shadowSoft, blurRadius: 12, offset: Offset(0, 3))],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -34,12 +35,12 @@ class PastilleMotos extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: chargement || aucune ? AppColors.grey : AppColors.bleu,
+              color: chargement || aucune ? AppColors.texteDiscret : AppColors.vert,
               shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 8),
-          Text(_texte, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+          Text(_texte, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.texte)),
         ],
       ),
     );

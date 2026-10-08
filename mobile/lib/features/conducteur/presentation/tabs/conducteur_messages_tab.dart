@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/coming_soon_view.dart';
-import '../../../../core/widgets/onyx_light.dart';
+import '../../../../core/widgets/onyx_vert.dart';
 import '../../../courses/data/course_service.dart';
 import '../../../messages/data/chat_service.dart';
 import '../../../messages/presentation/widgets/ligne_conversation_course.dart';
@@ -65,7 +65,7 @@ class _ConducteurMessagesTabState extends State<ConducteurMessagesTab> {
                           );
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
+                          return const Center(child: CircularProgressIndicator(color: AppColors.vert));
                         }
                         final course = snapshot.data;
                         if (course == null || course.clientId.isEmpty) {

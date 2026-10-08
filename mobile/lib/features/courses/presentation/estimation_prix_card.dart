@@ -39,12 +39,12 @@ class _Consigne extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Row(
       children: [
-        Icon(Icons.payments_outlined, color: AppColors.grey),
+        Icon(Icons.payments_outlined, color: AppColors.texteDiscret),
         SizedBox(width: 12),
         Expanded(
           child: Text(
             "Choisissez l'adresse de départ et d'arrivée dans les suggestions pour voir le prix.",
-            style: TextStyle(fontSize: 13, color: AppColors.grey, height: 1.4),
+            style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
           ),
         ),
       ],
@@ -65,10 +65,10 @@ class _Calcul extends StatelessWidget {
           SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bleu),
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.vert),
           ),
           SizedBox(width: 12),
-          Text('Calcul du prix…', style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600)),
+          Text('Calcul du prix…', style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -89,11 +89,11 @@ class _Prix extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Prix estimé', style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600)),
+        const Text('Prix estimé', style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text(
           '~${formaterFcfa(estimation.prixFcfa)}',
-          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.bleu, height: 1.1),
+          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.vert, height: 1.1),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -112,12 +112,12 @@ class _Prix extends StatelessWidget {
         const SizedBox(height: 12),
         const Row(
           children: [
-            Icon(Icons.verified_user_outlined, size: 16, color: AppColors.onyx),
+            Icon(Icons.verified_user_outlined, size: 16, color: AppColors.texte),
             SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Montant réglé à la commande, sans supplément à l\'arrivée.',
-                style: TextStyle(fontSize: 12, color: AppColors.grey),
+                style: TextStyle(fontSize: 12, color: AppColors.texteDiscret),
               ),
             ),
           ],
@@ -137,11 +137,11 @@ class _Pastille extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: AppColors.greyLight, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: AppColors.carteHaute, borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icone, size: 14, color: AppColors.grey),
+          Icon(icone, size: 14, color: AppColors.texteDiscret),
           const SizedBox(width: 5),
           Text(texte, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
@@ -160,18 +160,18 @@ class _Erreur extends StatelessWidget {
     final memeAdresse = (controller.distanceKm ?? 1) < EstimationCourseController.distanceMinimaleKm;
     return Row(
       children: [
-        Icon(Icons.error_outline_rounded, color: Colors.red.shade700),
+        const Icon(Icons.error_outline_rounded, color: AppColors.danger),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             controller.erreur ?? "Le prix de ce trajet n'a pas pu être calculé.",
-            style: TextStyle(fontSize: 13, color: Colors.red.shade700, height: 1.4),
+            style: const TextStyle(fontSize: 13, color: AppColors.danger, height: 1.4),
           ),
         ),
         if (!memeAdresse)
           TextButton(
             onPressed: controller.reessayer,
-            child: const Text('Réessayer', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.bleu)),
+            child: const Text('Réessayer', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.vert)),
           ),
       ],
     );

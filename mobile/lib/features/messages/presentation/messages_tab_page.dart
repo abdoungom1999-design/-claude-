@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/coming_soon_view.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../../firebase_options.dart';
 import '../../courses/data/course_service.dart';
 import '../data/chat_service.dart';
@@ -54,10 +54,10 @@ class _MessagesTabPageState extends State<MessagesTabPage> {
   @override
   Widget build(BuildContext context) {
     final monUid = _monUid;
-    return ThemeOnyxLight(
+    return ThemeOnyxVert(
       child: Scaffold(
-        backgroundColor: AppColors.fondClair,
-        body: FondOnyxLight(
+        backgroundColor: AppColors.fond,
+        body: FondOnyxVert(
           child: SafeArea(
             child: Column(
               children: [
@@ -71,7 +71,7 @@ class _MessagesTabPageState extends State<MessagesTabPage> {
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.8,
-                          color: AppColors.onyx),
+                          color: AppColors.texte),
                     ),
                   ),
                 ),
@@ -105,7 +105,7 @@ class _MessagesTabPageState extends State<MessagesTabPage> {
                                 ConnectionState.waiting) {
                               return const Center(
                                   child: CircularProgressIndicator(
-                                      color: AppColors.bleu));
+                                      color: AppColors.vert));
                             }
                             // Seules les courses en cours avec un chauffeur attribué.
                             final actives = [

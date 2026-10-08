@@ -32,7 +32,7 @@ class AdminCourbeCourses extends StatelessWidget {
             for (var i = 0; i < labels.length; i++)
               Column(
                 children: [
-                  Text(labels[i], style: const TextStyle(fontSize: 11.5, color: AppColors.grey)),
+                  Text(labels[i], style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret)),
                   if (i < valeurs.length)
                     Text('${valeurs[i]}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ],
@@ -69,7 +69,7 @@ class _CourbePainter extends CustomPainter {
 
     // Lignes de grille horizontales, très discrètes.
     final peintureGrille = Paint()
-      ..color = AppColors.greyBorder.withValues(alpha: 0.6)
+      ..color = AppColors.bord.withValues(alpha: 0.6)
       ..strokeWidth = 1;
     for (var i = 0; i <= 3; i++) {
       final y = size.height / 3 * i;
@@ -90,8 +90,8 @@ class _CourbePainter extends CustomPainter {
       Paint()
         ..shader = LinearGradient(
           colors: [
-            AppColors.bleu.withValues(alpha: 0.28),
-            AppColors.bleu.withValues(alpha: 0.0),
+            AppColors.vert.withValues(alpha: 0.28),
+            AppColors.vert.withValues(alpha: 0.0),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -102,7 +102,7 @@ class _CourbePainter extends CustomPainter {
     canvas.drawPath(
       chemin,
       Paint()
-        ..color = AppColors.bleu
+        ..color = AppColors.vert
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round
@@ -116,7 +116,7 @@ class _CourbePainter extends CustomPainter {
         point,
         4.5,
         Paint()
-          ..color = AppColors.bleu
+          ..color = AppColors.vert
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );

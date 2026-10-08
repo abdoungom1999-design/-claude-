@@ -92,7 +92,7 @@ class _LogoSantine extends StatelessWidget {
             Text(
               'Sprint',
               style: TextStyle(
-                color: AppColors.onyx,
+                color: AppColors.texte,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3,
@@ -131,9 +131,10 @@ class _ItemMenu extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            // Onglet actif : pastille bleue, icône et texte blancs.
+            // Onglet actif : pastille verte translucide, icône et texte verts
+            // (comme la barre du bas de l'app mobile).
             decoration: BoxDecoration(
-              color: selectionne ? AppColors.bleu : Colors.transparent,
+              color: selectionne ? AppColors.vert.withValues(alpha: 0.16) : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -141,13 +142,13 @@ class _ItemMenu extends StatelessWidget {
                 Icon(
                   section.icon,
                   size: 19,
-                  color: selectionne ? Colors.white : AppColors.onyx,
+                  color: selectionne ? AppColors.vert : AppColors.texteDiscret,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   section.label,
                   style: TextStyle(
-                    color: selectionne ? Colors.white : AppColors.onyx,
+                    color: selectionne ? AppColors.vert : AppColors.texte,
                     fontSize: 13.5,
                     fontWeight: selectionne ? FontWeight.w700 : FontWeight.w600,
                   ),

@@ -81,8 +81,9 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       decoration: const BoxDecoration(
-        color: AppColors.fondClairHaut,
+        color: AppColors.carte,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        border: Border(top: BorderSide(color: AppColors.bordVerre)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -91,7 +92,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.greyBorder,
+              color: AppColors.bord,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -103,12 +104,12 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: AppColors.bleuClair,
+                  color: AppColors.vertTeinte,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   estColis ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-                  color: AppColors.bleu,
+                  color: AppColors.vert,
                   size: 18,
                 ),
               ),
@@ -132,7 +133,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                       style: const TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.onyx,
+                        color: AppColors.texte,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -154,7 +155,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.fondClair,
+              color: AppColors.carteHaute,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -180,7 +181,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                   onPressed: () => Navigator.of(context).maybePop(),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    side: const BorderSide(color: AppColors.greyBorder),
+                    side: const BorderSide(color: AppColors.bord),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -188,7 +189,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                   child: const Text(
                     'Refuser',
                     style: TextStyle(
-                      color: AppColors.grey,
+                      color: AppColors.texteDiscret,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -206,7 +207,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.bleu.withValues(alpha: eclat),
+                            color: AppColors.vert.withValues(alpha: eclat),
                             blurRadius: 22,
                             spreadRadius: 1,
                           ),
@@ -218,7 +219,7 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                   child: ElevatedButton(
                     onPressed: () => _accepter(contextParent),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.orange,
+                      backgroundColor: AppColors.vert,
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -228,8 +229,8 @@ class _NouvelleCourseSheetState extends State<_NouvelleCourseSheet>
                     child: const Text(
                       'ACCEPTER',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        color: AppColors.onyx,
+                        fontWeight: FontWeight.w900,
                         fontSize: 15,
                         letterSpacing: 0.5,
                       ),
@@ -270,8 +271,8 @@ class _CompteARebours extends StatelessWidget {
             child: CircularProgressIndicator(
               value: progression,
               strokeWidth: 5,
-              backgroundColor: AppColors.greyLight,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.bleu),
+              backgroundColor: AppColors.carteHaute,
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.vert),
             ),
           ),
           Text(

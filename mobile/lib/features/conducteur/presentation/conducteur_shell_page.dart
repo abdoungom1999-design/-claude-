@@ -15,7 +15,7 @@ import '../../../core/notifications/notifications_push.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/email_verification_pending_page.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
@@ -568,8 +568,8 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
     if (_profil == null) {
       return const Scaffold(
-        backgroundColor: AppColors.fondClair,
-        body: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+        backgroundColor: AppColors.fond,
+        body: Center(child: CircularProgressIndicator(color: AppColors.vert)),
       );
     }
 
@@ -590,8 +590,8 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       switch (_etapeKyc) {
         case _EtapeKyc.chargement:
           return const Scaffold(
-            backgroundColor: AppColors.fondClair,
-            body: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+            backgroundColor: AppColors.fond,
+            body: Center(child: CircularProgressIndicator(color: AppColors.vert)),
           );
         case _EtapeKyc.nonEnvoye:
           return ConducteurKYCPage(
@@ -621,12 +621,12 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
   Widget _tableauDeBord() {
     return Scaffold(
-      backgroundColor: AppColors.fondClair,
+      backgroundColor: AppColors.fond,
       body: IndexedStack(
         index: _indexSelectionne,
         children: [
-          // Accueil : carte plein écran (charte Onyx & Light dans l'onglet).
-          ThemeOnyxLight(
+          // Accueil : carte plein écran (charte Onyx & Vert dans l'onglet).
+          ThemeOnyxVert(
             child: ConducteurAccueilTab(
               enLigne: _enLigne,
               onBasculerStatut: _basculerStatut,
@@ -634,10 +634,10 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
               onSimulerCourse: _declencherNouvelleCourseDemo,
             ),
           ),
-          const EcranOnyxLight(child: ConducteurMessagesTab()),
-          const EcranOnyxLight(child: ConducteurGainsTab()),
-          const EcranOnyxLight(child: ConducteurEvaluationsTab()),
-          EcranOnyxLight(child: ConducteurCompteTab(profil: _profil, onDeconnexion: _seDeconnecter)),
+          const EcranOnyxVert(child: ConducteurMessagesTab()),
+          const EcranOnyxVert(child: ConducteurGainsTab()),
+          const EcranOnyxVert(child: ConducteurEvaluationsTab()),
+          EcranOnyxVert(child: ConducteurCompteTab(profil: _profil, onDeconnexion: _seDeconnecter)),
         ],
       ),
       bottomNavigationBar: Column(

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/secondary_button.dart';
 
@@ -13,16 +13,16 @@ class EspaceProPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ThemeOnyxLight(
+    return ThemeOnyxVert(
       child: Scaffold(
-        backgroundColor: AppColors.fondClair,
+        backgroundColor: AppColors.fond,
         appBar: AppBar(
           title: const Text('Espace professionnel'),
           backgroundColor: Colors.transparent,
           scrolledUnderElevation: 0,
         ),
         extendBodyBehindAppBar: true,
-        body: FondOnyxLight(
+        body: FondOnyxVert(
           child: SafeArea(
             child: Center(
               child: ConstrainedBox(

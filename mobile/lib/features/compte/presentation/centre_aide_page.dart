@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../support/presentation/contact_support.dart';
 
 class _Question {
@@ -87,16 +87,16 @@ class CentreAidePage extends StatelessWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: AppColors.bleu,
+                                color: AppColors.vertTeinte,
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.support_agent_outlined, color: Colors.white, size: 22),
+                              child: const Icon(Icons.support_agent_outlined, color: AppColors.vert, size: 22),
                             ),
                             const SizedBox(width: 12),
                             const Expanded(
                               child: Text(
                                 "Besoin d'aide supplémentaire ?",
-                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.onyx),
+                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.texte),
                               ),
                             ),
                           ],
@@ -153,10 +153,10 @@ class _CarteQuestion extends StatelessWidget {
           childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
           title: Text(
             question.question,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.onyx),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.texte),
           ),
-          iconColor: AppColors.bleu,
-          collapsedIconColor: AppColors.onyx,
+          iconColor: AppColors.vert,
+          collapsedIconColor: AppColors.texte,
           children: [
             Align(
               alignment: Alignment.centerLeft,

@@ -5,11 +5,11 @@ import 'package:sprint/core/router/app_router.dart';
 import 'package:sprint/core/router/app_routes.dart';
 import 'package:sprint/core/theme/app_colors.dart';
 import 'package:sprint/core/widgets/app_text_field.dart';
-import 'package:sprint/core/widgets/onyx_light.dart';
+import 'package:sprint/core/widgets/onyx_vert.dart';
 import 'package:sprint/core/widgets/primary_button.dart';
 
-/// Charte « Onyx & Light », écran par écran. Étape 1 : Bienvenue et
-/// connexion. Les écrans pas encore migrés doivent rester inchangés.
+/// Charte « Onyx & Vert » : Bienvenue, connexion et briques partagées
+/// (bouton d'action, champ de saisie, flou des cartes).
 void main() {
   Future<void> ouvrirApp(WidgetTester tester) async {
     tester.view.physicalSize = const Size(780, 1688);
@@ -23,9 +23,9 @@ void main() {
   }
 
   group('Bienvenue', () {
-    testWidgets('fond clair, logo (tuile Onyx), mêmes entrées qu\'avant, plus de photo', (tester) async {
+    testWidgets('fond Onyx, logo (tuile), mêmes entrées qu\'avant, plus de photo', (tester) async {
       await ouvrirApp(tester);
-      expect(find.byType(FondOnyxLight), findsOneWidget);
+      expect(find.byType(FondOnyxVert), findsOneWidget);
       expect(find.byType(TuileLogo), findsOneWidget);
       expect(find.byType(CarteVerre), findsOneWidget);
       expect(find.text('Sprint'), findsOneWidget);
@@ -40,16 +40,19 @@ void main() {
       expect(images, isNotEmpty);
       expect(images.every((i) => i.image is AssetImage && (i.image as AssetImage).assetName == 'assets/logo/tuile.png'), isTrue);
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      expect(scaffold.backgroundColor, AppColors.fondClair);
+      expect(scaffold.backgroundColor, AppColors.fond);
     });
 
-    testWidgets('le bouton principal est orange plein, les autres blancs', (tester) async {
+    testWidgets('le bouton principal est le bouton d\'action vert à texte Onyx, les autres en verre sombre', (tester) async {
       await ouvrirApp(tester);
-      ElevatedButton bouton(String texte) => tester.widget<ElevatedButton>(
-            find.ancestor(of: find.text(texte), matching: find.byType(ElevatedButton)),
-          );
-      expect(bouton('Continuer avec mon numéro').style!.backgroundColor!.resolve({}), AppColors.orange);
-      expect(bouton('Continuer avec mon email').style!.backgroundColor!.resolve({})!.a, greaterThan(0.85));
+      expect(find.widgetWithText(PrimaryButton, 'Continuer avec mon numéro'), findsOneWidget);
+      expect(tester.widget<Text>(find.text('Continuer avec mon numéro')).style?.color, AppColors.onyx);
+      for (final texte in ['Continuer avec mon email', 'Continuer avec Apple']) {
+        expect(find.ancestor(of: find.text(texte), matching: find.byType(PrimaryButton)), findsNothing, reason: texte);
+        final style = tester.widget<ElevatedButton>(find.ancestor(of: find.text(texte), matching: find.byType(ElevatedButton))).style!;
+        expect(style.backgroundColor!.resolve({}), AppColors.verre);
+        expect(style.foregroundColor!.resolve({}), AppColors.texte);
+      }
     });
 
     testWidgets('« Continuer avec mon numéro » mène à la connexion, la flèche « Retour » revient', (tester) async {
@@ -118,7 +121,7 @@ void main() {
     });
   });
 
-  group('Style limité aux écrans migrés', () {
+  group('Briques partagées', () {
     Widget hors(Widget enfant) => MaterialApp(home: Scaffold(body: Padding(padding: const EdgeInsets.all(16), child: enfant)));
 
     BoxDecoration decorationBouton(WidgetTester tester) {
@@ -126,31 +129,46 @@ void main() {
       return conteneur.decoration! as BoxDecoration;
     }
 
-    testWidgets('bouton principal : orange partout, y compris dans un écran migré', (tester) async {
+    testWidgets('bouton principal : dégradé vert, texte Onyx, grisé sans action', (tester) async {
       await tester.pumpWidget(hors(PrimaryButton(label: 'Valider', onPressed: () {})));
-      expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.orange, AppColors.orangeDark]);
+      expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.vert, AppColors.vertFonce]);
+      expect(tester.widget<Text>(find.text('Valider')).style?.color, AppColors.onyx);
 
-      await tester.pumpWidget(hors(ThemeOnyxLight(child: PrimaryButton(label: 'Valider', onPressed: () {}))));
-      expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.orange, AppColors.orangeDark]);
+      // Le même dans un écran en charte (le style ne dépend pas de l'habillage).
+      await tester.pumpWidget(hors(ThemeOnyxVert(child: PrimaryButton(label: 'Valider', onPressed: () {}))));
+      expect((decorationBouton(tester).gradient! as LinearGradient).colors, [AppColors.vert, AppColors.vertFonce]);
+
+      await tester.pumpWidget(hors(const PrimaryButton(label: 'Valider', onPressed: null)));
+      expect(decorationBouton(tester).gradient, isNull);
+      expect(decorationBouton(tester).color, AppColors.carteHaute);
     });
 
-    testWidgets('champ : bordure bleue partout ailleurs, Onyx dans un écran migré', (tester) async {
+    testWidgets('champ de saisie : contour vert au focus, rouge en erreur', (tester) async {
       InputDecoration decoration() => tester.widget<InputDecorator>(find.byType(InputDecorator)).decoration;
 
       await tester.pumpWidget(hors(const AppTextField(label: 'Nom', prefixIcon: Icons.person_outline)));
-      expect((decoration().focusedBorder! as OutlineInputBorder).borderSide.color, AppColors.bleu);
-
-      await tester.pumpWidget(hors(const ThemeOnyxLight(child: AppTextField(label: 'Nom', prefixIcon: Icons.person_outline))));
-      expect((decoration().focusedBorder! as OutlineInputBorder).borderSide.color, AppColors.onyx);
+      expect((decoration().focusedBorder! as OutlineInputBorder).borderSide.color, AppColors.vert);
+      expect((decoration().errorBorder! as OutlineInputBorder).borderSide.color, AppColors.danger);
+      expect(decoration().fillColor, AppColors.verre);
     });
 
-    testWidgets('un écran non migré (Compte, etc.) n\'est pas en style Onyx & Light', (tester) async {
-      late BuildContext contexte;
+    testWidgets('le flou des cartes est actif par défaut et se coupe pour un écran dense', (tester) async {
+      late bool parDefaut;
+      late bool coupe;
       await tester.pumpWidget(hors(Builder(builder: (c) {
-        contexte = c;
+        parDefaut = ThemeOnyxVert.flouActif(c);
         return const SizedBox();
       })));
-      expect(ThemeOnyxLight.actif(contexte), isFalse);
+      expect(parDefaut, isTrue);
+
+      await tester.pumpWidget(hors(ThemeOnyxVert(
+        flou: false,
+        child: Builder(builder: (c) {
+          coupe = ThemeOnyxVert.flouActif(c);
+          return const SizedBox();
+        }),
+      )));
+      expect(coupe, isFalse);
     });
   });
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Préférences de notifications (démo : état conservé en mémoire).
 class NotificationsPage extends StatefulWidget {
@@ -80,10 +80,10 @@ class _LigneToggle extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppColors.bleu,
+            color: AppColors.vertTeinte,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: Colors.white, size: 19),
+          child: Icon(icon, color: AppColors.vert, size: 19),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -95,7 +95,7 @@ class _LigneToggle extends StatelessWidget {
             ],
           ),
         ),
-        Switch(value: valeur, activeThumbColor: AppColors.bleu, onChanged: onChanged),
+        Switch(value: valeur, activeThumbColor: AppColors.vert, onChanged: onChanged),
       ],
     );
   }

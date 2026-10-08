@@ -9,7 +9,7 @@ import 'conditions_utilisation_page.dart';
 import 'notifications_page.dart';
 import 'politique_confidentialite_page.dart';
 import 'preferences_page.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Menu Paramètres : notifications, préférences, informations légales,
 /// support et suppression de compte.
@@ -59,7 +59,7 @@ class ParametresPage extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text(
               'Supprimer',
-              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700),
+              style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -129,16 +129,16 @@ class ParametresPage extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.5)),
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 19),
+                    Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 19),
                     SizedBox(width: 8),
                     Text(
                       'Supprimer mon compte',
-                      style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700, fontSize: 13.5),
+                      style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700, fontSize: 13.5),
                     ),
                   ],
                 ),

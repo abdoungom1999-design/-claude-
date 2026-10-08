@@ -22,8 +22,8 @@ class PremiumDialog extends StatelessWidget {
   final String message;
   final String labelBouton;
 
-  /// true pour une confirmation de succès (icône verte) plutôt qu'une
-  /// information neutre (icône orange, ex : "bientôt disponible").
+  /// true pour une confirmation de succès (pastille pleine) plutôt qu'une
+  /// information neutre (pastille teintée, ex : "bientôt disponible").
   final bool succes;
 
   static Future<void> afficher(
@@ -57,17 +57,20 @@ class PremiumDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const accent = AppColors.bleu;
+    const accent = AppColors.vert;
+    final pastille = succes ? accent : accent.withValues(alpha: 0.14);
 
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
         decoration: BoxDecoration(
-          color: AppColors.background,
+          color: AppColors.carte,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(color: AppColors.shadow, blurRadius: 30, offset: Offset(0, 16)),
+          border: Border.all(color: AppColors.bordVerre),
+          boxShadow: [
+            const BoxShadow(color: AppColors.shadow, blurRadius: 30, offset: Offset(0, 16)),
+            BoxShadow(color: accent.withValues(alpha: 0.10), blurRadius: 40),
           ],
         ),
         child: Column(
@@ -77,22 +80,22 @@ class PremiumDialog extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
+                color: pastille,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: accent, size: 30),
+              child: Icon(icon, color: succes ? AppColors.onyx : accent, size: 30),
             ),
             const SizedBox(height: 18),
             Text(
               titre,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.texte),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.grey),
+              style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret),
             ),
             const SizedBox(height: 22),
             PrimaryButton(

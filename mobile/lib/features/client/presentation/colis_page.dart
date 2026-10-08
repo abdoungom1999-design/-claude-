@@ -17,7 +17,7 @@ import '../../courses/data/estimation_course_controller.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
 import 'payment_processing_page.dart';
 import 'widgets/carte_commande.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Écran d'envoi d'un colis, connecté à l'API. Carte réelle
 /// (OpenStreetMap), géocodage d'adresses (Nominatim) et prix estimé

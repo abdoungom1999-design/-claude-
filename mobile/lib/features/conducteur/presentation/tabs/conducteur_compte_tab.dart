@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/notifications/carte_notifications.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/onyx_light.dart';
+import '../../../../core/widgets/onyx_vert.dart';
 import '../../../../core/widgets/image_document.dart';
 import '../../../../core/widgets/premium_dialog.dart';
 import '../../../auth/data/auth_repository.dart';
@@ -27,10 +27,15 @@ class ConducteurCompteTab extends StatefulWidget {
     super.key,
     required this.profil,
     required this.onDeconnexion,
+    this.fluxProfil,
   });
 
   final ProfilConducteur? profil;
   final VoidCallback onDeconnexion;
+
+  /// Profil Firestore de l'utilisateur ; `null` : flux réel du compte
+  /// connecté. Sert aux tests et aux aperçus, sans projet Firebase.
+  final Stream<Map<String, dynamic>?>? fluxProfil;
 
   @override
   State<ConducteurCompteTab> createState() => _ConducteurCompteTabState();
@@ -93,7 +98,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Map<String, dynamic>?>(
-      stream: _authRepository.profilUtilisateurStream(),
+      stream: widget.fluxProfil ?? _authRepository.profilUtilisateurStream(),
       builder: (context, snapshot) {
         final donnees = snapshot.data;
         final nomFirestore = (donnees?['nom'] as String?)?.trim();
@@ -124,7 +129,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                         onTap: () => _choisirEtTeleverser('photoProfil'),
                       ),
                       const SizedBox(height: 14),
-                      Text(nom, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.onyx)),
+                      Text(nom, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.texte)),
                       const SizedBox(height: 4),
                       Text(
                         widget.profil?.telephone ?? '',
@@ -135,12 +140,12 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.fondClair,
+                          color: AppColors.carteHaute,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.two_wheeler_rounded, color: AppColors.onyx, size: 20),
+                            const Icon(Icons.two_wheeler_rounded, color: AppColors.vert, size: 20),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -148,7 +153,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                                   widget.profil?.vehiculeId,
                                   widget.profil?.plaqueImmatriculation,
                                 ].where((v) => v != null && v.isNotEmpty).join(' - '),
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onyx),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texte),
                               ),
                             ),
                           ],
@@ -169,7 +174,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                         label: 'Centre d\'aide',
                         onTap: () => _ouvrirPage(context, const CentreAidePage()),
                       ),
-                      const Divider(height: 1, color: AppColors.greyBorder),
+                      const Divider(height: 1, color: AppColors.bord),
                       _ItemMenu(
                         icon: Icons.settings_outlined,
                         label: 'Paramètres',
@@ -183,12 +188,12 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                   onTap: widget.onDeconnexion,
                   child: const Row(
                     children: [
-                      Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                      Icon(Icons.logout_rounded, color: AppColors.danger, size: 20),
                       SizedBox(width: 12),
                       Text(
                         'Se déconnecter',
                         style: TextStyle(
-                          color: Colors.redAccent,
+                          color: AppColors.danger,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -239,7 +244,7 @@ class _AvatarConducteur extends StatelessWidget {
             Container(
               width: 76,
               height: 76,
-              decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: AppColors.shadow, shape: BoxShape.circle),
               child: const Center(
                 child: SizedBox(
                   width: 22,
@@ -255,11 +260,11 @@ class _AvatarConducteur extends StatelessWidget {
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                color: AppColors.bleu,
+                color: AppColors.vert,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: AppColors.onyx, width: 2),
               ),
-              child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 13),
+              child: const Icon(Icons.camera_alt_rounded, color: AppColors.onyx, size: 13),
             ),
           ),
         ],
@@ -272,12 +277,12 @@ class _AvatarConducteur extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.onyx,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.bleu, width: 3),
+        border: Border.all(color: AppColors.vert, width: 3),
       ),
       alignment: Alignment.center,
       child: Text(
         nom.isNotEmpty ? nom[0].toUpperCase() : '?',
-        style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),
+        style: const TextStyle(color: AppColors.texte, fontSize: 30, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -297,8 +302,8 @@ class _ItemMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.onyx, size: 21),
-      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onyx)),
+      leading: Icon(icon, color: AppColors.vert, size: 21),
+      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.texte)),
       trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.texteDiscret),
       onTap: onTap,
     );

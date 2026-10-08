@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/conducteur_documents_service.dart';
 
@@ -92,7 +92,7 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
 
   @override
   Widget build(BuildContext context) {
-    return EcranOnyxLight(
+    return EcranOnyxVert(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
@@ -171,7 +171,7 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
   }
 }
 
-/// « 2 documents sur 3 » avec une barre de progression orange.
+/// « 2 documents sur 3 » avec une barre de progression verte.
 class _ProgressionDossier extends StatelessWidget {
   const _ProgressionDossier({required this.envoyes, required this.total});
 
@@ -185,7 +185,7 @@ class _ProgressionDossier extends StatelessWidget {
       children: [
         Text(
           '$envoyes document${envoyes > 1 ? 's' : ''} sur $total envoyé${envoyes > 1 ? 's' : ''}',
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.onyx),
+          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.texte),
         ),
         const SizedBox(height: 8),
         ClipRRect(
@@ -193,8 +193,8 @@ class _ProgressionDossier extends StatelessWidget {
           child: LinearProgressIndicator(
             value: total == 0 ? 0 : envoyes / total,
             minHeight: 6,
-            backgroundColor: AppColors.onyx.withValues(alpha: 0.08),
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.bleu),
+            backgroundColor: AppColors.texte.withValues(alpha: 0.10),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.vert),
           ),
         ),
       ],
@@ -236,33 +236,33 @@ class _LigneDocumentKyc extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: AppColors.bleuClair,
+                color: AppColors.vertTeinte,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 20, color: AppColors.bleu),
+              child: Icon(icon, size: 20, color: AppColors.vert),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onyx),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.texte),
               ),
             ),
             if (enCours)
               const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bleu),
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.vert),
               )
             else
-              // Envoyé : pastille Onyx à coche orange. À ajouter : pastille
-              // blanche à bord fin.
+              // Envoyé : pastille verte à coche Onyx. À ajouter : pastille de
+              // verre à contour vert.
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                 decoration: BoxDecoration(
-                  color: envoye ? AppColors.bleu : Colors.white,
+                  color: envoye ? AppColors.vert : AppColors.vertTeinte,
                   borderRadius: BorderRadius.circular(20),
-                  border: envoye ? null : Border.all(color: AppColors.bordVerre),
+                  border: envoye ? null : Border.all(color: AppColors.vert.withValues(alpha: 0.6)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -270,7 +270,7 @@ class _LigneDocumentKyc extends StatelessWidget {
                     Icon(
                       envoye ? Icons.check_circle_rounded : Icons.upload_outlined,
                       size: 13,
-                      color: envoye ? Colors.white : AppColors.onyx,
+                      color: envoye ? AppColors.onyx : AppColors.vert,
                     ),
                     const SizedBox(width: 5),
                     Text(
@@ -278,7 +278,7 @@ class _LigneDocumentKyc extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: envoye ? Colors.white : AppColors.onyx,
+                        color: envoye ? AppColors.onyx : AppColors.vert,
                       ),
                     ),
                   ],

@@ -6,7 +6,7 @@ import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -152,11 +152,11 @@ class _CompteTabPageState extends State<CompteTabPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Charte Onyx & Light : fond clair à halos, cartes « verre », texte Onyx.
-    return ThemeOnyxLight(
+    // Charte Onyx & Vert : fond Onyx à halos verts, cartes « verre », texte clair.
+    return ThemeOnyxVert(
       child: Scaffold(
-        backgroundColor: AppColors.fondClair,
-        body: FondOnyxLight(
+        backgroundColor: AppColors.fond,
+        body: FondOnyxVert(
           child: SafeArea(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
@@ -288,18 +288,18 @@ class _CompteTabPageState extends State<CompteTabPage> {
         final initiale = nomAffiche.isNotEmpty ? nomAffiche[0].toUpperCase() : '?';
         return Row(
           children: [
-            // Avatar Onyx cerclé d'orange : l'orange reste un accent.
+            // Avatar Onyx cerclé de vert : le vert marque ce qui est actif.
             Container(
               width: 62,
               height: 62,
               padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.bleu),
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.vert),
               child: Container(
                 decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.onyx),
                 alignment: Alignment.center,
                 child: Text(
                   initiale,
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
+                  style: const TextStyle(color: AppColors.texte, fontSize: 24, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -312,7 +312,7 @@ class _CompteTabPageState extends State<CompteTabPage> {
                     nomAffiche,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.onyx),
+                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.texte),
                   ),
                   const SizedBox(height: 2),
                   const Text('Client Sprint', style: TextStyle(fontSize: 13, color: AppColors.texteDiscret)),
@@ -337,7 +337,7 @@ class _TitreSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(6, 0, 0, 10),
       child: Text(
         texte,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.texte),
       ),
     );
   }
@@ -426,8 +426,9 @@ class _RechargeSheetState extends State<_RechargeSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         decoration: const BoxDecoration(
-          color: AppColors.fondClairHaut,
+          color: AppColors.carte,
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          border: Border(top: BorderSide(color: AppColors.bordVerre)),
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -438,13 +439,13 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                 child: Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: AppColors.greyBorder, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: AppColors.bord, borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const SizedBox(height: 20),
               const Text(
                 'Recharger mon portefeuille',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.onyx),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.texte),
               ),
               const SizedBox(height: 6),
               const Text(
@@ -464,15 +465,15 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                       _autreMontant.clear();
                       _montantChoisi = montant;
                     }),
-                    selectedColor: AppColors.bleu,
+                    selectedColor: AppColors.vert,
                     showCheckmark: false,
-                    side: BorderSide.none,
+                    side: BorderSide(color: selectionne ? AppColors.vert : AppColors.bord),
                     labelStyle: TextStyle(
-                      color: selectionne ? Colors.white : AppColors.onyx,
-                      fontWeight: FontWeight.w600,
+                      color: selectionne ? AppColors.onyx : AppColors.texte,
+                      fontWeight: FontWeight.w700,
                     ),
-                    backgroundColor: AppColors.fondClair,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide.none),
+                    backgroundColor: AppColors.carteHaute,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   );
                 }).toList(),
               ),
@@ -488,16 +489,16 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFD1D1D6)),
+                    borderSide: const BorderSide(color: AppColors.bord),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.onyx, width: 1.4),
+                    borderSide: const BorderSide(color: AppColors.vert, width: 1.6),
                   ),
                 ),
               ),
               const SizedBox(height: 18),
-              const Text('Payer avec', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onyx)),
+              const Text('Payer avec', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texte)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
@@ -508,21 +509,21 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                     label: Text(methode.label),
                     selected: selectionne,
                     onSelected: (_) => setState(() => _methode = methode),
-                    selectedColor: AppColors.onyx,
+                    selectedColor: AppColors.vert,
                     showCheckmark: false,
-                    side: BorderSide.none,
+                    side: BorderSide(color: selectionne ? AppColors.vert : AppColors.bord),
                     labelStyle: TextStyle(
-                      color: selectionne ? Colors.white : AppColors.onyx,
-                      fontWeight: FontWeight.w600,
+                      color: selectionne ? AppColors.onyx : AppColors.texte,
+                      fontWeight: FontWeight.w700,
                     ),
-                    backgroundColor: AppColors.fondClair,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide.none),
+                    backgroundColor: AppColors.carteHaute,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   );
                 }).toList(),
               ),
               if (erreur != null) ...[
                 const SizedBox(height: 12),
-                Text(erreur, key: const ValueKey('erreur-recharge'), style: const TextStyle(fontSize: 12.5, color: Colors.red)),
+                Text(erreur, key: const ValueKey('erreur-recharge'), style: const TextStyle(fontSize: 12.5, color: AppColors.danger)),
               ],
               const SizedBox(height: 22),
               PrimaryButton(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/core/theme/app_colors.dart';
-import 'package:sprint/core/widgets/onyx_light.dart';
+import 'package:sprint/core/widgets/onyx_vert.dart';
 import 'package:sprint/features/activite/presentation/activite_tab_page.dart';
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/messages/data/chat_service.dart';
@@ -47,17 +47,17 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  testWidgets('Activité : charte Onyx & Light (fond clair, onglets pilule Onyx, cartes verre)', (tester) async {
+  testWidgets('Activité : charte Onyx & Vert (fond Onyx, onglets pilule verte à texte Onyx, cartes verre)', (tester) async {
     grandEcran(tester);
     await tester.pumpWidget(MaterialApp(home: ActiviteTabPage(courseService: _Courses(), clientId: 'awa')));
     await tester.pump();
     await tester.pump();
-    expect(find.byType(ThemeOnyxLight), findsOneWidget);
-    expect(find.byType(FondOnyxLight), findsOneWidget);
+    expect(find.byType(ThemeOnyxVert), findsOneWidget);
+    expect(find.byType(FondOnyxVert), findsOneWidget);
     expect(find.byType(CarteVerre), findsWidgets);
     final barre = tester.widget<TabBar>(find.byType(TabBar));
-    expect(barre.labelColor, Colors.white);
-    expect((barre.indicator! as BoxDecoration).color, AppColors.onyx);
+    expect(barre.labelColor, AppColors.onyx);
+    expect((barre.indicator! as BoxDecoration).gradient, AppColors.degradeAction);
     expect(find.text('Suivre ma course'), findsOneWidget);
   });
 
@@ -84,20 +84,20 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Messages : conversation en carte verre, avatar Onyx cerclé d\'orange', (tester) async {
+  testWidgets('Messages : conversation en carte verre, avatar Onyx cerclé de vert', (tester) async {
     grandEcran(tester);
     await tester.pumpWidget(MaterialApp(
       home: MessagesTabPage(courseService: _Courses(), chatService: _Chat(), monUid: 'awa'),
     ));
     await tester.pump();
     await tester.pump();
-    expect(find.byType(ThemeOnyxLight), findsOneWidget);
+    expect(find.byType(ThemeOnyxVert), findsOneWidget);
     expect(find.byType(CarteVerre), findsWidgets);
     expect(find.text('Moussa Diop'), findsOneWidget);
     expect(find.text('Course en cours · Almadies'), findsOneWidget);
   });
 
-  testWidgets('Chat : mes messages en Onyx, ceux du chauffeur en blanc, envoi orange', (tester) async {
+  testWidgets('Chat : mes messages en vert à texte Onyx, ceux du chauffeur en verre sombre, envoi vert', (tester) async {
     grandEcran(tester);
     await tester.pumpWidget(MaterialApp(
       home: MessagerieChatPage(
@@ -115,7 +115,7 @@ void main() {
       return ((tester.widget<Container>(bulle).decoration!) as BoxDecoration).color;
     }
 
-    expect(fond('Je suis là'), AppColors.onyx);
-    expect(fond('J\'arrive'), Colors.white);
+    expect(fond('Je suis là'), AppColors.vert);
+    expect(fond('J\'arrive'), AppColors.carteHaute);
   });
 }

@@ -159,14 +159,14 @@ class _EmailVerificationPendingPageState
           child: SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.bleu),
+            child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.vert),
           ),
         ),
         if (_message != null)
           Text(
             _message!,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.bleu, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 12.5, color: AppColors.vert, fontWeight: FontWeight.w700),
           ),
       ],
       actions: [

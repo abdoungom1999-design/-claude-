@@ -22,12 +22,12 @@ class NetworkErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 40, color: AppColors.grey),
+            const Icon(Icons.wifi_off_rounded, size: 40, color: AppColors.texteDiscret),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.grey),
+              style: const TextStyle(color: AppColors.texteDiscret),
             ),
             const SizedBox(height: 20),
             SecondaryButton(label: 'Réessayer', onPressed: onRetry),

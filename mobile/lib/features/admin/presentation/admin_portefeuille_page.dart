@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -87,18 +87,18 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
 
   @override
   Widget build(BuildContext context) {
-    return EcranOnyxLight(
+    return EcranOnyxVert(
       flou: false,
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: AppColors.fondClairHaut,
+        backgroundColor: AppColors.fondHaut,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppColors.onyx,
+        foregroundColor: AppColors.texte,
         title: Text(
           'Portefeuille · ${widget.nomClient}',
-          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
+          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.texte),
         ),
       ),
       body: ListView(
@@ -116,7 +116,7 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Solde', style: TextStyle(fontSize: 12.5, color: AppColors.grey)),
+                      const Text('Solde', style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
                       const SizedBox(height: 4),
                       Text(
                         soldeFcfa == null ? '…' : formaterFcfa(soldeFcfa),
@@ -126,20 +126,20 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
                       const SizedBox(height: 10),
                       if (coherent == true)
                         const Row(children: [
-                          Icon(Icons.verified_outlined, size: 18, color: AppColors.onyx),
+                          Icon(Icons.verified_outlined, size: 18, color: AppColors.texte),
                           SizedBox(width: 6),
-                          Text('Livre de comptes cohérent', style: TextStyle(color: AppColors.onyx, fontSize: 13)),
+                          Text('Livre de comptes cohérent', style: TextStyle(color: AppColors.texte, fontSize: 13)),
                         ])
                       else if (coherent == false)
                         Row(children: [
-                          const Icon(Icons.error_outline, size: 18, color: Colors.red),
+                          const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'INCOHÉRENCE : la somme des mouvements (${formaterFcfa(somme!)}) '
                               'diffère du solde (${formaterFcfa(soldeFcfa!)}).',
                               key: const ValueKey('incoherence'),
-                              style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w700),
+                              style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w700),
                             ),
                           ),
                         ]),
@@ -159,7 +159,7 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
                 const Text(
                   'Positif pour créditer, négatif pour débiter. Le solde reste entre 0 et '
                   '200 000 FCFA. Journalisé.',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                 ),
                 const SizedBox(height: 12),
                 TextField(

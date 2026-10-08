@@ -14,13 +14,13 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/logo_sprint.dart';
 import '../../../core/widgets/moto_vue_dessus.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../compte/presentation/mes_notifications_page.dart';
 import 'bandeau_promo.dart';
 
-/// Onglet Accueil (charte Onyx & Light) : carte « Silver » en plein écran
+/// Onglet Accueil (charte Onyx & Vert) : carte « Silver » en plein écran
 /// avec les motos disponibles alentour (anonymes, positions arrondies à
-/// 150 m par le serveur), et un panneau « verre » flottant « Où
+/// 150 m par le serveur), et un panneau « verre » sombre flottant « Où
 /// allez-vous ? » : recherche, bandeau promo, services Course moto / Colis.
 class HomeTabPage extends StatefulWidget {
   const HomeTabPage({
@@ -122,7 +122,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.fond,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -173,7 +173,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [AppColors.fondClairHaut.withValues(alpha: 0.7), AppColors.fondClairHaut.withValues(alpha: 0)],
+                    colors: [AppColors.fondHaut.withValues(alpha: 0.7), AppColors.fondHaut.withValues(alpha: 0)],
                   ),
                 ),
               ),
@@ -256,6 +256,7 @@ class _Logo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const CarteVerre(
+      sombre: true,
       rayon: 22,
       padding: EdgeInsets.fromLTRB(6, 6, 14, 6),
       child: Row(
@@ -265,7 +266,7 @@ class _Logo extends StatelessWidget {
           SizedBox(width: 8),
           Text(
             'Sprint',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.onyx),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.texte),
           ),
         ],
       ),
@@ -273,7 +274,8 @@ class _Logo extends StatelessWidget {
   }
 }
 
-/// Bouton rond « verre » (flou, blanc translucide, bord fin).
+/// Bouton rond « verre » sombre (flou, Onyx translucide, bord fin) : lisible
+/// sur la carte claire comme sur n'importe quel fond.
 class _BoutonRond extends StatelessWidget {
   const _BoutonRond({required this.icon, required this.tooltip, required this.onTap});
 
@@ -288,18 +290,18 @@ class _BoutonRond extends StatelessWidget {
       child: DecoratedBox(
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0, 8))],
+          boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 20, offset: Offset(0, 8))],
         ),
         child: ClipOval(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
             child: Material(
-              color: AppColors.verre,
+              color: AppColors.fond.withValues(alpha: 0.82),
               shape: const CircleBorder(side: BorderSide(color: AppColors.bordVerre)),
               child: InkWell(
                 onTap: onTap,
                 customBorder: const CircleBorder(),
-                child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 20, color: AppColors.onyx)),
+                child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 20, color: AppColors.texte)),
               ),
             ),
           ),
@@ -309,7 +311,7 @@ class _BoutonRond extends StatelessWidget {
   }
 }
 
-/// Position du client : point bleu cerclé de blanc, avec halo.
+/// Position du client : point vert cerclé de blanc, avec halo.
 class _PointMoi extends StatelessWidget {
   const _PointMoi();
 
@@ -321,13 +323,13 @@ class _PointMoi extends StatelessWidget {
         child: Container(
           width: 44,
           height: 44,
-          decoration: BoxDecoration(color: const Color(0xFF1A73E8).withValues(alpha: 0.15), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: AppColors.vert.withValues(alpha: 0.22), shape: BoxShape.circle),
           alignment: Alignment.center,
           child: Container(
             width: 16,
             height: 16,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A73E8),
+              color: AppColors.vert,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 4)],
@@ -375,6 +377,7 @@ class _CarteDestination extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CarteVerre(
+      sombre: true,
       rayon: 32,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
@@ -390,7 +393,7 @@ class _CarteDestination extends StatelessWidget {
             padding: EdgeInsets.only(left: 4),
             child: Text(
               'Où allez-vous ?',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.onyx),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.texte),
             ),
           ),
           const SizedBox(height: 14),
@@ -403,10 +406,9 @@ class _CarteDestination extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.fromLTRB(16, 15, 8, 15),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.verre,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: AppColors.bordVerre),
-                  boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 4))],
                 ),
                 child: Row(
                   children: [
@@ -415,9 +417,9 @@ class _CarteDestination extends StatelessWidget {
                       width: 11,
                       height: 11,
                       decoration: BoxDecoration(
-                        color: AppColors.bleu,
+                        color: AppColors.vert,
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.bleu.withValues(alpha: 0.35), blurRadius: 0, spreadRadius: 4)],
+                        boxShadow: [BoxShadow(color: AppColors.vert.withValues(alpha: 0.35), blurRadius: 0, spreadRadius: 4)],
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -432,8 +434,8 @@ class _CarteDestination extends StatelessWidget {
                     Container(
                       width: 34,
                       height: 34,
-                      decoration: const BoxDecoration(color: AppColors.onyx, shape: BoxShape.circle),
-                      child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                      decoration: const BoxDecoration(color: AppColors.vert, shape: BoxShape.circle),
+                      child: const Icon(Icons.arrow_forward_rounded, color: AppColors.onyx, size: 18),
                     ),
                   ],
                 ),
@@ -470,7 +472,7 @@ class _CarteDestination extends StatelessWidget {
                 width: 7,
                 height: 7,
                 decoration: BoxDecoration(
-                  color: motos.motos.isEmpty ? AppColors.texteDiscret.withValues(alpha: 0.5) : AppColors.bleu,
+                  color: motos.motos.isEmpty ? AppColors.texteDiscret.withValues(alpha: 0.5) : AppColors.vert,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -489,8 +491,8 @@ class _CarteDestination extends StatelessWidget {
   }
 }
 
-/// Service (Course moto, Colis) : pictogramme filaire Onyx dans une pastille
-/// grise très claire, sur fond blanc.
+/// Service (Course moto, Colis) : pictogramme vert dans une pastille verte
+/// très sombre, sur verre translucide.
 class _Service extends StatelessWidget {
   const _Service({required this.icone, required this.titre, required this.sousTitre, required this.onTap});
 
@@ -507,7 +509,7 @@ class _Service extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.8),
+          color: AppColors.verre,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.bordVerre),
         ),
@@ -516,8 +518,8 @@ class _Service extends StatelessWidget {
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(12)),
-              child: Icon(icone, color: AppColors.bleu, size: 20),
+              decoration: BoxDecoration(color: AppColors.vertTeinte, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icone, color: AppColors.vert, size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -528,7 +530,7 @@ class _Service extends StatelessWidget {
                     titre,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.onyx),
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.texte),
                   ),
                   Text(
                     sousTitre,

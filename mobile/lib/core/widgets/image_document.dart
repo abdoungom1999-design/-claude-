@@ -59,7 +59,7 @@ class ImageDocument extends StatelessWidget {
             child: SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.bleu),
+              child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.vert),
             ),
           ),
         );

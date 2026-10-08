@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-/// Tonalité d'un [StatusBadge]. `attention` (orange) attire l'œil sur une
-/// action requise ; `neutre` (gris) décrit un état informatif ; `actif`
-/// (noir plein) marque un état confirmé/en cours.
+/// Tonalité d'un [StatusBadge]. `attention` (vert teinté) attire l'œil sur
+/// une action requise ; `neutre` (gris) décrit un état informatif ; `actif`
+/// (vert plein, texte Onyx) marque un état confirmé ou en cours.
 enum StatusTone { attention, neutre, actif }
 
 class StatusBadge extends StatelessWidget {
@@ -19,16 +19,16 @@ class StatusBadge extends StatelessWidget {
 
     switch (tone) {
       case StatusTone.attention:
-        background = AppColors.bleuClair;
-        foreground = AppColors.bleu;
+        background = AppColors.vertTeinte;
+        foreground = AppColors.vert;
         break;
       case StatusTone.actif:
-        background = AppColors.text;
-        foreground = AppColors.background;
+        background = AppColors.vert;
+        foreground = AppColors.onyx;
         break;
       case StatusTone.neutre:
-        background = AppColors.greyLight;
-        foreground = AppColors.grey;
+        background = AppColors.carteHaute;
+        foreground = AppColors.texteDiscret;
         break;
     }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../support/presentation/contact_support.dart';
@@ -25,10 +26,10 @@ class ConducteurCompteBloquePage extends StatelessWidget {
     final banni = statutCompte == StatutCompte.banni;
 
     // Le rouge reste réservé à l'alerte critique (compte désactivé) ; une
-    // suspension, réversible, garde l'orange de la charte.
+    // suspension, réversible, garde le vert de la charte.
     return EcranStatutOnyx(
       icone: banni ? Icons.block_rounded : Icons.pause_circle_outline_rounded,
-      couleurAlerte: banni ? Colors.red.shade700 : null,
+      couleurAlerte: banni ? AppColors.danger : null,
       titre: banni ? 'Compte désactivé' : 'Compte suspendu',
       texte: banni
           ? "Votre compte chauffeur a été définitivement désactivé par l'équipe du Groupe Santine. "

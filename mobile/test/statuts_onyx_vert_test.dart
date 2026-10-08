@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/core/models/statut_compte.dart';
-import 'package:sprint/core/widgets/onyx_light.dart';
+import 'package:sprint/core/theme/app_colors.dart';
+import 'package:sprint/core/widgets/onyx_vert.dart';
 import 'package:sprint/features/compte/presentation/centre_aide_page.dart';
 import 'package:sprint/features/conducteur/presentation/conducteur_compte_bloque_page.dart';
 import 'package:sprint/features/conducteur/presentation/conducteur_en_attente_page.dart';
@@ -25,11 +26,11 @@ Widget _kyc(Map<String, dynamic> documents, {VoidCallback? onSoumis}) => Conduct
     );
 
 void main() {
-  testWidgets('Dossier en attente : charte Onyx & Light, trois étapes, déconnexion', (tester) async {
+  testWidgets('Dossier en attente : charte Onyx & Vert, trois étapes, déconnexion', (tester) async {
     var deconnecte = false;
     await _ecran(tester, ConducteurEnAttentePage(onDeconnexion: () => deconnecte = true));
 
-    expect(find.byType(EcranOnyxLight), findsOneWidget);
+    expect(find.byType(EcranOnyxVert), findsOneWidget);
     expect(find.byType(CarteVerre), findsOneWidget);
     expect(find.text('Dossier en cours de vérification'), findsOneWidget);
     for (final etape in ['Dossier reçu', 'Vérification', 'Compte activé']) {
@@ -52,14 +53,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Compte désactivé : rouge d\'alerte ; compte suspendu : médaillon bleu à icône blanche', (tester) async {
+  testWidgets('Compte désactivé : rouge d\'alerte ; compte suspendu : médaillon et icône verts', (tester) async {
     await _ecran(tester, const ConducteurCompteBloquePage(statutCompte: StatutCompte.banni));
     expect(find.text('Compte désactivé'), findsOneWidget);
-    expect(tester.widget<Icon>(find.byIcon(Icons.block_rounded)).color, Colors.red.shade700);
+    expect(tester.widget<Icon>(find.byIcon(Icons.block_rounded)).color, AppColors.danger);
 
     await _ecran(tester, const ConducteurCompteBloquePage(statutCompte: StatutCompte.suspendu));
     expect(find.text('Compte suspendu'), findsOneWidget);
-    expect(tester.widget<Icon>(find.byIcon(Icons.pause_circle_outline_rounded)).color, Colors.white);
+    expect(tester.widget<Icon>(find.byIcon(Icons.pause_circle_outline_rounded)).color, AppColors.vert);
   });
 
   testWidgets('Dossier KYC : bouton inactif tant que les 3 documents ne sont pas envoyés', (tester) async {
@@ -82,12 +83,12 @@ void main() {
     expect(soumis, isTrue);
   });
 
-  testWidgets("Centre d'aide : charte Onyx & Light, accordéon, aucun débordement à 320 px", (tester) async {
+  testWidgets("Centre d'aide : charte Onyx & Vert, accordéon, aucun débordement à 320 px", (tester) async {
     supportEnModeDemo = () => true;
     addTearDown(() => supportEnModeDemo = () => false);
     await _ecran(tester, const CentreAidePage(), taille: const Size(320, 640));
 
-    expect(find.byType(EcranOnyxLight), findsOneWidget);
+    expect(find.byType(EcranOnyxVert), findsOneWidget);
     expect(find.text('Questions fréquentes'), findsOneWidget);
     expect(find.textContaining('Deux moyens de paiement'), findsNothing);
     await tester.tap(find.text('Comment payer ma course ?'));

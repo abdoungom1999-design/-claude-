@@ -4,7 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Préférences d'utilisation de l'app (démo : état conservé en mémoire,
 /// n'affecte pas le thème réel de l'application — voir note dans le
@@ -133,7 +133,7 @@ class _BlocRadio<T> extends StatelessWidget {
                   .map(
                     (option) => RadioListTile<T>(
                       value: option,
-                      activeColor: AppColors.bleu,
+                      activeColor: AppColors.vert,
                       dense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                       title: Text('$option', style: const TextStyle(fontSize: 13.5)),

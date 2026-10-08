@@ -5,7 +5,7 @@ import '../../messages/presentation/chat_page.dart';
 import 'a_propos_page.dart';
 import 'centre_aide_page.dart';
 import 'nous_contacter_page.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Menu Aide & Support : Centre d'aide, Nous contacter, Mes échanges,
 /// À propos de Sprint.

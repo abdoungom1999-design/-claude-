@@ -25,7 +25,7 @@ class AdminTopbar extends StatelessWidget {
         children: [
           Text(
             titreSection,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.onyx),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.texte),
           ),
           const SizedBox(width: 32),
           if (compteAdmin != null)
@@ -38,7 +38,7 @@ class AdminTopbar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   height: 42,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.verre,
                     borderRadius: BorderRadius.circular(21),
                     border: Border.all(color: AppColors.bordVerre),
                   ),
@@ -84,11 +84,11 @@ class _BoutonIcone extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.verre,
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.bordVerre),
           ),
-          child: Icon(icon, size: 19, color: AppColors.onyx),
+          child: Icon(icon, size: 19, color: AppColors.texte),
         ),
         if (badge)
           Positioned(
@@ -98,9 +98,9 @@ class _BoutonIcone extends StatelessWidget {
               width: 11,
               height: 11,
               decoration: BoxDecoration(
-                color: AppColors.bleu,
+                color: AppColors.vert,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: AppColors.fondBarre, width: 2),
               ),
             ),
           ),
@@ -121,17 +121,13 @@ class _ProfilAdmin extends StatelessWidget {
         Container(
           width: 42,
           height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.onyx,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.bleu, width: 2),
-          ),
+          decoration: const BoxDecoration(gradient: AppColors.degradeAction, shape: BoxShape.circle),
           alignment: Alignment.center,
           child: const Text(
             'GS',
             style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+              color: AppColors.onyx,
+              fontWeight: FontWeight.w800,
               fontSize: 13,
             ),
           ),
@@ -143,7 +139,7 @@ class _ProfilAdmin extends StatelessWidget {
           children: [
             const Text(
               'Admin Santine',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.onyx),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.texte),
             ),
             Text(
               compte ?? 'Super administrateur',

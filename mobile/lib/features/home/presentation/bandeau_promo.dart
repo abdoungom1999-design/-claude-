@@ -142,7 +142,7 @@ class _BandeauPromoState extends State<BandeauPromo> {
                   width: i == _courante ? 18 : 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: i == _courante ? AppColors.onyx : AppColors.onyx.withValues(alpha: 0.18),
+                    color: i == _courante ? AppColors.vert : AppColors.texte.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -226,8 +226,8 @@ class _Banniere extends StatelessWidget {
                       Container(
                         width: 34,
                         height: 34,
-                        decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
-                        child: const Icon(Icons.arrow_outward_rounded, color: Colors.white, size: 18),
+                        decoration: const BoxDecoration(color: AppColors.vert, shape: BoxShape.circle),
+                        child: const Icon(Icons.arrow_outward_rounded, color: AppColors.onyx, size: 18),
                       ),
                     ],
                   ],
@@ -241,7 +241,7 @@ class _Banniere extends StatelessWidget {
   }
 }
 
-/// Fond de bannière sans photo : Onyx, halo orange discret, pictogramme
+/// Fond de bannière sans photo : Onyx, halo vert discret, pictogramme
 /// très pâle.
 class _FondOnyx extends StatelessWidget {
   const _FondOnyx({required this.icone});
@@ -255,7 +255,7 @@ class _FondOnyx extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.onyxClair, AppColors.onyx],
+          colors: [AppColors.carteHaute, AppColors.onyx],
         ),
       ),
       child: Stack(
@@ -268,7 +268,7 @@ class _FondOnyx extends StatelessWidget {
               height: 190,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [AppColors.bleu.withValues(alpha: 0.32), AppColors.bleu.withValues(alpha: 0)]),
+                gradient: RadialGradient(colors: [AppColors.vert.withValues(alpha: 0.32), AppColors.vert.withValues(alpha: 0)]),
               ),
             ),
           ),

@@ -111,7 +111,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
                 ),
                 child: const Text(
                   'Mot de passe oublié ?',
-                  style: TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: TextStyle(color: AppColors.vert, fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
             ),
@@ -119,7 +119,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
               const SizedBox(height: 4),
               Text(
                 _erreur!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                style: const TextStyle(color: AppColors.danger, fontSize: 13),
               ),
             ],
             const SizedBox(height: 12),
@@ -147,7 +147,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
             child: TextButton(
               onPressed: () => context.push(AppRoutes.adminLogin),
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.grey.withValues(alpha: 0.5),
+                foregroundColor: AppColors.texteDiscret.withValues(alpha: 0.5),
                 minimumSize: Size.zero,
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,

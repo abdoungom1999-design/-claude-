@@ -39,11 +39,11 @@ class CourseActiveBandeau extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colis = course.type == 'COLIS';
-    // Onyx & Light : carte blanche, texte Onyx, action principale orange.
+    // Onyx & Vert : barre Onyx, textes clairs, action principale verte (texte Onyx).
     return Material(
       color: AppColors.fondBarre,
       elevation: 8,
-      shadowColor: const Color(0x33000000),
+      shadowColor: AppColors.shadow,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
@@ -59,10 +59,10 @@ class CourseActiveBandeau extends StatelessWidget {
                   Container(
                     width: 42,
                     height: 42,
-                    decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(14)),
+                    decoration: BoxDecoration(color: AppColors.vertTeinte, borderRadius: BorderRadius.circular(14)),
                     child: Icon(
                       colis ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-                      color: AppColors.bleu,
+                      color: AppColors.vert,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -75,14 +75,14 @@ class CourseActiveBandeau extends StatelessWidget {
                           _clientABord
                               ? (colis ? 'Livraison en cours' : 'Course en cours')
                               : (colis ? 'Récupérez le colis' : 'Rejoignez votre client'),
-                          style: const TextStyle(color: AppColors.bleu, fontWeight: FontWeight.w800, fontSize: 13.5),
+                          style: const TextStyle(color: AppColors.vert, fontWeight: FontWeight.w800, fontSize: 13.5),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _clientABord ? 'Vers ${course.adresseArrivee}' : 'Départ : ${course.adresseDepart}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: AppColors.onyx, fontSize: 12.5, fontWeight: FontWeight.w600),
+                          style: const TextStyle(color: AppColors.texte, fontSize: 12.5, fontWeight: FontWeight.w600),
                         ),
                         // Rappel : la course est déjà réglée dans l'app.
                         Text(
@@ -98,16 +98,16 @@ class CourseActiveBandeau extends StatelessWidget {
                   FilledButton(
                     onPressed: enCours ? null : onAvancer,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.orange,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppColors.orangeLight,
+                      backgroundColor: AppColors.vert,
+                      foregroundColor: AppColors.onyx,
+                      disabledBackgroundColor: AppColors.vertTeinte,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: enCours
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onyx),
                           )
                         : Text(
                             _clientABord ? 'Terminer la course' : (colis ? 'Colis récupéré' : 'Client à bord'),
@@ -179,7 +179,7 @@ class _BoutonContact extends StatelessWidget {
   final VoidCallback onPressed;
   final bool badge;
 
-  /// Bouton principal (fond blanc) : "Naviguer".
+  /// Bouton principal (vert, texte Onyx) : "Naviguer".
   final bool plein;
 
   @override
@@ -187,10 +187,10 @@ class _BoutonContact extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: plein ? Colors.white : AppColors.onyx,
-        backgroundColor: plein ? AppColors.onyx : (badge ? AppColors.bleuClair : null),
+        foregroundColor: plein ? AppColors.onyx : AppColors.texte,
+        backgroundColor: plein ? AppColors.vert : (badge ? AppColors.vertTeinte : null),
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        side: BorderSide(color: plein ? AppColors.onyx : const Color(0x26000000)),
+        side: BorderSide(color: plein ? AppColors.vert : AppColors.bord),
         minimumSize: const Size.fromHeight(40),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
@@ -200,7 +200,7 @@ class _BoutonContact extends StatelessWidget {
           Badge(
             isLabelVisible: badge,
             smallSize: 9,
-            backgroundColor: AppColors.orange,
+            backgroundColor: AppColors.vert,
             child: Icon(icone, size: 18),
           ),
           const SizedBox(width: 6),

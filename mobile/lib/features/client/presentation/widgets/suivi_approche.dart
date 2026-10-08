@@ -328,8 +328,8 @@ class _SuiviApprocheState extends State<SuiviApproche> with SingleTickerProvider
                 child: FloatingActionButton.small(
                   heroTag: null,
                   tooltip: 'Recentrer',
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.bleu,
+                  backgroundColor: AppColors.fond.withValues(alpha: 0.92),
+                  foregroundColor: AppColors.vert,
                   onPressed: () {
                     setState(() => _suiviManuel = false);
                     _cadrer(force: true);
@@ -369,10 +369,13 @@ class EncartApproche extends StatelessWidget {
     final (IconData icone, Color couleur, String titre, String? detail) = _contenu(clientABord);
 
     return Material(
-      color: Colors.white,
+      color: AppColors.fond.withValues(alpha: 0.9),
       elevation: 4,
       shadowColor: AppColors.shadow,
-      borderRadius: BorderRadius.circular(16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.bordVerre),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
@@ -396,10 +399,10 @@ class EncartApproche extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(titre, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  Text(titre, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.texte)),
                   if (detail != null) ...[
                     const SizedBox(height: 2),
-                    Text(detail, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+                    Text(detail, style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
                   ],
                 ],
               ),
@@ -412,13 +415,13 @@ class EncartApproche extends StatelessWidget {
 
   (IconData, Color, String, String?) _contenu(bool clientABord) {
     if (erreur) {
-      return (Icons.location_off_outlined, AppColors.grey, 'Suivi indisponible', 'Votre chauffeur reste joignable par appel ou message.');
+      return (Icons.location_off_outlined, AppColors.texteDiscret, 'Suivi indisponible', 'Votre chauffeur reste joignable par appel ou message.');
     }
     final position = this.position;
     if (enAttente || position == null) {
       return (
         Icons.two_wheeler_rounded,
-        AppColors.bleu,
+        AppColors.vert,
         'Localisation du chauffeur…',
         'Sa position apparaîtra dès qu\'il partage son GPS.',
       );
@@ -426,14 +429,14 @@ class EncartApproche extends StatelessWidget {
     if (EtatSignal.pour(position.majLe, maintenant) != EtatSignal.actif) {
       return (
         Icons.signal_wifi_off_rounded,
-        AppColors.grey,
+        AppColors.texteDiscret,
         'Position non mise à jour',
         'Dernière position reçue ${ilYA(position.majLe, maintenant)}.',
       );
     }
     final cible = this.cible;
     if (cible == null) {
-      return (Icons.two_wheeler_rounded, AppColors.bleu, clientABord ? 'Course en cours' : 'Votre chauffeur est en route', null);
+      return (Icons.two_wheeler_rounded, AppColors.vert, clientABord ? 'Course en cours' : 'Votre chauffeur est en route', null);
     }
     final approche = Approche.estimer(
       latChauffeur: position.latitude,
@@ -446,12 +449,12 @@ class EncartApproche extends StatelessWidget {
         : '${approche.distanceKm.toStringAsFixed(1).replaceAll('.', ',')} km';
     if (approche.arrive) {
       return clientABord
-          ? (Icons.flag_rounded, AppColors.bleu, 'Vous êtes arrivé', null)
-          : (Icons.check_circle_rounded, AppColors.bleu, 'Votre chauffeur est arrivé', 'Il vous attend au point de départ.');
+          ? (Icons.flag_rounded, AppColors.vert, 'Vous êtes arrivé', null)
+          : (Icons.check_circle_rounded, AppColors.vert, 'Votre chauffeur est arrivé', 'Il vous attend au point de départ.');
     }
     return (
       Icons.schedule_rounded,
-      AppColors.bleu,
+      AppColors.vert,
       clientABord ? 'Arrivée dans ~${approche.minutes} min' : 'Votre chauffeur arrive dans ~${approche.minutes} min',
       clientABord ? 'Encore $distance jusqu\'à destination' : 'À $distance de vous',
     );
@@ -469,7 +472,7 @@ class _MarqueurChauffeur extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = signalPerdu ? AppColors.grey : AppColors.bleu;
+    final couleur = signalPerdu ? AppColors.texteDiscret : AppColors.vert;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -532,15 +535,16 @@ class _BadgeDirectState extends State<BadgeDirect> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    final couleur = widget.enDirect ? AppColors.bleu : AppColors.grey;
+    final couleur = widget.enDirect ? AppColors.vert : AppColors.texteDiscret;
     return Semantics(
       label: widget.enDirect ? 'Position en direct' : 'Signal faible',
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.fond.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 2))],
+          border: Border.all(color: AppColors.bordVerre),
+          boxShadow: const [BoxShadow(color: AppColors.shadowSoft, blurRadius: 8, offset: Offset(0, 2))],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -570,7 +574,7 @@ class _MarqueurCible extends StatelessWidget {
   Widget build(BuildContext context) {
     return Icon(
       destination ? Icons.location_on_rounded : Icons.person_pin_circle_rounded,
-      color: destination ? AppColors.bleuFonce : AppColors.onyx,
+      color: destination ? AppColors.onyx : AppColors.vertFonce,
       size: 40,
     );
   }

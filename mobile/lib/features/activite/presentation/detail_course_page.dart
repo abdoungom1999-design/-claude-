@@ -6,7 +6,7 @@ import '../../client/presentation/suivi_course_page.dart';
 import '../../courses/data/course_service.dart';
 import '../../support/data/support_service.dart';
 import '../../support/presentation/signalement_page.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Détail d'une course de l'historique (tient lieu de reçu) : trajet,
 /// prix, paiement, remboursement éventuel, et accès au support
@@ -67,7 +67,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                   const SizedBox(height: 10),
                   Text(
                     'Remboursée intégralement le ${_date(c.rembourseeLe!)}.',
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.onyx, fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.texte, fontWeight: FontWeight.w700),
                   ),
                 ],
               ],
@@ -82,7 +82,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
               icon: const Icon(Icons.navigation_rounded),
               label: const Text('Suivre ma course'),
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.orange,
+                backgroundColor: AppColors.vert,
                 minimumSize: const Size.fromHeight(52),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
@@ -112,15 +112,15 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                 icon: Badge(
                   isLabelVisible: ticket?.nonLuClient ?? false,
                   smallSize: 9,
-                  backgroundColor: AppColors.bleu,
+                  backgroundColor: AppColors.vert,
                   child: Icon(
                     ticket == null ? Icons.flag_outlined : Icons.support_agent_rounded,
-                    color: AppColors.bleu,
+                    color: AppColors.vert,
                   ),
                 ),
                 label: Text(libelle),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.onyx,
+                  foregroundColor: AppColors.texte,
                   minimumSize: const Size.fromHeight(52),
                   side: const BorderSide(color: AppColors.bordVerre),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -164,7 +164,7 @@ class _Pastille extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: active ? AppColors.bleuClair : AppColors.fondClair,
+        color: active ? AppColors.vertTeinte : AppColors.carteHaute,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -172,7 +172,7 @@ class _Pastille extends StatelessWidget {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w700,
-          color: active ? AppColors.bleuFonce : AppColors.texteDiscret,
+          color: active ? AppColors.vert : AppColors.texteDiscret,
         ),
       ),
     );

@@ -93,7 +93,7 @@ class _OverviewReelState extends State<_OverviewReel> {
         child: Text(
           'Lecture impossible. Vérifiez que vous êtes connecté avec le compte Admin '
           'et que les règles Firestore sont publiées.',
-          style: TextStyle(color: AppColors.grey),
+          style: TextStyle(color: AppColors.texteDiscret),
         ),
       );
     }
@@ -102,7 +102,7 @@ class _OverviewReelState extends State<_OverviewReel> {
     if (terminees == null || dernieres == null) {
       return const Padding(
         padding: EdgeInsets.all(40),
-        child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+        child: Center(child: CircularProgressIndicator(color: AppColors.vert)),
       );
     }
 
@@ -154,7 +154,7 @@ class _OverviewReelState extends State<_OverviewReel> {
                 icon: Icons.task_alt_rounded,
                 valeur: '${jour.nombreCourses}',
                 label: "Courses terminées aujourd'hui",
-                accent: AppColors.bleu,
+                accent: AppColors.vert,
                 detail: '${semaine.nombreCourses} cette semaine',
               ),
             ),
@@ -164,7 +164,7 @@ class _OverviewReelState extends State<_OverviewReel> {
                 icon: Icons.two_wheeler_rounded,
                 valeur: '$enLigne',
                 label: 'Chauffeurs en ligne',
-                accent: AppColors.bleu,
+                accent: AppColors.vert,
                 detail: signalPerdu > 0
                     ? '$signalPerdu signal perdu · $valides validés'
                     : 'sur $valides chauffeurs validés',
@@ -176,7 +176,7 @@ class _OverviewReelState extends State<_OverviewReel> {
                 icon: Icons.person_add_alt_1_rounded,
                 valeur: '${nouveauxClients + nouveauxChauffeurs}',
                 label: "Nouveaux inscrits aujourd'hui",
-                accent: AppColors.bleu,
+                accent: AppColors.vert,
                 detail: '${_pluriel(nouveauxClients, 'client')} · ${_pluriel(nouveauxChauffeurs, 'chauffeur')}',
               ),
             ),
@@ -195,7 +195,7 @@ class _OverviewReelState extends State<_OverviewReel> {
               const SizedBox(height: 4),
               Text(
                 '${_pluriel(total7Jours, 'course')} au total, par jour.',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               const SizedBox(height: 20),
               AdminCourbeCourses(
@@ -217,7 +217,7 @@ class _OverviewReelState extends State<_OverviewReel> {
               ),
               const SizedBox(height: 16),
               if (dernieres.isEmpty)
-                const Text('Aucune course pour le moment.', style: TextStyle(color: AppColors.grey))
+                const Text('Aucune course pour le moment.', style: TextStyle(color: AppColors.texteDiscret))
               else ...[
                 const _LigneTableau(
                   entete: true,
@@ -228,7 +228,7 @@ class _OverviewReelState extends State<_OverviewReel> {
                   montant: 'Montant',
                   statut: null,
                 ),
-                const Divider(height: 20, color: AppColors.greyBorder),
+                const Divider(height: 20, color: AppColors.bord),
                 for (final c in dernieres)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -261,12 +261,12 @@ class _OverviewReelState extends State<_OverviewReel> {
   }
 
   static (String, Color) _statut(String statut) => switch (statut) {
-        StatutCourse.enAttente => ('En attente', AppColors.grey),
-        StatutCourse.acceptee => ('Acceptée', Colors.blue),
-        StatutCourse.enCours => ('En cours', AppColors.bleu),
-        StatutCourse.terminee => ('Terminée', AppColors.onyx),
-        StatutCourse.annulee => ('Annulée', Colors.redAccent),
-        _ => (statut, AppColors.grey),
+        StatutCourse.enAttente => ('En attente', AppColors.texteDiscret),
+        StatutCourse.acceptee => ('Acceptée', AppColors.alerte),
+        StatutCourse.enCours => ('En cours', AppColors.vert),
+        StatutCourse.terminee => ('Terminée', AppColors.texte),
+        StatutCourse.annulee => ('Annulée', AppColors.danger),
+        _ => (statut, AppColors.texteDiscret),
       };
 }
 
@@ -296,7 +296,7 @@ class _OverviewDemo extends StatelessWidget {
                 icon: Icons.task_alt_rounded,
                 valeur: '${AdminDemoData.coursesTermineesJour}',
                 label: 'Courses terminées',
-                accent: AppColors.bleu,
+                accent: AppColors.vert,
               ),
             ),
             const SizedBox(width: 18),
@@ -305,7 +305,7 @@ class _OverviewDemo extends StatelessWidget {
                 icon: Icons.two_wheeler_rounded,
                 valeur: '${AdminDemoData.chauffeursEnLigne}',
                 label: 'Chauffeurs en ligne',
-                accent: AppColors.bleu,
+                accent: AppColors.vert,
               ),
             ),
             const SizedBox(width: 18),
@@ -314,7 +314,7 @@ class _OverviewDemo extends StatelessWidget {
                 icon: Icons.person_add_alt_1_rounded,
                 valeur: '${AdminDemoData.nouveauxInscritsJour}',
                 label: 'Nouveaux inscrits',
-                accent: AppColors.bleu,
+                accent: AppColors.vert,
               ),
             ),
           ],
@@ -332,7 +332,7 @@ class _OverviewDemo extends StatelessWidget {
               SizedBox(height: 4),
               Text(
                 'Nombre de courses terminées, par jour.',
-                style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               SizedBox(height: 20),
               AdminCourbeCourses(
@@ -390,7 +390,7 @@ class _TableauDernieresCourses extends StatelessWidget {
           montant: 'Montant',
           statut: null,
         ),
-        const Divider(height: 20, color: AppColors.greyBorder),
+        const Divider(height: 20, color: AppColors.bord),
         for (final course in courses)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -401,9 +401,9 @@ class _TableauDernieresCourses extends StatelessWidget {
               trajet: course.trajet,
               montant: '${course.montantFcfa} FCFA',
               statut: switch (course.statut) {
-                StatutCourseAdmin.terminee => ('Terminée', AppColors.onyx),
-                StatutCourseAdmin.annulee => ('Annulée', Colors.redAccent),
-                StatutCourseAdmin.enCours => ('En cours', AppColors.bleu),
+                StatutCourseAdmin.terminee => ('Terminée', AppColors.texte),
+                StatutCourseAdmin.annulee => ('Annulée', AppColors.danger),
+                StatutCourseAdmin.enCours => ('En cours', AppColors.vert),
               },
             ),
           ),
@@ -435,7 +435,7 @@ class _LigneTableau extends StatelessWidget {
   TextStyle get _style => TextStyle(
     fontSize: entete ? 11.5 : 13,
     fontWeight: entete ? FontWeight.w700 : FontWeight.w500,
-    color: entete ? AppColors.grey : AppColors.text,
+    color: entete ? AppColors.texteDiscret : AppColors.texte,
     letterSpacing: entete ? 0.4 : 0,
   );
 

@@ -12,7 +12,7 @@ class MotoVueDessus extends StatelessWidget {
     super.key,
     this.cap,
     this.taille = 38,
-    this.couleur = AppColors.bleu,
+    this.couleur = AppColors.vert,
     this.libelle = 'Moto Sprint à proximité',
   });
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import 'onyx_light.dart';
+import 'onyx_vert.dart';
 
 /// Écran d'état plein page (dossier en examen, e-mail à vérifier, compte
-/// suspendu…) en charte « Onyx & Light » : fond clair à halos, repère de
+/// suspendu…) en charte « Onyx & Vert » : fond Onyx à halos verts, repère de
 /// marque, carte « verre » centrale (médaillon, titre, texte) et actions
 /// en bas. Sans navigation : ces écrans ne servent qu'à informer.
 ///
@@ -24,7 +24,7 @@ class EcranStatutOnyx extends StatelessWidget {
   final String texte;
 
   /// Couleur d'alerte du médaillon (rouge pour un compte désactivé).
-  /// `null` : médaillon Onyx à icône orange, la couleur de la charte.
+  /// `null` : médaillon vert (contour, lueur et icône), la couleur de la charte.
   final Color? couleurAlerte;
 
   /// Éléments sous le texte, dans la carte (pastille, étapes, indicateur).
@@ -35,7 +35,7 @@ class EcranStatutOnyx extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EcranOnyxLight(
+    return EcranOnyxVert(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
@@ -64,7 +64,7 @@ class EcranStatutOnyx extends StatelessWidget {
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.5,
-                              color: AppColors.onyx,
+                              color: AppColors.texte,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -106,20 +106,20 @@ class _Medaillon extends StatelessWidget {
       width: 88,
       height: 88,
       decoration: BoxDecoration(
-        color: alerte == null ? AppColors.bleu : alerte.withValues(alpha: 0.10),
+        color: alerte == null ? AppColors.vertTeinte : alerte.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(28),
-        border: alerte == null ? null : Border.all(color: alerte.withValues(alpha: 0.35)),
+        border: Border.all(color: (alerte ?? AppColors.vert).withValues(alpha: alerte == null ? 0.7 : 0.4), width: 1.4),
         boxShadow: alerte == null
-            ? const [BoxShadow(color: Color(0x401E40AF), blurRadius: 24, offset: Offset(0, 12))]
+            ? [BoxShadow(color: AppColors.vert.withValues(alpha: 0.28), blurRadius: 28, offset: const Offset(0, 8))]
             : null,
       ),
       alignment: Alignment.center,
-      child: Icon(icone, size: 40, color: alerte ?? Colors.white),
+      child: Icon(icone, size: 40, color: alerte ?? AppColors.vert),
     );
   }
 }
 
-/// Action principale d'un écran d'état : orange plein (appel à l'action).
+/// Action principale d'un écran d'état : vert plein, texte Onyx (appel à l'action).
 class BoutonStatutPrincipal extends StatelessWidget {
   const BoutonStatutPrincipal({
     super.key,
@@ -142,10 +142,10 @@ class BoutonStatutPrincipal extends StatelessWidget {
       child: ElevatedButton(
         onPressed: actif ? onPressed : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.orange,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.onyx.withValues(alpha: 0.08),
-          disabledForegroundColor: AppColors.onyx.withValues(alpha: 0.35),
+          backgroundColor: AppColors.vert,
+          foregroundColor: AppColors.onyx,
+          disabledBackgroundColor: AppColors.texte.withValues(alpha: 0.08),
+          disabledForegroundColor: AppColors.texte.withValues(alpha: 0.35),
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         ),
@@ -153,7 +153,7 @@ class BoutonStatutPrincipal extends StatelessWidget {
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.onyx),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -164,7 +164,7 @@ class BoutonStatutPrincipal extends StatelessWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5),
                     ),
                   ),
                 ],
@@ -174,7 +174,7 @@ class BoutonStatutPrincipal extends StatelessWidget {
   }
 }
 
-/// Action secondaire : blanc à bord fin, texte Onyx.
+/// Action secondaire : verre sombre à bord fin, texte clair.
 class BoutonStatutSecondaire extends StatelessWidget {
   const BoutonStatutSecondaire({super.key, required this.label, required this.onPressed});
 
@@ -188,9 +188,9 @@ class BoutonStatutSecondaire extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withValues(alpha: 0.9),
-          foregroundColor: AppColors.onyx,
-          disabledForegroundColor: AppColors.onyx.withValues(alpha: 0.35),
+          backgroundColor: AppColors.verre,
+          foregroundColor: AppColors.texte,
+          disabledForegroundColor: AppColors.texte.withValues(alpha: 0.35),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
@@ -235,18 +235,18 @@ class PastilleStatut extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: AppColors.bleu.withValues(alpha: 0.10),
+          color: AppColors.vert.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icone, size: 16, color: AppColors.bleu),
+            Icon(icone, size: 16, color: AppColors.vert),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.onyx),
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.texte),
               ),
             ),
           ],
@@ -277,7 +277,7 @@ class EtapesDossier extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 13),
                 child: Container(
                   height: 2,
-                  color: i <= etapeCourante ? AppColors.bleu : AppColors.onyx.withValues(alpha: 0.12),
+                  color: i <= etapeCourante ? AppColors.vert : AppColors.texte.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -308,15 +308,15 @@ class _Etape extends StatelessWidget {
             height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: terminee || enCours ? AppColors.bleu : Colors.white,
+              color: terminee || enCours ? AppColors.vert : Colors.transparent,
               border: Border.all(
-                color: terminee || enCours ? Colors.transparent : AppColors.onyx.withValues(alpha: 0.18),
+                color: terminee || enCours ? Colors.transparent : AppColors.texte.withValues(alpha: 0.18),
               ),
             ),
             alignment: Alignment.center,
             child: terminee
-                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                : (enCours ? const Icon(Icons.hourglass_top_rounded, size: 15, color: Colors.white) : null),
+                ? const Icon(Icons.check_rounded, size: 16, color: AppColors.onyx)
+                : (enCours ? const Icon(Icons.hourglass_top_rounded, size: 15, color: AppColors.onyx) : null),
           ),
           const SizedBox(height: 8),
           Text(
@@ -326,7 +326,7 @@ class _Etape extends StatelessWidget {
               fontSize: 11.5,
               height: 1.25,
               fontWeight: enCours ? FontWeight.w800 : FontWeight.w600,
-              color: etat == 0 ? AppColors.texteDiscret : AppColors.onyx,
+              color: etat == 0 ? AppColors.texteDiscret : AppColors.texte,
             ),
           ),
         ],

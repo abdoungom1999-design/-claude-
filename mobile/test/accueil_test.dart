@@ -7,7 +7,7 @@ import 'package:sprint/core/location/localiser.dart';
 import 'package:sprint/core/maps/fond_carte.dart';
 import 'package:sprint/core/theme/app_colors.dart';
 import 'package:sprint/core/widgets/moto_vue_dessus.dart';
-import 'package:sprint/core/widgets/onyx_light.dart';
+import 'package:sprint/core/widgets/onyx_vert.dart';
 import 'package:sprint/core/maps/proximite_service.dart';
 import 'package:sprint/features/home/presentation/home_tab_page.dart';
 
@@ -78,9 +78,9 @@ void main() {
     expect(find.text('Colis'), findsOneWidget);
     expect(find.text('Découvrez nos univers'), findsNothing);
     expect(find.text('Pourquoi Sprint'), findsNothing);
-    // Onyx & Light : point d'accent bleu dans la barre de recherche.
+    // Onyx & Vert : point d'accent vert dans la barre de recherche.
     final point = tester.widget<Container>(find.byKey(const ValueKey('point-accent')));
-    expect((point.decoration! as BoxDecoration).color, AppColors.bleu);
+    expect((point.decoration! as BoxDecoration).color, AppColors.vert);
   });
 
   testWidgets('bandeau promo : trois bannières, message, pastilles, défilement automatique', (tester) async {

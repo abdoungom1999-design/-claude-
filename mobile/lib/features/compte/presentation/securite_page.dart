@@ -4,7 +4,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 class _Appareil {
   _Appareil({
@@ -114,7 +114,7 @@ class _SecuritePageState extends State<SecuritePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.onyx.withValues(alpha: 0.04),
+                color: AppColors.texte.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.bordVerre),
               ),
@@ -124,10 +124,10 @@ class _SecuritePageState extends State<SecuritePage> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.bleu,
+                      color: AppColors.vertTeinte,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.verified_user_rounded, color: Colors.white, size: 20),
+                    child: const Icon(Icons.verified_user_rounded, color: AppColors.vert, size: 20),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -206,12 +206,12 @@ class _SecuritePageState extends State<SecuritePage> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.bleu,
+                      color: AppColors.vertTeinte,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.shield_outlined,
-                      color: Colors.white,
+                      color: AppColors.vert,
                       size: 20,
                     ),
                   ),
@@ -233,7 +233,7 @@ class _SecuritePageState extends State<SecuritePage> {
                   ),
                   Switch(
                     value: _authDeuxFacteurs,
-                    activeThumbColor: AppColors.bleu,
+                    activeThumbColor: AppColors.vert,
                     onChanged: (v) => setState(() => _authDeuxFacteurs = v),
                   ),
                 ],
@@ -287,7 +287,7 @@ class _SecuritePageState extends State<SecuritePage> {
                       else
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Icon(Icons.check_circle, color: AppColors.onyx, size: 18),
+                          child: Icon(Icons.check_circle, color: AppColors.texte, size: 18),
                         ),
                     ],
                   ),

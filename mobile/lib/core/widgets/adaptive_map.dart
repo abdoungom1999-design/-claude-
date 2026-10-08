@@ -90,11 +90,7 @@ class AdaptiveMap extends StatelessWidget {
               (m) => gmaps.Marker(
                 markerId: gmaps.MarkerId('${m.type}-${m.position.latitude}-${m.position.longitude}'),
                 position: gmaps.LatLng(m.position.latitude, m.position.longitude),
-                icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
-                  m.type == TypeMarqueur.arrivee
-                      ? gmaps.BitmapDescriptor.hueOrange
-                      : gmaps.BitmapDescriptor.hueAzure,
-                ),
+                icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(gmaps.BitmapDescriptor.hueGreen),
               ),
             )
             .toSet(),
@@ -106,7 +102,7 @@ class AdaptiveMap extends StatelessWidget {
                   points: polylignePoints!
                       .map((p) => gmaps.LatLng(p.latitude, p.longitude))
                       .toList(),
-                  color: AppColors.bleu,
+                  color: AppColors.vert,
                   width: 3,
                 ),
               },
@@ -134,10 +130,13 @@ class AdaptiveMap extends StatelessWidget {
         if (polylignePoints != null)
           osm.PolylineLayer(
             polylines: [
+              // Trait vert cerné d'Onyx : lisible sur une carte claire comme sombre.
               osm.Polyline(
                 points: polylignePoints!,
-                color: AppColors.bleu,
-                strokeWidth: 3,
+                color: AppColors.vert,
+                strokeWidth: 4,
+                borderColor: AppColors.onyx,
+                borderStrokeWidth: 2,
               ),
             ],
           ),
@@ -160,14 +159,54 @@ class AdaptiveMap extends StatelessWidget {
                   point: m.position,
                   width: 36,
                   height: 36,
-                  child: m.type == TypeMarqueur.arrivee
-                      ? const Icon(Icons.location_on, color: AppColors.bleu, size: 36)
-                      : const Icon(Icons.trip_origin, color: AppColors.text, size: 26),
+                  child: m.type == TypeMarqueur.arrivee ? const _RepereArrivee() : const _RepereDepart(),
                 ),
               )
               .toList(),
         ),
         const MentionsFondCarte(),
+      ],
+    );
+  }
+}
+
+/// Repère de départ : point vert cerné d'Onyx (lisible sur n'importe quel fond).
+class _RepereDepart extends StatelessWidget {
+  const _RepereDepart();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          color: AppColors.vert,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.onyx, width: 4),
+        ),
+      ),
+    );
+  }
+}
+
+/// Repère d'arrivée : épingle Onyx à cœur vert.
+class _RepereArrivee extends StatelessWidget {
+  const _RepereArrivee();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        Icon(Icons.location_on, color: AppColors.onyx, size: 36),
+        Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: AppColors.vert, shape: BoxShape.circle),
+            child: SizedBox(width: 9, height: 9),
+          ),
+        ),
       ],
     );
   }

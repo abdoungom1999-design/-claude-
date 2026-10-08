@@ -60,7 +60,7 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
             const SizedBox(height: 4),
             const Text(
               'Application Sprint · v1.4.0',
-              style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+              style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
             ),
             const SizedBox(height: 26),
             const Text(
@@ -76,17 +76,17 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
                   FilterChip(
                     label: Text(ville),
                     selected: _villesActives.contains(ville),
-                    selectedColor: AppColors.bleuClair,
-                    checkmarkColor: AppColors.bleu,
+                    selectedColor: AppColors.vertTeinte,
+                    checkmarkColor: AppColors.vert,
                     labelStyle: TextStyle(
                       color: _villesActives.contains(ville)
-                          ? AppColors.bleuFonce
-                          : AppColors.text,
+                          ? AppColors.vert
+                          : AppColors.texte,
                       fontWeight: FontWeight.w600,
                       fontSize: 12.5,
                     ),
-                    backgroundColor: AppColors.fondClair,
-                    side: BorderSide.none,
+                    backgroundColor: AppColors.carteHaute,
+                    side: const BorderSide(color: AppColors.bordVerre),
                     onSelected: (selectionne) => setState(() {
                       if (selectionne) {
                         _villesActives.add(ville);
@@ -101,7 +101,7 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.fondClair,
+                color: AppColors.carteHaute,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -119,18 +119,13 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
                           _modeMaintenance
                               ? "L'application est actuellement fermée aux nouvelles commandes."
                               : "L'application fonctionne normalement.",
-                          style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                          style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                         ),
                       ],
                     ),
                   ),
                   Switch(
                     value: _modeMaintenance,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: AppColors.bleu,
-                    inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: const Color(0xFFD1D1D6),
-                    trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
                     onChanged: (valeur) => setState(() => _modeMaintenance = valeur),
                   ),
                 ],
@@ -167,7 +162,7 @@ class _ReglesEnVigueur extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 7),
           child: Row(
             children: [
-              Expanded(child: Text(libelle, style: const TextStyle(fontSize: 13, color: AppColors.grey))),
+              Expanded(child: Text(libelle, style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret))),
               Text(valeur, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
             ],
           ),
@@ -186,7 +181,7 @@ class _ReglesEnVigueur extends StatelessWidget {
             const Text(
               "Appliquées aujourd'hui par l'application (moto et colis). Lecture seule : les modifier "
               'demande pour l\'instant une mise à jour de l\'application.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.grey, height: 1.4),
+              style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
             ),
             const SizedBox(height: 22),
             const Text('Tarifs', style: titre),
@@ -200,15 +195,15 @@ class _ReglesEnVigueur extends StatelessWidget {
             Text(
               'Exemples calculés : 5 km à midi = ${formaterFcfa(_prix(5, 12))} · 5 km à 8 h = '
               '${formaterFcfa(_prix(5, 8))} · 15 km à midi = ${formaterFcfa(_prix(15, 12))}.',
-              style: const TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
+              style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
             ),
             const SizedBox(height: 4),
             const Text(
               'Si Google ne répond pas, la distance est estimée (vol d\'oiseau + 10 %) pour ne jamais '
               'bloquer une commande.',
-              style: TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
+              style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
             ),
-            const Divider(height: 36, color: AppColors.greyBorder),
+            const Divider(height: 36, color: AppColors.bord),
             const Text('Commission et paiement', style: titre),
             ligne('Commission Sprint', '${Commission.pourcentage} % du prix'),
             ligne('Part du chauffeur', '${100 - Commission.pourcentage} % du prix'),

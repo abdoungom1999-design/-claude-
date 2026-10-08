@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Interface de chat (style messagerie) générique : bulles alignées à
-/// droite (moi, orange) ou à gauche (interlocuteur, gris), champ de
+/// droite (moi, vert) ou à gauche (interlocuteur, gris), champ de
 /// saisie avec bouton d'envoi qui ajoute la bulle immédiatement. Utilisée
 /// pour les conversations avec un chauffeur (onglet Messages) et pour le
 /// fil support (Mes échanges).
@@ -172,12 +172,12 @@ class _Bulle extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: moi
               ? const LinearGradient(
-                  colors: [AppColors.bleu, AppColors.bleuFonce],
+                  colors: [AppColors.vert, AppColors.vertFonce],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: moi ? null : AppColors.fondClair,
+          color: moi ? null : AppColors.carteHaute,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -192,7 +192,7 @@ class _Bulle extends StatelessWidget {
             Text(
               message.texte,
               style: TextStyle(
-                color: moi ? Colors.white : AppColors.onyx,
+                color: moi ? AppColors.onyx : AppColors.texte,
                 fontSize: 13.5,
               ),
             ),
@@ -202,7 +202,7 @@ class _Bulle extends StatelessWidget {
               '${message.heure.minute.toString().padLeft(2, '0')}',
               style: TextStyle(
                 fontSize: 10,
-                color: moi ? Colors.white.withValues(alpha: 0.75) : AppColors.texteDiscret,
+                color: moi ? AppColors.onyx.withValues(alpha: 0.7) : AppColors.texteDiscret,
               ),
             ),
           ],
@@ -232,7 +232,7 @@ class _BarreSaisie extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.fondClair,
+                color: AppColors.carteHaute,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: TextField(
@@ -254,12 +254,12 @@ class _BarreSaisie extends StatelessWidget {
           const SizedBox(width: 8),
           Container(
             decoration: const BoxDecoration(
-              color: AppColors.orange,
+              color: AppColors.vert,
               shape: BoxShape.circle,
             ),
             child: IconButton(
               onPressed: onEnvoyer,
-              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              icon: const Icon(Icons.send_rounded, color: AppColors.onyx, size: 20),
             ),
           ),
         ],

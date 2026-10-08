@@ -86,7 +86,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
   @override
   Widget build(BuildContext context) {
     return switch (_etape) {
-      _Etape.verification => const Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+      _Etape.verification => const Center(child: CircularProgressIndicator(color: AppColors.vert)),
       _Etape.merci => _Merci(onTerminer: widget.onTerminer, libelle: widget.libelleRetour),
       _ => _saisie(context),
     };
@@ -101,7 +101,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.bleu),
+          const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.vert),
           const SizedBox(height: 14),
           Text(
             widget.titre,
@@ -112,7 +112,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
           Text(
             nom == null || nom.isEmpty ? 'Comment s\'est passée votre course ?' : 'Comment s\'est passée votre course avec $nom ?',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 14, color: AppColors.grey, height: 1.4),
+            style: const TextStyle(fontSize: 14, color: AppColors.texteDiscret, height: 1.4),
           ),
           const SizedBox(height: 24),
           Row(
@@ -126,7 +126,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
                   onPressed: envoi ? null : () => setState(() => _note = i),
                   icon: Icon(
                     i <= _note ? Icons.star_rounded : Icons.star_outline_rounded,
-                    color: i <= _note ? AppColors.or : AppColors.greyBorder,
+                    color: i <= _note ? AppColors.etoile : AppColors.bord,
                   ),
                 ),
             ],
@@ -139,7 +139,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
-                color: _note == 0 ? AppColors.grey : AppColors.text,
+                color: _note == 0 ? AppColors.texteDiscret : AppColors.texte,
               ),
             ),
           ),
@@ -153,7 +153,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
             decoration: InputDecoration(
               hintText: 'Laisser un avis (facultatif)',
               filled: true,
-              fillColor: AppColors.greyLight,
+              fillColor: AppColors.carteHaute,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             ),
           ),
@@ -161,8 +161,8 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
           FilledButton(
             onPressed: _note == 0 || envoi ? null : _envoyer,
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.orange,
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.vert,
+              foregroundColor: AppColors.onyx,
               minimumSize: const Size.fromHeight(54),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
@@ -170,7 +170,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                    child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.onyx),
                   )
                 : const Text("Envoyer l'évaluation", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
           ),
@@ -179,7 +179,7 @@ class _EvaluationCourseState extends State<EvaluationCourse> {
             onPressed: envoi ? null : widget.onTerminer,
             child: Text(
               widget.libelleIgnorer,
-              style: const TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600),
+              style: const TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -202,7 +202,7 @@ class _Merci extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.favorite_rounded, size: 52, color: AppColors.bleu),
+            const Icon(Icons.favorite_rounded, size: 52, color: AppColors.vert),
             const SizedBox(height: 16),
             const Text(
               'Merci pour votre avis !',
@@ -212,7 +212,7 @@ class _Merci extends StatelessWidget {
             const Text(
               'Il aide les autres clients à choisir en confiance.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: AppColors.grey),
+              style: TextStyle(fontSize: 13.5, color: AppColors.texteDiscret),
             ),
             const SizedBox(height: 24),
             OutlinedButton(onPressed: onTerminer, child: Text(libelle)),
@@ -235,16 +235,16 @@ class BadgeNoteChauffeur extends StatelessWidget {
     if (!note.aDesAvis) {
       return Text(
         'Nouveau chauffeur',
-        style: TextStyle(fontSize: taille - 0.5, color: AppColors.grey, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: taille - 0.5, color: AppColors.texteDiscret, fontWeight: FontWeight.w600),
       );
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.star_rounded, size: taille + 3, color: AppColors.or),
+        Icon(Icons.star_rounded, size: taille + 3, color: AppColors.etoile),
         const SizedBox(width: 3),
         Text(note.moyenneTexte, style: TextStyle(fontSize: taille, fontWeight: FontWeight.w800)),
-        Text(' · ${note.nombreTexte}', style: TextStyle(fontSize: taille - 0.5, color: AppColors.grey)),
+        Text(' · ${note.nombreTexte}', style: TextStyle(fontSize: taille - 0.5, color: AppColors.texteDiscret)),
       ],
     );
   }

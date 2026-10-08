@@ -103,10 +103,10 @@ class _CarteLivrable extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, AppColors.fondClair],
+          colors: [AppColors.carteHaute, AppColors.carte],
         ),
       ),
-      child: Center(child: Icon(objet.icone, color: AppColors.onyx, size: 40)),
+      child: Center(child: Icon(objet.icone, color: AppColors.vert, size: 40)),
     );
     return SizedBox(
       width: CarrouselLivrables.largeurCarte,
@@ -121,7 +121,7 @@ class _CarteLivrable extends StatelessWidget {
               border: Border.all(color: AppColors.bordVerre),
               boxShadow: const [
                 BoxShadow(
-                    color: Color(0x14000000),
+                    color: AppColors.shadowSoft,
                     blurRadius: 14,
                     offset: Offset(0, 6))
               ],
@@ -147,7 +147,7 @@ class _CarteLivrable extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.onyx),
+                  color: AppColors.texte),
             ),
           ),
         ],

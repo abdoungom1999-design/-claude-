@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../data/chat_service.dart';
 import '../data/messages_non_lus.dart';
 
@@ -150,13 +150,13 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ThemeOnyxLight(
+    return ThemeOnyxVert(
       child: Scaffold(
-        backgroundColor: AppColors.fondClair,
+        backgroundColor: AppColors.fond,
         appBar: AppBar(
-          backgroundColor: AppColors.fondClairHaut,
+          backgroundColor: AppColors.fondHaut,
           surfaceTintColor: Colors.transparent,
-          foregroundColor: AppColors.onyx,
+          foregroundColor: AppColors.texte,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -166,7 +166,7 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
-                    color: AppColors.onyx),
+                    color: AppColors.texte),
               ),
               Text(
                 widget.interlocuteurSousTitre,
@@ -177,14 +177,14 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.call_rounded, color: AppColors.bleu),
+              icon: const Icon(Icons.call_rounded, color: AppColors.vert),
               tooltip: 'Appeler',
               onPressed: _telephoneCharge ? _appeler : null,
             ),
             const SizedBox(width: 4),
           ],
         ),
-        body: FondOnyxLight(
+        body: FondOnyxVert(
           child: SafeArea(
             child: Column(
               children: [
@@ -199,7 +199,7 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
                             child: Text(
                               'Impossible de charger la conversation. Vérifiez votre connexion.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.grey),
+                              style: TextStyle(color: AppColors.texteDiscret),
                             ),
                           ),
                         );
@@ -207,7 +207,7 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
                           child: CircularProgressIndicator(
-                              color: AppColors.bleu),
+                              color: AppColors.vert),
                         );
                       }
                       final messages = snapshot.data ?? [];
@@ -229,7 +229,7 @@ class _MessagerieChatPageState extends State<MessagerieChatPage> {
                                   style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 15,
-                                      color: AppColors.onyx),
+                                      color: AppColors.texte),
                                 ),
                                 SizedBox(height: 6),
                                 Text(
@@ -274,7 +274,7 @@ class _Bulle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mes messages : Onyx ; ceux du chauffeur : blanc bordé, ombre très douce.
+    // Mes messages : vert (texte Onyx) ; ceux du chauffeur : verre sombre bordé.
     return Align(
       alignment: moi ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -283,16 +283,8 @@ class _Bulle extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
         decoration: BoxDecoration(
-          color: moi ? AppColors.onyx : Colors.white,
+          color: moi ? AppColors.vert : AppColors.carteHaute,
           border: moi ? null : Border.all(color: AppColors.bordVerre),
-          boxShadow: moi
-              ? null
-              : const [
-                  BoxShadow(
-                      color: Color(0x0F000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 3))
-                ],
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
@@ -307,7 +299,7 @@ class _Bulle extends StatelessWidget {
             Text(
               message.text,
               style: TextStyle(
-                  color: moi ? Colors.white : AppColors.onyx,
+                  color: moi ? AppColors.onyx : AppColors.texte,
                   fontSize: 13.5,
                   height: 1.3),
             ),
@@ -318,7 +310,7 @@ class _Bulle extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 color: moi
-                    ? Colors.white.withValues(alpha: 0.65)
+                    ? AppColors.onyx.withValues(alpha: 0.7)
                     : AppColors.texteDiscret,
               ),
             ),
@@ -349,8 +341,8 @@ class _BarreSaisie extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: AppColors.bordVerre),
+                color: AppColors.verre,
+                border: Border.all(color: AppColors.bord),
                 borderRadius: BorderRadius.circular(26),
               ),
               child: TextField(
@@ -373,11 +365,11 @@ class _BarreSaisie extends StatelessWidget {
           const SizedBox(width: 8),
           Container(
             decoration: const BoxDecoration(
-                color: AppColors.orange, shape: BoxShape.circle),
+                color: AppColors.vert, shape: BoxShape.circle),
             child: IconButton(
               onPressed: onEnvoyer,
               icon:
-                  const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                  const Icon(Icons.send_rounded, color: AppColors.onyx, size: 20),
             ),
           ),
         ],

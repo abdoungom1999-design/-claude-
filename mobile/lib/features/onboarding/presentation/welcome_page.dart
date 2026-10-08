@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../../core/widgets/premium_dialog.dart';
+import '../../../core/widgets/primary_button.dart';
 
-/// Écran d'accueil pré-authentification, en charte « Onyx & Light » : fond
-/// très clair, logo dans une tuile Onyx, slogan, et les trois entrées de
-/// connexion dans une carte « verre ». Pas de photo. Les actions et leurs
+/// Écran d'accueil pré-authentification, en charte « Onyx & Vert » : fond
+/// Onyx à halos verts, logo (tuile Onyx, « S » blanc et liseré vert) sur une
+/// lueur verte, slogan, et les trois entrées de connexion dans une carte
+/// « verre ». Pas de photo. Les actions et leurs
 /// libellés sont ceux de l'ancienne version.
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
@@ -21,10 +23,10 @@ class WelcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ThemeOnyxLight(
+    return ThemeOnyxVert(
       child: Scaffold(
-        backgroundColor: AppColors.fondClair,
-        body: FondOnyxLight(
+        backgroundColor: AppColors.fond,
+        body: FondOnyxVert(
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -41,7 +43,7 @@ class WelcomePage extends StatelessWidget {
                         'Sprint',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppColors.onyx,
+                          color: AppColors.texte,
                           fontSize: 38,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -1,
@@ -100,8 +102,8 @@ class WelcomePage extends StatelessWidget {
   }
 }
 
-/// Bouton d'entrée : orange plein (action principale, la touche Sprint qui
-/// guide l'utilisateur) ou blanc à bord fin.
+/// Bouton d'entrée : bouton d'action vert (dégradé, texte Onyx : la touche
+/// Sprint qui guide l'utilisateur) ou verre sombre à bord fin.
 class _BoutonAuth extends StatelessWidget {
   const _BoutonAuth({
     required this.label,
@@ -117,18 +119,18 @@ class _BoutonAuth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleurTexte = principal ? Colors.white : AppColors.onyx;
+    if (principal) return PrimaryButton(label: label, icon: icon, onPressed: onPressed);
     return SizedBox(
       height: 56,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: principal ? AppColors.orange : Colors.white.withValues(alpha: 0.9),
-          foregroundColor: couleurTexte,
+          backgroundColor: AppColors.verre,
+          foregroundColor: AppColors.texte,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: principal ? BorderSide.none : const BorderSide(color: AppColors.bordVerre),
+            side: const BorderSide(color: AppColors.bordVerre),
           ),
         ),
         child: Row(

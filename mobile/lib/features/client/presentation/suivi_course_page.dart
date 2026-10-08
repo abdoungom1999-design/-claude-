@@ -18,7 +18,7 @@ import '../../../core/maps/proximite_service.dart';
 import 'widgets/carte_chauffeur.dart';
 import 'widgets/carte_recherche.dart';
 import 'widgets/suivi_approche.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Suivi temps réel d'une course, depuis sa création jusqu'à
 /// l'acceptation par un chauffeur : un `StreamBuilder` unique, branché
@@ -92,7 +92,7 @@ class _SuiviCoursePageState extends State<SuiviCoursePage> {
           stream: _course,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
+              return const Center(child: CircularProgressIndicator(color: AppColors.vert));
             }
             final course = snapshot.data;
             if (course == null || course.statut == 'annulee') {
@@ -164,7 +164,7 @@ class _EtatRecherche extends StatelessWidget {
           const SizedBox(
             width: 40,
             height: 40,
-            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.bleu),
+            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.vert),
           ),
           const SizedBox(height: 20),
           const Text(
@@ -195,7 +195,7 @@ class _EtatRecherche extends StatelessWidget {
                   )
                 : const Text(
                     'Annuler la demande',
-                    style: TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w700),
+                    style: TextStyle(color: AppColors.texte, fontWeight: FontWeight.w700),
                   ),
           ),
         ],
@@ -374,7 +374,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _appeler,
-                  icon: const Icon(Icons.call_rounded, color: AppColors.bleu),
+                  icon: const Icon(Icons.call_rounded, color: AppColors.vert),
                   label: const Text('Appeler'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
@@ -391,7 +391,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
                     listenable: _nonLus,
                     builder: (context, _) => PastilleNonLus(
                       nombre: _nonLus.nonLus,
-                      child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.bleu),
+                      child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.vert),
                     ),
                   ),
                   label: const Text('Discuter'),
@@ -409,7 +409,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.fondClair,
+              color: AppColors.carteHaute,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(

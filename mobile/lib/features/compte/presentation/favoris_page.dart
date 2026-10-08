@@ -3,7 +3,7 @@ import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/premium_dialog.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 IconData _iconePour(String type) {
   switch (type) {
@@ -58,12 +58,12 @@ class FavorisPage extends StatelessWidget {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: AppColors.bleu,
+                            color: AppColors.vertTeinte,
                             borderRadius: BorderRadius.circular(13),
                           ),
                           child: Icon(
                             _iconePour(favori.icon),
-                            color: Colors.white,
+                            color: AppColors.vert,
                           ),
                         ),
                         const SizedBox(width: 14),

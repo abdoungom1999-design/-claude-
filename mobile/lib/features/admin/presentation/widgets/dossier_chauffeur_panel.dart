@@ -97,7 +97,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
     final largeur = min(780.0, MediaQuery.sizeOf(context).width * 0.94);
 
     return Material(
-      color: AppColors.background,
+      color: AppColors.carte,
       elevation: 16,
       child: SizedBox(
         width: largeur,
@@ -109,7 +109,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
             if (c == null) {
               return Center(
                 child: snapshot.connectionState == ConnectionState.waiting
-                    ? const CircularProgressIndicator(color: AppColors.bleu)
+                    ? const CircularProgressIndicator(color: AppColors.vert)
                     : const Text('Chauffeur introuvable.'),
               );
             }
@@ -122,7 +122,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
                 const SizedBox(height: 4),
                 const Text(
                   'Cliquez sur une pièce pour l\'ouvrir en plein écran (zoom, rotation).',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                 ),
                 const SizedBox(height: 14),
                 for (final (cle, label, icone) in _documentsKyc) ...[
@@ -138,7 +138,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
                       child: _BoutonAction(
                         label: 'Rejeter le dossier',
                         icone: Icons.close_rounded,
-                        couleur: Colors.redAccent,
+                        couleur: AppColors.danger,
                         plein: false,
                         onPressed: _enCours || c.statutValidation == 'rejete'
                             ? null
@@ -150,7 +150,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
                       child: _BoutonAction(
                         label: 'Approuver le chauffeur',
                         icone: Icons.check_rounded,
-                        couleur: AppColors.onyx,
+                        couleur: AppColors.vert,
                         onPressed: _enCours || c.statutValidation == 'valide' || !c.aDesDocuments
                             ? null
                             : () => _executer(() => widget.service.approuverConducteur(c.id)),
@@ -168,7 +168,7 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
                 ),
                 if (_erreur != null) ...[
                   const SizedBox(height: 14),
-                  Text(_erreur!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                  Text(_erreur!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                 ],
               ],
             );
@@ -202,11 +202,11 @@ class _EnTete extends StatelessWidget {
             placeholder: Container(
               width: 68,
               height: 68,
-              color: AppColors.bleu,
+              color: AppColors.vert,
               alignment: Alignment.center,
               child: Text(
                 c.nom.isNotEmpty ? c.nom[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: AppColors.onyx, fontSize: 26, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -217,13 +217,13 @@ class _EnTete extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('DOSSIER CHAUFFEUR',
-                  style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: AppColors.grey, fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: AppColors.texteDiscret, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(c.nom, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(
                 [c.telephone, if (vehicule.isNotEmpty) vehicule].where((v) => v.isNotEmpty).join(' · '),
-                style: const TextStyle(fontSize: 13, color: AppColors.grey),
+                style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -261,7 +261,7 @@ class _PieceJustificative extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyBorder),
+        border: Border.all(color: AppColors.bord),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -282,7 +282,7 @@ class _PieceJustificative extends StatelessWidget {
                     label: const Text('Plein écran'),
                   )
                 else
-                  const Text('Non envoyé', style: TextStyle(fontSize: 12.5, color: AppColors.grey)),
+                  const Text('Non envoyé', style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
               ],
             ),
           ),
@@ -323,15 +323,15 @@ class _ZoneModeration extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.red.shade50,
+          color: AppColors.danger.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.red.shade200),
+          border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
         ),
-        child: Row(
+        child: const Row(
           children: [
-            Icon(Icons.gpp_bad_rounded, color: Colors.red.shade700),
-            const SizedBox(width: 12),
-            const Expanded(
+            Icon(Icons.gpp_bad_rounded, color: AppColors.danger),
+            SizedBox(width: 12),
+            Expanded(
               child: Text(
                 "Compte banni définitivement. Le chauffeur ne peut plus accéder à l'application.",
                 style: TextStyle(fontWeight: FontWeight.w600),
@@ -349,7 +349,7 @@ class _ZoneModeration extends StatelessWidget {
           statut == StatutCompte.suspendu
               ? 'Compte suspendu : le chauffeur ne peut pas se connecter. Vous pouvez le réactiver ou le bannir.'
               : 'Une sanction déconnecte immédiatement le chauffeur, même si son dossier KYC est validé.',
-          style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+          style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
         ),
         const SizedBox(height: 12),
         Row(
@@ -359,13 +359,13 @@ class _ZoneModeration extends StatelessWidget {
                   ? _BoutonAction(
                       label: 'Réactiver le compte',
                       icone: Icons.lock_open_rounded,
-                      couleur: AppColors.onyx,
+                      couleur: AppColors.vert,
                       onPressed: enCours ? null : () => onModerer(StatutCompte.actif),
                     )
                   : _BoutonAction(
                       label: 'Suspendre le compte',
                       icone: Icons.pause_circle_outline_rounded,
-                      couleur: AppColors.bleu,
+                      couleur: AppColors.alerte,
                       onPressed: enCours ? null : () => onModerer(StatutCompte.suspendu),
                     ),
             ),
@@ -374,7 +374,7 @@ class _ZoneModeration extends StatelessWidget {
               child: _BoutonAction(
                 label: 'Bannir définitivement',
                 icone: Icons.block_rounded,
-                couleur: Colors.red.shade700,
+                couleur: AppColors.danger,
                 onPressed: enCours ? null : () => onModerer(StatutCompte.banni),
               ),
             ),
@@ -423,7 +423,7 @@ class _BoutonAction extends StatelessWidget {
         label: Text(label),
         style: OutlinedButton.styleFrom(
           foregroundColor: couleur,
-          side: BorderSide(color: onPressed == null ? AppColors.greyBorder : couleur),
+          side: BorderSide(color: onPressed == null ? AppColors.bord : couleur),
           padding: marge,
           shape: forme,
         ),
@@ -446,10 +446,10 @@ class BadgeStatutValidation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutValidation) {
-      'valide' => ('KYC validé', AppColors.onyx),
-      'en_attente' => ('KYC en attente', AppColors.bleu),
-      'rejete' => ('KYC rejeté', Colors.redAccent),
-      _ => ('KYC non soumis', AppColors.grey),
+      'valide' => ('KYC validé', AppColors.vert),
+      'en_attente' => ('KYC en attente', AppColors.alerte),
+      'rejete' => ('KYC rejeté', AppColors.danger),
+      _ => ('KYC non soumis', AppColors.texteDiscret),
     };
     return _Pastille(label: label, couleur: couleur);
   }
@@ -463,9 +463,9 @@ class BadgeStatutCompte extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutCompte) {
-      StatutCompte.suspendu => ('Suspendu', AppColors.bleu),
-      StatutCompte.banni => ('Banni', Colors.red.shade700),
-      _ => ('Actif', AppColors.onyx),
+      StatutCompte.suspendu => ('Suspendu', AppColors.alerte),
+      StatutCompte.banni => ('Banni', AppColors.danger),
+      _ => ('Actif', AppColors.vert),
     };
     return _Pastille(label: label, couleur: couleur);
   }

@@ -131,11 +131,11 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
             // Material (et non un simple fond décoré) : l'effet au toucher
             // des suggestions reste visible.
             child: Material(
-              color: AppColors.background,
+              color: AppColors.carteHaute,
               clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.greyBorder),
+                side: const BorderSide(color: AppColors.bord),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -144,7 +144,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
                     dense: true,
                     leading: const Icon(
                       Icons.location_on_outlined,
-                      color: AppColors.grey,
+                      color: AppColors.texteDiscret,
                       size: 20,
                     ),
                     title: Text(
@@ -159,7 +159,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
                             suggestion.secondaire,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                            style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
                           ),
                     onTap: () => _selectionner(suggestion),
                   );
@@ -170,7 +170,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
         if (_erreur != null)
           Padding(
             padding: const EdgeInsets.only(top: 6, left: 4),
-            child: Text(_erreur!, style: TextStyle(fontSize: 12.5, color: Colors.red.shade700)),
+            child: Text(_erreur!, style: const TextStyle(fontSize: 12.5, color: AppColors.danger)),
           ),
       ],
     );

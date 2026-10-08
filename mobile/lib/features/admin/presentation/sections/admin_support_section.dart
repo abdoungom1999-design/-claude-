@@ -42,7 +42,7 @@ class AdminSupportSection extends StatelessWidget {
               ),
               Text(
                 '$ouverts en attente de traitement',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
             ],
           ),
@@ -53,7 +53,7 @@ class AdminSupportSection extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.fondClair,
+                  color: AppColors.carteHaute,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -69,7 +69,7 @@ class AdminSupportSection extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             'Client : ${ticket.client}',
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                            style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                           ),
                         ],
                       ),
@@ -93,9 +93,9 @@ class _BadgeTicket extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statut) {
-      StatutTicket.ouvert => ('Ouvert', Colors.redAccent),
-      StatutTicket.enCours => ('En cours', AppColors.bleu),
-      StatutTicket.resolu => ('Résolu', AppColors.onyx),
+      StatutTicket.ouvert => ('Ouvert', AppColors.danger),
+      StatutTicket.enCours => ('En cours', AppColors.alerte),
+      StatutTicket.resolu => ('Résolu', AppColors.vert),
     };
 
     return Container(
@@ -145,12 +145,12 @@ class _FileTicketsState extends State<_FileTickets> {
         stream: _tickets,
         builder: (context, instantane) {
           if (instantane.hasError) {
-            return const Text('Impossible de charger les tickets.', style: TextStyle(color: AppColors.grey));
+            return const Text('Impossible de charger les tickets.', style: TextStyle(color: AppColors.texteDiscret));
           }
           if (!instantane.hasData) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+              child: Center(child: CircularProgressIndicator(color: AppColors.vert)),
             );
           }
           final tous = instantane.data!;
@@ -172,7 +172,7 @@ class _FileTicketsState extends State<_FileTickets> {
                   const Text('Tickets support', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   Text(
                     '$aTraiter à traiter${nonLus > 0 ? ' · $nonLus non lu(s)' : ''}',
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                   ),
                 ],
               ),
@@ -188,7 +188,7 @@ class _FileTicketsState extends State<_FileTickets> {
                     ChoiceChip(
                       label: Text(libelle),
                       selected: _filtre == filtre,
-                      selectedColor: AppColors.bleuClair,
+                      selectedColor: AppColors.vertTeinte,
                       onSelected: (_) => setState(() => _filtre = filtre),
                     ),
                 ],
@@ -198,7 +198,7 @@ class _FileTicketsState extends State<_FileTickets> {
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
-                    child: Text('Aucun ticket dans cette liste.', style: TextStyle(fontSize: 13, color: AppColors.grey)),
+                    child: Text('Aucun ticket dans cette liste.', style: TextStyle(fontSize: 13, color: AppColors.texteDiscret)),
                   ),
                 )
               else
@@ -231,7 +231,7 @@ class _LigneTicket extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: ticket.nonLuAdmin ? AppColors.bleuClair.withValues(alpha: 0.5) : AppColors.fondClair,
+        color: ticket.nonLuAdmin ? AppColors.vertTeinte.withValues(alpha: 0.5) : AppColors.carteHaute,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -242,7 +242,7 @@ class _LigneTicket extends StatelessWidget {
               children: [
                 Icon(
                   ticket.categorie == support.CategorieTicket.securite ? Icons.warning_amber_rounded : Icons.support_agent_rounded,
-                  color: ticket.categorie == support.CategorieTicket.securite ? Colors.redAccent : AppColors.bleu,
+                  color: ticket.categorie == support.CategorieTicket.securite ? AppColors.danger : AppColors.vert,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -264,9 +264,9 @@ class _LigneTicket extends StatelessWidget {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(color: AppColors.bleu, borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(color: AppColors.vert, borderRadius: BorderRadius.circular(8)),
                               child: const Text('Nouveau',
-                                  style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
+                                  style: TextStyle(color: AppColors.onyx, fontSize: 10.5, fontWeight: FontWeight.w700)),
                             ),
                           ],
                         ],
@@ -276,7 +276,7 @@ class _LigneTicket extends StatelessWidget {
                         ticket.dernierMessage,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                        style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                       ),
                     ],
                   ),
@@ -285,14 +285,14 @@ class _LigneTicket extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(_depuis(ticket.majLe), style: const TextStyle(fontSize: 11.5, color: AppColors.grey)),
+                    Text(_depuis(ticket.majLe), style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret)),
                     const SizedBox(height: 4),
                     Text(
                       ticket.estResolu ? 'Résolu' : 'À traiter',
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: ticket.estResolu ? AppColors.onyx : AppColors.bleuFonce,
+                        color: ticket.estResolu ? AppColors.texte : AppColors.vertFonce,
                       ),
                     ),
                   ],

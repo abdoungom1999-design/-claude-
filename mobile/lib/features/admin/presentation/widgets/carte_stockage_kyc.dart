@@ -99,13 +99,13 @@ class _CarteStockageKycState extends State<CarteStockageKyc> {
             ),
             const SizedBox(height: 18),
             if (bilan == null && _enCours)
-              const Center(child: CircularProgressIndicator(color: AppColors.bleu))
+              const Center(child: CircularProgressIndicator(color: AppColors.vert))
             else if (bilan != null)
               Text(
                 restantes == 0
                     ? 'Aucune pièce en Base64 : tout est dans Firebase Storage.'
                     : '$restantes pièce(s) encore en Base64, chez ${bilan.chauffeursConcernes} chauffeur(s).',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onyx),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.texte),
               ),
             if (_message case final message?) ...[
               const SizedBox(height: 10),
@@ -115,7 +115,7 @@ class _CarteStockageKycState extends State<CarteStockageKyc> {
                   fontSize: 12.5,
                   height: 1.4,
                   fontWeight: FontWeight.w600,
-                  color: _erreur ? Colors.red.shade700 : AppColors.onyx,
+                  color: _erreur ? AppColors.danger : AppColors.texte,
                 ),
               ),
             ],
@@ -128,14 +128,14 @@ class _CarteStockageKycState extends State<CarteStockageKyc> {
                   onPressed: _enCours ? null : _actualiser,
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text('Actualiser'),
-                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.onyx),
+                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.texte),
                 ),
                 if (restantes > 0)
                   FilledButton.icon(
                     onPressed: _enCours ? null : _migrer,
                     icon: const Icon(Icons.cloud_upload_outlined, size: 18),
                     label: const Text('Migrer vers Storage'),
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.vert),
                   ),
               ],
             ),

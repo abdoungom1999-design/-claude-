@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sprint/core/widgets/onyx_light.dart';
+import 'package:sprint/core/widgets/onyx_vert.dart';
 import 'package:sprint/features/activite/presentation/receipts_page.dart';
 import 'package:sprint/features/compte/presentation/a_propos_page.dart';
 import 'package:sprint/features/compte/presentation/aide_support_page.dart';
@@ -27,7 +27,7 @@ void main() {
   };
 
   for (final MapEntry(key: nom, value: page) in pages.entries) {
-    testWidgets('$nom : charte Onyx & Light, fond transparent, aucun débordement à 320 px', (tester) async {
+    testWidgets('$nom : charte Onyx & Vert, fond transparent, aucun débordement à 320 px', (tester) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -35,7 +35,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(SousPageOnyx), findsOneWidget);
-      expect(find.byType(FondOnyxLight), findsOneWidget);
+      expect(find.byType(FondOnyxVert), findsOneWidget);
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
       expect(scaffold.backgroundColor, isNull, reason: 'le fond vient du thème (transparent), pas de la page');
       expect(Theme.of(tester.element(find.byType(Scaffold).first)).scaffoldBackgroundColor, Colors.transparent);

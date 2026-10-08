@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../../courses/data/course_service.dart';
 import '../data/support_service.dart';
 import 'widgets/conversation_ticket.dart';
@@ -73,7 +73,7 @@ class _SignalementPageState extends State<SignalementPage> {
                 );
               }
               if (instantane.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
+                return const Center(child: CircularProgressIndicator(color: AppColors.vert));
               }
               final ticket = instantane.data;
               if (ticket == null) {
@@ -109,10 +109,10 @@ class _RappelCourse extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: AppColors.bleu, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.vertTeinte, borderRadius: BorderRadius.circular(12)),
             child: Icon(
               course.type == 'COLIS' ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-              color: Colors.white,
+              color: AppColors.vert,
               size: 20,
             ),
           ),
@@ -125,7 +125,7 @@ class _RappelCourse extends StatelessWidget {
                   '${course.adresseDepart} → ${course.adresseArrivee}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.onyx),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.texte),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -236,13 +236,13 @@ class _NouveauSignalementState extends State<_NouveauSignalement> {
                     label: Text(CategorieTicket.libelle(c)),
                     selected: _categorie == c,
                     showCheckmark: false,
-                    selectedColor: AppColors.onyx,
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
-                    side: const BorderSide(color: AppColors.bordVerre),
+                    selectedColor: AppColors.vert,
+                    backgroundColor: AppColors.verre,
+                    side: BorderSide(color: _categorie == c ? AppColors.vert : AppColors.bord),
                     shape: const StadiumBorder(),
                     labelStyle: TextStyle(
-                      color: _categorie == c ? Colors.white : AppColors.onyx,
-                      fontWeight: FontWeight.w600,
+                      color: _categorie == c ? AppColors.onyx : AppColors.texte,
+                      fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
                     onSelected: (_) => setState(() => _categorie = c),
@@ -255,26 +255,26 @@ class _NouveauSignalementState extends State<_NouveauSignalement> {
               minLines: 4,
               maxLines: 8,
               maxLength: SupportService.longueurMaxMessage,
-              style: const TextStyle(color: AppColors.onyx, fontSize: 14.5),
+              style: const TextStyle(color: AppColors.texte, fontSize: 14.5),
               decoration: InputDecoration(
                 hintText: "Racontez-nous ce qui s'est passé...",
                 hintStyle: const TextStyle(color: AppColors.texteDiscret),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.9),
+                fillColor: AppColors.verre,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: AppColors.bordVerre),
+                  borderSide: const BorderSide(color: AppColors.bord),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: AppColors.bleu, width: 1.6),
+                  borderSide: const BorderSide(color: AppColors.vert, width: 1.6),
                 ),
               ),
             ),
             if (_erreur case final texte?)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(texte, style: TextStyle(color: Colors.red.shade700, fontSize: 12.5)),
+                child: Text(texte, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
               ),
             const SizedBox(height: 8),
             BoutonStatutPrincipal(label: 'Envoyer au support', onPressed: _envoyer, enCours: _envoi),
@@ -334,20 +334,20 @@ class _SuiviSignalementState extends State<_SuiviSignalement> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          color: ticket.estResolu ? AppColors.onyx.withValues(alpha: 0.06) : AppColors.bleu.withValues(alpha: 0.10),
+          color: ticket.estResolu ? AppColors.texte.withValues(alpha: 0.06) : AppColors.vert.withValues(alpha: 0.10),
           child: Row(
             children: [
               Icon(
                 ticket.estResolu ? Icons.check_circle_rounded : Icons.support_agent_rounded,
                 size: 20,
-                color: ticket.estResolu ? AppColors.onyx : AppColors.bleu,
+                color: ticket.estResolu ? AppColors.texte : AppColors.vert,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   '${CategorieTicket.libelle(ticket.categorie)} · '
                   '${ticket.estResolu ? 'Résolu' : 'En cours de traitement'}',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.onyx),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.texte),
                 ),
               ),
             ],

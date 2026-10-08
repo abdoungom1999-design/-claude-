@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 import '../data/portefeuille_service.dart';
 
 /// Historique du portefeuille du client : chaque crédit et débit, avec le
@@ -20,18 +20,18 @@ class MouvementsPortefeuillePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = uid ?? FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
-      backgroundColor: AppColors.fondClair,
+      backgroundColor: AppColors.fond,
       appBar: AppBar(
-        backgroundColor: AppColors.fondClairHaut,
+        backgroundColor: AppColors.fondHaut,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppColors.onyx,
+        foregroundColor: AppColors.texte,
         title: const Text(
           'Mouvements du portefeuille',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.onyx),
+          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.texte),
         ),
       ),
-      body: FondOnyxLight(
+      body: FondOnyxVert(
         child: client == null
             ? const _Vide(message: 'Connectez-vous pour voir votre portefeuille.')
             : ListeMouvements(flux: service.streamMouvements(client)),
@@ -61,7 +61,7 @@ class ListeMouvements extends StatelessWidget {
         if (mouvements == null) {
           return const Padding(
             padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+            child: Center(child: CircularProgressIndicator(color: AppColors.vert)),
           );
         }
         if (mouvements.isEmpty) {
@@ -72,7 +72,7 @@ class ListeMouvements extends StatelessWidget {
           physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           itemCount: mouvements.length,
-          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.greyBorder),
+          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.bord),
           itemBuilder: (_, i) => _LigneMouvement(mouvement: mouvements[i]),
         );
       },
@@ -93,7 +93,7 @@ class _LigneMouvement extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final credit = mouvement.montantFcfa > 0;
-    final couleur = credit ? AppColors.bleu : AppColors.onyx;
+    final couleur = credit ? AppColors.vert : AppColors.texte;
     final creeLe = mouvement.creeLe;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -103,7 +103,7 @@ class _LigneMouvement extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: credit ? AppColors.bleuClair : AppColors.fondClair,
+              color: credit ? AppColors.vertTeinte : AppColors.carteHaute,
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -117,11 +117,11 @@ class _LigneMouvement extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(mouvement.libelle, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.onyx)),
+                Text(mouvement.libelle, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.texte)),
                 if (mouvement.note case final note? when note.isNotEmpty)
-                  Text(note, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+                  Text(note, style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
                 if (creeLe != null)
-                  Text(_date(creeLe), style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+                  Text(_date(creeLe), style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
               ],
             ),
           ),
@@ -134,7 +134,7 @@ class _LigneMouvement extends StatelessWidget {
               ),
               Text(
                 'Solde ${formaterFcfa(mouvement.soldeApresFcfa)}',
-                style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
               ),
             ],
           ),
@@ -154,7 +154,7 @@ class _Vide extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.grey, height: 1.4)),
+        child: Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.texteDiscret, height: 1.4)),
       ),
     );
   }

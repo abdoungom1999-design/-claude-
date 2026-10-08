@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/barre_navigation.dart';
 
 /// Barre de navigation basse de l'espace Conducteur : Accueil, Messages,
 /// Gains, Évaluations, Compte.
@@ -23,68 +23,18 @@ class ConducteurBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Onyx & Light : fond très clair, icônes Onyx, onglet actif orange.
-    return BottomAppBar(
-      color: AppColors.fondBarre,
-      surfaceTintColor: Colors.transparent,
-      shadowColor: const Color(0x33000000),
-      elevation: 10,
-      padding: EdgeInsets.zero,
-      child: SizedBox(
-        height: 64,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            for (var i = 0; i < _onglets.length; i++)
-              _OngletBarre(
-                icon: _onglets[i].icon,
-                iconActif: _onglets[i].iconActif,
-                label: _onglets[i].label,
-                selectionne: indexSelectionne == i,
-                onTap: () => onSelection(i),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OngletBarre extends StatelessWidget {
-  const _OngletBarre({
-    required this.icon,
-    required this.iconActif,
-    required this.label,
-    required this.selectionne,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final IconData iconActif;
-  final String label;
-  final bool selectionne;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final couleur = selectionne ? AppColors.bleu : AppColors.onyx;
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(selectionne ? iconActif : icon, color: couleur, size: 24),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: couleur),
-            ),
-          ],
-        ),
-      ),
+    // Onyx & Vert : fond Onyx, icônes grises, onglet actif vert.
+    return BarreNavigation(
+      onglets: [
+        for (var i = 0; i < _onglets.length; i++)
+          OngletBarre(
+            icon: _onglets[i].icon,
+            iconActif: _onglets[i].iconActif,
+            label: _onglets[i].label,
+            selectionne: indexSelectionne == i,
+            onTap: () => onSelection(i),
+          ),
+      ],
     );
   }
 }

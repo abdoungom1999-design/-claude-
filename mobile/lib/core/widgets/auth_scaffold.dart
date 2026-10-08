@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../../firebase_options.dart';
 import '../config/api_config.dart';
 import '../theme/app_colors.dart';
-import 'onyx_light.dart';
+import 'onyx_vert.dart';
 
 /// Structure commune aux écrans de connexion et d'inscription Sprint, en
 /// charte « Onyx & Light » : fond très clair, repère de marque (logo dans
 /// une tuile Onyx), titre en Onyx, formulaire dans une carte « verre ».
 /// Pas de photo. Les champs et boutons du formulaire prennent le style
-/// Onyx & Light par [ThemeOnyxLight].
+/// Onyx & Light par [ThemeOnyxVert].
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
@@ -33,10 +33,10 @@ class AuthScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final peutRevenir = showBackButton && Navigator.of(context).canPop();
 
-    return ThemeOnyxLight(
+    return ThemeOnyxVert(
       child: Scaffold(
-        backgroundColor: AppColors.fondClair,
-        body: FondOnyxLight(
+        backgroundColor: AppColors.fond,
+        body: FondOnyxVert(
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -55,7 +55,7 @@ class AuthScaffold extends StatelessWidget {
                               IconButton(
                                 onPressed: () => Navigator.of(context).pop(),
                                 tooltip: 'Retour',
-                                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.onyx),
+                                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.texte),
                               )
                             else
                               const SizedBox.shrink(),
@@ -69,7 +69,7 @@ class AuthScaffold extends StatelessWidget {
                       Text(
                         title,
                         style: const TextStyle(
-                          color: AppColors.onyx,
+                          color: AppColors.texte,
                           fontSize: 30,
                           fontWeight: FontWeight.w800,
                           height: 1.1,
@@ -115,18 +115,18 @@ class _BadgeModeDemo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.onyx.withValues(alpha: 0.06),
+        color: AppColors.texte.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.onyx.withValues(alpha: 0.18)),
+        border: Border.all(color: AppColors.texte.withValues(alpha: 0.18)),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.science_outlined, color: AppColors.onyx, size: 13),
+          Icon(Icons.science_outlined, color: AppColors.texte, size: 13),
           SizedBox(width: 5),
           Text(
             'MODE DÉMO',
-            style: TextStyle(color: AppColors.onyx, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+            style: TextStyle(color: AppColors.texte, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
           ),
         ],
       ),

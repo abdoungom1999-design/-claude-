@@ -88,7 +88,7 @@ class _ConversationTicketState extends State<ConversationTicket> {
                 );
               }
               if (!instantane.hasData) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
+                return const Center(child: CircularProgressIndicator(color: AppColors.vert));
               }
               final messages = instantane.data!;
               _allerEnBas();
@@ -126,9 +126,9 @@ class _ConversationTicketState extends State<ConversationTicket> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.verre,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.bordVerre),
+                    border: Border.all(color: AppColors.bord),
                   ),
                   child: TextField(
                     controller: _saisie,
@@ -148,7 +148,7 @@ class _ConversationTicketState extends State<ConversationTicket> {
               ),
               const SizedBox(width: 8),
               DecoratedBox(
-                decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: AppColors.vert, shape: BoxShape.circle),
                 child: IconButton(
                   tooltip: 'Envoyer',
                   onPressed: _envoi ? null : _envoyer,
@@ -156,9 +156,9 @@ class _ConversationTicketState extends State<ConversationTicket> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onyx),
                         )
-                      : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                      : const Icon(Icons.send_rounded, color: AppColors.onyx, size: 20),
                 ),
               ),
             ],
@@ -190,7 +190,7 @@ class _Bulle extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: moi ? AppColors.bleu : Colors.white,
+            color: moi ? AppColors.vert : AppColors.carteHaute,
             border: moi ? null : Border.all(color: AppColors.bordVerre),
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(16),
@@ -208,14 +208,14 @@ class _Bulle extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text(
                     nomAutre,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.bleu),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.vert),
                   ),
                 ),
-              Text(message.texte, style: TextStyle(color: moi ? Colors.white : AppColors.onyx, fontSize: 13.5)),
+              Text(message.texte, style: TextStyle(color: moi ? AppColors.onyx : AppColors.texte, fontSize: 13.5)),
               const SizedBox(height: 3),
               Text(
                 _heure(message.creeLe),
-                style: TextStyle(fontSize: 10, color: moi ? Colors.white.withValues(alpha: 0.8) : AppColors.texteDiscret),
+                style: TextStyle(fontSize: 10, color: moi ? AppColors.onyx.withValues(alpha: 0.7) : AppColors.texteDiscret),
               ),
             ],
           ),
@@ -238,19 +238,19 @@ class _MessageSysteme extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 440),
         decoration: BoxDecoration(
-          color: AppColors.onyx.withValues(alpha: 0.05),
+          color: AppColors.texte.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.bordVerre),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.verified_rounded, size: 16, color: AppColors.bleu),
+            const Icon(Icons.verified_rounded, size: 16, color: AppColors.vert),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 message.texte,
-                style: const TextStyle(fontSize: 12.5, color: AppColors.onyx, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texte, fontWeight: FontWeight.w600),
               ),
             ),
           ],

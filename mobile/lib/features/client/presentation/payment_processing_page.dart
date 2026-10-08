@@ -8,7 +8,7 @@ import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../courses/data/course_service.dart';
 import 'suivi_course_page.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Sas de paiement obligatoire (100% mobile money), piloté par le
 /// serveur :
@@ -224,7 +224,7 @@ class _VueAttente extends StatelessWidget {
           const SizedBox(
             width: 64,
             height: 64,
-            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.bleu),
+            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.vert),
           ),
           const SizedBox(height: 28),
           Text(
@@ -271,7 +271,7 @@ class _VueAPayer extends StatelessWidget {
         pageOuverte ? 'Rouvrir la page de paiement' : 'Payer avec $operateur · ${formaterFcfa(prixFcfa)}',
       ),
       style: FilledButton.styleFrom(
-        backgroundColor: AppColors.orange,
+        backgroundColor: AppColors.vert,
         minimumSize: const Size.fromHeight(54),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
@@ -291,7 +291,7 @@ class _VueAPayer extends StatelessWidget {
                     'votre course partira aux chauffeurs dès la confirmation.',
               )
             else ...[
-              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.bleu),
+              const Icon(Icons.account_balance_wallet_outlined, size: 52, color: AppColors.vert),
               const SizedBox(height: 18),
               Text(
                 formaterFcfa(prixFcfa),
@@ -334,11 +334,11 @@ class _VueConfirmee extends StatelessWidget {
             width: 76,
             height: 76,
             decoration: const BoxDecoration(
-              color: AppColors.bleu,
+              color: AppColors.vert,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 44),
+            child: const Icon(Icons.check_circle_rounded, color: AppColors.onyx, size: 44),
           ),
           const SizedBox(height: 24),
           const Text(

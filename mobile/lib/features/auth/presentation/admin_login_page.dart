@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -89,7 +90,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
               const SizedBox(height: 12),
               Text(
                 _erreur!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                style: const TextStyle(color: AppColors.danger, fontSize: 13),
               ),
             ],
             const SizedBox(height: 24),

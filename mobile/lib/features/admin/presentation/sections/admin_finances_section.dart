@@ -77,14 +77,14 @@ class _FinancesReellesState extends State<_FinancesReelles> {
                 child: Text(
                   'Lecture impossible. Vérifiez que vous êtes connecté avec le compte Admin '
                   'et que les règles Firestore sont publiées.',
-                  style: TextStyle(color: AppColors.grey),
+                  style: TextStyle(color: AppColors.texteDiscret),
                 ),
               );
             }
             if (!courses.hasData || !reglements.hasData) {
               return const Padding(
                 padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+                child: Center(child: CircularProgressIndicator(color: AppColors.vert)),
               );
             }
             return _VueFinances(
@@ -120,7 +120,7 @@ class _VueFinances extends StatelessWidget {
       ..sort((a, b) => b.$2.soldeFcfa.compareTo(a.$2.soldeFcfa));
     final duAuxChauffeurs = comptes.fold(0, (t, e) => e.$2.soldeFcfa > 0 ? t + e.$2.soldeFcfa : t);
 
-    Widget tuile(String libelle, int montant, IconData icone, {Color accent = AppColors.bleu}) => SizedBox(
+    Widget tuile(String libelle, int montant, IconData icone, {Color accent = AppColors.vert}) => SizedBox(
           width: 250,
           child: StatTile(label: libelle, valeur: formaterFcfa(montant), icon: icone, accent: accent),
         );
@@ -135,9 +135,9 @@ class _VueFinances extends StatelessWidget {
             tuile("CA aujourd'hui", aujourdhui.chiffreAffairesFcfa, Icons.today_outlined),
             tuile('CA cette semaine', semaine.chiffreAffairesFcfa, Icons.date_range_outlined),
             tuile('CA total', compte.chiffreAffairesFcfa, Icons.account_balance_outlined),
-            tuile('Commissions Sprint (total)', compte.commissionsFcfa, Icons.percent_rounded, accent: AppColors.onyx),
+            tuile('Commissions Sprint (total)', compte.commissionsFcfa, Icons.percent_rounded),
             tuile('Versé aux chauffeurs', compte.versementsFcfa, Icons.check_circle_outline_rounded),
-            tuile('Reste à verser aux chauffeurs', duAuxChauffeurs, Icons.call_made_rounded, accent: AppColors.onyx),
+            tuile('Reste à verser aux chauffeurs', duAuxChauffeurs, Icons.call_made_rounded, accent: AppColors.alerte),
           ],
         ),
         const SizedBox(height: 10),
@@ -148,7 +148,7 @@ class _VueFinances extends StatelessWidget {
           'au chauffeur (paiements encore en mode test : aucun argent réellement encaissé).'
           '${compte.nombreRemboursees == 0 ? '' : ' ${compte.nombreRemboursees} course(s) remboursée(s) au client, exclue(s) '
               'des comptes : part des chauffeurs retirée (${formaterFcfa(compte.partsRetireesFcfa)}).'}',
-          style: const TextStyle(fontSize: 12, color: AppColors.grey, height: 1.4),
+          style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
         ),
         const SizedBox(height: 22),
         AppCard(
@@ -159,13 +159,13 @@ class _VueFinances extends StatelessWidget {
               const Text('À verser aux chauffeurs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
               const SizedBox(height: 14),
               if (comptes.isEmpty)
-                const Text('Aucune course terminée pour le moment.', style: TextStyle(color: AppColors.grey))
+                const Text('Aucune course terminée pour le moment.', style: TextStyle(color: AppColors.texteDiscret))
               else ...[
                 const _LigneTableau(
                   entete: true,
                   cellules: ['Chauffeur', 'Courses', 'CA', 'Commission', 'Sprint doit', ''],
                 ),
-                const Divider(color: AppColors.greyBorder),
+                const Divider(color: AppColors.bord),
                 for (final (id, c) in comptes)
                   _LigneTableau(
                     cellules: [
@@ -203,7 +203,7 @@ class _LigneTableau extends StatelessWidget {
     final style = TextStyle(
       fontSize: 13,
       fontWeight: entete ? FontWeight.w700 : FontWeight.w500,
-      color: entete ? AppColors.grey : AppColors.text,
+      color: entete ? AppColors.texteDiscret : AppColors.texte,
     );
     final solde = this.solde;
     return Padding(
@@ -226,10 +226,10 @@ class _LigneTableau extends StatelessWidget {
                     style: style.copyWith(
                       fontWeight: FontWeight.w800,
                       color: solde > 0
-                          ? AppColors.onyx
+                          ? AppColors.texte
                           : solde < 0
-                              ? Colors.red.shade700
-                              : AppColors.grey,
+                              ? AppColors.danger
+                              : AppColors.texteDiscret,
                     ),
                   ),
           ),
@@ -320,7 +320,7 @@ class _DialogVersementState extends State<_DialogVersement> {
             Text(
               'Sprint doit ${formaterFcfa(widget.soldeFcfa)} à ${widget.nom}. Enregistrez ici un '
               'versement déjà effectué (Wave, Orange Money…).',
-              style: const TextStyle(fontSize: 13, color: AppColors.grey, height: 1.4),
+              style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -339,7 +339,7 @@ class _DialogVersementState extends State<_DialogVersement> {
             ),
             if (_erreur != null) ...[
               const SizedBox(height: 10),
-              Text(_erreur!, style: TextStyle(color: Colors.red.shade700, fontSize: 12.5)),
+              Text(_erreur!, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
             ],
           ],
         ),
@@ -348,7 +348,7 @@ class _DialogVersementState extends State<_DialogVersement> {
         TextButton(onPressed: _envoi ? null : () => Navigator.of(context).pop(false), child: const Text('Annuler')),
         FilledButton(
           onPressed: _envoi ? null : _enregistrer,
-          style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.vert),
           child: const Text('Enregistrer'),
         ),
       ],
@@ -426,7 +426,7 @@ class _FinancesDemoState extends State<_FinancesDemo> {
             const SizedBox(height: 4),
             const Text(
               'Ces valeurs pilotent la commission Santine et la tarification des courses.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.grey),
+              style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
             ),
             const SizedBox(height: 28),
             _ChampFinance(
@@ -483,7 +483,7 @@ class _ChampFinance extends StatelessWidget {
           decoration: InputDecoration(
             suffixText: suffixe,
             filled: true,
-            fillColor: AppColors.fondClair,
+            fillColor: AppColors.carteHaute,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

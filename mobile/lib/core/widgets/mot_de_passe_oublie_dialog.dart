@@ -72,8 +72,11 @@ class _DialogueMotDePasseOublieState extends State<_DialogueMotDePasseOublie> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: AppColors.background,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: AppColors.carte,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: const BorderSide(color: AppColors.bordVerre),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -82,13 +85,13 @@ class _DialogueMotDePasseOublieState extends State<_DialogueMotDePasseOublie> {
           children: [
             const Text(
               'Mot de passe oublié',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.texte),
             ),
             const SizedBox(height: 8),
             const Text(
               'Indiquez votre adresse email : nous vous enverrons un lien '
               'pour réinitialiser votre mot de passe.',
-              style: TextStyle(fontSize: 13, color: AppColors.grey, height: 1.4),
+              style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
             ),
             const SizedBox(height: 20),
             AppTextField(
@@ -101,7 +104,7 @@ class _DialogueMotDePasseOublieState extends State<_DialogueMotDePasseOublie> {
               const SizedBox(height: 10),
               Text(
                 _erreur!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 12.5),
+                style: const TextStyle(color: AppColors.danger, fontSize: 12.5),
               ),
             ],
             const SizedBox(height: 22),
@@ -112,7 +115,7 @@ class _DialogueMotDePasseOublieState extends State<_DialogueMotDePasseOublie> {
                     onPressed: _enCours ? null : () => Navigator.of(context).pop(),
                     child: const Text(
                       'Annuler',
-                      style: TextStyle(color: AppColors.grey, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -121,8 +124,9 @@ class _DialogueMotDePasseOublieState extends State<_DialogueMotDePasseOublie> {
                   child: ElevatedButton(
                     onPressed: _enCours ? null : _envoyer,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.orange,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: AppColors.vert,
+                      foregroundColor: AppColors.onyx,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: _enCours
                         ? const SizedBox(
@@ -130,12 +134,12 @@ class _DialogueMotDePasseOublieState extends State<_DialogueMotDePasseOublie> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.onyx),
                             ),
                           )
                         : const Text(
                             'Envoyer',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                            style: TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w800),
                           ),
                   ),
                 ),

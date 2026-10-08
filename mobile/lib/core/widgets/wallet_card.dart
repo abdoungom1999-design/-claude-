@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import 'onyx_light.dart';
+import 'onyx_vert.dart';
 
-/// Carte Portefeuille (écran Compte), charte Onyx & Light : verre clair,
-/// solde en grand en Onyx, bouton Recharger orange Sprint et interrupteur
-/// pour régler les courses avec le solde.
+/// Carte Portefeuille (écran Compte), charte Onyx & Vert : verre sombre
+/// cerné d'un liseré vert et d'une lueur, solde en grand en clair, bouton
+/// Recharger vert (texte Onyx) et interrupteur pour régler les courses avec
+/// le solde.
 class WalletCard extends StatelessWidget {
   const WalletCard({
     super.key,
@@ -24,6 +25,8 @@ class WalletCard extends StatelessWidget {
     return CarteVerre(
       rayon: 28,
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 14),
+      contour: AppColors.vert.withValues(alpha: 0.55),
+      lueur: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -32,8 +35,8 @@ class WalletCard extends StatelessWidget {
               Container(
                 width: 32,
                 height: 32,
-                decoration: BoxDecoration(color: AppColors.fondClair, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.onyx, size: 18),
+                decoration: BoxDecoration(color: AppColors.vertTeinte, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.vert, size: 18),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -46,7 +49,7 @@ class WalletCard extends StatelessWidget {
           Text(
             '$soldeFcfa FCFA',
             key: const ValueKey('solde-portefeuille'),
-            style: const TextStyle(color: AppColors.onyx, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8),
+            style: const TextStyle(color: AppColors.texte, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8),
           ),
           const SizedBox(height: 18),
           SizedBox(
@@ -55,12 +58,12 @@ class WalletCard extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onRecharger,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.orange,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.vert,
+                foregroundColor: AppColors.onyx,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 elevation: 0,
               ),
-              child: const Text('Recharger', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              child: const Text('Recharger', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             ),
           ),
           const SizedBox(height: 10),
@@ -70,17 +73,19 @@ class WalletCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Régler mes courses avec mon solde',
-                  style: TextStyle(color: AppColors.onyx, fontSize: 13, fontWeight: FontWeight.w500),
+                  style: TextStyle(color: AppColors.texte, fontSize: 13, fontWeight: FontWeight.w500),
                 ),
               ),
               Switch(
                 value: payerAvecSolde,
                 onChanged: onTogglePaiement,
-                activeThumbColor: Colors.white,
-                activeTrackColor: AppColors.bleu,
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: const Color(0xFFD1D1D6),
-                trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+                activeThumbColor: AppColors.onyx,
+                activeTrackColor: AppColors.vert,
+                inactiveThumbColor: AppColors.texteDiscret,
+                inactiveTrackColor: AppColors.carteHaute,
+                trackOutlineColor: WidgetStateProperty.resolveWith(
+                  (etats) => etats.contains(WidgetState.selected) ? AppColors.vert : AppColors.bord,
+                ),
               ),
             ],
           ),

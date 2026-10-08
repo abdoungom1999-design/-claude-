@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-/// Bouton d'action principal Sprint : dégradé orange, coins arrondis,
-/// légère lueur orange pour un rendu premium.
+/// Bouton d'action principal Sprint (Commander, Payer…) : dégradé vert
+/// vibrant, texte Onyx (11:1), coins arrondis et lueur verte pour un rendu
+/// premium sur fond sombre. Désactivé : surface grise, texte atténué, sans
+/// lueur.
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
     super.key,
@@ -19,27 +21,25 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final desactive = onPressed == null || isLoading;
+    // En chargement, le bouton garde sa couleur (l'action est en cours) ;
+    // seul un bouton sans action est grisé.
+    final desactive = onPressed == null && !isLoading;
+    final couleurTexte = desactive ? AppColors.texteDiscret.withValues(alpha: 0.6) : AppColors.onyx;
 
     return Container(
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: desactive
-            ? null
-            : const LinearGradient(
-                colors: [AppColors.orange, AppColors.orangeDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-        color: desactive ? AppColors.greyBorder : null,
+        borderRadius: BorderRadius.circular(18),
+        gradient: desactive ? null : AppColors.degradeAction,
+        color: desactive ? AppColors.carteHaute : null,
+        border: desactive ? Border.all(color: AppColors.bordVerre) : null,
         boxShadow: desactive
             ? null
             : [
                 BoxShadow(
-                  color: AppColors.orange.withValues(alpha: 0.35),
-                  blurRadius: 20,
+                  color: AppColors.vert.withValues(alpha: 0.35),
+                  blurRadius: 24,
                   offset: const Offset(0, 10),
                 ),
               ],
@@ -47,7 +47,9 @@ class PrimaryButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
+          splashColor: AppColors.onyx.withValues(alpha: 0.14),
+          highlightColor: AppColors.onyx.withValues(alpha: 0.08),
           onTap: isLoading ? null : onPressed,
           child: Center(
             child: isLoading
@@ -56,25 +58,26 @@ class PrimaryButton extends StatelessWidget {
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.background,
-                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.onyx),
                     ),
                   )
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (icon != null) ...[
-                        Icon(icon, size: 20, color: AppColors.background),
+                        Icon(icon, size: 20, color: couleurTexte),
                         const SizedBox(width: 8),
                       ],
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.background,
-                          letterSpacing: 0.2,
+                      Flexible(
+                        child: Text(
+                          label,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: couleurTexte,
+                            letterSpacing: 0.2,
+                          ),
                         ),
                       ),
                     ],

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Liste des reçus (factures) des courses passées.
 class ReceiptsPage extends StatelessWidget {
@@ -34,12 +34,12 @@ class ReceiptsPage extends StatelessWidget {
                         width: 42,
                         height: 42,
                         decoration: BoxDecoration(
-                          color: AppColors.fondClair,
+                          color: AppColors.carteHaute,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
                           Icons.receipt_long_outlined,
-                          color: AppColors.onyx,
+                          color: AppColors.texte,
                           size: 20,
                         ),
                       ),

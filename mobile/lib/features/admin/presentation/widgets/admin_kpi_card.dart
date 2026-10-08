@@ -9,7 +9,7 @@ class AdminKpiCard extends StatelessWidget {
     required this.icon,
     required this.valeur,
     required this.label,
-    this.accent = AppColors.bleu,
+    this.accent = AppColors.vert,
     this.detail,
   });
 
@@ -43,7 +43,7 @@ class AdminKpiCard extends StatelessWidget {
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
+          Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
           if (detail != null) ...[
             const SizedBox(height: 6),
             Text(detail!, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: accent)),

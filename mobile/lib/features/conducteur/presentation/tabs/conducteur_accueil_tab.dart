@@ -6,13 +6,13 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/notifications/carte_notifications.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/adaptive_map.dart';
-import '../../../../core/widgets/onyx_light.dart';
+import '../../../../core/widgets/onyx_vert.dart';
 import '../../../../firebase_options.dart';
 import '../widgets/bouton_en_ligne_circulaire.dart';
 
-/// Onglet Accueil de l'espace Conducteur (charte Onyx & Light) : carte
+/// Onglet Accueil de l'espace Conducteur (charte Onyx & Vert) : carte
 /// « Silver » plein écran (voir [AdaptiveMap]), cartes flottantes en verre
-/// dépoli blanc, textes Onyx, orange en accent, autour du bouton "GO" et
+/// sombre, textes clairs, vert en accent, autour du bouton "GO" et
 /// du statut En ligne/Hors ligne. C'est ce bouton qui déclenche l'écoute
 /// de [CourseService] côté [ConducteurShellPage] — cette refonte
 /// visuelle ne touche à aucune logique de matchmaking.
@@ -78,7 +78,7 @@ class _ConducteurAccueilTabState extends State<ConducteurAccueilTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.fondClair,
+      backgroundColor: AppColors.fond,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -184,14 +184,14 @@ class _FondCarteConducteurState extends State<_FondCarteConducteur>
           zoom: 14,
           interactif: false,
         ),
-        // Voile très léger, seulement tout en haut (derrière les cartes en verre) :
+        // Voile sombre, seulement tout en haut (derrière les cartes en verre) :
         // la carte reste bien visible sur tout le reste de l'écran.
         DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withValues(alpha: 0.45),
-                Colors.white.withValues(alpha: 0.0),
+                AppColors.fond.withValues(alpha: 0.6),
+                AppColors.fond.withValues(alpha: 0.0),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -219,12 +219,12 @@ class _FondCarteConducteurState extends State<_FondCarteConducteur>
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: widget.enLigne ? AppColors.bleu : AppColors.onyx,
+              color: widget.enLigne ? AppColors.vert : AppColors.onyx,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: (widget.enLigne ? AppColors.bleu : AppColors.onyx)
+                  color: (widget.enLigne ? AppColors.vert : AppColors.onyx)
                       .withValues(alpha: 0.3),
                   blurRadius: 16,
                   spreadRadius: 2,
@@ -253,13 +253,13 @@ class _AnneauRadar extends StatelessWidget {
       height: taille,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.bleu.withValues(alpha: opacite), width: 1.5),
+        border: Border.all(color: AppColors.vert.withValues(alpha: opacite), width: 1.5),
       ),
     );
   }
 }
 
-/// Carte en verre dépoli (charte Onyx & Light).
+/// Carte en verre sombre posée sur la carte (charte Onyx & Vert).
 class _CarteVerre extends StatelessWidget {
   const _CarteVerre({required this.child, this.padding = const EdgeInsets.all(16)});
 
@@ -267,7 +267,7 @@ class _CarteVerre extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   @override
-  Widget build(BuildContext context) => CarteVerre(rayon: 24, padding: padding, child: child);
+  Widget build(BuildContext context) => CarteVerre(sombre: true, rayon: 24, padding: padding, child: child);
 }
 
 class _CarteObjectifJour extends StatelessWidget {
@@ -287,10 +287,10 @@ class _CarteObjectifJour extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.bleuClair,
+              color: AppColors.vertTeinte,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.flag_rounded, color: AppColors.bleu, size: 21),
+            child: const Icon(Icons.flag_rounded, color: AppColors.vert, size: 21),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -309,7 +309,7 @@ class _CarteObjectifJour extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.onyx,
+                        color: AppColors.texte,
                       ),
                     ),
                   ],
@@ -320,8 +320,8 @@ class _CarteObjectifJour extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progression,
                     minHeight: 7,
-                    backgroundColor: const Color(0x14000000),
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.bleu),
+                    backgroundColor: AppColors.texte.withValues(alpha: 0.14),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.vert),
                   ),
                 ),
               ],
@@ -347,11 +347,11 @@ class _CarteStatVerre extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.bleu, size: 18),
+          Icon(icon, color: AppColors.vert, size: 18),
           const SizedBox(height: 8),
           Text(
             valeur,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onyx),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.texte),
           ),
           const SizedBox(height: 2),
           Text(
@@ -382,11 +382,11 @@ class _PucePastille extends StatelessWidget {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.radar_rounded, size: 14, color: AppColors.bleu),
+            Icon(Icons.radar_rounded, size: 14, color: AppColors.vert),
             SizedBox(width: 6),
             Text(
               'Simuler une course',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.onyx),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.texte),
             ),
           ],
         ),

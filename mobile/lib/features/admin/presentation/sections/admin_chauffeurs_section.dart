@@ -108,7 +108,7 @@ class _AdminChauffeursSectionState extends State<AdminChauffeursSection> {
               ),
               Text(
                 '${_conducteurs.length} chauffeur(s)',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
             ],
           ),
@@ -117,12 +117,12 @@ class _AdminChauffeursSectionState extends State<AdminChauffeursSection> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 60),
               child: Center(
-                child: CircularProgressIndicator(color: AppColors.bleu),
+                child: CircularProgressIndicator(color: AppColors.vert),
               ),
             )
           else ...[
             const _EnTeteTableau(),
-            const Divider(height: 24, color: AppColors.greyBorder),
+            const Divider(height: 24, color: AppColors.bord),
             for (final c in _conducteurs)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
@@ -146,7 +146,7 @@ class _EnTeteTableau extends StatelessWidget {
   static const _style = TextStyle(
     fontSize: 11.5,
     fontWeight: FontWeight.w700,
-    color: AppColors.grey,
+    color: AppColors.texteDiscret,
     letterSpacing: 0.4,
   );
 
@@ -198,7 +198,7 @@ class _LigneChauffeur extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.bleu, AppColors.bleuFonce],
+                colors: [AppColors.vert, AppColors.vertFonce],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -208,8 +208,8 @@ class _LigneChauffeur extends StatelessWidget {
             child: Text(
               _initiales,
               style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+                color: AppColors.onyx,
+                fontWeight: FontWeight.w800,
                 fontSize: 13,
               ),
             ),
@@ -223,7 +223,7 @@ class _LigneChauffeur extends StatelessWidget {
                 Text(conducteur.nom, style: const TextStyle(fontWeight: FontWeight.w600)),
                 Text(
                   conducteur.telephone,
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                 ),
               ],
             ),
@@ -240,12 +240,12 @@ class _LigneChauffeur extends StatelessWidget {
             child: conducteur.note > 0
                 ? Row(
                     children: [
-                      const Icon(Icons.star_rounded, size: 15, color: AppColors.bleu),
+                      const Icon(Icons.star_rounded, size: 15, color: AppColors.vert),
                       const SizedBox(width: 3),
                       Text(conducteur.note.toStringAsFixed(1)),
                     ],
                   )
-                : const Text('—', style: TextStyle(color: AppColors.grey)),
+                : const Text('—', style: TextStyle(color: AppColors.texteDiscret)),
           ),
           SizedBox(width: 110, child: _BadgeStatutChauffeur(conducteur: conducteur)),
           SizedBox(
@@ -254,7 +254,7 @@ class _LigneChauffeur extends StatelessWidget {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bleu),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.vert),
                   )
                 : Row(
                     children: [
@@ -264,7 +264,7 @@ class _LigneChauffeur extends StatelessWidget {
                           tooltip: 'Valider les documents',
                           icon: const Icon(
                             Icons.verified_outlined,
-                            color: AppColors.onyx,
+                            color: AppColors.texte,
                             size: 20,
                           ),
                         ),
@@ -275,13 +275,13 @@ class _LigneChauffeur extends StatelessWidget {
                               ? Icons.lock_open_rounded
                               : Icons.block_rounded,
                           size: 16,
-                          color: conducteur.suspendu ? AppColors.onyx : Colors.redAccent,
+                          color: conducteur.suspendu ? AppColors.texte : AppColors.danger,
                         ),
                         label: Text(
                           conducteur.suspendu ? 'Débloquer' : 'Bloquer',
                           style: TextStyle(
                             fontSize: 12,
-                            color: conducteur.suspendu ? AppColors.onyx : Colors.redAccent,
+                            color: conducteur.suspendu ? AppColors.texte : AppColors.danger,
                           ),
                         ),
                       ),
@@ -302,10 +302,10 @@ class _BadgeStatutChauffeur extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = conducteur.suspendu
-        ? ('Suspendu', Colors.redAccent)
+        ? ('Suspendu', AppColors.danger)
         : conducteur.estValide
-        ? ('Actif', AppColors.onyx)
-        : ('En attente', AppColors.bleu);
+        ? ('Actif', AppColors.vert)
+        : ('En attente', AppColors.alerte);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -351,7 +351,7 @@ class _ChauffeursReelsSection extends StatelessWidget {
                   ),
                   Text(
                     '${conducteurs.length} chauffeur(s)',
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                   ),
                 ],
               ),
@@ -359,18 +359,18 @@ class _ChauffeursReelsSection extends StatelessWidget {
               if (!snapshot.hasData)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 60),
-                  child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+                  child: Center(child: CircularProgressIndicator(color: AppColors.vert)),
                 )
               else if (conducteurs.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 60),
                   child: Center(
-                    child: Text('Aucun chauffeur inscrit pour le moment.', style: TextStyle(color: AppColors.grey)),
+                    child: Text('Aucun chauffeur inscrit pour le moment.', style: TextStyle(color: AppColors.texteDiscret)),
                   ),
                 )
               else ...[
                 const _EnTeteTableauReel(),
-                const Divider(height: 24, color: AppColors.greyBorder),
+                const Divider(height: 24, color: AppColors.bord),
                 for (final c in conducteurs)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -394,7 +394,7 @@ class _EnTeteTableauReel extends StatelessWidget {
   static const _style = TextStyle(
     fontSize: 11.5,
     fontWeight: FontWeight.w700,
-    color: AppColors.grey,
+    color: AppColors.texteDiscret,
     letterSpacing: 0.4,
   );
 
@@ -446,7 +446,7 @@ class _LigneChauffeurReel extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.bleu, AppColors.bleuFonce],
+                colors: [AppColors.vert, AppColors.vertFonce],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -455,7 +455,7 @@ class _LigneChauffeurReel extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               _initiales,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              style: const TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w800, fontSize: 13),
             ),
           ),
           const SizedBox(width: 14),
@@ -471,13 +471,13 @@ class _LigneChauffeurReel extends StatelessWidget {
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       decoration: TextDecoration.underline,
-                      decorationColor: AppColors.greyBorder,
+                      decorationColor: AppColors.bord,
                     ),
                   ),
                 ),
                 Text(
                   conducteur.telephone,
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                 ),
               ],
             ),
@@ -504,7 +504,7 @@ class _LigneChauffeurReel extends StatelessWidget {
                 label: const Text('Dossier', style: TextStyle(fontSize: 12.5)),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  side: const BorderSide(color: AppColors.greyBorder),
+                  side: const BorderSide(color: AppColors.bord),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
@@ -524,10 +524,10 @@ class _BadgeStatutValidation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, couleur) = switch (statutValidation) {
-      'valide' => ('Validé', AppColors.onyx),
-      'en_attente' => ('En attente', AppColors.bleu),
-      'rejete' => ('Rejeté', Colors.redAccent),
-      _ => ('Non soumis', AppColors.grey),
+      'valide' => ('Validé', AppColors.vert),
+      'en_attente' => ('En attente', AppColors.alerte),
+      'rejete' => ('Rejeté', AppColors.danger),
+      _ => ('Non soumis', AppColors.texteDiscret),
     };
 
     return Container(

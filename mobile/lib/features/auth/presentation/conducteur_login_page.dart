@@ -104,7 +104,7 @@ class _ConducteurLoginPageState extends State<ConducteurLoginPage> {
                 ),
                 child: const Text(
                   'Mot de passe oublié ?',
-                  style: TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: TextStyle(color: AppColors.vert, fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
             ),
@@ -112,7 +112,7 @@ class _ConducteurLoginPageState extends State<ConducteurLoginPage> {
               const SizedBox(height: 4),
               Text(
                 _erreur!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                style: const TextStyle(color: AppColors.danger, fontSize: 13),
               ),
             ],
             const SizedBox(height: 12),

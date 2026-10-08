@@ -76,7 +76,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
         child: Text(
           'Lecture impossible. Vérifiez que vous êtes connecté avec le compte Admin '
           'et que les règles Firestore sont publiées.',
-          style: TextStyle(color: AppColors.grey),
+          style: TextStyle(color: AppColors.texteDiscret),
         ),
       );
     }
@@ -84,7 +84,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
     if (clients == null) {
       return const Padding(
         padding: EdgeInsets.all(40),
-        child: Center(child: CircularProgressIndicator(color: AppColors.bleu)),
+        child: Center(child: CircularProgressIndicator(color: AppColors.vert)),
       );
     }
 
@@ -110,7 +110,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
         return b.creeLe!.compareTo(a.creeLe!);
       });
 
-    const entete = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.grey);
+    const entete = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.texteDiscret);
 
     return AppCard(
       padding: const EdgeInsets.all(24),
@@ -123,7 +123,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
               const SizedBox(width: 12),
               Text(
                 clients.length > 1 ? '${clients.length} inscrits' : '${clients.length} inscrit',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               const Spacer(),
               SizedBox(
@@ -151,13 +151,13 @@ class _ClientsReelsState extends State<_ClientsReels> {
               SizedBox(width: 48),
             ],
           ),
-          const Divider(height: 24, color: AppColors.greyBorder),
+          const Divider(height: 24, color: AppColors.bord),
           if (affiches.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 clients.isEmpty ? 'Aucun client inscrit pour le moment.' : 'Aucun client ne correspond à la recherche.',
-                style: const TextStyle(color: AppColors.grey),
+                style: const TextStyle(color: AppColors.texteDiscret),
               ),
             ),
           for (final client in affiches)
@@ -176,7 +176,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
                             client.email,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.grey),
+                            style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                           ),
                       ],
                     ),
@@ -194,7 +194,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
                     width: 110,
                     child: Text(
                       client.creeLe == null ? '—' : _date(client.creeLe!),
-                      style: const TextStyle(fontSize: 13, color: AppColors.grey),
+                      style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret),
                     ),
                   ),
                   SizedBox(
@@ -244,7 +244,7 @@ class _ClientsDemo extends StatelessWidget {
               ),
               Text(
                 '${clients.length} client(s)',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.grey),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
             ],
           ),
@@ -255,33 +255,33 @@ class _ClientsDemo extends StatelessWidget {
                 flex: 3,
                 child: Text(
                   'Client',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.grey),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.texteDiscret),
                 ),
               ),
               Expanded(
                 flex: 2,
                 child: Text(
                   'Téléphone',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.grey),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.texteDiscret),
                 ),
               ),
               SizedBox(
                 width: 110,
                 child: Text(
                   'Courses',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.grey),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.texteDiscret),
                 ),
               ),
               SizedBox(
                 width: 120,
                 child: Text(
                   'Inscrit le',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.grey),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.texteDiscret),
                 ),
               ),
             ],
           ),
-          const Divider(height: 24, color: AppColors.greyBorder),
+          const Divider(height: 24, color: AppColors.bord),
           for (final client in clients)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -297,7 +297,7 @@ class _ClientsDemo extends StatelessWidget {
                     width: 120,
                     child: Text(
                       client.inscritLe,
-                      style: const TextStyle(fontSize: 13, color: AppColors.grey),
+                      style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret),
                     ),
                   ),
                 ],

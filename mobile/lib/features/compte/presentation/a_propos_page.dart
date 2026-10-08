@@ -4,7 +4,7 @@ import '../../../core/widgets/logo_sprint.dart';
 import '../../../core/widgets/section_list_tile.dart';
 import 'conditions_utilisation_page.dart';
 import 'politique_confidentialite_page.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// À propos de Sprint (Groupe Santine).
 class AProposPage extends StatelessWidget {

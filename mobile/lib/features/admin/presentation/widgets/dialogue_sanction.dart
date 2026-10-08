@@ -80,7 +80,7 @@ class _DialogueSanctionState extends State<_DialogueSanction> {
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuler')),
         FilledButton(
           onPressed: _confirmer,
-          style: FilledButton.styleFrom(backgroundColor: _bannir ? Colors.red.shade700 : AppColors.orange),
+          style: FilledButton.styleFrom(backgroundColor: _bannir ? AppColors.danger : AppColors.alerte),
           child: Text(_bannir ? 'Bannir définitivement' : 'Suspendre'),
         ),
       ],

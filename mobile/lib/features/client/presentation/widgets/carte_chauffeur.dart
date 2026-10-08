@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/onyx_vert.dart';
 import '../../../evaluations/data/evaluation_service.dart';
 import '../../../evaluations/presentation/evaluation_course.dart';
 
@@ -44,27 +45,24 @@ class CarteChauffeur extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return CarteVerre(
+      rayon: 22,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.greyBorder),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 4))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Etat(clientABord: clientABord),
-          const SizedBox(height: 14),
-          if (erreur)
-            _Erreur(onReessayer: onReessayer)
-          else if (profil == null)
-            const _Chargement()
-          else
-            _Identite(profil: profil!),
-        ],
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Etat(clientABord: clientABord),
+            const SizedBox(height: 14),
+            if (erreur)
+              _Erreur(onReessayer: onReessayer)
+            else if (profil == null)
+              const _Chargement()
+            else
+              _Identite(profil: profil!),
+          ],
+        ),
       ),
     );
   }
@@ -82,7 +80,7 @@ class _Etat extends StatelessWidget {
         Container(
           width: 9,
           height: 9,
-          decoration: const BoxDecoration(color: AppColors.bleu, shape: BoxShape.circle),
+          decoration: const BoxDecoration(color: AppColors.vert, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -90,7 +88,7 @@ class _Etat extends StatelessWidget {
             clientABord ? 'Course en cours' : 'Chauffeur trouvé · il arrive',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.bleu),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.vert),
           ),
         ),
       ],
@@ -119,7 +117,7 @@ class _Identite extends StatelessWidget {
               height: 62,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.bleu, AppColors.bleuFonce],
+                  colors: [AppColors.vert, AppColors.vertFonce],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -128,7 +126,7 @@ class _Identite extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 CarteChauffeur.initiales(nom),
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+                style: const TextStyle(color: AppColors.onyx, fontSize: 22, fontWeight: FontWeight.w800),
               ),
             ),
             const SizedBox(width: 14),
@@ -140,7 +138,7 @@ class _Identite extends StatelessWidget {
                     nom,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.15),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.15, color: AppColors.texte),
                   ),
                   const SizedBox(height: 5),
                   // Réductible : jamais de débordement, même en grande police.
@@ -155,7 +153,7 @@ class _Identite extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        const Divider(height: 1, color: AppColors.greyBorder),
+        const Divider(height: 1, color: AppColors.bord),
         const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, contraintes) {
@@ -173,8 +171,8 @@ class _Identite extends StatelessWidget {
                     Container(
                       width: 40,
                       height: 40,
-                      decoration: BoxDecoration(color: AppColors.bleuClair, borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.two_wheeler_rounded, color: AppColors.bleu, size: 22),
+                      decoration: BoxDecoration(color: AppColors.vertTeinte, borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.two_wheeler_rounded, color: AppColors.vert, size: 22),
                     ),
                     const SizedBox(width: 12),
                     ...vehiculeEtPlaque,
@@ -203,7 +201,7 @@ class _Vehicule extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Véhicule', style: TextStyle(fontSize: 11.5, color: AppColors.grey, fontWeight: FontWeight.w600)),
+        const Text('Véhicule', style: TextStyle(fontSize: 11.5, color: AppColors.texteDiscret, fontWeight: FontWeight.w600)),
         const SizedBox(height: 2),
         Text(
           vehicule ?? 'Non renseigné',
@@ -212,7 +210,7 @@ class _Vehicule extends StatelessWidget {
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: vehicule == null ? AppColors.grey : AppColors.text,
+            color: vehicule == null ? AppColors.texteDiscret : AppColors.texte,
           ),
         ),
       ],
@@ -230,20 +228,20 @@ class _Plaque extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (plaque == null) {
-      return const Text('Plaque non renseignée', style: TextStyle(fontSize: 12, color: AppColors.grey));
+      return const Text('Plaque non renseignée', style: TextStyle(fontSize: 12, color: AppColors.texteDiscret));
     }
     return Semantics(
       label: 'Plaque $plaque',
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: AppColors.text, width: 2),
+          color: AppColors.texte,
+          border: Border.all(color: AppColors.onyx, width: 2),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           plaque!,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, letterSpacing: 1),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, letterSpacing: 1, color: AppColors.onyx),
         ),
       ),
     );
@@ -256,7 +254,7 @@ class _Chargement extends StatelessWidget {
   Widget _barre(double largeur, double hauteur) => Container(
         width: largeur,
         height: hauteur,
-        decoration: BoxDecoration(color: AppColors.greyLight, borderRadius: BorderRadius.circular(6)),
+        decoration: BoxDecoration(color: AppColors.carteHaute, borderRadius: BorderRadius.circular(6)),
       );
 
   @override
@@ -268,7 +266,7 @@ class _Chargement extends StatelessWidget {
           Container(
             width: 62,
             height: 62,
-            decoration: const BoxDecoration(color: AppColors.greyLight, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: AppColors.carteHaute, shape: BoxShape.circle),
           ),
           const SizedBox(width: 14),
           Column(
@@ -290,12 +288,12 @@ class _Erreur extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.info_outline_rounded, color: AppColors.grey),
+        const Icon(Icons.info_outline_rounded, color: AppColors.texteDiscret),
         const SizedBox(width: 10),
         const Expanded(
           child: Text(
             "Les informations de votre chauffeur n'ont pas pu être chargées.",
-            style: TextStyle(fontSize: 13.5, height: 1.35),
+            style: TextStyle(fontSize: 13.5, height: 1.35, color: AppColors.texte),
           ),
         ),
         if (onReessayer != null) TextButton(onPressed: onReessayer, child: const Text('Réessayer')),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/onyx_light.dart';
+import '../../../../core/widgets/onyx_vert.dart';
 import '../../../../firebase_options.dart';
 import '../../../evaluations/data/evaluation_service.dart';
 
@@ -61,13 +61,13 @@ class _EvaluationsReellesState extends State<_EvaluationsReelles> {
                     child: Text(
                       'Impossible de charger vos évaluations pour le moment.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.grey),
+                      style: TextStyle(color: AppColors.texteDiscret),
                     ),
                   ),
                 );
               }
               if (!note.hasData || !avis.hasData) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.bleu));
+                return const Center(child: CircularProgressIndicator(color: AppColors.vert));
               }
               return _VueEvaluations(note: note.data!, avis: avis.data!);
             },
@@ -106,7 +106,7 @@ class _VueEvaluations extends StatelessWidget {
               children: [
                 Text(
                   moyenne == null ? '—' : note.moyenneTexte,
-                  style: const TextStyle(color: AppColors.onyx, fontSize: 52, fontWeight: FontWeight.w800, letterSpacing: -1.5),
+                  style: const TextStyle(color: AppColors.texte, fontSize: 52, fontWeight: FontWeight.w800, letterSpacing: -1.5),
                 ),
                 const SizedBox(height: 8),
                 _Etoiles(valeur: moyenne ?? 0, taille: 24),
@@ -151,7 +151,7 @@ class _Etoiles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const or = AppColors.bleu;
+    const or = AppColors.vert;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -163,7 +163,7 @@ class _Etoiles extends StatelessWidget {
                 : valeur >= i - 0.75
                     ? Icons.star_half_rounded
                     : Icons.star_outline_rounded,
-            color: valeur >= i - 0.75 ? or : AppColors.greyBorder,
+            color: valeur >= i - 0.75 ? or : AppColors.bord,
             size: taille,
           ),
       ],
@@ -190,7 +190,7 @@ class _LigneRepartition extends StatelessWidget {
               children: [
                 Text('$etoiles', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 2),
-                const Icon(Icons.star_rounded, size: 14, color: AppColors.bleu),
+                const Icon(Icons.star_rounded, size: 14, color: AppColors.vert),
               ],
             ),
           ),
@@ -200,14 +200,14 @@ class _LigneRepartition extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: total == 0 ? 0 : nombre / total,
                 minHeight: 8,
-                backgroundColor: AppColors.greyLight,
-                color: AppColors.bleu,
+                backgroundColor: AppColors.carteHaute,
+                color: AppColors.vert,
               ),
             ),
           ),
           SizedBox(
             width: 34,
-            child: Text('$nombre', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12.5, color: AppColors.grey)),
+            child: Text('$nombre', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
           ),
         ],
       ),
@@ -239,7 +239,7 @@ class _CarteAvis extends StatelessWidget {
             avis.commentaire ?? 'Note sans commentaire.',
             style: TextStyle(
               fontSize: 12.5,
-              color: AppColors.grey,
+              color: AppColors.texteDiscret,
               height: 1.4,
               fontStyle: avis.commentaire == null ? FontStyle.italic : FontStyle.normal,
             ),
@@ -248,7 +248,7 @@ class _CarteAvis extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
-              style: const TextStyle(fontSize: 11, color: AppColors.grey),
+              style: const TextStyle(fontSize: 11, color: AppColors.texteDiscret),
             ),
           ],
         ],
@@ -290,7 +290,7 @@ class _EvaluationsDemo extends StatelessWidget {
                   children: [
                     Text(
                       DemoData.noteMoyenneConducteur.toStringAsFixed(2),
-                      style: const TextStyle(color: AppColors.onyx, fontSize: 52, fontWeight: FontWeight.w800, letterSpacing: -1.5),
+                      style: const TextStyle(color: AppColors.texte, fontSize: 52, fontWeight: FontWeight.w800, letterSpacing: -1.5),
                     ),
                     const SizedBox(height: 8),
                     const _Etoiles(valeur: 5, taille: 24),
@@ -336,7 +336,7 @@ class _EvaluationsDemo extends StatelessWidget {
                               5,
                               (i) => Icon(
                                 i < a.note ? Icons.star_rounded : Icons.star_border_rounded,
-                                color: AppColors.bleu,
+                                color: AppColors.vert,
                                 size: 15,
                               ),
                             ),
@@ -346,14 +346,14 @@ class _EvaluationsDemo extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         a.commentaire,
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.grey, height: 1.4),
+                        style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         '${a.date.day.toString().padLeft(2, '0')}/'
                         '${a.date.month.toString().padLeft(2, '0')}/'
                         '${a.date.year}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.grey),
+                        style: const TextStyle(fontSize: 11, color: AppColors.texteDiscret),
                       ),
                     ],
                   ),
@@ -378,13 +378,13 @@ class _BadgeCompliment extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.bleuClair,
+        color: AppColors.vertTeinte,
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon ?? Icons.emoji_events_outlined, size: 16, color: AppColors.bleu),
+          Icon(icon ?? Icons.emoji_events_outlined, size: 16, color: AppColors.vert),
           const SizedBox(width: 8),
           Text(
             compliment.label,
@@ -394,7 +394,7 @@ class _BadgeCompliment extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-              color: AppColors.bleu,
+              color: AppColors.vert,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -402,7 +402,7 @@ class _BadgeCompliment extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.onyx,
               ),
             ),
           ),

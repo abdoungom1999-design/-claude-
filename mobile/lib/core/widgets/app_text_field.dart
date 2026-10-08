@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import 'onyx_light.dart';
 
-/// Champ de saisie premium Sprint : carte blanche flottante avec ombre
-/// douce, icône dans un badge arrondi, bordure orange animée au focus.
+/// Champ de saisie Sprint, charte « Onyx & Vert » : surface de verre sombre,
+/// liseré fin, pictogramme gris qui passe au vert au focus, contour vert
+/// épais au focus, erreur en rouge lisible sur fond sombre.
 class AppTextField extends StatelessWidget {
   const AppTextField({
     super.key,
@@ -34,97 +34,6 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Écran migré vers Onyx & Light : voir _construireOnyxLight.
-    if (ThemeOnyxLight.actif(context)) return _construireOnyxLight();
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowSoft,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        readOnly: readOnly,
-        keyboardType: keyboardType,
-        maxLines: obscureText ? 1 : maxLines,
-        validator: validator,
-        onChanged: onChanged,
-        style: const TextStyle(
-          color: AppColors.text,
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
-        cursorColor: AppColors.bleu,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.grey, fontSize: 14),
-          prefixIcon: prefixIcon != null
-              ? Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.bleuClair,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(prefixIcon, color: AppColors.bleu, size: 18),
-                  ),
-                )
-              : null,
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 0,
-            minHeight: 0,
-          ),
-          suffixIcon: suffixIcon,
-          filled: true,
-          fillColor: AppColors.background,
-          labelStyle: const TextStyle(
-            color: AppColors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-          floatingLabelStyle: const TextStyle(
-            color: AppColors.bleu,
-            fontWeight: FontWeight.w600,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 18,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: AppColors.greyBorder),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: AppColors.greyBorder),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: AppColors.bleu, width: 1.8),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Champ Onyx & Light : fond blanc translucide, bord fin, icône simple,
-  /// focus Onyx (l'orange n'est plus qu'un accent).
-  Widget _construireOnyxLight() {
     OutlineInputBorder bord(Color couleur, [double epaisseur = 1]) => OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(color: couleur, width: epaisseur),
@@ -137,24 +46,27 @@ class AppTextField extends StatelessWidget {
       maxLines: obscureText ? 1 : maxLines,
       validator: validator,
       onChanged: onChanged,
-      style: const TextStyle(color: AppColors.onyx, fontSize: 15.5, fontWeight: FontWeight.w500),
-      cursorColor: AppColors.onyx,
+      style: const TextStyle(color: AppColors.texte, fontSize: 15.5, fontWeight: FontWeight.w500),
+      cursorColor: AppColors.vert,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         hintStyle: const TextStyle(color: AppColors.texteDiscret, fontSize: 14),
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.texteDiscret, size: 20) : null,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
+        prefixIconColor: WidgetStateColor.resolveWith(
+          (etats) => etats.contains(WidgetState.focused) ? AppColors.vert : AppColors.texteDiscret,
+        ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.85),
+        fillColor: AppColors.verre,
         labelStyle: const TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w500),
-        floatingLabelStyle: const TextStyle(color: AppColors.onyx, fontWeight: FontWeight.w600),
+        floatingLabelStyle: const TextStyle(color: AppColors.vert, fontWeight: FontWeight.w600),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        border: bord(AppColors.bordVerre),
-        enabledBorder: bord(AppColors.bordVerre),
-        focusedBorder: bord(AppColors.onyx, 1.6),
-        errorBorder: bord(Colors.redAccent, 1.4),
-        focusedErrorBorder: bord(Colors.redAccent, 1.8),
+        border: bord(AppColors.bord),
+        enabledBorder: bord(AppColors.bord),
+        focusedBorder: bord(AppColors.vert, 1.8),
+        errorBorder: bord(AppColors.danger, 1.4),
+        focusedErrorBorder: bord(AppColors.danger, 1.8),
       ),
     );
   }

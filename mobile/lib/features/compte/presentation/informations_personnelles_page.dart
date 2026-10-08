@@ -5,7 +5,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../../core/widgets/onyx_light.dart';
+import '../../../core/widgets/onyx_vert.dart';
 
 /// Formulaire des informations personnelles du client, chargé et
 /// enregistré depuis le vrai document Firestore `users/{uid}` (voir
@@ -85,7 +85,7 @@ class _InformationsPersonnellesPageState
       appBar: AppBar(title: const Text('Informations personnelles')),
       body: SafeArea(
         child: _chargement
-            ? const Center(child: CircularProgressIndicator(color: AppColors.bleu))
+            ? const Center(child: CircularProgressIndicator(color: AppColors.vert))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Form(
@@ -99,7 +99,7 @@ class _InformationsPersonnellesPageState
                           height: 76,
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [AppColors.bleu, AppColors.bleuFonce],
+                              colors: [AppColors.vert, AppColors.vertFonce],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
