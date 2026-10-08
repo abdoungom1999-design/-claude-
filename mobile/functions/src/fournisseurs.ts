@@ -7,9 +7,14 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
  *
  * Format des webhooks (identique pour la simulation et Wave) : corps
  * JSON façon Wave Checkout, signé dans l'en-tête `Wave-Signature`
- * ("t=<horodatage>,v1=<hmac_sha256_hex>" de "<horodatage>.<corps>").
- * Format issu de la documentation publique de Wave, à revalider contre
- * la documentation fournie avec les clés marchandes.
+ * ("t=<horodatage>,v1=<hmac_sha256_hex>[,v1=…]"). Chaque `v1` est le
+ * HMAC-SHA256, avec le secret du webhook, de l'horodatage **collé au
+ * corps brut, sans séparateur** (page « Webhooks » de la documentation
+ * de Wave, https://docs.wave.com/webhook) ; plusieurs `v1` peuvent
+ * coexister pendant un changement de secret, un seul doit correspondre.
+ * Format relevé dans la documentation publique : il n'a encore jamais été
+ * éprouvé sur un vrai événement Wave, à revalider avec le premier envoi
+ * du bac à sable.
  */
 
 export type NomFournisseur = 'simulation' | 'wave';
@@ -43,28 +48,37 @@ export class ErreurFournisseur extends Error {}
 /** Au-delà, un webhook est refusé (protection contre le rejeu). */
 const TOLERANCE_SECONDES = 300;
 
+/** HMAC-SHA256 (hex) de l'horodatage suivi directement des octets reçus. */
+function hmacHex(secret: string, horodatage: string, corps: Buffer): string {
+  return createHmac('sha256', secret).update(horodatage).update(corps).digest('hex');
+}
+
 export function signer(corps: string, secret: string, maintenant: Date): string {
-  const t = Math.floor(maintenant.getTime() / 1000);
-  const v1 = createHmac('sha256', secret).update(`${t}.${corps}`).digest('hex');
-  return `t=${t},v1=${v1}`;
+  const t = String(Math.floor(maintenant.getTime() / 1000));
+  return `t=${t},v1=${hmacHex(secret, t, Buffer.from(corps, 'utf8'))}`;
 }
 
 export function verifierSignature(corpsBrut: Buffer, entete: string | undefined, secret: string, maintenant: Date): void {
   if (!entete) throw new ErreurSignature('Signature absente.');
-  const parties = Object.fromEntries(
-    entete.split(',').map((p) => {
-      const i = p.indexOf('=');
-      return [p.slice(0, i).trim(), p.slice(i + 1).trim()];
-    }),
-  );
-  const t = Number(parties.t);
-  const recue = parties.v1 ?? '';
-  if (!Number.isFinite(t) || !/^[0-9a-f]{64}$/.test(recue)) throw new ErreurSignature('Signature mal formée.');
-  if (Math.abs(maintenant.getTime() / 1000 - t) > TOLERANCE_SECONDES) throw new ErreurSignature('Signature expirée.');
-  const attendue = createHmac('sha256', secret).update(`${t}.${corpsBrut.toString('utf8')}`).digest('hex');
-  if (!timingSafeEqual(Buffer.from(attendue, 'hex'), Buffer.from(recue, 'hex'))) {
-    throw new ErreurSignature('Signature invalide.');
+  let horodatage = '';
+  const recues: string[] = [];
+  for (const partie of entete.split(',')) {
+    const i = partie.indexOf('=');
+    if (i < 0) continue;
+    const cle = partie.slice(0, i).trim();
+    const valeur = partie.slice(i + 1).trim();
+    if (cle === 't') horodatage = valeur;
+    else if (cle === 'v1' && /^[0-9a-f]{64}$/i.test(valeur)) recues.push(valeur);
   }
+  if (!/^[0-9]{1,12}$/.test(horodatage) || recues.length === 0) throw new ErreurSignature('Signature mal formée.');
+  if (Math.abs(maintenant.getTime() / 1000 - Number(horodatage)) > TOLERANCE_SECONDES) {
+    throw new ErreurSignature('Signature expirée.');
+  }
+  // Signature calculée sur les octets exactement reçus (pas sur un texte
+  // reconstitué) ; toutes les `v1` sont comparées, en temps constant.
+  const attendue = Buffer.from(hmacHex(secret, horodatage, corpsBrut), 'hex');
+  const correspondances = recues.map((r) => timingSafeEqual(attendue, Buffer.from(r, 'hex')));
+  if (!correspondances.includes(true)) throw new ErreurSignature('Signature invalide.');
 }
 
 /** Corps d'un webhook façon Wave Checkout. */

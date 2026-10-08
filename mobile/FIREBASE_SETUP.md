@@ -476,11 +476,15 @@ bouge** tant que Wave et Orange Money réels ne sont pas branchés (voir
 
 #### Passage à l'argent réel (à faire, rien n'est branché)
 
-1. Compte Wave Business (API Checkout) : `WAVE_API_KEY` et
+1. Compte Wave Business (API Checkout) : `WAVE_API_KEY` (clé API) et
    `WAVE_WEBHOOK_SECRET` dans Secret Manager, puis brancher
-   `FournisseurWave` dans `functions/src/index.ts`. Ce code n'a **jamais
-   tourné contre l'API réelle** : il suit la documentation publique et
-   sera à revalider avec les clés.
+   `FournisseurWave` dans `functions/src/index.ts`. Le secret du webhook
+   est **distinct de la clé API** : Wave le remet quand on lui communique
+   l'adresse du webhook (`webhookPaiement`). Ce code n'a **jamais tourné
+   contre l'API réelle** : il suit la documentation publique de Wave
+   (signature `Wave-Signature` = HMAC-SHA256 de l'horodatage collé au
+   corps brut, sans séparateur, plusieurs `v1` possibles) et sera à
+   revalider avec le premier événement réel du bac à sable.
 2. Orange Money : aucun fournisseur n'existe encore (il passe par la
    simulation) ; il faut le contrat marchand Sonatel et sa documentation.
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre

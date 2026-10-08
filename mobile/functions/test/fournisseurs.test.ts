@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import {
   corpsWebhook,
   ErreurFournisseur,
@@ -38,6 +39,46 @@ test('signature trop ancienne (rejeu) : refusée ; dans la tolérance : accepté
   const ilYa = (s: number) => new Date(maintenant.getTime() - s * 1000);
   verifierSignature(b, signer(corps, SECRET, ilYa(299)), SECRET, maintenant);
   assert.throws(() => verifierSignature(b, signer(corps, SECRET, ilYa(301)), SECRET, maintenant), /expirée/);
+});
+
+test('format Wave : HMAC-SHA256 de l\'horodatage collé au corps brut, sans séparateur', () => {
+  // Calculé ici sans passer par signer() : c'est le format lui-même qui est verrouillé.
+  const t = Math.floor(maintenant.getTime() / 1000);
+  const v1 = createHmac('sha256', SECRET).update(`${t}${corps}`).digest('hex');
+  assert.equal(signer(corps, SECRET, maintenant), `t=${t},v1=${v1}`);
+  verifierSignature(Buffer.from(corps), `t=${t},v1=${v1}`, SECRET, maintenant);
+
+  // Avec un point entre les deux (façon Stripe) : ce n'est pas la signature de Wave, refusée.
+  const avecPoint = createHmac('sha256', SECRET).update(`${t}.${corps}`).digest('hex');
+  assert.throws(() => verifierSignature(Buffer.from(corps), `t=${t},v1=${avecPoint}`, SECRET, maintenant), /invalide/);
+});
+
+test('plusieurs signatures v1 (changement de secret) : une seule valide suffit', () => {
+  const b = Buffer.from(corps);
+  const [t, v1] = signer(corps, SECRET, maintenant).split(',');
+  const fausse = `v1=${'a'.repeat(64)}`;
+  verifierSignature(b, `${t},${fausse},${v1}`, SECRET, maintenant);
+  verifierSignature(b, `${t},${v1},${fausse}`, SECRET, maintenant);
+  verifierSignature(b, `${t}, ${v1}`, SECRET, maintenant); // espaces après la virgule tolérés
+  verifierSignature(b, `${t},v1=pas-un-hmac,${v1}`, SECRET, maintenant); // une v1 illisible est ignorée
+  assert.throws(() => verifierSignature(b, `${t},${fausse},v1=${'b'.repeat(64)}`, SECRET, maintenant), /invalide/);
+  assert.throws(() => verifierSignature(b, t, SECRET, maintenant), /mal formée/); // aucune v1
+  assert.throws(() => verifierSignature(b, v1, SECRET, maintenant), /mal formée/); // aucun horodatage
+});
+
+test('la signature porte sur les octets reçus, pas sur un texte reconstitué', () => {
+  const brut = Buffer.from([0x7b, 0xff, 0xfe, 0x7d]); // pas de l'UTF-8 valide
+  const t = Math.floor(maintenant.getTime() / 1000);
+  const v1 = createHmac('sha256', SECRET).update(String(t)).update(brut).digest('hex');
+  verifierSignature(brut, `t=${t},v1=${v1}`, SECRET, maintenant);
+  assert.throws(() => verifierSignature(Buffer.from([0x7b, 0xff, 0x7d]), `t=${t},v1=${v1}`, SECRET, maintenant), /invalide/);
+});
+
+test('horodatage trop dans le futur : refusé comme un rejeu', () => {
+  const b = Buffer.from(corps);
+  const dansLeFutur = (s: number) => new Date(maintenant.getTime() + s * 1000);
+  verifierSignature(b, signer(corps, SECRET, dansLeFutur(299)), SECRET, maintenant);
+  assert.throws(() => verifierSignature(b, signer(corps, SECRET, dansLeFutur(301)), SECRET, maintenant), /expirée/);
 });
 
 test('événement d\'échec ou incomplet', () => {
