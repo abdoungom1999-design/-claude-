@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FF6600</color>
+    <!-- Couleur d'accent des notifications (AndroidManifest.xml) : le vert Sprint, AppColors.vert. -->
+    <color name="ic_launcher_background">#22E07A</color>
     <!-- Onyx : fond de l'écran de démarrage (AppColors.onyx, web/index.html). -->
     <color name="onyx">#0B0B0C</color>
 </resources>

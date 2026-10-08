@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Android 12+ : écran de démarrage système, fond Onyx et logo « S »
-         (au lieu de l'icône de l'app sur fond orange). -->
+         (au lieu de l'icône de l'app sur fond uni). -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:windowSplashScreenBackground">@color/onyx</item>

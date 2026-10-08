@@ -166,8 +166,9 @@ void main() {
       expect(xml, isNot(contains('M4,6 L10,12')), reason: 'ancienne icône');
     });
 
-    test('la couleur des notifications reste l\'orange (elle ne suit pas le fond de l\'icône)', () {
-      expect(lire('$res/values/colors.xml'), contains('<color name="ic_launcher_background">#FF6600</color>'));
+    test('la couleur des notifications est le vert Sprint (elle ne suit pas le fond de l\'icône)', () {
+      expect(lire('$res/values/colors.xml'), contains('<color name="ic_launcher_background">#22E07A</color>'));
+      expect(lire('$res/values/colors.xml').toUpperCase(), isNot(contains('#FF6600')), reason: 'plus aucun orange');
     });
   });
 }
