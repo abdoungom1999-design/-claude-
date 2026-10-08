@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/demo/demo_data.dart';
@@ -5,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
 import '../../../core/notifications/notifications_push.dart';
 import '../../../firebase_options.dart';
+import 'connexion_telephone.dart';
 
 /// Authentification Client, Conducteur et Admin.
 ///
@@ -29,8 +31,10 @@ import '../../../firebase_options.dart';
 /// L'écran de connexion accepte désormais indifféremment l'email ou le
 /// téléphone (champ mixte) : [_resoudreEmail] utilise directement la
 /// saisie si elle contient un '@', sinon la traite comme un téléphone
-/// et retrouve la vraie adresse email associée dans l'annuaire
-/// Firestore `annuaire_telephones` avant d'appeler FirebaseAuth.
+/// et demande au serveur ([ConnexionTelephone]) l'adresse email associée
+/// avant d'appeler FirebaseAuth. L'annuaire Firestore
+/// `annuaire_telephones` n'est plus lisible par l'app : le serveur ne
+/// rend l'email qu'à celui qui connaît le mot de passe.
 ///
 /// Sécurité (voir `firestore.rules`) : le document `users/{uid}` est
 /// privé (propriétaire et Admin uniquement), car il contient les pièces
@@ -38,13 +42,17 @@ import '../../../firebase_options.dart';
 /// est publié à part par [_publierProfilEtAnnuaire] :
 /// - `profils_publics/{uid}` : nom, téléphone, rôle (chat, appel) ;
 /// - `annuaire_telephones/{role}_{telephone}` : uid et email, pour la
-///   connexion par téléphone avant authentification (lecture unitaire
-///   uniquement, jamais de listage).
+///   connexion par téléphone. Écrit et lu par le serveur seul ([ConnexionTelephone.synchroniserAnnuaire]
+///   publie l'entrée du compte connecté) : l'app n'y a plus aucun accès.
 /// Les comptes créés avant ces règles sont publiés à leur prochaine
 /// connexion, ou d'un coup par l'Admin (voir
 /// `AdminKycService.synchroniserProfilsPublics`).
 class AuthRepository {
+  AuthRepository({ConnexionTelephone? connexionTelephone})
+      : _connexionTelephone = connexionTelephone ?? ConnexionTelephone();
+
   final _tokenStorage = TokenStorage();
+  final ConnexionTelephone _connexionTelephone;
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -90,7 +98,7 @@ class AuthRepository {
       return _authentifierEnModeDemo();
     }
     try {
-      final email = await _resoudreEmail(identifiant, role: 'client');
+      final email = await _resoudreEmail(identifiant, role: 'client', motDePasse: motDePasse);
       await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
       await _publierProfilEtAnnuaire();
     } on FirebaseAuthException catch (e) {
@@ -157,7 +165,7 @@ class AuthRepository {
       return _authentifierEnModeDemo();
     }
     try {
-      final email = await _resoudreEmail(identifiant, role: 'conducteur');
+      final email = await _resoudreEmail(identifiant, role: 'conducteur', motDePasse: motDePasse);
       await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
       await _publierProfilEtAnnuaire();
     } on FirebaseAuthException catch (e) {
@@ -289,27 +297,13 @@ class AuthRepository {
     }
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    final ancien = (await _firestore.collection('users').doc(uid).get()).data();
     await _firestore.collection('users').doc(uid).update({
       'nom': nom,
       'telephone': telephone,
     });
+    // Numéro changé : le serveur publie la nouvelle entrée d'annuaire et
+    // retire l'ancienne (l'ancien numéro ne permet plus de se connecter).
     await _publierProfilEtAnnuaire();
-
-    // Numéro changé : l'ancienne entrée d'annuaire ne doit plus
-    // permettre de se connecter avec l'ancien numéro.
-    final ancienTelephone = ancien?['telephone'] as String?;
-    final role = ancien?['role'] as String?;
-    if (role != null && ancienTelephone != null && ancienTelephone != telephone) {
-      final cle = cleAnnuaire(role, ancienTelephone);
-      if (cle != null) {
-        try {
-          await _firestore.collection('annuaire_telephones').doc(cle).delete();
-        } on FirebaseException {
-          // Entrée absente ou appartenant à un autre compte : rien à faire.
-        }
-      }
-    }
   }
 
   /// Envoie l'email de réinitialisation de mot de passe (bouton "Mot
@@ -330,28 +324,14 @@ class AuthRepository {
 
   /// Résout l'identifiant saisi sur l'écran de connexion (champ mixte
   /// email/téléphone) vers un email FirebaseAuth : utilisé tel quel
-  /// s'il contient un '@', sinon traité comme un téléphone et retrouvé
-  /// via [_emailPourTelephone].
-  Future<String> _resoudreEmail(String identifiant, {required String role}) async {
+  /// s'il contient un '@', sinon traité comme un téléphone et résolu par
+  /// le serveur ([ConnexionTelephone.emailPour]) : il vérifie le mot de
+  /// passe et ne rend l'email qu'à son propriétaire, pour un rôle donné
+  /// (un même numéro peut servir côté Client et côté Conducteur).
+  Future<String> _resoudreEmail(String identifiant, {required String role, required String motDePasse}) async {
     final valeur = identifiant.trim();
     if (valeur.contains('@')) return valeur;
-    return _emailPourTelephone(valeur, role: role);
-  }
-
-  /// Retrouve l'email réel associé à un numéro de téléphone (et un
-  /// rôle, pour éviter qu'un même numéro utilisé à la fois côté Client
-  /// et Conducteur ne se mélange) : lecture d'UNE entrée de l'annuaire
-  /// `annuaire_telephones`, seule lecture autorisée avant connexion —
-  /// `users` n'est plus interrogeable sans être connecté.
-  Future<String> _emailPourTelephone(String telephone, {required String role}) async {
-    final cle = cleAnnuaire(role, telephone);
-    final email = cle == null
-        ? null
-        : (await _firestore.collection('annuaire_telephones').doc(cle).get()).data()?['email'];
-    if (email is! String) {
-      throw ApiException('Numéro ou mot de passe incorrect.');
-    }
-    return email;
+    return _connexionTelephone.emailPour(role: role, telephone: valeur, motDePasse: motDePasse);
   }
 
   /// Identifiant du document d'annuaire pour ce couple rôle/téléphone,
@@ -363,11 +343,13 @@ class AuthRepository {
   }
 
   /// Publie (ou met à jour) le profil public et l'entrée d'annuaire de
-  /// l'utilisateur connecté à partir de son profil privé `users/{uid}`.
-  /// Appelé après inscription, connexion et modification du profil.
-  /// Jamais bloquant : un échec (règles pas encore publiées, numéro
-  /// déjà revendiqué par un autre compte…) n'empêche pas la connexion,
-  /// il désactive seulement la connexion par téléphone pour ce compte.
+  /// l'utilisateur connecté à partir de son profil privé `users/{uid}`
+  /// (l'entrée d'annuaire est publiée par le serveur, sans attendre sa
+  /// réponse). Appelé après inscription, connexion et modification du
+  /// profil. Jamais bloquant : un échec (règles pas encore publiées,
+  /// numéro déjà revendiqué par un autre compte…) n'empêche pas la
+  /// connexion, il désactive seulement la connexion par téléphone pour ce
+  /// compte.
   Future<void> _publierProfilEtAnnuaire() async {
     final utilisateur = _auth.currentUser;
     if (utilisateur == null) return;
@@ -383,13 +365,7 @@ class AuthRepository {
         SetOptions(merge: true),
       );
 
-      final cle = cleAnnuaire(role as String, telephone);
-      if (cle != null && utilisateur.email != null) {
-        await _firestore.collection('annuaire_telephones').doc(cle).set({
-          'uid': utilisateur.uid,
-          'email': utilisateur.email,
-        });
-      }
+      unawaited(_connexionTelephone.synchroniserAnnuaire());
     } on FirebaseException {
       // Voir la doc ci-dessus : volontairement non bloquant.
     }

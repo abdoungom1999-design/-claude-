@@ -12,6 +12,11 @@ import {
   sanctionnerCompte as sanctionnerCore,
 } from './admin';
 import { estimer } from './commandes';
+import {
+  connexionTelephone as connexionTelephoneCore,
+  synchroniserAnnuaire as synchroniserAnnuaireCore,
+  verifierMotDePasseFirebase,
+} from './connexion_telephone';
 import { migrerDocumentsKyc as migrerKycCore, StockageFirebase } from './kyc_stockage';
 import { chauffeursProches as chauffeursProchesCore } from './proximite';
 import { calculDistance } from './distances';
@@ -256,6 +261,37 @@ export const coordonneesAdresse = onCall(options, (requete) =>
 /** Accueil client : chauffeurs disponibles alentour, anonymes et arrondis à 150 m. */
 export const chauffeursProches = onCall((requete) =>
   chauffeursProchesCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
+);
+
+/**
+ * Clé web Firebase du projet : publique par conception (elle est dans l'app,
+ * voir `lib/firebase_options.dart`), nécessaire pour interroger l'API de
+ * vérification des mots de passe de Firebase Auth.
+ */
+const CLE_WEB_FIREBASE = 'AIzaSyBI86kFD1rOGdm_4q49ytxm7Og9QtB26PM';
+
+/**
+ * Connexion par téléphone, appelable sans être connecté : rend l'e-mail du
+ * compte seulement si le mot de passe est le bon (l'annuaire n'est plus
+ * lisible par l'app). Voir `connexion_telephone.ts`.
+ */
+export const connexionTelephone = onCall((requete) => {
+  // Dernière adresse de X-Forwarded-For : celle que Google a vue (les
+  // précédentes viennent de l'appelant et peuvent être inventées).
+  const transmises = String(requete.rawRequest.headers['x-forwarded-for'] ?? '').split(',');
+  const adresse = transmises[transmises.length - 1].trim() || requete.rawRequest.ip;
+  return connexionTelephoneCore(
+    getFirestore(),
+    verifierMotDePasseFirebase(CLE_WEB_FIREBASE),
+    { adresse },
+    requete.data,
+    new Date(),
+  );
+});
+
+/** Publie l'entrée d'annuaire de l'appelant (l'app n'écrit plus dans l'annuaire). */
+export const synchroniserAnnuaire = onCall((requete) =>
+  synchroniserAnnuaireCore(getFirestore(), requete.auth?.uid, requete.auth?.token.email),
 );
 
 /** Push : prévient l'autre partie d'un message qui vient d'être envoyé (texte relu côté serveur). */

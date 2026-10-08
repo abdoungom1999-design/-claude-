@@ -3,6 +3,9 @@ analyzer:
     - build/**
     - web/**
     - android/**
+    # Outils Node (emulateurs, tests de règles) : leurs paquets embarquent
+    # des modèles Dart qui n'ont rien à voir avec l'app.
+    - "**/node_modules/**"
 include: package:flutter_lints/flutter.yaml
 
 linter:

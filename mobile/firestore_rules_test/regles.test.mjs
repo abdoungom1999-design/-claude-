@@ -561,6 +561,18 @@ describe('commandes (paiement) et config serveur', () => {
       await assertFails(setDoc(doc(db, 'config', 'paiementSimule'), { secret: 'pirate' }));
     }
   });
+
+  test('compteurs d\'essais de connexion et distances : réservés au serveur, rien d\'ouvert à l\'app', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'limites_connexion', 'tel_abc'), { echecs: 5, bloqueJusqua: new Date('2030-01-01') }));
+    for (const db of [en('client'), en('admin'), anonyme()]) {
+      await assertFails(getDoc(doc(db, 'limites_connexion', 'tel_abc')));
+      await assertFails(getDocs(collection(db, 'limites_connexion')));
+      await assertFails(setDoc(doc(db, 'limites_connexion', 'tel_abc'), { echecs: 0 }));
+      await assertFails(deleteDoc(doc(db, 'limites_connexion', 'tel_abc')));
+      await assertFails(getDoc(doc(db, 'distances', 'x')));
+    }
+  });
 });
 
 describe('positions_chauffeurs (carte en direct)', () => {

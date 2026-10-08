@@ -243,7 +243,8 @@ jobs:
           for service in estimerprix creerpaiement annulercourse webhookpaiement pagepaiementsimule \
                          rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte \
                          chauffeursproches notifiermessage notifieracceptation \
-                         creerrecharge ajusterportefeuille migrerdocumentskyc; do
+                         creerrecharge ajusterportefeuille migrerdocumentskyc \
+                         connexiontelephone synchroniserannuaire; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
               --member=allUsers --role=roles/run.invoker --quiet > /dev/null
@@ -261,11 +262,16 @@ jobs:
           for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
                           rembourserCourseAdmin sanctionnerCompte chauffeursProches \
                           notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille \
-                          migrerDocumentsKyc; do
+                          migrerDocumentsKyc synchroniserAnnuaire; do
             reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
             echo "$fonction : $reponse"
             echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }
           done
+          # Connexion par téléphone : appelable sans être connecté (c'est son
+          # rôle) ; une demande vide doit être refusée par la fonction elle-même.
+          reponse=$(curl -s -X POST "$base/connexionTelephone" -H 'Content-Type: application/json' -d '{"data":{}}')
+          echo "connexionTelephone : $reponse"
+          echo "$reponse" | grep -q INVALID_ARGUMENT || { echo "::error::connexionTelephone ne répond pas correctement"; exit 1; }
           code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/webhookPaiement" \
             -H 'Content-Type: application/json' -d '{"data":{}}')
           echo "webhookPaiement sans signature : HTTP $code"

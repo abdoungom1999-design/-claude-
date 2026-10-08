@@ -168,8 +168,17 @@ depuis la Console.
   GPS. Lecture Admin uniquement. Un client ne voit et ne contacte que le
   chauffeur de sa course active (l'identité reste lisible 1 jour après
   la course, pour la noter).
-- `annuaire_telephones` : lecture d'une entrée précise possible avant
-  connexion (connexion par téléphone), mais aucun listage possible.
+- `annuaire_telephones` (téléphone -> e-mail, pour la connexion par
+  numéro) : **réservé au serveur**. Avant, une entrée était lisible par
+  tous : on pouvait y tester des numéros pour savoir qui a un compte et
+  récupérer son e-mail. Maintenant la connexion passe par la fonction
+  `connexionTelephone` (voir section 7), qui vérifie le mot de passe et ne
+  rend l'e-mail qu'à son propriétaire ; l'entrée du compte est publiée par
+  `synchroniserAnnuaire`. Mise en place en deux temps : (1) fonctions et
+  app, la lecture publique restant ouverte pour les anciennes versions de
+  l'app ; (2) une fois la connexion par téléphone validée sur de vrais
+  téléphones, fermeture des règles (plus aucune lecture ni écriture par
+  l'app ; l'Admin garde l'écriture pour son rattrapage).
 - `courses` : un client ne crée et ne liste que ses propres demandes,
   sans pouvoir s'attribuer un chauffeur ni antidater ; seuls les chauffeurs validés
   et non sanctionnés voient et acceptent les courses en attente.
@@ -251,7 +260,16 @@ depuis la Console.
 - Un numéro de téléphone n'est pas garanti unique : si quelqu'un
   revendique en premier le numéro d'un autre dans l'annuaire, ce dernier
   ne pourra se connecter que par email (aucun accès à son compte n'est
-  donné pour autant).
+  donné pour autant). Le numéro n'est pas vérifié par SMS.
+- **Connexion par téléphone** (`functions/src/connexion_telephone.ts`) :
+  `connexionTelephone` (appelable sans être connecté) vérifie le mot de
+  passe auprès de Firebase Auth et rend l'e-mail du compte à celui qui le
+  connaît ; l'app finit la connexion avec Firebase Auth (e-mail + mot de
+  passe). Numéro inconnu et mot de passe faux : même réponse, au moins
+  0,8 s. Essais limités : 5 échecs par numéro (qu'il existe ou non) puis
+  blocage de 15 minutes, 100 échecs par adresse réseau ; compteurs dans
+  `limites_connexion` (identifiants hachés, aucun numéro ni mot de passe,
+  champ `expireLe` pour une règle de durée de vie Firestore).
 
 ## 7. Cloud Functions : prix, paiement et courses (plan Blaze)
 
