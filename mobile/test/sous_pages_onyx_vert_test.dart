@@ -42,4 +42,19 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('Préférences : plus de choix de thème, l\'app est uniquement en mode sombre', (tester) async {
+    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: PreferencesPage()));
+    await tester.pump();
+
+    for (final disparu in ['Thème', 'Clair', 'Sombre', 'Système']) {
+      expect(find.text(disparu), findsNothing, reason: disparu);
+    }
+    for (final reste in ['Localisation', 'Unité de distance', 'Format d\'heure', 'Devise', 'Enregistrer']) {
+      expect(find.text(reste), findsOneWidget, reason: reste);
+    }
+  });
 }

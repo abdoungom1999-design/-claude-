@@ -6,9 +6,8 @@ import '../../../core/widgets/premium_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/onyx_vert.dart';
 
-/// Préférences d'utilisation de l'app (démo : état conservé en mémoire,
-/// n'affecte pas le thème réel de l'application — voir note dans le
-/// bloc Thème).
+/// Préférences d'utilisation de l'app (démo : état conservé en mémoire).
+/// Pas de choix de thème : l'app est uniquement en mode sombre.
 class PreferencesPage extends StatefulWidget {
   const PreferencesPage({super.key});
 
@@ -18,14 +17,12 @@ class PreferencesPage extends StatefulWidget {
 
 class _PreferencesPageState extends State<PreferencesPage> {
   late String _ville = DemoData.villeActivite;
-  late String _theme = DemoData.theme;
   late String _uniteDistance = DemoData.uniteDistance;
   late String _formatHeure = DemoData.formatHeure;
   late String _devise = DemoData.devise;
 
   void _enregistrer() {
     DemoData.villeActivite = _ville;
-    DemoData.theme = _theme;
     DemoData.uniteDistance = _uniteDistance;
     DemoData.formatHeure = _formatHeure;
     DemoData.devise = _devise;
@@ -52,13 +49,6 @@ class _PreferencesPageState extends State<PreferencesPage> {
               valeur: _ville,
               options: const ['Dakar', 'Thiès', 'Saint-Louis', 'Mbour'],
               onChanged: (v) => setState(() => _ville = v),
-            ),
-            const SizedBox(height: 16),
-            _BlocRadio<String>(
-              titre: 'Thème',
-              valeur: _theme,
-              options: const ['Clair', 'Sombre', 'Système'],
-              onChanged: (v) => setState(() => _theme = v),
             ),
             const SizedBox(height: 16),
             _BlocRadio<String>(
