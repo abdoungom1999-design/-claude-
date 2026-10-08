@@ -532,3 +532,25 @@ vérifie qu'ils restent d'accord.
   démarrage système) à partir d'Android 12.
 - **PWA Android** : `background_color` du manifeste en Onyx. L'icône de
   l'écran d'accueil (éclair blanc sur orange) n'est pas changée.
+
+## 9. Sécurité : contrôles automatiques, en-têtes du site, secrets
+
+- **Contrôles de la CI** (`securite/`, voir `securite/LISEZMOI.md`) : aucun
+  secret dans le dépôt, les lignes ajoutées, le site compilé (et l'APK, en
+  avertissement) ; aucune dépendance vulnérable (Cloud Functions : haute ou
+  critique ; outils de test : critique ; paquets Dart : tout avis). Ils
+  bloquent le déploiement ; les exceptions se déclarent, motivées et datées,
+  dans `securite/exceptions.json`.
+- **En-têtes du site** (`firebase.json`, Hosting) : `X-Content-Type-Options:
+  nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+  strict-origin-when-cross-origin`, `Permissions-Policy`, `Strict-Transport-Security`
+  et une politique CSP limitée à `frame-ancestors 'none'; base-uri 'self';
+  object-src 'none'; form-action 'self'` (anti-framing, sans effet sur le
+  chargement des scripts). La CI vérifie qu'ils sont servis après le
+  déploiement (avertissement sinon). Une CSP complète (`script-src`,
+  `connect-src`…) reste à écrire, avec un point de collecte des violations.
+- **Secrets** : le dépôt est public. Les clés de paiement (Wave, plus tard
+  Orange Money) et la clé Google Maps du serveur vivent **uniquement** dans
+  Secret Manager ; jamais dans le code, l'app, GitHub ni un message. À activer
+  sur le dépôt GitHub : Settings > Code security > alertes Dependabot, Secret
+  scanning et Push protection.

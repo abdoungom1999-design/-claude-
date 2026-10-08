@@ -1,0 +1,4 @@
+{
+  "_lisez_moi": "Avis de sécurité connus et acceptés en connaissance de cause. Chaque entrée doit dire POURQUOI le risque est accepté et jusqu'à quand (jusqu_au, AAAA-MM-JJ) : passé cette date l'exception est ignorée et le contrôle bloque de nouveau la CI. 'projet' : dossier du projet npm, ou 'dart' pour pubspec.lock.",
+  "avis": []
+}

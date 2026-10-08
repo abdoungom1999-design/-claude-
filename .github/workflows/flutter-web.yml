@@ -61,6 +61,15 @@ jobs:
             --dart-define=API_BASE_URL="${{ inputs.api_base_url }}" \
             --dart-define=GOOGLE_MAPS_WEB_KEY="$GOOGLE_MAPS_WEB_KEY"
 
+      # Garde-fou : aucun secret dans le site compilé (le dépôt et les
+      # journaux de la CI sont publics). Seules sont admises la clé web
+      # Firebase (publique par conception) et la clé de carte restreinte
+      # injectée ci-dessus ; toute autre clé est une fuite.
+      - name: Sécurité · aucun secret dans le site compilé
+        env:
+          GOOGLE_MAPS_WEB_KEY: ${{ secrets.GOOGLE_MAPS_WEB_KEY }}
+        run: node securite/garde_fuites.mjs dossier build/web
+
       # Vérification réelle auprès de Google : la clé web, présentée comme
       # venant du site, ouvre une session de carte avec le style « Sprint
       # clair ». Non bloquant (avertissement dans le résumé du run).
@@ -94,7 +103,10 @@ jobs:
       run:
         working-directory: mobile
     steps:
+      # Historique complet : le garde-fou analyse les lignes ajoutées par le push.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -113,6 +125,31 @@ jobs:
       - run: npm ci --prefix functions
 
       - run: npm ci --prefix firestore_rules_test
+
+      # Contrôles de sécurité (voir mobile/securite/LISEZMOI.md). Ils
+      # bloquent le déploiement : secrets dans le dépôt, dépendances
+      # vulnérables. Exceptions motivées et datées : securite/exceptions.json.
+      - name: Sécurité · les contrôles eux-mêmes (tests)
+        run: node --test securite/test/*.test.mjs
+
+      - name: Sécurité · aucun secret dans les fichiers du dépôt
+        run: node securite/garde_fuites.mjs fichiers
+
+      - name: Sécurité · aucun secret dans les lignes ajoutées par ce push
+        env:
+          AVANT: ${{ github.event.before }}
+          APRES: ${{ github.sha }}
+        run: node securite/garde_fuites.mjs diff "$AVANT" "$APRES"
+
+      - name: Sécurité · vulnérabilités connues des Cloud Functions (production)
+        run: node securite/audit_npm.mjs functions --prod --seuil high
+
+      # Outils de test seulement (jamais déployés) : on ne bloque que le critique.
+      - name: Sécurité · vulnérabilités connues des outils de test
+        run: node securite/audit_npm.mjs firestore_rules_test --seuil critical
+
+      - name: Sécurité · avis de sécurité des paquets Dart (pubspec.lock)
+        run: node securite/avis_dart.mjs pubspec.lock
 
       - name: Cloud Functions (moteur de prix, validation, signatures)
         run: npm test --prefix functions
@@ -466,6 +503,15 @@ jobs:
           echo "Empreinte SHA-1 présentée à Google : conforme."
           ls -lh "$apk"
 
+      # Aucun secret dans l'APK. Non bloquant tant que ce contrôle n'a pas
+      # tourné sur un vrai APK de la CI (à rendre bloquant ensuite).
+      - name: Sécurité · aucun secret dans l'APK
+        if: steps.secret.outputs.present == 'true'
+        continue-on-error: true
+        env:
+          GOOGLE_MAPS_ANDROID_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY }}
+        run: node securite/garde_fuites.mjs apk build/app/outputs/flutter-apk/app-release.apk
+
       # Vérification réelle auprès de Google : la clé Android, présentée
       # avec l'identité de l'APK, ouvre une session de carte avec le style
       # « Sprint clair ». Non bloquant (avertissement dans le résumé).
@@ -631,4 +677,23 @@ jobs:
             || { echo "::error::Le service worker des notifications n'est pas servi à la racine du site"; exit 1; }
           curl -sI "$adresse/firebase-messaging-sw.js" | grep -qi '^content-type:.*javascript' \
             || { echo "::error::Le service worker des notifications n'est pas servi en JavaScript"; exit 1; }
+          # En-têtes de sécurité (firebase.json) réellement servis par le
+          # site public : avertissement s'il en manque (ils peuvent mettre
+          # quelques secondes à se propager).
+          for essai in 1 2 3 4; do
+            entetes=$(curl -sI "$adresse/" | tr -d '\r')
+            manquants=""
+            for attendu in 'x-content-type-options: nosniff' 'x-frame-options: DENY' \
+                           'referrer-policy: strict-origin-when-cross-origin' \
+                           "content-security-policy: frame-ancestors 'none'" 'permissions-policy:'; do
+              echo "$entetes" | grep -qiF "$attendu" || manquants="$manquants | $attendu"
+            done
+            [ -z "$manquants" ] && break
+            sleep 10
+          done
+          if [ -n "$manquants" ]; then
+            echo "::warning title=En-têtes de sécurité::Absents du site en ligne :$manquants"
+          else
+            echo "En-têtes de sécurité : présents sur $adresse/."
+          fi
           echo "::notice title=Site publié::App : $adresse/ — APK $version : $adresse/sprint.apk (page : $adresse/android/)"
