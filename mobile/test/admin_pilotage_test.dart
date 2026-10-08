@@ -151,7 +151,7 @@ void main() {
   testWidgets('Paramètres : règles réellement appliquées, exemples calculés', (tester) async {
     await _afficher(tester, const AdminParametresSection(demo: false));
     expect(find.text('Règles en vigueur'), findsOneWidget);
-    expect(find.text('Wave, Orange Money'), findsOneWidget);
+    expect(find.text('Wave, solde Sprint (Orange Money bientôt)'), findsOneWidget);
     expect(find.text('15 % du prix'), findsOneWidget);
     // 300 + 5 x 200 = 1 300 ; x 1,2 en pointe = 1 560 -> 1 600 ; 300 + 15 x 200 = 3 300.
     expect(

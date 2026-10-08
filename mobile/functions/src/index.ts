@@ -94,8 +94,9 @@ export const creerPaiement = onCall(options, async (requete) =>
 );
 
 /**
- * Portefeuille : demande de recharge (Wave ou Orange Money). Le solde n'est
- * crédité que par le webhook signé du fournisseur, jamais par l'app.
+ * Portefeuille : demande de recharge (Wave ; Orange Money fermé, voir
+ * `methodes_paiement.ts`). Le solde n'est crédité que par le webhook signé
+ * du fournisseur, jamais par l'app.
  */
 export const creerRecharge = onCall(async (requete) =>
   creerRechargeCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),

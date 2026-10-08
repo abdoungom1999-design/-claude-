@@ -9,10 +9,12 @@ const _orangeOrangeMoney = Color(0xFFFF7900);
 
 /// Bottom sheet "Choisissez votre mode de paiement", affichée après la
 /// confirmation du prix et avant toute création de course (voir
-/// `PassagerPage` / `ColisPage`). Uniquement Wave et Orange Money —
-/// Groupe Santine est passé au 100% mobile money. Le choix referme la
-/// sheet puis ouvre le sas de paiement (`PaymentProcessingPage`), seul
-/// habilité à créer la course une fois le paiement confirmé.
+/// `PassagerPage` / `ColisPage`). Groupe Santine est passé au 100% mobile
+/// money : les opérateurs proposés sont [moyensMobileMoneyDisponibles]
+/// (Wave aujourd'hui ; Orange Money est fermé tant que son fournisseur réel
+/// n'est pas branché). Le choix referme la sheet puis ouvre le sas de
+/// paiement (`PaymentProcessingPage`), seul habilité à créer la course une
+/// fois le paiement confirmé.
 ///
 /// Retourne `null` si l'utilisateur ferme la sheet sans choisir : aucune
 /// course n'est alors créée.
@@ -20,8 +22,8 @@ const _orangeOrangeMoney = Color(0xFFFF7900);
 /// [portefeuille] (client connecté, Firebase réel) : quand l'interrupteur
 /// « Régler mes courses avec mon solde » est actif et que le solde couvre
 /// la course, « Payer avec mon solde » passe en premier (un seul appui) ;
-/// s'il ne la couvre pas, le client est prévenu et paie par Wave ou Orange
-/// Money pour le total.
+/// s'il ne la couvre pas, le client est prévenu et paie par mobile money
+/// pour le total.
 Future<PaymentMethod?> afficherSelectionPaiementSheet(
   BuildContext context, {
   int? montantFcfa,
@@ -116,19 +118,10 @@ class _SelectionPaiementSheet extends StatelessWidget {
             _AvertissementSolde(soldeFcfa: solde),
             const SizedBox(height: 14),
           ],
-          const _BoutonPaiement(
-            methode: PaymentMethod.wave,
-            fond: _bleuWave,
-            couleurTexte: Colors.white,
-            icone: Icons.waves_rounded,
-          ),
-          const SizedBox(height: 12),
-          const _BoutonPaiement(
-            methode: PaymentMethod.orangeMoney,
-            fond: Colors.black,
-            couleurTexte: _orangeOrangeMoney,
-            icone: Icons.account_balance_wallet_rounded,
-          ),
+          for (var i = 0; i < moyensMobileMoneyDisponibles.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _BoutonPaiement.operateur(moyensMobileMoneyDisponibles[i]),
+          ],
           const SizedBox(height: 14),
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -154,6 +147,23 @@ class _BoutonPaiement extends StatelessWidget {
     required this.couleurTexte,
     required this.icone,
   });
+
+  /// Bouton aux couleurs de l'opérateur (Wave en bleu, Orange Money en noir
+  /// à texte orange).
+  factory _BoutonPaiement.operateur(PaymentMethod methode) => switch (methode) {
+        PaymentMethod.orangeMoney => _BoutonPaiement(
+            methode: methode,
+            fond: Colors.black,
+            couleurTexte: _orangeOrangeMoney,
+            icone: Icons.account_balance_wallet_rounded,
+          ),
+        _ => _BoutonPaiement(
+            methode: methode,
+            fond: _bleuWave,
+            couleurTexte: Colors.white,
+            icone: Icons.waves_rounded,
+          ),
+      };
 
   final PaymentMethod methode;
   final Color fond;
@@ -275,7 +285,7 @@ class _AvertissementSolde extends StatelessWidget {
           Expanded(
             child: Text(
               'Votre solde (${formaterFcfa(soldeFcfa)}) ne couvre pas cette course : '
-              'payez le total avec Wave ou Orange Money.',
+              'payez le total avec Wave.',
               style: const TextStyle(fontSize: 12.5, color: AppColors.bleuFonce, height: 1.35),
             ),
           ),

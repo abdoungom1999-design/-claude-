@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { estimer, validerDemande } from '../src/commandes';
 import type { CalculDistance } from '../src/distances';
+import { METHODES_ACTIVES, METHODES_CONNUES, METHODES_RECHARGE, verifierMethode } from '../src/methodes_paiement';
 import { distanceRouteEstimeeKm } from '../src/tarification';
 
 const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
@@ -88,8 +89,33 @@ test('commande : le prix envoyé ne sert que de contrôle, jamais de valeur', ()
 });
 
 test('commande : 100 % mobile money (ou solde Sprint), adresses obligatoires', () => {
-  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /Wave, Orange Money ou solde Sprint/);
+  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /Wave ou votre solde Sprint/);
+  assert.equal(validerDemande(commande({ methodePaiement: 'WAVE' })).methodePaiement, 'WAVE');
   assert.equal(validerDemande(commande({ methodePaiement: 'PORTEFEUILLE' })).methodePaiement, 'PORTEFEUILLE');
   refuse(() => validerDemande(commande({ adresseDepart: '  ' })), 'invalid-argument');
   refuse(() => validerDemande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
+});
+
+test('commande : Orange Money fermé tant que son fournisseur réel n\'est pas branché', () => {
+  // Précondition non remplie (et non « argument invalide ») : le message dit quoi choisir.
+  refuse(
+    () => validerDemande(commande({ methodePaiement: 'ORANGE_MONEY' })),
+    'failed-precondition',
+    /Orange Money n'est pas encore disponible : payez avec Wave ou votre solde Sprint/,
+  );
+  // Connu (l'historique en contient) mais jamais accepté pour un nouveau paiement.
+  assert.ok(METHODES_CONNUES.includes('ORANGE_MONEY'));
+  assert.ok(!METHODES_ACTIVES.includes('ORANGE_MONEY'));
+  assert.ok(!METHODES_RECHARGE.includes('ORANGE_MONEY'));
+  // Toute autre valeur n'est pas un moyen de paiement.
+  for (const valeur of ['orange_money', 'Orange Money', 'ORANGE_MONEY ', '', null, undefined, 7, ['ORANGE_MONEY']]) {
+    refuse(() => validerDemande(commande({ methodePaiement: valeur })), 'invalid-argument');
+  }
+});
+
+test('recharge : le mobile money actif est Wave seul', () => {
+  assert.deepEqual([...METHODES_RECHARGE], ['WAVE']);
+  assert.equal(verifierMethode('WAVE', METHODES_RECHARGE, 'recharger'), 'WAVE');
+  refuse(() => verifierMethode('ORANGE_MONEY', METHODES_RECHARGE, 'recharger'), 'failed-precondition', /rechargez avec Wave\./);
+  refuse(() => verifierMethode('PORTEFEUILLE', METHODES_RECHARGE, 'recharger'), 'invalid-argument', /Wave uniquement/);
 });

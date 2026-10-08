@@ -144,7 +144,20 @@ test('recharge : montants et modes refusés', async () => {
   assert.equal(await code(creerRecharge('awa', null)), 'invalid-argument');
   // Bornes acceptées.
   await creerRecharge('awa', { montantFcfa: 500, methodePaiement: 'WAVE' });
-  await creerRecharge('awa', { montantFcfa: 100_000, methodePaiement: 'ORANGE_MONEY' });
+  await creerRecharge('awa', { montantFcfa: 100_000, methodePaiement: 'WAVE' });
+});
+
+test('recharge : Orange Money fermé (pas de recharge, pas de session de paiement)', async () => {
+  let sessions = 0;
+  const reel = fournisseur.creerSession.bind(fournisseur);
+  fournisseur.creerSession = async () => {
+    sessions++;
+    return reel();
+  };
+  assert.equal(await code(creerRecharge('awa', { montantFcfa: 5000, methodePaiement: 'ORANGE_MONEY' })), 'failed-precondition');
+  assert.equal((await db.collection('recharges').get()).size, 0);
+  assert.equal(sessions, 0);
+  assert.equal(await soldeDe('awa'), 0);
 });
 
 test('recharge : connexion, rôle client et compte actif exigés', async () => {

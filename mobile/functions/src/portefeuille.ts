@@ -3,6 +3,7 @@ import { Timestamp, type DocumentReference, type Firestore, type Transaction } f
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { EvenementPaiement, FournisseurPaiement } from './fournisseurs';
+import { METHODES_RECHARGE, verifierMethode } from './methodes_paiement';
 
 /**
  * Portefeuille Sprint : crédit prépayé du client, utilisable uniquement
@@ -15,7 +16,7 @@ import type { EvenementPaiement, FournisseurPaiement } from './fournisseurs';
  * remboursement) : rejouer un webhook ou un remboursement ne crédite ni ne
  * débite jamais deux fois.
  *
- *   creerRecharge ──> recharge "en_attente" + lien de paiement (Wave / OM)
+ *   creerRecharge ──> recharge "en_attente" + lien de paiement (Wave)
  *   webhook signé ──> recharge "reussie" + solde crédité + mouvement
  *                └──> recharge "echouee" (refus, annulation)
  *   surveillance  ──> recharge "expiree" si jamais payée
@@ -50,8 +51,6 @@ export const TYPES_MOUVEMENT = {
   remboursement: 'remboursement',
   ajustementAdmin: 'ajustement_admin',
 } as const;
-
-export const METHODES_RECHARGE = ['WAVE', 'ORANGE_MONEY'] as const;
 
 export const estReferenceRecharge = (reference: string): boolean => reference.startsWith(PREFIXE_RECHARGE);
 
@@ -125,10 +124,7 @@ export function validerRecharge(donnees: unknown): { montantFcfa: number; method
   if (montant > RECHARGE_MAX_FCFA) {
     throw new HttpsError('invalid-argument', `La recharge maximale est de ${RECHARGE_MAX_FCFA} FCFA.`);
   }
-  if (!METHODES_RECHARGE.includes(d.methodePaiement as (typeof METHODES_RECHARGE)[number])) {
-    throw new HttpsError('invalid-argument', 'Mode de paiement invalide : Wave ou Orange Money uniquement.');
-  }
-  return { montantFcfa: montant, methodePaiement: d.methodePaiement as string };
+  return { montantFcfa: montant, methodePaiement: verifierMethode(d.methodePaiement, METHODES_RECHARGE, 'recharger') };
 }
 
 export async function creerRecharge(
@@ -301,7 +297,7 @@ export function debiterPourCourse(
   if (soldeAvant < prixFcfa) {
     throw new HttpsError(
       'failed-precondition',
-      `Solde insuffisant : ${soldeAvant} FCFA disponibles pour une course de ${prixFcfa} FCFA. Rechargez ou choisissez Wave ou Orange Money.`,
+      `Solde insuffisant : ${soldeAvant} FCFA disponibles pour une course de ${prixFcfa} FCFA. Rechargez votre solde ou choisissez Wave.`,
       { raison: 'solde-insuffisant', soldeFcfa: soldeAvant },
     );
   }

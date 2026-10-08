@@ -141,6 +141,24 @@ test('fournisseur indisponible : erreur claire, aucune commande', async () => {
   assert.equal(await nombre('commandes'), 0);
 });
 
+test('Orange Money fermé : refusé avant tout, ni commande, ni session de paiement, ni course gratuite', async () => {
+  let sessions = 0;
+  const reel = fournisseur.creerSession.bind(fournisseur);
+  fournisseur.creerSession = async () => {
+    sessions++;
+    return reel();
+  };
+  const erreur = await refuse(creerPaiement('awa', demande({ methodePaiement: 'ORANGE_MONEY' })), 'failed-precondition');
+  assert.match(erreur.message, /Orange Money n'est pas encore disponible/);
+  assert.equal(await nombre('commandes'), 0);
+  assert.equal(await nombre('courses'), 0);
+  assert.equal(sessions, 0);
+  assert.equal(appelsRoutes, 0, 'refus avant tout appel à Google');
+  // Wave et le solde Sprint, eux, restent ouverts.
+  const wave = await creerPaiement('awa', demande({ methodePaiement: 'WAVE' }));
+  assert.equal(await statutCommande(wave.commandeId), 'en_attente_paiement');
+});
+
 test('distance par la route mise en cache ; cache périmé recalculé ; Google en panne : secours', async () => {
   await creerPaiement('awa', demande());
   await creerPaiement('awa', demande());

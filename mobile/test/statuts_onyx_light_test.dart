@@ -89,10 +89,10 @@ void main() {
 
     expect(find.byType(EcranOnyxLight), findsOneWidget);
     expect(find.text('Questions fréquentes'), findsOneWidget);
-    expect(find.textContaining('Trois moyens de paiement'), findsNothing);
+    expect(find.textContaining('Deux moyens de paiement'), findsNothing);
     await tester.tap(find.text('Comment payer ma course ?'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Trois moyens de paiement'), findsOneWidget);
+    expect(find.textContaining('Deux moyens de paiement'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.scrollUntilVisible(find.text('Contacter le support'), 300, scrollable: find.byType(Scrollable).first);

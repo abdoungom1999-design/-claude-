@@ -20,9 +20,9 @@ const _questions = [
   ),
   _Question(
     'Comment payer ma course ?',
-    'Trois moyens de paiement sont disponibles : Wave, Orange Money, ou le '
-        'solde de votre Portefeuille Santine, rechargeable depuis l\'onglet '
-        'Compte.',
+    'Deux moyens de paiement sont disponibles : Wave, ou le solde de votre '
+        'Portefeuille Santine, rechargeable avec Wave depuis l\'onglet Compte. '
+        'Orange Money arrivera bientôt.',
   ),
   _Question(
     'Comment annuler une course ?',

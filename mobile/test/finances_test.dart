@@ -201,13 +201,19 @@ void main() {
     });
   });
 
-  group('Client : Wave ou Orange Money uniquement', () {
+  group('Client : Wave ou solde Sprint (Orange Money fermé)', () {
     test('aucun mode de paiement en espèces : mobile money, ou solde Sprint (rechargé par mobile money)', () {
       expect(PaymentMethod.values, [PaymentMethod.wave, PaymentMethod.orangeMoney, PaymentMethod.portefeuille]);
       expect(PaymentMethod.values.map((m) => m.apiValue), ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']);
     });
 
-    testWidgets('la sheet ne propose que Wave et Orange Money', (tester) async {
+    test('Orange Money reste connu (historique) mais n\'est pas proposé : seul Wave est ouvert', () {
+      expect(moyensMobileMoneyDisponibles, [PaymentMethod.wave]);
+      expect(moyensMobileMoneyDisponibles, isNot(contains(PaymentMethod.orangeMoney)));
+      expect(PaymentMethod.orangeMoney.label, 'Orange Money'); // libellé de l'historique conservé
+    });
+
+    testWidgets('la sheet ne propose que Wave : plus d\'Orange Money (course gratuite par la simulation)', (tester) async {
       PaymentMethod? choix;
       await tester.pumpWidget(MaterialApp(
         home: Builder(
@@ -220,12 +226,12 @@ void main() {
       await tester.tap(find.text('Ouvrir'));
       await tester.pumpAndSettle();
       expect(find.text('Payer avec Wave'), findsOneWidget);
-      expect(find.text('Payer avec Orange Money'), findsOneWidget);
+      expect(find.textContaining('Orange', findRichText: true), findsNothing);
       expect(find.textContaining('espèces', findRichText: true), findsNothing);
       expect(find.textContaining('Espèces', findRichText: true), findsNothing);
-      await tester.tap(find.text('Payer avec Orange Money'));
+      await tester.tap(find.text('Payer avec Wave'));
       await tester.pumpAndSettle();
-      expect(choix, PaymentMethod.orangeMoney);
+      expect(choix, PaymentMethod.wave);
     });
 
     testWidgets('course suivie seulement après confirmation du paiement par le serveur', (tester) async {

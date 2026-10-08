@@ -501,7 +501,7 @@ class _RechargeSheetState extends State<_RechargeSheet> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
-                children: [PaymentMethod.wave, PaymentMethod.orangeMoney].map((methode) {
+                children: moyensMobileMoneyDisponibles.map((methode) {
                   final selectionne = methode == _methode;
                   return ChoiceChip(
                     key: ValueKey('operateur-${methode.apiValue}'),

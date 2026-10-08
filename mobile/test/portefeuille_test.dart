@@ -168,13 +168,13 @@ void main() {
     final boutonSolde = find.byKey(const ValueKey('payer-avec-solde'));
     final avertissement = find.byKey(const ValueKey('solde-insuffisant'));
 
-    testWidgets('sans portefeuille (démo, hors connexion) : Wave et Orange Money seulement', (tester) async {
+    testWidgets('sans portefeuille (démo, hors connexion) : Wave seulement', (tester) async {
       await ouvrir(tester);
       await ouvrirSheet(tester);
       expect(boutonSolde, findsNothing);
       expect(avertissement, findsNothing);
       expect(find.text('Payer avec Wave'), findsOneWidget);
-      expect(find.text('Payer avec Orange Money'), findsOneWidget);
+      expect(find.text('Payer avec Orange Money'), findsNothing);
     });
 
     testWidgets('interrupteur éteint : le solde n\'est pas proposé, même suffisant', (tester) async {
@@ -191,7 +191,7 @@ void main() {
       expect(find.text('Payer avec mon solde'), findsOneWidget);
       expect(find.text('Solde ${formaterFcfa(5000)} · il restera ${formaterFcfa(2700)}'), findsOneWidget);
       expect(avertissement, findsNothing);
-      // Wave et Orange Money restent disponibles en dessous.
+      // Wave reste disponible en dessous.
       expect(find.text('Payer avec Wave'), findsOneWidget);
       expect(tester.getTopLeft(boutonSolde).dy, lessThan(tester.getTopLeft(find.text('Payer avec Wave')).dy));
 
@@ -215,9 +215,10 @@ void main() {
       expect(find.textContaining(formaterFcfa(2299)), findsOneWidget);
       expect(find.text('Payer avec Wave'), findsOneWidget);
 
-      await tester.tap(find.text('Payer avec Orange Money'));
+      expect(find.text('Payer avec Orange Money'), findsNothing);
+      await tester.tap(find.text('Payer avec Wave'));
       await tester.pumpAndSettle();
-      expect(await resultat(), PaymentMethod.orangeMoney);
+      expect(await resultat(), PaymentMethod.wave);
     });
   });
 
@@ -350,13 +351,13 @@ void main() {
     testWidgets('le serveur reçoit montant et opérateur ; le client paie sur la page de l\'opérateur', (tester) async {
       final service = _ServiceFactice();
       final liens = <Uri>[];
-      await ouvrir(tester, service, methode: PaymentMethod.orangeMoney, liens: liens);
+      await ouvrir(tester, service, methode: PaymentMethod.wave, liens: liens);
       await demarrer(tester);
 
       expect(service.montantRecu, 5000);
-      expect(service.methodeRecue, 'ORANGE_MONEY');
-      expect(find.text('Payer avec Orange Money · ${formaterFcfa(5000)}'), findsOneWidget);
-      await tester.tap(find.text('Payer avec Orange Money · ${formaterFcfa(5000)}'));
+      expect(service.methodeRecue, 'WAVE');
+      expect(find.text('Payer avec Wave · ${formaterFcfa(5000)}'), findsOneWidget);
+      await tester.tap(find.text('Payer avec Wave · ${formaterFcfa(5000)}'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(liens, [Uri.parse('https://paiement.test/?session=sim_r1')]);
@@ -486,7 +487,7 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('montants rapides, autre montant, opérateurs Wave et Orange Money', (tester) async {
+    testWidgets('montants rapides, autre montant, opérateur Wave (Orange Money fermé)', (tester) async {
       await ouvrirRecharge(tester);
       expect(find.text('Recharger mon portefeuille'), findsWidgets);
       for (final montant in [1000, 2000, 5000, 10000, 20000]) {
@@ -494,7 +495,8 @@ void main() {
       }
       expect(find.byKey(const ValueKey('autre-montant')), findsOneWidget);
       expect(find.byKey(const ValueKey('operateur-WAVE')), findsOneWidget);
-      expect(find.byKey(const ValueKey('operateur-ORANGE_MONEY')), findsOneWidget);
+      expect(find.byKey(const ValueKey('operateur-ORANGE_MONEY')), findsNothing);
+      expect(find.textContaining('Orange', findRichText: true), findsNothing);
       expect(find.textContaining('pas retirable'), findsOneWidget);
       expect(erreur, findsNothing);
     });
@@ -588,14 +590,14 @@ void main() {
       await tester.tap(find.text('Recharger'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('5000 FCFA'));
-      await tester.tap(find.byKey(const ValueKey('operateur-ORANGE_MONEY')));
+      await tester.tap(find.byKey(const ValueKey('operateur-WAVE')));
       await tester.pump();
       await tester.tap(find.text('Confirmer la recharge'));
       await tester.pumpAndSettle();
 
       expect(service.montantRecu, 5000);
-      expect(service.methodeRecue, 'ORANGE_MONEY');
-      expect(find.text('Payer avec Orange Money · ${formaterFcfa(5000)}'), findsOneWidget);
+      expect(service.methodeRecue, 'WAVE');
+      expect(find.text('Payer avec Wave · ${formaterFcfa(5000)}'), findsOneWidget);
       expect(DemoData.soldePortefeuilleFcfa, 0);
     });
 

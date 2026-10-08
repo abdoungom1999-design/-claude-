@@ -204,7 +204,8 @@ depuis la Console.
 - Courses : aucune course ne peut être créée depuis l'app, même par
   l'Admin. Seul le serveur les crée (étape 7), une fois le paiement
   confirmé par l'opérateur, avec le prix qu'il calcule lui-même.
-  Paiement 100 % mobile money (Wave ou Orange Money).
+  Paiement 100 % mobile money (Wave) ou avec le solde du portefeuille ;
+  Orange Money est **fermé** (voir « Passage à l'argent réel »).
 - Annulations (client tant que la course est en attente, chauffeur avec
   un motif) : uniquement par la Cloud Function `annulerCourse`, qui
   rembourse le client ; jamais directement depuis l'app.
@@ -245,8 +246,8 @@ depuis la Console.
   "simulation"` sur la course). Pour passer au vrai Wave : ranger
   `WAVE_API_KEY` et `WAVE_WEBHOOK_SECRET` dans Secret Manager et brancher
   `FournisseurWave` (déjà écrit) dans `functions/src/index.ts`. Orange
-  Money passe aujourd'hui par la même simulation ; en réel, il lui
-  faudra son propre fournisseur.
+  Money est refusé par le serveur tant qu'il n'a pas son propre
+  fournisseur réel.
 - Un numéro de téléphone n'est pas garanti unique : si quelqu'un
   revendique en premier le numéro d'un autre dans l'annuaire, ce dernier
   ne pourra se connecter que par email (aucun accès à son compte n'est
@@ -431,7 +432,7 @@ relancer le déploiement (onglet Actions > Run workflow).
 Crédit prépayé du client, **non retirable**, utilisable uniquement pour
 payer des courses. Tout passe par le serveur (`functions/src/portefeuille.ts`)
 et fonctionne aujourd'hui contre le faux Wave : **aucune somme réelle ne
-bouge** tant que Wave et Orange Money réels ne sont pas branchés (voir
+bouge** tant que le vrai Wave n'est pas branché (voir
 « Passage à l'argent réel » plus bas).
 
 - **Données** (jamais écrites par l'app, sauf la préférence) :
@@ -452,7 +453,7 @@ bouge** tant que Wave et Orange Money réels ne sont pas branchés (voir
   plus par client, expiration à 20 minutes. Un remboursement n'est jamais
   bloqué par le plafond.
 - **Recharge** : callable `creerRecharge` (client seulement, compte actif)
-  -> lien de paiement Wave / Orange Money -> webhook signé (le même que
+  -> lien de paiement Wave -> webhook signé (le même que
   pour les courses, référence `rch_…`) -> solde crédité dans une
   transaction. Montant ou devise différents de la demande, ou dépassement
   du plafond par deux recharges simultanées : statut `anomalie`, rien
@@ -461,8 +462,8 @@ bouge** tant que Wave et Orange Money réels ne sont pas branchés (voir
 - **Payer une course avec le solde** : `creerPaiement` avec
   `methodePaiement: "PORTEFEUILLE"` débite le solde, crée la commande
   (déjà `payee`) et la course dans **une seule transaction** ; solde
-  insuffisant : refus net, rien d'écrit, le client choisit Wave ou Orange
-  Money pour le total (pas de paiement partiel). Dans l'app, avec
+  insuffisant : refus net, rien d'écrit, le client choisit Wave pour le
+  total (pas de paiement partiel). Dans l'app, avec
   l'interrupteur actif et un solde suffisant, « Payer avec mon solde »
   passe en premier dans le choix du mode de paiement (un appui).
 - **Remboursements** (annulation client ou chauffeur, aucune réponse au
@@ -485,8 +486,13 @@ bouge** tant que Wave et Orange Money réels ne sont pas branchés (voir
    (signature `Wave-Signature` = HMAC-SHA256 de l'horodatage collé au
    corps brut, sans séparateur, plusieurs `v1` possibles) et sera à
    revalider avec le premier événement réel du bac à sable.
-2. Orange Money : aucun fournisseur n'existe encore (il passe par la
-   simulation) ; il faut le contrat marchand Sonatel et sa documentation.
+2. Orange Money : **fermé côté serveur et côté app** (`functions/src/methodes_paiement.ts`,
+   `moyensMobileMoneyDisponibles` dans l'app) : le serveur refuse `ORANGE_MONEY`
+   (course et recharge) avec « Orange Money n'est pas encore disponible », car
+   il passerait par la simulation et rendrait les courses gratuites. Aucun
+   fournisseur n'existe encore ; il faut le contrat marchand Sonatel et sa
+   documentation. À sa réouverture : brancher son fournisseur, PUIS l'ajouter
+   aux deux listes. Les anciennes courses et recharges Orange gardent leur libellé.
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.

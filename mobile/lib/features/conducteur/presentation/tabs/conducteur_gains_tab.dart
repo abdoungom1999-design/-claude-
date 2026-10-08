@@ -253,8 +253,8 @@ class _CarteDu extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               enAttente
-                  ? 'Votre part (${100 - Commission.pourcentage} %) de vos courses payées par Wave ou '
-                      'Orange Money, moins les versements déjà reçus.'
+                  ? 'Votre part (${100 - Commission.pourcentage} %) de vos courses payées en mobile '
+                      'money, moins les versements déjà reçus.'
                   : aDeduire
                       ? '${formaterFcfa(-soldeFcfa)} seront déduits de vos prochains gains : une course déjà '
                           'versée a été remboursée au client.'

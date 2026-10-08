@@ -144,7 +144,7 @@ class _VueFinances extends StatelessWidget {
         Text(
           'Commission : ${Commission.pourcentage} % de chaque course terminée, figée à la fin de la course '
           '(imposée par les règles Firestore). ${compte.nombreCourses} courses terminées au total, toutes '
-          'payées par Wave / Orange Money et encaissées par Sprint, qui reverse ${100 - Commission.pourcentage} % '
+          'payées en mobile money (Wave) ou avec le solde du portefeuille, et encaissées par Sprint, qui reverse ${100 - Commission.pourcentage} % '
           'au chauffeur (paiements encore en mode test : aucun argent réellement encaissé).'
           '${compte.nombreRemboursees == 0 ? '' : ' ${compte.nombreRemboursees} course(s) remboursée(s) au client, exclue(s) '
               'des comptes : part des chauffeurs retirée (${formaterFcfa(compte.partsRetireesFcfa)}).'}',

@@ -1,6 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { CalculDistance, DistanceTrajet } from './distances';
+import { METHODES_ACTIVES, verifierMethode, type Methode } from './methodes_paiement';
 import {
   distanceRouteEstimeeKm,
   estimerPrix,
@@ -17,12 +18,11 @@ export const DISTANCE_MIN_KM = 0.1;
 export const DISTANCE_MAX_KM = 100;
 
 /**
- * 100 % mobile money : la plateforme encaisse chaque course, soit par Wave
- * ou Orange Money, soit avec le solde du Portefeuille Sprint (lui-même
- * rechargé par mobile money).
+ * 100 % mobile money : la plateforme encaisse chaque course, soit par le
+ * mobile money (Wave aujourd'hui ; Orange Money reste fermé tant que son
+ * fournisseur réel n'est pas branché, voir `methodes_paiement.ts`), soit
+ * avec le solde du Portefeuille Sprint (lui-même rechargé par mobile money).
  */
-export const METHODES_PAIEMENT = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'] as const;
-
 export interface Trajet {
   type: TypeCourse;
   depart: Point;
@@ -35,7 +35,7 @@ export interface Trajet {
 export interface Demande extends Trajet {
   adresseDepart: string;
   adresseArrivee: string;
-  methodePaiement: (typeof METHODES_PAIEMENT)[number];
+  methodePaiement: Methode;
   prixAttendu: number;
 }
 
@@ -94,9 +94,7 @@ export function validerTrajet(donnees: unknown): Trajet {
 export function validerDemande(donnees: unknown): Demande {
   const trajet = validerTrajet(donnees);
   const d = objet(donnees);
-  if (!METHODES_PAIEMENT.includes(d.methodePaiement as Demande['methodePaiement'])) {
-    throw invalide('Mode de paiement invalide : Wave, Orange Money ou solde Sprint.');
-  }
+  const methodePaiement = verifierMethode(d.methodePaiement, METHODES_ACTIVES, 'payer');
   const prixAttendu = d.prixAttendu;
   if (typeof prixAttendu !== 'number' || !Number.isInteger(prixAttendu) || prixAttendu <= 0) {
     throw invalide('Prix attendu invalide.');
@@ -105,7 +103,7 @@ export function validerDemande(donnees: unknown): Demande {
     ...trajet,
     adresseDepart: texte(d.adresseDepart, 'Adresse de départ', 300),
     adresseArrivee: texte(d.adresseArrivee, "Adresse d'arrivée", 300),
-    methodePaiement: d.methodePaiement as Demande['methodePaiement'],
+    methodePaiement,
     prixAttendu,
   };
 }

@@ -116,13 +116,13 @@ void main() {
 
   testWidgets('demande de paiement au serveur : prix vu, trajet et opérateur envoyés', (tester) async {
     final serveur = _ServeurFactice();
-    await _ouvrirSas(tester, serveur, methode: PaymentMethod.orangeMoney);
+    await _ouvrirSas(tester, serveur, methode: PaymentMethod.wave);
 
     expect(serveur.prixRecu, 2100);
-    expect(serveur.methodeRecue, 'ORANGE_MONEY');
+    expect(serveur.methodeRecue, 'WAVE');
     expect(serveur.pointsRecus?.latitudeDepart, 14.668);
     expect(serveur.commandeSuivie, 'k1');
-    expect(find.text('Payer avec Orange Money · ${formaterFcfa(2100)}'), findsOneWidget);
+    expect(find.text('Payer avec Wave · ${formaterFcfa(2100)}'), findsOneWidget);
   });
 
   testWidgets('le client ouvre la page de paiement de l\'opérateur, puis attend la confirmation', (tester) async {
