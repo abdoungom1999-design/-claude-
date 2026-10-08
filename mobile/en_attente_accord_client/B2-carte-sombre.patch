@@ -1,0 +1,410 @@
+diff --git a/mobile/GOOGLE_MAPS_SETUP.md b/mobile/GOOGLE_MAPS_SETUP.md
+index ae2bb86..ae14330 100644
+--- a/mobile/GOOGLE_MAPS_SETUP.md
++++ b/mobile/GOOGLE_MAPS_SETUP.md
+@@ -9,11 +9,12 @@
+ >   fournie à la compilation par le secret GitHub `GOOGLE_MAPS_WEB_KEY`.
+ >   Sans cette clé, ou si Google ne répond pas, la carte reste sur
+ >   OpenStreetMap. Les mentions Google sont affichées sur chaque carte.
+-> - Style « Sprint clair » (`lib/core/maps/style_sprint_clair.dart`) :
+->   envoyé à la création de la session Map Tiles (fonds clairs, routes
+->   blanches, commerces et transports masqués). Style refusé par Google :
+->   carte Google sans style ; Google indisponible : OpenStreetMap, aux
+->   couleurs adoucies dans le même esprit.
++> - Style « Sprint sombre » (`lib/core/maps/style_sprint_sombre.dart`) :
++>   envoyé à la création de la session Map Tiles (terre et routes en gris
++>   très sombres, noms de rues en gris clair, commerces et transports
++>   masqués). Style refusé par Google : carte Google sans style (claire et
++>   colorée) ; Google indisponible : OpenStreetMap passé en gris très
++>   sombres dans le même esprit.
+ > - APK Android : clé dédiée `sprint-carte-android` (secret GitHub
+ >   `GOOGLE_MAPS_ANDROID_KEY`), restreinte à l'app Android
+ >   (`sn.groupesantine.sprint`, SHA-1
+@@ -22,7 +23,7 @@
+ >   et `X-Android-Cert`) à chaque appel. La CI vérifie que cette empreinte
+ >   est bien celle du certificat de l'APK.
+ > - Vérification réelle à chaque déploiement : la CI ouvre une session
+->   Google avec chaque clé (site et APK) et le style « Sprint clair »
++>   Google avec chaque clé (site et APK) et le style « Sprint sombre »
+ >   (`tool/verifier_session_carte.sh`). Un refus apparaît en
+ >   avertissement dans le résumé du run.
+ > - Le composant Google Maps officiel (Maps JavaScript API, décrit
+diff --git a/mobile/lib/core/maps/fond_carte.dart b/mobile/lib/core/maps/fond_carte.dart
+index 6ae6d1d..a49abcd 100644
+--- a/mobile/lib/core/maps/fond_carte.dart
++++ b/mobile/lib/core/maps/fond_carte.dart
+@@ -5,7 +5,8 @@ import 'package:dio/dio.dart';
+ import 'package:flutter/foundation.dart';
+ import 'package:flutter/material.dart';
+ import 'package:flutter_map/flutter_map.dart';
+-import 'style_sprint_clair.dart';
++import '../theme/app_colors.dart';
++import 'style_sprint_sombre.dart';
+ 
+ /// Fond de carte de toute l'app : images Google Maps (Map Tiles API) dès
+ /// qu'une clé web est fournie à la compilation
+@@ -21,7 +22,7 @@ import 'style_sprint_clair.dart';
+ /// la vérifie grâce aux en-têtes [entetesAndroid], joints à chaque appel
+ /// (session et images).
+ ///
+-/// Style : « Sprint clair » ([styleSprintClair]) sur toutes les cartes.
++/// Style : « Sprint sombre » ([styleSprintSombre]) sur toutes les cartes.
+ /// Un style refusé par Google (400) fait redemander une session sans
+ /// style, puis seulement OpenStreetMap en dernier recours.
+ ///
+@@ -32,7 +33,7 @@ class FondCarte {
+     required String cle,
+     Dio? dio,
+     DateTime Function()? maintenant,
+-    this.styles = styleSprintClair,
++    this.styles = styleSprintSombre,
+     this.entetes = const {},
+   })  : _cle = cle,
+         _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 8))),
+@@ -157,15 +158,20 @@ class SessionTuiles {
+   final DateTime expire;
+ }
+ 
+-/// Passe les images OpenStreetMap en gris très clair (≈ 12 % de la couleur
+-/// d'origine, contraste réduit, +24 de luminosité) : même rendu « Silver »
+-/// que le style Google, sans le vert ni le jaune d'OpenStreetMap.
+-const filtreClair = ColorFilter.matrix(<double>[
+-  0.20, 0.62, 0.065, 0, 24, //
+-  0.19, 0.63, 0.065, 0, 24, //
+-  0.19, 0.62, 0.075, 0, 24, //
++/// Matrice du filtre sombre des images OpenStreetMap : luminance inversée puis
++/// ramenée dans les gris très sombres (terre ≈ 14/255, bâti et eau ≈ 40,
++/// contours de routes ≈ 80), sans aucune couleur : les trois canaux reçoivent
++/// la même valeur, donc plus de vert de parc ni de jaune d'axe.
++const matriceSombre = <double>[
++  -0.1913, -0.6437, -0.0650, 0, 229, //
++  -0.1913, -0.6437, -0.0650, 0, 229, //
++  -0.1913, -0.6437, -0.0650, 0, 229, //
+   0, 0, 0, 1, 0, //
+-]);
++];
++
++/// Même rendu « Sprint sombre » que le style Google, pour les images
++/// OpenStreetMap (qui ne se stylisent pas).
++const filtreSombre = ColorFilter.matrix(matriceSombre);
+ 
+ /// Couche de fond à placer en premier dans `FlutterMap(children: …)`.
+ class CoucheFondCarte extends StatefulWidget {
+@@ -219,9 +225,9 @@ class _CoucheFondCarteState extends State<CoucheFondCarte> {
+       return TileLayer(
+         urlTemplate: FondCarte.urlOpenStreetMap,
+         userAgentPackageName: 'sn.groupesantine.sprint',
+-        // OpenStreetMap ne se stylise pas : couleurs atténuées et
+-        // éclaircies pour rester proche du style « Sprint clair ».
+-        tileBuilder: (context, image, tuile) => ColorFiltered(colorFilter: filtreClair, child: image),
++        // OpenStreetMap ne se stylise pas : gris très sombres, pour rester
++        // proche du style « Sprint sombre ».
++        tileBuilder: (context, image, tuile) => ColorFiltered(colorFilter: filtreSombre, child: image),
+       );
+     }
+     return TileLayer(
+@@ -258,7 +264,7 @@ class MentionsFondCarte extends StatelessWidget {
+               margin: const EdgeInsets.all(4),
+               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+               decoration: BoxDecoration(
+-                color: Colors.white.withValues(alpha: 0.8),
++                color: AppColors.carte.withValues(alpha: 0.85),
+                 borderRadius: BorderRadius.circular(4),
+               ),
+               child: Text.rich(
+@@ -271,7 +277,7 @@ class MentionsFondCarte extends StatelessWidget {
+                         TextSpan(text: '  Données cartographiques ©${DateTime.now().year} Google'),
+                       ])
+                     : const TextSpan(text: '© OpenStreetMap contributors'),
+-                style: const TextStyle(fontSize: 10, color: Color(0xFF444444)),
++                style: const TextStyle(fontSize: 10, color: AppColors.texteDiscret),
+               ),
+             ),
+           ),
+diff --git a/mobile/lib/core/maps/style_sprint_clair.dart b/mobile/lib/core/maps/style_sprint_sombre.dart
+similarity index 68%
+rename from mobile/lib/core/maps/style_sprint_clair.dart
+rename to mobile/lib/core/maps/style_sprint_sombre.dart
+index 1bb8af7..2acebb7 100644
+--- a/mobile/lib/core/maps/style_sprint_clair.dart
++++ b/mobile/lib/core/maps/style_sprint_sombre.dart
+@@ -1,18 +1,19 @@
+-/// Style « Sprint clair » des images Google (Map Tiles API, paramètre
++/// Style « Sprint sombre » des images Google (Map Tiles API, paramètre
+ /// `styles` de `createSession`, même format que les cartes stylées Google
+-/// Maps), version « Silver » de la charte Onyx & Light : uniquement des gris
+-/// et du blanc (plus de vert des parcs, de jaune/orange des grands axes ni de
+-/// bleu franc de la mer), commerces et transports masqués, pour que les
+-/// motos et le trajet ressortent. Un test garde la palette sans couleur.
++/// Maps), version « Onyx & Vert » : uniquement des gris très sombres (terre,
++/// routes) et des gris moyens (noms de rues), sans le vert des parcs, le
++/// jaune ou l'orange des grands axes ni le bleu de la mer ; commerces et
++/// transports masqués, pour que les motos et le trajet verts ressortent.
++/// Un test garde la palette sans couleur.
+ ///
+ /// Si Google refusait ce style, [FondCarte] redemande une session sans
+ /// style avant de repasser sur OpenStreetMap : la carte ne reste jamais
+ /// vide à cause de lui.
+-const styleSprintClair = <Map<String, Object>>[
++const styleSprintSombre = <Map<String, Object>>[
+   {
+     'elementType': 'geometry',
+     'stylers': [
+-      {'color': '#f1f2f4'},
++      {'color': '#131316'},
+     ],
+   },
+   {
+@@ -24,13 +25,13 @@ const styleSprintClair = <Map<String, Object>>[
+   {
+     'elementType': 'labels.text.fill',
+     'stylers': [
+-      {'color': '#8a8d93'},
++      {'color': '#8f8f98'},
+     ],
+   },
+   {
+     'elementType': 'labels.text.stroke',
+     'stylers': [
+-      {'color': '#f1f2f4'},
++      {'color': '#0b0b0c'},
+     ],
+   },
+   {
+@@ -44,7 +45,7 @@ const styleSprintClair = <Map<String, Object>>[
+     'elementType': 'geometry',
+     'stylers': [
+       {'visibility': 'on'},
+-      {'color': '#e9ebee'},
++      {'color': '#18181b'},
+     ],
+   },
+   {
+@@ -57,28 +58,28 @@ const styleSprintClair = <Map<String, Object>>[
+     'featureType': 'road',
+     'elementType': 'geometry.fill',
+     'stylers': [
+-      {'color': '#ffffff'},
++      {'color': '#2b2b31'},
+     ],
+   },
+   {
+     'featureType': 'road',
+     'elementType': 'geometry.stroke',
+     'stylers': [
+-      {'color': '#e2e4e8'},
++      {'color': '#19191d'},
+     ],
+   },
+   {
+     'featureType': 'road.highway',
+     'elementType': 'geometry.fill',
+     'stylers': [
+-      {'color': '#ffffff'},
++      {'color': '#3b3b43'},
+     ],
+   },
+   {
+     'featureType': 'road.highway',
+     'elementType': 'geometry.stroke',
+     'stylers': [
+-      {'color': '#d9dce1'},
++      {'color': '#1f1f24'},
+     ],
+   },
+   {
+@@ -92,21 +93,21 @@ const styleSprintClair = <Map<String, Object>>[
+     'featureType': 'water',
+     'elementType': 'geometry',
+     'stylers': [
+-      {'color': '#dde2e8'},
++      {'color': '#08080a'},
+     ],
+   },
+   {
+     'featureType': 'water',
+     'elementType': 'labels.text.fill',
+     'stylers': [
+-      {'color': '#9aa1ab'},
++      {'color': '#55555e'},
+     ],
+   },
+   {
+     'featureType': 'administrative',
+     'elementType': 'geometry.stroke',
+     'stylers': [
+-      {'color': '#d3d6db'},
++      {'color': '#34343b'},
+     ],
+   },
+ ];
+diff --git a/mobile/lib/core/widgets/adaptive_map.dart b/mobile/lib/core/widgets/adaptive_map.dart
+index 32502e0..5654937 100644
+--- a/mobile/lib/core/widgets/adaptive_map.dart
++++ b/mobile/lib/core/widgets/adaptive_map.dart
+@@ -55,7 +55,7 @@ class AdaptiveMap extends StatelessWidget {
+   final List<ll.LatLng>? polylignePoints;
+ 
+   /// Motos disponibles alentour (anonymes), dessinées sous les repères.
+-  /// Uniquement sur la carte OpenStreetMap / Google « Sprint clair »
++  /// Uniquement sur la carte OpenStreetMap / Google « Sprint sombre »
+   /// (`flutter_map`) ; le composant Google Maps officiel, non utilisé
+   /// aujourd'hui (voir GOOGLE_MAPS_SETUP.md), ne les affiche pas.
+   final List<MotoProche> motos;
+diff --git a/mobile/lib/features/home/presentation/home_tab_page.dart b/mobile/lib/features/home/presentation/home_tab_page.dart
+index 08701fc..cd464c1 100644
+--- a/mobile/lib/features/home/presentation/home_tab_page.dart
++++ b/mobile/lib/features/home/presentation/home_tab_page.dart
+@@ -37,7 +37,7 @@ class HomeTabPage extends StatefulWidget {
+   final Localiser? localiser;
+   final FondCarte? fond;
+ 
+-  /// Fond de carte ; par défaut les images Google « Sprint clair » (ou
++  /// Fond de carte ; par défaut les images Google « Sprint sombre » (ou
+   /// OpenStreetMap). Les tests le remplacent (pas de réseau).
+   final Widget? coucheFond;
+ 
+diff --git a/mobile/test/fond_carte_test.dart b/mobile/test/fond_carte_test.dart
+index 29de1cd..50554e6 100644
+--- a/mobile/test/fond_carte_test.dart
++++ b/mobile/test/fond_carte_test.dart
+@@ -4,7 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:latlong2/latlong.dart';
+ import 'package:sprint/core/maps/fond_carte.dart';
+-import 'package:sprint/core/maps/style_sprint_clair.dart';
++import 'package:sprint/core/maps/style_sprint_sombre.dart';
+ 
+ /// Dio dont chaque requête reçoit [reponse] (ou échoue si `null`, avec
+ /// le code [codeErreur]). [refuserStyle] : une demande avec style est
+@@ -43,7 +43,7 @@ Future<void> _carte(WidgetTester tester, FondCarte fond) async {
+ }
+ 
+ void main() {
+-  test('session Google : carte routière en français pour le Sénégal, style Sprint clair, réutilisée puis renouvelée', () async {
++  test('session Google : carte routière en français pour le Sénégal, style Sprint sombre, réutilisée puis renouvelée', () async {
+     final requetes = <RequestOptions>[];
+     var maintenant = _maintenant;
+     final fond = FondCarte(
+@@ -58,7 +58,7 @@ void main() {
+     final session = await fond.session();
+     expect(session!.jeton, 'JETON');
+     expect(requetes.single.uri.toString(), 'https://tile.googleapis.com/v1/createSession?key=CLE-WEB');
+-    expect(requetes.single.data, {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN', 'styles': styleSprintClair});
++    expect(requetes.single.data, {'mapType': 'roadmap', 'language': 'fr-FR', 'region': 'SN', 'styles': styleSprintSombre});
+     expect(fond.optionsGoogle(session), {'session': 'JETON', 'key': 'CLE-WEB'});
+ 
+     await fond.session();
+@@ -133,7 +133,7 @@ void main() {
+   });
+ 
+   test('style : aucune règle vide, couleurs au format #rrggbb', () {
+-    for (final regle in styleSprintClair) {
++    for (final regle in styleSprintSombre) {
+       final stylers = regle['stylers']! as List;
+       expect(stylers, isNotEmpty);
+       for (final s in stylers.cast<Map<String, Object>>()) {
+@@ -143,36 +143,40 @@ void main() {
+     }
+   });
+ 
+-  test('style Silver : uniquement des gris (ni vert, ni jaune, ni bleu franc)', () {
+-    for (final regle in styleSprintClair) {
++  test('style sombre : uniquement des gris (ni vert, ni jaune, ni bleu franc)', () {
++    for (final regle in styleSprintSombre) {
+       for (final s in (regle['stylers']! as List).cast<Map<String, Object>>()) {
+         final couleur = s['color'] as String?;
+         if (couleur == null) continue;
+         final canaux = [for (var i = 1; i < 7; i += 2) int.parse(couleur.substring(i, i + 2), radix: 16)];
+         final ecart = canaux.reduce((a, b) => a > b ? a : b) - canaux.reduce((a, b) => a < b ? a : b);
+-        expect(ecart, lessThanOrEqualTo(20), reason: '$couleur est trop colorée pour un style Silver');
++        expect(ecart, lessThanOrEqualTo(20), reason: '$couleur est trop colorée pour un style sombre');
+       }
+     }
+   });
+ 
+-  test('images OpenStreetMap : le filtre les passe en gris (vert et jaune disparaissent)', () {
+-    // Un vert de parc OSM (#cdebb0) et un jaune de route (#f7fabf) : après le
+-    // filtre, les trois canaux doivent être proches.
+-    double sortie(List<double> ligne, List<int> rgb) =>
+-        ligne[0] * rgb[0] + ligne[1] * rgb[1] + ligne[2] * rgb[2] + ligne[4];
+-    const m = <List<double>>[
+-      [0.20, 0.62, 0.065, 0, 24],
+-      [0.19, 0.63, 0.065, 0, 24],
+-      [0.19, 0.62, 0.075, 0, 24],
+-    ];
++  test('images OpenStreetMap : le filtre sombre les passe en gris très sombres (vert et jaune disparaissent)', () {
++    double sortie(int ligne, List<int> rgb) =>
++        matriceSombre[ligne * 5] * rgb[0] +
++        matriceSombre[ligne * 5 + 1] * rgb[1] +
++        matriceSombre[ligne * 5 + 2] * rgb[2] +
++        matriceSombre[ligne * 5 + 4];
++    // Terre OSM (#f2efe9), vert de parc (#cdebb0), jaune de route (#f7fabf) et
++    // route blanche : les trois canaux reçoivent la même valeur (aucune
++    // couleur) et rien ne dépasse un gris moyen.
+     for (final rgb in [
++      [0xf2, 0xef, 0xe9],
+       [0xcd, 0xeb, 0xb0],
+       [0xf7, 0xfa, 0xbf],
++      [0xff, 0xff, 0xff],
+     ]) {
+-      final valeurs = [for (final l in m) sortie(l, rgb)];
++      final valeurs = [for (var l = 0; l < 3; l++) sortie(l, rgb)];
+       final ecart = valeurs.reduce((a, b) => a > b ? a : b) - valeurs.reduce((a, b) => a < b ? a : b);
+-      expect(ecart, lessThan(12));
++      expect(ecart, lessThan(0.001));
++      expect(valeurs.first, lessThan(100));
+     }
++    // La terre devient un gris très sombre, comme le fond du style Google.
++    expect(sortie(0, [0xf2, 0xef, 0xe9]), inInclusiveRange(0, 24));
+   });
+ 
+   test('images Google en erreur à répétition : secours OpenStreetMap', () {
+diff --git a/mobile/tool/style_carte_json.dart b/mobile/tool/style_carte_json.dart
+index 1ddeb81..c7a7037 100644
+--- a/mobile/tool/style_carte_json.dart
++++ b/mobile/tool/style_carte_json.dart
+@@ -1,10 +1,10 @@
+-// Écrit le style « Sprint clair » en JSON dans le fichier donné, pour que
++// Écrit le style « Sprint sombre » en JSON dans le fichier donné, pour que
+ // la CI le fasse valider par Google (Map Tiles API) exactement tel que
+ // l'app l'envoie. Usage : dart run tool/style_carte_json.dart style.json
+ import 'dart:convert';
+ import 'dart:io';
+ 
+ // ignore: avoid_relative_lib_imports
+-import '../lib/core/maps/style_sprint_clair.dart';
++import '../lib/core/maps/style_sprint_sombre.dart';
+ 
+-void main(List<String> arguments) => File(arguments.single).writeAsStringSync(jsonEncode(styleSprintClair));
++void main(List<String> arguments) => File(arguments.single).writeAsStringSync(jsonEncode(styleSprintSombre));
+diff --git a/mobile/tool/verifier_session_carte.sh b/mobile/tool/verifier_session_carte.sh
+index 816a445..d16b34d 100755
+--- a/mobile/tool/verifier_session_carte.sh
++++ b/mobile/tool/verifier_session_carte.sh
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env bash
+ # Vérification réelle auprès de Google (CI) : la clé ouvre-t-elle une
+-# session de carte (Map Tiles API) avec le style « Sprint clair » ?
++# session de carte (Map Tiles API) avec le style « Sprint sombre » ?
+ #
+ # Usage : CLE=… verifier_session_carte.sh <libellé> <style.json> [en-tête…]
+ #   ex. "Referer: https://sprint-vtc.web.app/" pour la clé web,
+@@ -28,7 +28,7 @@ motif() { grep -o '"message": *"[^"]*"' "$reponse" | head -n 1 | sed 's/"message
+ 
+ code=$(essai "{\"mapType\":\"roadmap\",\"language\":\"fr-FR\",\"region\":\"SN\",\"styles\":$(cat "$style")}")
+ if [ "$code" = 200 ] && grep -q '"session"' "$reponse"; then
+-  echo "$libelle : session Google ouverte avec le style Sprint clair."
++  echo "$libelle : session Google ouverte avec le style Sprint sombre."
+   exit 0
+ fi
+ refus_style="HTTP $code $(motif)"
+@@ -36,7 +36,7 @@ echo "$libelle : refus avec le style ($refus_style)"
+ 
+ code=$(essai '{"mapType":"roadmap","language":"fr-FR","region":"SN"}')
+ if [ "$code" = 200 ] && grep -q '"session"' "$reponse"; then
+-  echo "::warning title=$libelle::Style Sprint clair refusé par Google ($refus_style) : carte Google sans style."
++  echo "::warning title=$libelle::Style Sprint sombre refusé par Google ($refus_style) : carte Google sans style."
+ else
+   echo "::warning title=$libelle::Clé refusée par Google (HTTP $code $(motif)) : la carte restera sur OpenStreetMap."
+ fi
