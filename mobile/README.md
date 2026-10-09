@@ -98,6 +98,11 @@ Limites connues : l'adresse écrite par le client et son `clientId` restent visi
 avant l'acceptation ; une course créée avant ce masquage garde sa position exacte dans le document ; le
 document privé d'une course supprimée par l'Admin n'est pas supprimé avec elle.
 
+Mise en ligne le 9 octobre 2026 (run #102), avec l'écran Colis par GPS et la correction du contrôle des
+secrets de l'APK (`securite/garde_fuites.mjs apk`). Après la mise en ligne, l'app installée doit être
+rouverte (PWA) et l'APK réinstallé : une ancienne version ne lit pas la position exacte et montrerait au
+chauffeur la zone au lieu du point.
+
 ## Suivi des plantages et sauvegardes
 
 **Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics
