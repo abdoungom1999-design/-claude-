@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../../../core/demo/demo_data.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
 import '../../../core/notifications/notifications_push.dart';
 import '../../../firebase_options.dart';
 import 'connexion_telephone.dart';
+import 'role_du_compte.dart';
 
 /// Authentification Client, Conducteur et Admin.
 ///
@@ -57,6 +59,73 @@ class AuthRepository {
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
+  /// `true` quand l'app est reliée au vrai projet Firebase ET que Firebase
+  /// est démarré (jamais dans la démo ni dans un test).
+  static bool get firebasePret {
+    try {
+      return DefaultFirebaseOptions.estConfigure && Firebase.apps.isNotEmpty;
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Identifiant du compte connecté à l'instant, sans attendre ; `null` si
+  /// personne ne l'est. À n'utiliser qu'une fois la session relue
+  /// ([uidDeLaSessionConservee]) : sur le web, elle l'est après l'ouverture.
+  static String? uidConnecte() => firebasePret ? FirebaseAuth.instance.currentUser?.uid : null;
+
+  /// Session que Firebase a conservée sur cet appareil : l'identifiant du
+  /// compte, ou `null` si personne n'est connecté. La session reste
+  /// enregistrée (téléphone, navigateur) jusqu'à un appui sur « Se
+  /// déconnecter » : on la relit à chaque démarrage pour envoyer la personne
+  /// directement à son accueil. Attend la première lecture (asynchrone sur le
+  /// web), au plus [delai] ; au-delà, la personne se reconnecte à la main.
+  Future<String?> uidDeLaSessionConservee({Duration delai = const Duration(seconds: 8)}) async {
+    if (!firebasePret) return null;
+    try {
+      final utilisateur = await _auth.authStateChanges().first.timeout(delai);
+      return utilisateur?.uid;
+    } on TimeoutException {
+      return _auth.currentUser?.uid;
+    }
+  }
+
+  /// Rôle retenu sur l'appareil à chaque connexion (voir [RoleDuCompte]) :
+  /// l'arrivée à l'ouverture de l'app n'attend pas le réseau.
+  late final RoleDuCompte _role = RoleDuCompte(memoire: const MemoireSecurisee(), lireEnLigne: _roleDansFirestore);
+
+  /// Rôle du compte (`client`, `conducteur` ou `admin`) : celui retenu sur
+  /// l'appareil, sinon celui de `users/{uid}`. `null` si le rôle est
+  /// introuvable : l'appelant choisit alors l'espace Client.
+  Future<String?> roleDe(String uid) => _role.pour(uid);
+
+  /// Rôle lu dans `users/{uid}` : d'abord la copie gardée sur l'appareil
+  /// (instantanée, même sans réseau, quand l'app l'a déjà lue), puis le
+  /// serveur. [RoleDuCompte] borne l'attente de l'appelant.
+  Future<String?> _roleDansFirestore(String uid) async {
+    final document = _firestore.collection('users').doc(uid);
+    try {
+      final role = (await document.get(const GetOptions(source: Source.cache))).data()?['role'];
+      if (role is String) return role;
+    } on Object {
+      // Pas encore en mémoire sur cet appareil (premier démarrage du
+      // navigateur) : on demande au serveur.
+    }
+    try {
+      final role = (await document.get()).data()?['role'];
+      return role is String ? role : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Après une connexion : retient le rôle réel du compte, sans faire
+  /// attendre la personne.
+  void _retenirLeRoleDuCompte() {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) unawaited(_role.actualiser(uid));
+  }
+
   Future<void> inscrireClient({
     required String nom,
     required String email,
@@ -82,6 +151,7 @@ class AuthRepository {
         'statut': 'ACTIF',
         'creeLe': FieldValue.serverTimestamp(),
       });
+      await _role.memoriser(identifiants.user!.uid, 'client');
       await _publierProfilEtAnnuaire();
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
@@ -100,6 +170,7 @@ class AuthRepository {
     try {
       final email = await _resoudreEmail(identifiant, role: 'client', motDePasse: motDePasse);
       await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
+      _retenirLeRoleDuCompte();
       await _publierProfilEtAnnuaire();
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
@@ -149,6 +220,7 @@ class AuthRepository {
         'estValide': false,
         'creeLe': FieldValue.serverTimestamp(),
       });
+      await _role.memoriser(identifiants.user!.uid, 'conducteur');
       await _publierProfilEtAnnuaire();
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
@@ -167,6 +239,7 @@ class AuthRepository {
     try {
       final email = await _resoudreEmail(identifiant, role: 'conducteur', motDePasse: motDePasse);
       await _auth.signInWithEmailAndPassword(email: email, password: motDePasse);
+      _retenirLeRoleDuCompte();
       await _publierProfilEtAnnuaire();
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
@@ -203,6 +276,8 @@ class AuthRepository {
       await _auth.signOut();
       throw ApiException("Ce compte n'a pas les droits administrateur.");
     }
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) await _role.memoriser(uid, 'admin');
   }
 
   /// `true` si l'utilisateur connecté a le rôle Admin (`users/{uid}`,
@@ -248,6 +323,7 @@ class AuthRepository {
     await NotificationsPush.instance.desactiver();
     if (DefaultFirebaseOptions.estConfigure) {
       await _auth.signOut();
+      await _role.oublier();
     }
     await _tokenStorage.effacerTokens();
   }

@@ -16,10 +16,24 @@ import '../../features/messages/presentation/messages_tab_page.dart';
 import '../../features/onboarding/presentation/espace_pro_page.dart';
 import '../../features/onboarding/presentation/welcome_page.dart';
 import '../navigation/home_shell_page.dart';
+import 'aiguillage_demarrage.dart';
 import 'app_routes.dart';
+
+/// Démarrage avec une session conservée : relit la session Firebase puis
+/// envoie le compte connecté sur son accueil (voir [AiguillageDemarrage]).
+/// Les comptes Firebase ne sont touchés que s'il est relié et démarré.
+final AiguillageDemarrage aiguillageDemarrage = AiguillageDemarrage(
+  pret: () => AuthRepository.firebasePret,
+  attendreSession: () => AuthRepository().uidDeLaSessionConservee(),
+  uidConnecte: AuthRepository.uidConnecte,
+  roleDe: (uid) => AuthRepository().roleDe(uid),
+);
 
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.welcome,
+  // Avant toute page : attend la session conservée, puis envoie un compte
+  // déjà connecté directement sur son accueil (jamais d'écran de Bienvenue).
+  redirect: (context, state) => aiguillageDemarrage.destination(state.matchedLocation),
   routes: [
     GoRoute(
       path: AppRoutes.welcome,
