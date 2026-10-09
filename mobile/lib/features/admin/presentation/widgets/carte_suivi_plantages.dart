@@ -50,8 +50,8 @@ class CarteSuiviPlantages extends StatelessWidget {
               const SizedBox(height: 4),
               const Text(
                 'Les plantages de l\'application Android sont envoyés à Firebase Crashlytics (console Firebase > '
-                'Crashlytics), avec la version de l\'app et le modèle du téléphone, sans nom ni numéro. Le site '
-                'web et l\'app installée sur l\'iPhone ne sont pas couverts.',
+                'Crashlytics), avec la version de l\'app et le modèle du téléphone ; aucun nom, numéro ni identifiant '
+                'de compte n\'y est ajouté. Le site web et l\'app installée sur l\'iPhone ne sont pas couverts.',
                 style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
               ),
               const SizedBox(height: 16),

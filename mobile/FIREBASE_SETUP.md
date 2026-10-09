@@ -686,8 +686,8 @@ Auth) et la copie des fichiers Storage.
 
 Les plantages et les erreurs imprévues de l'**APK Android** partent vers
 Firebase Crashlytics (console Firebase > **Crashlytics**), avec la version de
-l'app et le modèle du téléphone. Aucun nom, numéro ni identifiant de compte
-n'est envoyé.
+l'app et le modèle du téléphone. L'app n'y ajoute aucun nom, numéro ni
+identifiant de compte (le texte d'une erreur imprévue n'est pas filtré).
 
 - **Couverture** : l'APK Android seulement. Crashlytics n'existe pas pour le
   web : ni le site, ni l'app installée sur l'iPhone (qui est le site) ne sont

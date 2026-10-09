@@ -200,7 +200,7 @@ void main() {
 
       expect(find.text('Suivi des plantages'), findsOneWidget);
       expect(find.textContaining('Firebase Crashlytics'), findsOneWidget);
-      expect(find.textContaining('sans nom ni numéro'), findsOneWidget);
+      expect(find.textContaining('aucun nom, numéro ni identifiant de compte'), findsOneWidget);
       expect(find.textContaining('iPhone'), findsOneWidget);
       expect(find.text('Tester le suivi'), findsOneWidget);
     });

@@ -38,8 +38,10 @@ class JournalCrashlytics implements JournalPlantages {
 
 /// Suivi des plantages de l'application Android : chaque plantage et chaque
 /// erreur imprévue part vers Firebase Crashlytics (console Firebase >
-/// Crashlytics), avec la version de l'app et le modèle du téléphone, sans nom
-/// ni numéro, pour être corrigé avant que les chauffeurs s'en plaignent.
+/// Crashlytics), avec la version de l'app et le modèle du téléphone, pour être
+/// corrigé avant que les chauffeurs s'en plaignent. L'app n'y ajoute ni nom, ni
+/// numéro, ni identifiant de compte (le texte d'une erreur imprévue, lui, n'est
+/// pas filtré).
 ///
 /// Android seulement : Crashlytics n'existe pas pour le web, donc ni pour le
 /// site ni pour l'app installée sur l'iPhone. Les rapports ne sont envoyés
