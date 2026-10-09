@@ -332,7 +332,7 @@ class _CarteGuidage extends StatelessWidget {
       EtatGuidage.attentePointClient => (
           const _Attente(),
           'Position exacte du client…',
-          'En attendant, sa zone approximative est sur la carte.',
+          'Zone approximative sur la carte.',
         ),
       EtatGuidage.attentePosition => (const _Attente(), 'Localisation de votre position…', _adresse),
       EtatGuidage.calcul => (const _Attente(), "Calcul de l'itinéraire…", _adresse),

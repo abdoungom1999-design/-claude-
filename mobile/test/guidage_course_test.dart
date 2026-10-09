@@ -276,7 +276,7 @@ void main() {
       await afficher(tester, arrondie, initiale: _position(_loin));
 
       expect(find.text('Position exacte du client…'), findsOneWidget);
-      expect(find.text('En attendant, sa zone approximative est sur la carte.'), findsOneWidget);
+      expect(find.text('Zone approximative sur la carte.'), findsOneWidget);
       expect(find.byType(CircleLayer), findsOneWidget);
       expect(find.byKey(_repere), findsNothing, reason: 'pas de repère au point exact avant de le connaître');
       expect(find.byKey(_moto), findsOneWidget);
