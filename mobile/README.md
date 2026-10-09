@@ -73,6 +73,14 @@ arrière sur un itinéraire déjà obtenu. La proposition de course affiche « �
 Tests : `trace_utils_test.dart`, `guidage_controller_test.dart`, `guidage_course_test.dart`,
 `itineraire_chauffeur_test.dart`, et côté serveur `functions/test/itineraire.emulateur.test.ts`.
 
+**Libellé du départ** : la course enregistre « Position GPS du client », que lisent le chauffeur,
+l'Admin et les notifications ; le client lit « Ma position actuelle » partout (historique, détail,
+suivi, courses à noter, signalement, page de paiement simulée) grâce à
+`CourseFirestore.adresseDepartPourLeClient`. La politique de confidentialité (mise à jour du
+9 octobre 2026) mentionne le suivi technique des erreurs et la position GPS transmise au chauffeur.
+Prochains lots : départ GPS sur l'écran Colis, puis coordonnées arrondies avant l'acceptation
+(position exacte réservée au chauffeur qui accepte).
+
 ## Suivi des plantages et sauvegardes
 
 **Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics
