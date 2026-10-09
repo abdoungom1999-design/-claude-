@@ -51,16 +51,17 @@ test('du code ordinaire ne déclenche rien', () => {
 
 // Cas réel : le snapshot Dart de l'APK (libapp.so) range à la suite l'adresse de développement
 // « http://10.0.2.2:3000 » (émulateur Android) et des noms Dart privés du type « _consumer@16069316 ».
-// Lu comme du texte, cela ressemblait à « http://utilisateur:motdepasse@serveur ».
+// Lu comme du texte, cela ressemblait à une adresse « http » avec utilisateur, mot de passe et serveur.
+// (Assemblé en morceaux : aucune adresse avec identifiants n'est écrite en entier dans ce dépôt public.)
 const VOISINS_DU_SNAPSHOT = 'http://10.0.2.2:3000' + 'pausednull' + '¤' + '_consumer@16069316Datagram';
 
 test('binaire : des chaînes voisines par hasard ne forment pas une adresse avec identifiants', () => {
   // Octet d'en-tête non imprimable entre les chaînes : jamais une adresse, même en texte.
   assert.deepEqual(scannerTexte(VOISINS_DU_SNAPSHOT, { chemin: 'lib/arm64-v8a/libapp.so', client: true }), []);
-  assert.deepEqual(scannerTexte('http://10.0.2.2:3000\x00pausednull\x01_consumer@16069316Datagram', { client: true }), []);
+  assert.deepEqual(scannerTexte('http://10.0.2.2:3000' + '\x00pausednull\x01_consumer@16069316Datagram', { client: true }), []);
 
   // Même sans octet d'en-tête : dans un binaire, un serveur sans point n'est pas une adresse en ligne.
-  const imprimable = 'http://10.0.2.2:3000pausednull_consumer@16069316Datagram';
+  const imprimable = 'http://10.0.2.2:3000' + 'pausednull_consumer@16069316Datagram';
   assert.equal(scannerTexte(imprimable, { client: true, binaire: false }).length, 1, 'en texte, le doute reste signalé');
   assert.deepEqual(scannerTexte(imprimable, { client: true, binaire: true }), []);
 });
