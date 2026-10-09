@@ -49,6 +49,22 @@ seulement l'écran d'arrivée. Sans session, ou en mode démo (Firebase non conf
 Bienvenue s'affiche comme avant. Tests : `aiguillage_demarrage_test.dart`,
 `role_du_compte_test.dart`.
 
+## Suivi des plantages et sauvegardes
+
+**Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics
+(`lib/core/suivi/suivi_plantages.dart`, branché dans `main.dart`, actif seulement en version
+finale). Le web, donc l'app installée sur l'iPhone, n'est pas couvert (Crashlytics n'existe
+pas pour le web). Carte « Suivi des plantages » avec le bouton « Tester le suivi » dans
+Admin > Paramètres, sur l'APK. La règle R8 `android/app/proguard-rules.pro` est
+indispensable (sans elle l'APK démarre sans écran) ; avant de publier une mise à jour qui
+touche à Firebase, à Gradle ou à R8, lancer l'essai sur émulateur (Actions > Essai Android).
+
+**Sauvegardes** : la base Firestore est sauvegardée par Google chaque jour (14 jours) et chaque
+semaine (14 semaines) ; le flux « Sauvegardes Firestore » les met en place et vérifie chaque
+jour qu'une sauvegarde récente existe (`securite/sauvegardes.mjs`).
+
+Détails, restauration et choix techniques : `FIREBASE_SETUP.md`, sections 10 et 11.
+
 ## Support
 
 « Contacter le support » ouvre un fil de demande d'aide (ticket `aide_<uid>`, collection
