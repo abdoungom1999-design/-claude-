@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../core/demo/demo_data.dart';
 import '../../../core/location/localiser.dart';
 import '../../../core/maps/distance_utils.dart';
 import '../../../core/maps/fond_carte.dart';
@@ -12,16 +12,21 @@ import '../../../core/maps/motos_proches_controller.dart';
 import '../../../core/maps/proximite_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/logo_sprint.dart';
+import '../../../core/widgets/bouton_rond_verre.dart';
 import '../../../core/widgets/moto_vue_dessus.dart';
 import '../../../core/widgets/onyx_vert.dart';
+import '../../../firebase_options.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../compte/presentation/mes_notifications_page.dart';
 import 'bandeau_promo.dart';
+import 'entete_accueil.dart';
 
-/// Onglet Accueil (charte Onyx & Vert) : carte « Silver » en plein écran
+/// Onglet Accueil (charte Onyx & Vert) : carte sombre en plein écran
 /// avec les motos disponibles alentour (anonymes, positions arrondies à
 /// 150 m par le serveur), et un panneau « verre » sombre flottant « Où
 /// allez-vous ? » : recherche, bandeau promo, services Course moto / Colis.
+/// En haut : la marque et son slogan, la cloche et l'avatar du client
+/// ([EnteteAccueil]).
 class HomeTabPage extends StatefulWidget {
   const HomeTabPage({
     super.key,
@@ -29,6 +34,7 @@ class HomeTabPage extends StatefulWidget {
     this.localiser,
     this.fond,
     this.coucheFond,
+    this.profil,
     this.bannieres = banniereParDefaut,
   });
 
@@ -40,6 +46,10 @@ class HomeTabPage extends StatefulWidget {
   /// Fond de carte ; par défaut les images Google « Sprint sombre » (ou
   /// OpenStreetMap). Les tests le remplacent (pas de réseau).
   final Widget? coucheFond;
+
+  /// Flux du profil du client pour l'avatar de l'en-tête ; par défaut son
+  /// profil Firebase (aucun nom en démo : voir [DemoData.monNomClient]).
+  final Stream<Map<String, dynamic>?>? profil;
 
   /// Bannières du carrousel promo (par défaut [banniereParDefaut]).
   final List<BanniereProm> bannieres;
@@ -64,6 +74,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
     actif: () => mounted && TickerMode.valuesOf(context).enabled,
   );
 
+  /// Profil du client, écouté une seule fois pour toute la durée de l'onglet.
+  late final Stream<Map<String, dynamic>?> _profil = widget.profil ?? _profilConnecte();
+
   LatLng? _moi;
   Timer? _attenteDeplacement;
 
@@ -81,6 +94,16 @@ class _HomeTabPageState extends State<HomeTabPage> {
     _motos.dispose();
     _carte.dispose();
     super.dispose();
+  }
+
+  /// Profil Firebase du client connecté ; rien (l'avatar montre l'icône de
+  /// profil) si Firebase n'est pas prêt, par exemple dans un test.
+  static Stream<Map<String, dynamic>?> _profilConnecte() {
+    try {
+      return AuthRepository().profilUtilisateurStream();
+    } on Object {
+      return Stream.value(null);
+    }
   }
 
   Future<void> _localiserPuisCentrer({required bool demander}) async {
@@ -163,19 +186,19 @@ class _HomeTabPageState extends State<HomeTabPage> {
               ],
             ),
           ),
-          // Voile en haut : lisibilité des boutons sur n'importe quel fond.
+          // Voile en haut : lisibilité de la marque et des boutons sur n'importe quel fond.
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: 120,
+            height: 140,
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [AppColors.fondHaut.withValues(alpha: 0.7), AppColors.fondHaut.withValues(alpha: 0)],
+                    colors: [AppColors.fondHaut.withValues(alpha: 0.86), AppColors.fondHaut.withValues(alpha: 0)],
                   ),
                 ),
               ),
@@ -187,27 +210,14 @@ class _HomeTabPageState extends State<HomeTabPage> {
             right: 0,
             child: SafeArea(
               bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: Row(
-                  children: [
-                    const _Logo(),
-                    const Spacer(),
-                    _BoutonRond(
-                      icon: Icons.notifications_outlined,
-                      tooltip: 'Notifications',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MesNotificationsPage()),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    _BoutonRond(
-                      icon: Icons.person_outline_rounded,
-                      tooltip: 'Mon compte',
-                      onTap: () => context.go(AppRoutes.compteTab),
-                    ),
-                  ],
+              child: EnteteAccueil(
+                profil: _profil,
+                // Démo (pas de Firebase) : le client de démonstration ; avec un vrai compte sans nom, l'icône de profil.
+                nomRepli: DefaultFirebaseOptions.estConfigure ? null : DemoData.monNomClient,
+                onNotifications: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MesNotificationsPage()),
                 ),
+                onCompte: () => context.go(AppRoutes.compteTab),
               ),
             ),
           ),
@@ -225,7 +235,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _BoutonRond(
+                    BoutonRondVerre(
                       icon: Icons.my_location_rounded,
                       tooltip: 'Me localiser',
                       onTap: () => _localiserPuisCentrer(demander: true),
@@ -247,67 +257,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return const CarteVerre(
-      sombre: true,
-      rayon: 22,
-      padding: EdgeInsets.fromLTRB(6, 6, 14, 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          LogoSprint(taille: 30),
-          SizedBox(width: 8),
-          Text(
-            'Sprint',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: AppColors.texte),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Bouton rond « verre » sombre (flou, Onyx translucide, bord fin) : lisible
-/// sur la carte claire comme sur n'importe quel fond.
-class _BoutonRond extends StatelessWidget {
-  const _BoutonRond({required this.icon, required this.tooltip, required this.onTap});
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 20, offset: Offset(0, 8))],
-        ),
-        child: ClipOval(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Material(
-              color: AppColors.fond.withValues(alpha: 0.82),
-              shape: const CircleBorder(side: BorderSide(color: AppColors.bordVerre)),
-              child: InkWell(
-                onTap: onTap,
-                customBorder: const CircleBorder(),
-                child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 20, color: AppColors.texte)),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -9,6 +9,7 @@ import 'package:sprint/core/theme/app_colors.dart';
 import 'package:sprint/core/widgets/moto_vue_dessus.dart';
 import 'package:sprint/core/widgets/onyx_vert.dart';
 import 'package:sprint/core/maps/proximite_service.dart';
+import 'package:sprint/features/home/presentation/entete_accueil.dart';
 import 'package:sprint/features/home/presentation/home_tab_page.dart';
 
 class _ProximiteFactice implements ProximiteService {
@@ -38,6 +39,7 @@ void main() {
     ProximiteService service, {
     Localiser? localiser,
     Size taille = const Size(390, 844),
+    Stream<Map<String, dynamic>?>? profil,
   }) async {
     tester.view.physicalSize = taille;
     tester.view.devicePixelRatio = 1;
@@ -51,6 +53,7 @@ void main() {
             proximite: service,
             fond: fond,
             coucheFond: const SizedBox.shrink(),
+            profil: profil ?? Stream.value(null),
             localiser: localiser ?? ({required bool demander}) async => null,
           ),
         ),
@@ -63,6 +66,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     return routeur;
   }
+
+  testWidgets('accueil : en-tête avec la marque, son slogan, la cloche et l\'avatar à l\'initiale du prénom', (tester) async {
+    await afficher(tester, _ProximiteFactice(() => _motos(1)), profil: Stream.value({'nom': 'Awa Ndiaye'}));
+
+    expect(find.text('Sprint'), findsOneWidget);
+    expect(find.text(EnteteAccueil.slogan), findsOneWidget);
+    expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
+    expect(find.descendant(of: find.byType(AvatarProfil), matching: find.text('A')), findsOneWidget);
+    // Le profil sans nom n'invente rien : l'icône de profil.
+    await afficher(tester, _ProximiteFactice(() => _motos(1)), profil: Stream.value({'nom': ''}));
+    expect(find.byIcon(Icons.person_rounded), findsOneWidget);
+  });
 
   testWidgets('accueil : carte plein écran, motos vues de haut, disponibilité et approche', (tester) async {
     final service = _ProximiteFactice(() => _motos(5));
