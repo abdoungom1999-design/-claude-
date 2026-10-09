@@ -716,8 +716,16 @@ jobs:
           done
           [ "$recu" = "$attendu" ] || { echo "::error::Le lien public ne sert pas l'APK attendu"; exit 1; }
           curl -sI "$adresse/sprint.apk" | grep -iE '^(HTTP|content-type|content-disposition)'
-          curl -s "$adresse/android/" | grep -qF "Version $version" \
-            || { echo "::error::La page /android/ n'affiche pas la version $version"; exit 1; }
+          # Le réseau de diffusion peut servir l'ancienne page pendant quelques
+          # secondes après la mise en ligne (run #102 : contrôle fait 2 secondes
+          # après la publication, alors que le site et l'APK étaient bien publiés) :
+          # on réessaie comme pour l'APK avant de conclure à un échec.
+          page_a_jour=0
+          for essai in 1 2 3 4 5 6; do
+            if curl -s "$adresse/android/" | grep -qF "Version $version"; then page_a_jour=1; break; fi
+            sleep 10
+          done
+          [ "$page_a_jour" = 1 ] || { echo "::error::La page /android/ n'affiche pas la version $version"; exit 1; }
           curl -s "$adresse/" | grep -q 'flutter_bootstrap.js' \
             || { echo "::error::L'app web n'est pas servie à la racine"; exit 1; }
           curl -s "$adresse/main.dart.js" -o /dev/null -w '%{http_code}' | grep -q 200 \
