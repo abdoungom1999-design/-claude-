@@ -141,3 +141,16 @@ test('page simulée : adresses échappées, commande déjà traitée non payable
   const orange = pagePaiement('sim_1', { prixFcfa: 1000, adresseDepart: 'a', adresseArrivee: 'b', statut: 'en_attente_paiement', methodePaiement: 'ORANGE_MONEY' });
   assert.match(orange, /<h1>Orange Money<\/h1>/);
 });
+
+test('page simulée : un départ pris sur le GPS s\'affiche « Ma position actuelle » côté client', () => {
+  const html = pagePaiement('sim_1', {
+    prixFcfa: 3500, adresseDepart: 'Position GPS du client', adresseArrivee: 'Almadies', statut: 'en_attente_paiement', methodePaiement: 'WAVE',
+  });
+  assert.match(html, /Ma position actuelle → Almadies/);
+  assert.doesNotMatch(html, /Position GPS du client/);
+  // Une adresse écrite reste telle quelle.
+  const adresse = pagePaiement('sim_1', {
+    prixFcfa: 3500, adresseDepart: 'Plateau', adresseArrivee: 'Almadies', statut: 'en_attente_paiement', methodePaiement: 'WAVE',
+  });
+  assert.match(adresse, /Plateau → Almadies/);
+});

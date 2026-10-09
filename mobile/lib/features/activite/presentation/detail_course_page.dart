@@ -52,7 +52,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                _Ligne(icone: Icons.my_location, texte: c.adresseDepart),
+                _Ligne(icone: Icons.my_location, texte: c.adresseDepartPourLeClient),
                 const SizedBox(height: 10),
                 _Ligne(icone: Icons.location_on_outlined, texte: c.adresseArrivee),
                 const Divider(height: 28, color: AppColors.bordVerre),

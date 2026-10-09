@@ -114,7 +114,7 @@ class _CoursesANoterReellesState extends State<_CoursesANoterReelles> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _CarteCourseANoter(
-                          depart: aNoter.course.adresseDepart,
+                          depart: aNoter.course.adresseDepartPourLeClient,
                           arrivee: aNoter.course.adresseArrivee,
                           detail: [
                             formaterFcfa(aNoter.course.prixFcfa),

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/firebase/fonctions_cloud.dart';
 import '../../../core/utils/flux_repris.dart';
 import '../../conducteur/data/position_chauffeur_service.dart';
+import 'depart_gps.dart';
 import 'position_chauffeur.dart';
 
 /// Une course telle que stockée dans Firestore (collection `courses`).
@@ -46,6 +47,12 @@ class CourseFirestore {
   final String statut;
   final String type;
   final String adresseDepart;
+
+  /// Départ tel que le CLIENT le lit : « Ma position actuelle » quand il est
+  /// parti de son GPS (la course enregistre « Position GPS du client », que le
+  /// chauffeur et l'Admin lisent tel quel : [adresseDepart]).
+  String get adresseDepartPourLeClient => DepartGps.pourLeClient(adresseDepart);
+
   final String adresseArrivee;
   final int prixFcfa;
   final String methodePaiement;

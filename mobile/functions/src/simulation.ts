@@ -66,6 +66,18 @@ function fcfa(montant: number): string {
   return `${String(montant).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} FCFA`;
 }
 
+/**
+ * Départ pris sur le GPS du client : la course l'enregistre « Position GPS du
+ * client » (lu tel quel par le chauffeur et l'Admin), le client le lit « Ma
+ * position actuelle », comme dans l'app.
+ */
+const DEPART_GPS_ENREGISTRE = 'Position GPS du client';
+const DEPART_GPS_CLIENT = 'Ma position actuelle';
+
+function departPourLeClient(adresse: string): string {
+  return adresse === DEPART_GPS_ENREGISTRE ? DEPART_GPS_CLIENT : adresse;
+}
+
 /** Page de paiement simulée (Wave ou Orange Money, selon la commande). */
 export function pagePaiement(sessionId: string, commande: CommandeAffichee): string {
   if (commande.statut !== 'en_attente_paiement') {
@@ -79,7 +91,7 @@ export function pagePaiement(sessionId: string, commande: CommandeAffichee): str
 <h1>${operateur}</h1>
 <p>Sprint vous demande :</p>
 <div class="montant">${echapper(fcfa(commande.prixFcfa))}</div>
-<p class="trajet">${echapper(commande.adresseArrivee ? `${commande.adresseDepart} → ${commande.adresseArrivee}` : commande.adresseDepart)}</p>
+<p class="trajet">${echapper(commande.adresseArrivee ? `${departPourLeClient(commande.adresseDepart)} → ${commande.adresseArrivee}` : departPourLeClient(commande.adresseDepart))}</p>
 <form method="post">
 <input type="hidden" name="session" value="${session}">
 <button class="payer" name="choix" value="payer">Payer</button>

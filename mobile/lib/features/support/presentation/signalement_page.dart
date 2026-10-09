@@ -122,7 +122,7 @@ class _RappelCourse extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${course.adresseDepart} → ${course.adresseArrivee}',
+                  '${course.adresseDepartPourLeClient} → ${course.adresseArrivee}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.texte),

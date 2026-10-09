@@ -402,7 +402,7 @@ class _OngletReel extends StatelessWidget {
                         style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.vert)),
                     const SizedBox(height: 6),
                     Text(
-                      '${course.adresseDepart} → ${course.adresseArrivee}',
+                      '${course.adresseDepartPourLeClient} → ${course.adresseArrivee}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.texte),
@@ -475,7 +475,7 @@ class _CarteCourseReelle extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${course.adresseDepart} → ${course.adresseArrivee}',
+                      '${course.adresseDepartPourLeClient} → ${course.adresseArrivee}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppColors.texte),

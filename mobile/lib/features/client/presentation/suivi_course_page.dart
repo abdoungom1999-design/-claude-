@@ -415,7 +415,7 @@ class _EtatChauffeurAssigneState extends State<_EtatChauffeurAssigne> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _LigneAdresse(icon: Icons.my_location, texte: widget.course.adresseDepart),
+                _LigneAdresse(icon: Icons.my_location, texte: widget.course.adresseDepartPourLeClient),
                 const SizedBox(height: 10),
                 _LigneAdresse(icon: Icons.location_on_outlined, texte: widget.course.adresseArrivee),
               ],

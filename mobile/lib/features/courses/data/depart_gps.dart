@@ -25,4 +25,9 @@ abstract final class DepartGps {
   /// départ GPS, sinon l'adresse telle que le client l'a saisie.
   static String pourLaCourse(AdresseSuggestion depart, String texteSaisi) =>
       depart.gps ? libelleCourse : texteSaisi.trim();
+
+  /// Départ tel que le client le lit (historique, suivi, notation, signalement) :
+  /// « Ma position actuelle » pour un départ pris sur son GPS, l'adresse sinon.
+  /// Le chauffeur, l'Admin et les notifications gardent [libelleCourse].
+  static String pourLeClient(String adresseDepart) => adresseDepart == libelleCourse ? libelleClient : adresseDepart;
 }
