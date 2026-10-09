@@ -681,3 +681,52 @@ de temps en temps : une sauvegarde jamais restaurée n'est pas prouvée.
 
 Non couvert ici (à prévoir) : l'export des comptes de connexion (Firebase
 Auth) et la copie des fichiers Storage.
+
+## 11. Suivi des plantages (Firebase Crashlytics, Android)
+
+Les plantages et les erreurs imprévues de l'**APK Android** partent vers
+Firebase Crashlytics (console Firebase > **Crashlytics**), avec la version de
+l'app et le modèle du téléphone. Aucun nom, numéro ni identifiant de compte
+n'est envoyé.
+
+- **Couverture** : l'APK Android seulement. Crashlytics n'existe pas pour le
+  web : ni le site, ni l'app installée sur l'iPhone (qui est le site) ne sont
+  suivis. Pour eux, il faudrait un autre outil (à décider).
+- **Dans l'app** : `lib/core/suivi/suivi_plantages.dart`, branché dans
+  `main.dart` juste après le démarrage de Firebase. Les erreurs du framework
+  Flutter et les erreurs non rattrapées sont transmises (l'affichage habituel de
+  l'erreur est conservé) ; les plantages natifs sont captés par le SDK. Actif
+  seulement dans une app en version finale (jamais en développement ni en test).
+  Une panne de Crashlytics ne peut pas empêcher l'app de démarrer.
+- **Vérifier que ça marche** : sur l'APK, Admin > Paramètres > carte « Suivi des
+  plantages » > **Tester le suivi** > confirmer. L'app se ferme volontairement ;
+  le rapport part dans la minute (Android relance l'app en arrière-plan pour
+  l'envoyer) et le plantage « FirebaseCrashlyticsTestCrash » apparaît dans la
+  console Crashlytics au bout de quelques minutes. Les plantages « This is a
+  test crash » venus d'un appareil « sdk_gphone64_x86_64 » sont ceux de l'essai
+  de la CI (ci-dessous) : normaux.
+- **Alertes** : les alertes par e-mail de Crashlytics (nouveau plantage,
+  régression) se règlent dans la console Firebase.
+- **Choix techniques**, à relire avant toute mise à jour d'Android Gradle, de
+  Firebase ou de R8 :
+  - Pas de plugin Gradle Crashlytics : il ne s'entend pas encore avec Android
+    Gradle 9.x (identifiant de build parfois absent) et l'app n'utilise pas
+    `google-services.json`. L'identifiant de build exigé par le SDK est fourni
+    dans `android/app/src/main/res/values/crashlytics.xml`. Conséquence : les
+    erreurs Dart (l'essentiel) restent lisibles, mais les rares plantages
+    natifs Java apparaissent obfusqués.
+  - Règle R8 `android/app/proguard-rules.pro` : sans elle, R8 retire le
+    constructeur des composants Firebase, Crashlytics n'est pas instancié et
+    `Firebase.initializeApp` échoue : l'app démarre sans écran.
+  - Dépendance `firebase_crashlytics` 4.3.x, la ligne qui va avec
+    `firebase_core` 3.x : passer à la 5.x oblige à migrer tout Firebase en 4.x.
+- **Essai sur émulateur** (`.github/workflows/essai-android.yml`, script
+  `tool/essai_android.sh`) : onglet Actions > **Essai Android** > Run workflow.
+  Compile l'app pour un émulateur, la lance, vérifie qu'elle affiche un écran
+  sans exception, que Crashlytics s'initialise, qu'un plantage de test est
+  capté puis accepté par le serveur de Crashlytics (HTTP 200). Ne publie rien ;
+  les résultats sont les annotations du run. À lancer avant de publier toute
+  mise à jour qui touche à Firebase, à Gradle, à R8 ou aux dépendances Android :
+  la compilation seule ne suffit pas (c'est ce qui a révélé le défaut R8 ci-dessus).
+- **À prévoir** : mentionner le suivi des plantages dans la politique de
+  confidentialité de l'app (données techniques de plantage, sans identité).
