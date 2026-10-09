@@ -56,6 +56,11 @@ class GuidageCourse extends StatefulWidget {
 class _GuidageCourseState extends State<GuidageCourse> {
   static const _centreDakar = LatLng(14.6928, -17.4467);
 
+  /// Rayon de la zone montrée tant que la position exacte du client n'est pas
+  /// arrivée : le départ est arrondi au centre d'une case d'environ 150 m, le
+  /// client est donc à 106 m au plus du centre (la demi-diagonale).
+  static const _rayonZoneM = 110.0;
+
   late final GuidageController _guidage;
   late final MapController _carte;
 
@@ -83,9 +88,9 @@ class _GuidageCourseState extends State<GuidageCourse> {
       horloge: widget.horloge,
     )..addListener(_surChangement);
     final moi = _guidage.positionChauffeur;
-    final cible = _guidage.cible;
-    if (moi != null && cible != null) {
-      _cadrageInitial = _ajustement(moi, cible);
+    final vise = _guidage.pointCarte;
+    if (moi != null && vise != null) {
+      _cadrageInitial = _ajustement(moi, vise);
       _dejaCadre = true;
     }
   }
@@ -137,7 +142,7 @@ class _GuidageCourseState extends State<GuidageCourse> {
       _cadrer();
       return;
     }
-    final cible = _guidage.cible;
+    final cible = _guidage.pointCarte;
     final camera = _carte.camera;
     final visible = camera.visibleBounds;
     final hauteur = visible.north - visible.south;
@@ -160,7 +165,7 @@ class _GuidageCourseState extends State<GuidageCourse> {
   void _cadrer({bool force = false}) {
     if (!_carteChargee || (_suiviManuel && !force)) return;
     final moi = _guidage.positionChauffeur;
-    final cible = _guidage.cible;
+    final cible = _guidage.pointCarte;
     // Sans position du chauffeur, la carte est déjà ouverte sur le point visé.
     if (moi == null) return;
     _dejaCadre = true;
@@ -174,6 +179,7 @@ class _GuidageCourseState extends State<GuidageCourse> {
   @override
   Widget build(BuildContext context) {
     final cible = _guidage.cible;
+    final zone = _guidage.zoneClient;
     final moi = _guidage.positionChauffeur;
     final trace = _guidage.traceRestante;
 
@@ -183,7 +189,7 @@ class _GuidageCourseState extends State<GuidageCourse> {
         FlutterMap(
           mapController: _carte,
           options: MapOptions(
-            initialCenter: cible ?? moi ?? _centreDakar,
+            initialCenter: _guidage.pointCarte ?? moi ?? _centreDakar,
             initialZoom: 16,
             initialCameraFit: _cadrageInitial,
             // Fond sombre pendant le chargement des images (sinon le gris clair par défaut de flutter_map).
@@ -215,6 +221,20 @@ class _GuidageCourseState extends State<GuidageCourse> {
                     pattern: _guidage.estimation
                         ? StrokePattern.dashed(segments: const [12, 10])
                         : const StrokePattern.solid(),
+                  ),
+                ],
+              ),
+            // Position exacte du client pas encore arrivée : seule sa zone est connue.
+            if (zone != null)
+              CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: zone,
+                    radius: _rayonZoneM,
+                    useRadiusInMeter: true,
+                    color: AppColors.vert.withValues(alpha: 0.18),
+                    borderColor: AppColors.vert,
+                    borderStrokeWidth: 2,
                   ),
                 ],
               ),
@@ -308,6 +328,11 @@ class _CarteGuidage extends StatelessWidget {
           const Icon(Icons.location_off_outlined, color: AppColors.texteDiscret, size: 22),
           'Point de rendez-vous inconnu',
           'Appelez ou écrivez au client pour le retrouver.',
+        ),
+      EtatGuidage.attentePointClient => (
+          const _Attente(),
+          'Position exacte du client…',
+          'En attendant, sa zone approximative est sur la carte.',
         ),
       EtatGuidage.attentePosition => (const _Attente(), 'Localisation de votre position…', _adresse),
       EtatGuidage.calcul => (const _Attente(), "Calcul de l'itinéraire…", _adresse),

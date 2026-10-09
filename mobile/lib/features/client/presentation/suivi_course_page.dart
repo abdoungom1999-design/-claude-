@@ -7,6 +7,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../courses/data/course_service.dart';
+import '../../courses/data/depart_exact.dart';
 import '../../courses/data/position_chauffeur.dart';
 import '../../evaluations/presentation/evaluation_course.dart';
 import '../../messages/data/chat_service.dart';
@@ -65,7 +66,11 @@ class SuiviCoursePage extends StatefulWidget {
 
 class _SuiviCoursePageState extends State<SuiviCoursePage> {
   late final CourseService _courseService = widget.courseService ?? CourseService();
-  late final Stream<CourseFirestore?> _course = _courseService.streamCourse(widget.courseId);
+  // Le document de la course n'a qu'un départ arrondi tant qu'elle attend un
+  // chauffeur : la position exacte du client (son propre point de départ) est
+  // lue à part et complète la course dès qu'elle arrive.
+  late final Stream<CourseFirestore?> _course =
+      completerDepartExact(_courseService.streamCourse(widget.courseId), _courseService.streamDepartExact);
   bool _annulationEnCours = false;
 
   Future<void> _annuler() async {

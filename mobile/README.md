@@ -58,8 +58,11 @@ actuelle » (`lib/features/courses/data/depart_gps.dart`) : les coordonnées exa
 enregistrées avec la course. Le client n'a plus qu'à choisir son arrivée ; il peut retoucher le
 départ à la main ou reprendre sa position (« Utiliser ma position actuelle »). Position introuvable
 (GPS coupé, autorisation refusée) : message et « Réessayer ». La course enregistre le libellé
-« Position GPS du client » (lu par le chauffeur, l'Admin et les notifications). L'écran Colis n'est
-pas concerné. Tests : `depart_gps_test.dart`.
+« Position GPS du client » (lu par le chauffeur, l'Admin et les notifications). L'écran Colis
+fonctionne de la même façon (« Adresse de retrait » pré-remplie, message adapté) : le contrôleur
+`DepartGpsController` et le champ `ChampDepartGps` (`lib/features/client/presentation/`) sont
+partagés par les deux écrans. Tests : `depart_gps_test.dart`, `depart_gps_controller_test.dart`,
+`depart_gps_colis_test.dart`.
 
 **Guidage du chauffeur** : dès qu'il accepte, l'Accueil du chauffeur devient un écran de guidage
 (`widgets/guidage_course.dart`, `data/guidage_controller.dart`) : repère du client au point GPS
@@ -78,8 +81,22 @@ l'Admin et les notifications ; le client lit « Ma position actuelle » partout 
 suivi, courses à noter, signalement, page de paiement simulée) grâce à
 `CourseFirestore.adresseDepartPourLeClient`. La politique de confidentialité (mise à jour du
 9 octobre 2026) mentionne le suivi technique des erreurs et la position GPS transmise au chauffeur.
-Prochains lots : départ GPS sur l'écran Colis, puis coordonnées arrondies avant l'acceptation
-(position exacte réservée au chauffeur qui accepte).
+**Position exacte réservée au chauffeur qui accepte** : tant qu'une course attend un chauffeur, tous
+les chauffeurs actifs la lisent ; son départ n'y figure donc qu'au centre d'une case d'environ 150 m
+(même arrondi que les motos montrées au client, `arrondirPosition` dans `functions/src/proximite.ts`),
+avec `departArrondi: true`. La position exacte est écrite par le serveur, dans la même transaction que la
+course, sous `courses/{id}/prive/depart` (`functions/src/paiements.ts`) ; les règles Firestore ne la
+donnent qu'au client, au chauffeur de la course tant qu'elle est acceptée ou en cours, et à l'Admin.
+L'app la lit à part (`CourseService.streamDepartExact`) et complète la course avec
+`completerDepartExact` (`lib/features/courses/data/depart_exact.dart`) : côté chauffeur (guidage,
+navigation) et côté client (carte de recherche, suivi d'approche). En attendant la position exacte, le
+guidage montre la zone du client (cercle) sans itinéraire ; `itineraireCourse` lit lui-même le document
+privé. L'arrivée reste exacte. Tests : `depart_exact_test.dart`, `suivi_depart_exact_test.dart`,
+`guidage_controller_test.dart`, `guidage_course_test.dart`, règles Firestore
+(`firestore_rules_test`), `functions/test/paiements.emulateur.test.ts` et `itineraire.emulateur.test.ts`.
+Limites connues : l'adresse écrite par le client et son `clientId` restent visibles des chauffeurs
+avant l'acceptation ; une course créée avant ce masquage garde sa position exacte dans le document ; le
+document privé d'une course supprimée par l'Admin n'est pas supprimé avec elle.
 
 ## Suivi des plantages et sauvegardes
 

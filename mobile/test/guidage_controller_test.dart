@@ -20,7 +20,22 @@ const _points = PointsCourse(
   longitudeArrivee: -17.5170,
 );
 
-CourseFirestore _course(String statut, {PointsCourse? points = _points, String type = 'PASSAGER'}) => CourseFirestore(
+// Ce que lit un chauffeur : le départ du client n'est que le centre de sa case de ~150 m.
+const _zone = LatLng(14.6905, -17.4410);
+const _pointsArrondis = PointsCourse(
+  latitudeDepart: 14.6905,
+  longitudeDepart: -17.4410,
+  latitudeArrivee: 14.7450,
+  longitudeArrivee: -17.5170,
+);
+
+CourseFirestore _course(
+  String statut, {
+  PointsCourse? points = _points,
+  String type = 'PASSAGER',
+  bool departArrondi = false,
+}) =>
+    CourseFirestore(
       id: 'c1',
       clientId: 'client',
       chauffeurId: 'moussa',
@@ -32,6 +47,7 @@ CourseFirestore _course(String statut, {PointsCourse? points = _points, String t
       methodePaiement: 'WAVE',
       timestamp: DateTime(2026, 10, 9),
       points: points,
+      departArrondi: departArrondi,
     );
 
 PositionChauffeurDirect _position(LatLng p, {double? cap, double? vitesse}) => PositionChauffeurDirect(
@@ -337,6 +353,74 @@ void main() {
 
       expect(banc.service.appels, hasLength(1));
       expect(banc.guidage.etat, EtatGuidage.pret);
+    });
+  });
+
+  group('position exacte du client pas encore arrivée (départ arrondi)', () {
+    CourseFirestore arrondie([String statut = StatutCourse.acceptee]) =>
+        _course(statut, points: _pointsArrondis, departArrondi: true);
+
+    test('on ne guide pas vers la zone : en attente de la position exacte, aucun appel au serveur', () async {
+      banc = _Banc(course: arrondie());
+      await banc.bouger(_depart);
+
+      expect(banc.guidage.etat, EtatGuidage.attentePointClient);
+      expect(banc.guidage.pointApproximatif, isTrue);
+      expect(banc.guidage.cible, isNull);
+      expect(banc.guidage.zoneClient, _zone);
+      expect(banc.guidage.pointCarte, _zone, reason: 'la carte cadre la zone en attendant');
+      expect(banc.guidage.resteM, isNull);
+      expect(banc.guidage.traceRestante, isEmpty);
+      expect(banc.service.appels, isEmpty);
+    });
+
+    test('la position exacte arrive : le guidage se lance vers elle, sans plus de zone', () async {
+      banc = _Banc(course: arrondie());
+      await banc.bouger(_depart);
+
+      banc.guidage.mettreAJourCourse(_course(StatutCourse.acceptee));
+
+      expect(banc.guidage.pointApproximatif, isFalse);
+      expect(banc.guidage.zoneClient, isNull);
+      expect(banc.guidage.cible, _client);
+      expect(banc.guidage.etat, EtatGuidage.calcul);
+      expect(banc.service.appels, hasLength(1));
+      expect(banc.service.appels.single.vers, _client, reason: 'la position exacte, pas la zone');
+
+      banc.service.repondre(_route(_depart, _client));
+      await Future<void>.delayed(Duration.zero);
+      expect(banc.guidage.etat, EtatGuidage.pret);
+      expect(banc.guidage.traceRestante.last, _client);
+    });
+
+    test('position du chauffeur connue à l\'ouverture : toujours aucun appel avant la position exacte', () async {
+      banc = _Banc(course: arrondie(), positionInitiale: _position(_depart));
+
+      expect(banc.guidage.etat, EtatGuidage.attentePointClient);
+      expect(banc.service.appels, isEmpty);
+      // Orientée vers la zone du client en attendant.
+      expect(banc.guidage.cap, closeTo(90, 5));
+    });
+
+    test('client à bord : la destination est exacte, le départ arrondi n\'a plus d\'importance', () async {
+      banc = _Banc(course: arrondie(StatutCourse.enCours));
+      await banc.bouger(_client);
+
+      expect(banc.guidage.versDestination, isTrue);
+      expect(banc.guidage.pointApproximatif, isFalse);
+      expect(banc.guidage.zoneClient, isNull);
+      expect(banc.guidage.cible, _destination);
+      expect(banc.guidage.etat, EtatGuidage.calcul);
+      expect(banc.service.appels.single.vers, _destination);
+    });
+
+    test('course sans coordonnées, même marquée arrondie : rien à guider', () async {
+      banc = _Banc(course: _course(StatutCourse.acceptee, points: null, departArrondi: true));
+      await banc.bouger(_depart);
+
+      expect(banc.guidage.etat, EtatGuidage.sansPointVise);
+      expect(banc.guidage.pointCarte, isNull);
+      expect(banc.service.appels, isEmpty);
     });
   });
 

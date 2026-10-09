@@ -14,6 +14,10 @@ enum EtatGuidage {
   /// rien à guider, le chauffeur appelle son client.
   sansPointVise,
 
+  /// La course ne porte que le départ arrondi du client (sa zone, ~150 m) : sa
+  /// position exacte, lue à part, n'est pas encore arrivée.
+  attentePointClient,
+
   /// Le téléphone n'a pas encore donné la position du chauffeur.
   attentePosition,
 
@@ -88,14 +92,31 @@ class GuidageController extends ChangeNotifier {
   /// La course est en cours : on guide vers la destination, pas vers le client.
   bool get versDestination => _course.statut == StatutCourse.enCours;
 
-  /// Point visé : le client, puis la destination ; `null` sans coordonnées.
+  /// Il faut rejoindre le client, mais la course ne porte que le départ arrondi
+  /// de sa position : tant que sa position exacte n'est pas arrivée
+  /// ([CourseFirestore.departArrondi]), on ne guide pas vers ce point
+  /// approximatif.
+  bool get pointApproximatif => !versDestination && _course.points != null && _course.departArrondi;
+
+  /// Point visé : le client, puis la destination ; `null` sans coordonnées, et
+  /// tant que la position exacte du client n'est pas arrivée.
   LatLng? get cible {
     final points = _course.points;
     if (points == null) return null;
-    return versDestination
-        ? LatLng(points.latitudeArrivee, points.longitudeArrivee)
-        : LatLng(points.latitudeDepart, points.longitudeDepart);
+    if (versDestination) return LatLng(points.latitudeArrivee, points.longitudeArrivee);
+    return pointApproximatif ? null : LatLng(points.latitudeDepart, points.longitudeDepart);
   }
+
+  /// Centre de la zone où se trouve le client tant que sa position exacte n'est
+  /// pas arrivée ; `null` sinon.
+  LatLng? get zoneClient {
+    final points = _course.points;
+    if (points == null || !pointApproximatif) return null;
+    return LatLng(points.latitudeDepart, points.longitudeDepart);
+  }
+
+  /// Ce que la carte cadre : le point visé, ou, en attendant, la zone du client.
+  LatLng? get pointCarte => cible ?? zoneClient;
 
   PositionChauffeurDirect? get position => _position;
 
@@ -111,7 +132,8 @@ class GuidageController extends ChangeNotifier {
   double? get cap => _cap;
 
   EtatGuidage get etat {
-    if (cible == null) return EtatGuidage.sansPointVise;
+    if (_course.points == null) return EtatGuidage.sansPointVise;
+    if (pointApproximatif) return EtatGuidage.attentePointClient;
     if (_position == null) return EtatGuidage.attentePosition;
     if (_itineraire == null) return EtatGuidage.calcul;
     return EtatGuidage.pret;
@@ -209,7 +231,7 @@ class GuidageController extends ChangeNotifier {
             4) {
       voulu = capEntre(ancienne.latitude, ancienne.longitude, nouvelle.latitude, nouvelle.longitude);
     } else if (_cap == null) {
-      final point = cible;
+      final point = pointCarte;
       if (point != null) voulu = capEntre(nouvelle.latitude, nouvelle.longitude, point.latitude, point.longitude);
     }
     if (voulu == null) return;

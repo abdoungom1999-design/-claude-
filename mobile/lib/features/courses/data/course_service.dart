@@ -33,6 +33,7 @@ class CourseFirestore {
     required this.methodePaiement,
     required this.timestamp,
     this.points,
+    this.departArrondi = false,
     this.annuleePar,
     this.motifAnnulation,
     this.termineeLe,
@@ -61,6 +62,13 @@ class CourseFirestore {
   /// Coordonnées GPS du départ et de l'arrivée ; `null` pour les courses
   /// créées avant leur enregistrement (pas de temps d'approche alors).
   final PointsCourse? points;
+
+  /// Le départ de [points] n'est qu'arrondi au centre d'une case d'environ
+  /// 150 m : tant qu'une course attend un chauffeur, tous les chauffeurs la
+  /// lisent, et la position exacte du client est dans un document privé
+  /// (voir [CourseService.streamDepartExact]). `false` pour une course d'avant
+  /// ce masquage, et dès que la position exacte a été lue ([avecDepartExact]).
+  final bool departArrondi;
 
   /// `'client'`, `'chauffeur'` (voir [CourseService.annulerParChauffeur])
   /// ou `'systeme'` (aucun chauffeur à temps) ; `null` sinon.
@@ -125,6 +133,7 @@ class CourseFirestore {
       // côté client le temps que le serveur confirme l'écriture.
       timestamp: horodatage is Timestamp ? horodatage.toDate() : DateTime.now(),
       points: PointsCourse.depuisDocument(donnees),
+      departArrondi: donnees['departArrondi'] == true,
       annuleePar: donnees['annuleePar'] as String?,
       motifAnnulation: donnees['motifAnnulation'] as String?,
       termineeLe: donnees['termineeLe'] is Timestamp ? (donnees['termineeLe'] as Timestamp).toDate() : null,
@@ -132,6 +141,49 @@ class CourseFirestore {
       commandeId: donnees['commandeId'] as String?,
       rembourseeLe: donnees['rembourseeLe'] is Timestamp ? (donnees['rembourseeLe'] as Timestamp).toDate() : null,
     );
+  }
+
+  /// La même course, avec la position exacte du client à la place du départ
+  /// arrondi.
+  CourseFirestore avecDepartExact(DepartExact exact) {
+    final actuels = points;
+    if (actuels == null) return this;
+    return CourseFirestore(
+      id: id,
+      clientId: clientId,
+      chauffeurId: chauffeurId,
+      statut: statut,
+      type: type,
+      adresseDepart: adresseDepart,
+      adresseArrivee: adresseArrivee,
+      prixFcfa: prixFcfa,
+      methodePaiement: methodePaiement,
+      timestamp: timestamp,
+      points: actuels.avecDepart(exact.latitude, exact.longitude),
+      annuleePar: annuleePar,
+      motifAnnulation: motifAnnulation,
+      termineeLe: termineeLe,
+      commissionFcfa: commissionFcfa,
+      commandeId: commandeId,
+      rembourseeLe: rembourseeLe,
+    );
+  }
+}
+
+/// Position exacte du départ d'une course, lue dans son document privé
+/// (`courses/{id}/prive/depart`, écrit par le serveur à la création).
+class DepartExact {
+  const DepartExact({required this.latitude, required this.longitude});
+
+  final double latitude;
+  final double longitude;
+
+  /// `null` si le document est absent ou n'a pas de coordonnées.
+  static DepartExact? depuisDocument(Map<String, dynamic>? donnees) {
+    final latitude = donnees?['latitude'];
+    final longitude = donnees?['longitude'];
+    if (latitude is! num || longitude is! num) return null;
+    return DepartExact(latitude: latitude.toDouble(), longitude: longitude.toDouble());
   }
 }
 
@@ -155,6 +207,14 @@ class PointsCourse {
         'depart': {'latitude': latitudeDepart, 'longitude': longitudeDepart},
         'arrivee': {'latitude': latitudeArrivee, 'longitude': longitudeArrivee},
       };
+
+  /// Les mêmes points, avec un autre départ.
+  PointsCourse avecDepart(double latitude, double longitude) => PointsCourse(
+        latitudeDepart: latitude,
+        longitudeDepart: longitude,
+        latitudeArrivee: latitudeArrivee,
+        longitudeArrivee: longitudeArrivee,
+      );
 
   Map<String, double> versDocument() => {
         'latitudeDepart': latitudeDepart,
@@ -370,6 +430,21 @@ class CourseService {
       if (!doc.exists || donnees == null) return null;
       return CourseFirestore.depuisDocument(doc.id, donnees);
     });
+  }
+
+  /// Position exacte du départ d'une course (document privé écrit par le
+  /// serveur ; la course elle-même n'en porte qu'une version arrondie tant
+  /// qu'elle attend un chauffeur). Les règles Firestore ne la donnent qu'au
+  /// client de la course, à son chauffeur tant qu'elle est acceptée ou en
+  /// cours, et à l'Admin. Une lecture refusée (course pas encore visible des
+  /// règles, réseau) est retentée toute seule, voir [fluxRepris]. `null` si le
+  /// document n'existe pas.
+  Stream<DepartExact?> streamDepartExact(String courseId) {
+    return fluxRepris(
+      () => _courses.doc(courseId).collection('prive').doc('depart').snapshots().map(
+            (doc) => DepartExact.depuisDocument(doc.data()),
+          ),
+    );
   }
 
   /// Courses du client (historique de l'onglet Activité), de la plus

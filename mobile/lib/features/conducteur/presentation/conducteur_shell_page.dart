@@ -20,6 +20,7 @@ import '../../../core/widgets/onyx_vert.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
+import '../../courses/data/depart_exact.dart';
 import '../../courses/data/itineraire_service.dart';
 import '../../finances/data/finance_service.dart';
 import '../../messages/data/chat_service.dart';
@@ -303,7 +304,12 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     _abonnementCourseActive?.cancel();
-    _abonnementCourseActive = _courseService.streamCourseActiveChauffeur(uid).listen(
+    // Le départ de la course est arrondi pour les autres chauffeurs : une fois
+    // la course acceptée, la position exacte du client est lue à part.
+    _abonnementCourseActive = completerDepartExact(
+      _courseService.streamCourseActiveChauffeur(uid),
+      _courseService.streamDepartExact,
+    ).listen(
       (course) {
         _positionService.definirCourse(course?.id);
         if (mounted) {
@@ -414,6 +420,15 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     final adresse = versDestination ? course.adresseArrivee : course.adresseDepart;
     final app = await choisirAppNavigation(context, destination: adresse);
     if (app == null || !mounted) return;
+    // La position exacte du client n'est pas encore arrivée : la navigation
+    // ne vise que sa zone (~150 m), le chauffeur le sait.
+    if (!versDestination && course.departArrondi) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Position exacte du client en cours de chargement : le point indiqué est approximatif (à une centaine de mètres près).'),
+        ),
+      );
+    }
     final lien = NavigationGps.lien(
       app,
       latitude: points == null ? null : (versDestination ? points.latitudeArrivee : points.latitudeDepart),

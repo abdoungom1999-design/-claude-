@@ -40,15 +40,21 @@ void main() {
   });
 
   testWidgets(
-      'position GPS : transmise au chauffeur qui accepte, visible des chauffeurs disponibles avant, Google pour l\'itinéraire',
+      'position GPS : zone d\'environ 150 m avant acceptation, position exacte au seul chauffeur qui accepte, Google pour l\'itinéraire',
       (tester) async {
     final texte = corps(await ouvrir(tester), 'Position GPS et mise en relation');
 
     expect(texte, contains('Ma position actuelle'));
     expect(texte, contains('avec votre autorisation'));
-    expect(texte, contains('Conducteur qui l\'accepte'));
-    // Honnêteté : tant que la course attend, les chauffeurs disponibles y ont accès.
-    expect(texte, contains('Les Conducteurs disponibles ont accès aux demandes en attente'));
+    // Avant l'acceptation : une zone, jamais la position exacte (masquage serveur, voir paiements.ts).
+    expect(texte, contains('Tant que votre demande attend un Conducteur'));
+    expect(texte, contains('une zone d\'environ 150 m autour de votre point de départ, jamais votre position GPS exacte'));
+    // Honnêteté : l'adresse écrite par le client reste visible telle quelle.
+    expect(texte, contains('l\'adresse que vous écrivez vous-même reste visible telle quelle'));
+    // Après : seulement au chauffeur qui accepte, et plus après la course.
+    expect(texte, contains('Votre position exacte n\'est transmise qu\'au Conducteur qui accepte la course'));
+    expect(texte, contains('n\'y a plus accès une fois la course terminée'));
+    expect(texte, isNot(contains('Les Conducteurs disponibles ont accès')));
     expect(texte, contains('Google Maps Platform'));
     expect(texte, contains('refuser ou retirer l\'autorisation'));
   });

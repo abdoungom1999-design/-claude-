@@ -23,7 +23,22 @@ const _points = PointsCourse(
   longitudeArrivee: -17.5170,
 );
 
-CourseFirestore _course(String statut, {PointsCourse? points = _points, String type = 'PASSAGER'}) => CourseFirestore(
+// Ce que lit un chauffeur tant que la position exacte du client n'est pas arrivée : le centre de sa case de ~150 m.
+const _zone = LatLng(14.6905, -17.4410);
+const _pointsArrondis = PointsCourse(
+  latitudeDepart: 14.6905,
+  longitudeDepart: -17.4410,
+  latitudeArrivee: 14.7450,
+  longitudeArrivee: -17.5170,
+);
+
+CourseFirestore _course(
+  String statut, {
+  PointsCourse? points = _points,
+  String type = 'PASSAGER',
+  bool departArrondi = false,
+}) =>
+    CourseFirestore(
       id: 'c1',
       clientId: 'client',
       chauffeurId: 'moussa',
@@ -35,6 +50,7 @@ CourseFirestore _course(String statut, {PointsCourse? points = _points, String t
       methodePaiement: 'WAVE',
       timestamp: DateTime(2026, 10, 9),
       points: points,
+      departArrondi: departArrondi,
     );
 
 PositionChauffeurDirect _position(LatLng p) =>
@@ -251,6 +267,84 @@ void main() {
     ));
     await tester.pump();
     expect(find.text('Vers le lieu de livraison'), findsOneWidget);
+  });
+
+  group('position exacte du client pas encore arrivée', () {
+    final arrondie = _course(StatutCourse.acceptee, points: _pointsArrondis, departArrondi: true);
+
+    testWidgets('sa zone approximative est montrée, sans repère exact ni itinéraire', (tester) async {
+      await afficher(tester, arrondie, initiale: _position(_loin));
+
+      expect(find.text('Position exacte du client…'), findsOneWidget);
+      expect(find.text('En attendant, sa zone approximative est sur la carte.'), findsOneWidget);
+      expect(find.byType(CircleLayer), findsOneWidget);
+      expect(find.byKey(_repere), findsNothing, reason: 'pas de repère au point exact avant de le connaître');
+      expect(find.byKey(_moto), findsOneWidget);
+      expect(find.byType(PolylineLayer), findsNothing);
+      expect(banc.service.appels, isEmpty, reason: 'aucun itinéraire vers une position approximative');
+
+      // La carte cadre le chauffeur et la zone.
+      await tester.pump(const Duration(milliseconds: 100));
+      final visible = banc.carte.camera.visibleBounds;
+      expect(visible.contains(_zone), isTrue);
+      expect(visible.contains(_loin), isTrue);
+
+      // Le cercle est centré sur la zone et couvre sa case de 150 m (demi-diagonale ~106 m).
+      final cercle = tester.widget<CircleLayer>(find.byType(CircleLayer)).circles.single;
+      expect(cercle.point, _zone);
+      expect(cercle.useRadiusInMeter, isTrue);
+      expect(cercle.radius, greaterThanOrEqualTo(106));
+    });
+
+    testWidgets('la position exacte arrive : le repère et l\'itinéraire remplacent la zone', (tester) async {
+      await afficher(tester, arrondie, initiale: _position(_loin));
+      expect(find.byKey(_repere), findsNothing);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: GuidageCourse(
+            course: _course(StatutCourse.acceptee),
+            positions: banc.flux.stream,
+            service: banc.service,
+            coucheFond: const SizedBox.shrink(),
+            controleurCarte: banc.carte,
+            horloge: () => banc.heure,
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircleLayer), findsNothing);
+      expect(find.byKey(_repere), findsOneWidget);
+      expect(find.text('Position exacte du client…'), findsNothing);
+      expect(find.text("Calcul de l'itinéraire…"), findsOneWidget);
+      expect(banc.service.appels.single.vers, _client);
+
+      banc.service.repondre();
+      await tester.pump();
+      expect(find.text('1,9 km · ~6 min'), findsOneWidget);
+    });
+
+    testWidgets('sans position du chauffeur : la carte s\'ouvre sur la zone, pas sur Dakar', (tester) async {
+      await afficher(tester, arrondie);
+
+      expect(find.text('Position exacte du client…'), findsOneWidget);
+      expect(banc.carte.camera.center.latitude, closeTo(_zone.latitude, 1e-6));
+      expect(banc.carte.camera.center.longitude, closeTo(_zone.longitude, 1e-6));
+    });
+
+    testWidgets('client à bord : plus de zone, la destination est guidée normalement', (tester) async {
+      await afficher(
+        tester,
+        _course(StatutCourse.enCours, points: _pointsArrondis, departArrondi: true),
+        initiale: _position(_client),
+      );
+
+      expect(find.text('Vers la destination'), findsOneWidget);
+      expect(find.byType(CircleLayer), findsNothing);
+      expect(find.text('Position exacte du client…'), findsNothing);
+      expect(banc.service.appels.single.vers, _destination);
+    });
   });
 
   testWidgets('course sans coordonnées : pas de repère inventé, le chauffeur est invité à appeler', (tester) async {

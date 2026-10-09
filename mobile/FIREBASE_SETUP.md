@@ -344,7 +344,22 @@ en `europe-west1` (même région que Firestore `eur3`) :
   seul le chauffeur de la course l'obtient ; au plus un calcul toutes les
   10 secondes par course (champ `itineraireLe`) ; à moins de 30 m du point
   visé, la distance est rendue sans tracé et sans appel à Google. Si Google
-  ne répond pas, l'app se replie sur une estimation à vol d'oiseau.
+  ne répond pas, l'app se replie sur une estimation à vol d'oiseau. Pour
+  rejoindre le client, le point visé est la position exacte lue dans le
+  document privé de la course (`courses/{id}/prive/depart`) : jamais le
+  départ arrondi de la course ; document absent ou abîmé : refus
+  `failed-precondition`.
+- Position du départ des courses : le document `courses/{id}` ne porte que le
+  centre de la case d'environ 150 m (`arrondirPosition`) qui contient le
+  départ, avec `departArrondi: true`, tant que des chauffeurs peuvent la lire
+  (course en attente). La position exacte est écrite par le serveur dans la même
+  transaction (`courses/{id}/prive/depart`, paiement mobile money ou solde) ;
+  les règles ne la donnent qu'au client de la course, à son chauffeur tant que
+  la course est acceptée ou en cours, et à l'Admin, et n'en autorisent aucune
+  écriture depuis l'app. L'arrivée reste exacte. Les commandes (`commandes`,
+  lues par le client seul) gardent la position exacte. Une course d'avant ce
+  masquage garde sa position exacte dans son document. Un document de course
+  supprimé à la main (Admin) laisse son document privé : à supprimer avec.
 
 ### 7.1 Déploiement automatique (GitHub Actions)
 
