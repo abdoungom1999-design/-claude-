@@ -6,6 +6,7 @@ import { prixServeur, validerDemande, verifierClient, type Demande, type PrixSer
 import type { CalculDistance } from './distances';
 import type { EvenementPaiement, FournisseurPaiement } from './fournisseurs';
 import { notifierAnnulation, notifierNouvelleCourse, type Messagerie } from './notifications';
+import { arrondirPosition } from './proximite';
 import {
   debiterPourCourse,
   FOURNISSEUR_PORTEFEUILLE,
@@ -108,8 +109,28 @@ export async function creerPaiement(
   return { commandeId: ref.id, lienPaiement: session.lienPaiement, prixFcfa: estimation.prixFcfa };
 }
 
-/** Données de la course créée à partir d'une commande payée (par le fournisseur ou par le solde). */
+/**
+ * Document de la position exacte du départ, sous la course (`courses/{id}/prive/depart`) :
+ * seul endroit où elle est écrite en clair (voir [donneesCourse]).
+ */
+export function departExactDe(course: DocumentReference): DocumentReference {
+  return course.collection('prive').doc('depart');
+}
+
+/**
+ * Données de la course créée à partir d'une commande payée (par le fournisseur
+ * ou par le solde).
+ *
+ * Tant que la course attend un chauffeur, tout chauffeur actif peut la lire :
+ * le départ n'y figure donc qu'arrondi au centre d'une case d'environ 150 m
+ * (comme les motos montrées au client), signalé par `departArrondi`. La
+ * position exacte est déposée à part ([donneesDepartExact]) : seuls le client,
+ * le chauffeur qui accepte la course et l'Admin la lisent (voir
+ * `firestore.rules`). L'arrivée reste exacte : son adresse est déjà montrée aux
+ * chauffeurs, qui en ont besoin pour juger la course.
+ */
 function donneesCourse(c: FirebaseFirestore.DocumentData, prixFcfa: number, transactionId: string, commandeId: string) {
+  const depart = arrondirPosition(c.latitudeDepart, c.longitudeDepart);
   return {
     clientId: c.clientId,
     chauffeurId: null,
@@ -117,8 +138,9 @@ function donneesCourse(c: FirebaseFirestore.DocumentData, prixFcfa: number, tran
     type: c.type,
     adresseDepart: c.adresseDepart,
     adresseArrivee: c.adresseArrivee,
-    latitudeDepart: c.latitudeDepart,
-    longitudeDepart: c.longitudeDepart,
+    latitudeDepart: depart.latitude,
+    longitudeDepart: depart.longitude,
+    departArrondi: true,
     latitudeArrivee: c.latitudeArrivee,
     longitudeArrivee: c.longitudeArrivee,
     distanceKm: c.distanceKm,
@@ -130,6 +152,11 @@ function donneesCourse(c: FirebaseFirestore.DocumentData, prixFcfa: number, tran
     commandeId,
     timestamp: FieldValue.serverTimestamp(),
   };
+}
+
+/** Position exacte du départ, écrite sous la course ([departExactDe]). */
+function donneesDepartExact(c: FirebaseFirestore.DocumentData) {
+  return { latitude: c.latitudeDepart as number, longitude: c.longitudeDepart as number };
 }
 
 /**
@@ -174,6 +201,7 @@ async function payerParSolde(
     };
     tx.create(refCommande, commande);
     tx.create(refCourse, donneesCourse(commande, prixFcfa, commande.sessionPaiementId, refCommande.id));
+    tx.create(departExactDe(refCourse), donneesDepartExact(commande));
   });
   // Les chauffeurs disponibles sont prévenus ; jamais bloquant.
   await notifierNouvelleCourse(db, messagerie, refCourse.id);
@@ -228,6 +256,7 @@ export async function traiterEvenement(
     const refCourse = db.collection('courses').doc();
     const c = commande.data()!;
     tx.create(refCourse, donneesCourse(c, prixFcfa, evenement.sessionId, refCommande.id));
+    tx.create(departExactDe(refCourse), donneesDepartExact(c));
     tx.update(refCommande, {
       statut: STATUTS_COMMANDE.payee,
       courseId: refCourse.id,

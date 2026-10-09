@@ -8,7 +8,13 @@ import { ajusterPortefeuille, rembourserCourseAdmin } from '../src/admin';
 import { calculDistance } from '../src/distances';
 import { FournisseurSimule, type EvenementPaiement } from '../src/fournisseurs';
 import type { ClientGoogle } from '../src/google';
-import { annulerCourse, creerPaiement as creerPaiementCore, surveiller, traiterEvenement } from '../src/paiements';
+import {
+  annulerCourse,
+  creerPaiement as creerPaiementCore,
+  departExactDe,
+  surveiller,
+  traiterEvenement,
+} from '../src/paiements';
 import {
   creerRecharge as creerRechargeCore,
   DUREE_RECHARGE_MS,
@@ -18,6 +24,7 @@ import {
   surveillerRecharges,
   traiterEvenementRecharge,
 } from '../src/portefeuille';
+import { arrondirPosition } from '../src/proximite';
 
 const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
 const ALMADIES = { latitude: 14.7456, longitude: -17.5134 };
@@ -104,8 +111,8 @@ beforeEach(async () => {
   remboursements = [];
   fournisseur = new FournisseurSimule('secret', 'https://page', remboursements);
   for (const nom of ['users', 'courses', 'commandes', 'distances', 'config', 'recharges', 'journal_admin']) {
-    const docs = await db.collection(nom).listDocuments();
-    await Promise.all(docs.map((d) => d.delete()));
+    // Récursif : une course porte aussi son document privé (position exacte du départ).
+    await db.recursiveDelete(db.collection(nom));
   }
   for (const uid of ['awa', 'fatou']) {
     const mvts = await db.collection(`portefeuilles/${uid}/mouvements`).listDocuments();
@@ -297,6 +304,13 @@ test('course payée avec le solde : débit, commande payée et course créées e
   assert.equal(c.prixFcfa, PRIX);
   assert.equal(c.commandeId, r.commandeId);
   assert.equal(c.modePaiement, 'portefeuille');
+
+  // Même masquage du départ que pour un paiement mobile money.
+  const arrondi = arrondirPosition(PLATEAU.latitude, PLATEAU.longitude);
+  assert.equal(c.departArrondi, true);
+  assert.deepEqual({ latitude: c.latitudeDepart, longitude: c.longitudeDepart }, arrondi);
+  const prive = await departExactDe(db.doc(`courses/${commande.courseId}`)).get();
+  assert.deepEqual(prive.data(), PLATEAU);
 
   const debit = (await mouvements('awa')).find((m) => m.id === `course_${r.commandeId}`)!;
   assert.deepEqual(

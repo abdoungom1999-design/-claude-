@@ -3,6 +3,7 @@ import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { DISTANCE_MAX_KM } from './commandes';
 import type { ClientGoogle } from './google';
+import { departExactDe } from './paiements';
 import { distanceKm, type Point } from './tarification';
 
 // ---------------------------------------------------------------------
@@ -76,8 +77,19 @@ export async function itineraireCourse(
     if (!STATUTS_ACTIFS.includes(statut)) throw new HttpsError('failed-precondition', 'Cette course n’est plus en cours.');
 
     const vers = statut === 'en_cours' ? 'destination' : 'client';
-    const latitude = course.get(vers === 'client' ? 'latitudeDepart' : 'latitudeArrivee');
-    const longitude = course.get(vers === 'client' ? 'longitudeDepart' : 'longitudeArrivee');
+    let latitude = course.get(vers === 'client' ? 'latitudeDepart' : 'latitudeArrivee');
+    let longitude = course.get(vers === 'client' ? 'longitudeDepart' : 'longitudeArrivee');
+    // Le départ de la course n'est qu'arrondi (voir `paiements.ts`) : la position
+    // exacte du client est dans son document privé. Une ancienne course, sans
+    // `departArrondi`, porte encore la position exacte.
+    if (vers === 'client' && course.get('departArrondi') === true) {
+      const exact = await tx.get(departExactDe(ref));
+      latitude = exact.get('latitude');
+      longitude = exact.get('longitude');
+      if (!exact.exists || typeof latitude !== 'number' || typeof longitude !== 'number') {
+        throw new HttpsError('failed-precondition', 'Le point de rendez-vous n’est pas disponible.');
+      }
+    }
     if (typeof latitude !== 'number' || typeof longitude !== 'number') {
       throw new HttpsError('failed-precondition', 'Cette course n’a pas de coordonnées.');
     }

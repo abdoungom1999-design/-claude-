@@ -310,6 +310,91 @@ describe('courses', () => {
   });
 });
 
+describe('courses : position exacte du départ (document privé)', () => {
+  // Le serveur dépose la position exacte sous la course ; la course elle-même
+  // n'en porte qu'une version arrondie tant qu'un chauffeur peut la lire en attente.
+  const exacte = { latitude: 14.701234, longitude: -17.456789 };
+
+  async function poserExacte(courseId = 'c1') {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'courses', courseId, 'prive', 'depart'), exacte));
+  }
+  const lire = (uid, courseId = 'c1') => getDoc(doc(en(uid), 'courses', courseId, 'prive', 'depart'));
+
+  test('course en attente : seul le client (et l\'Admin) lit la position exacte, aucun chauffeur', async () => {
+    await poserExacte();
+    const lue = await assertSucceeds(lire('client'));
+    assert.deepEqual(lue.data(), exacte);
+    await assertSucceeds(lire('admin'));
+    // Le radar voit la course, pas la position exacte.
+    await assertSucceeds(getDoc(doc(en('chauffeur'), 'courses', 'c1')));
+    for (const uid of ['chauffeur', 'suspendu', 'banni', 'enAttente', 'autreClient']) {
+      await assertFails(lire(uid));
+    }
+    await assertFails(getDoc(doc(anonyme(), 'courses', 'c1', 'prive', 'depart')));
+  });
+
+  test('course acceptée : le chauffeur attribué la lit dès l\'acceptation, pas un autre chauffeur', async () => {
+    await poserExacte();
+    await env.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), 'courses', 'c1'), { chauffeurId: 'chauffeur', statut: 'acceptee' }));
+
+    const lue = await assertSucceeds(lire('chauffeur'));
+    assert.deepEqual(lue.data(), exacte);
+    await assertSucceeds(lire('client'));
+    await assertFails(lire('autreClient'));
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'users', 'autreChauffeur'), {
+        role: 'conducteur', email: 'autreChauffeur@test.sn', statutValidation: 'valide',
+      }));
+    await assertFails(lire('autreChauffeur'));
+  });
+
+  test('client à bord : toujours lisible par le chauffeur ; une fois terminée ou annulée : il la perd, pas le client', async () => {
+    await poserExacte();
+    await env.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), 'courses', 'c1'), { chauffeurId: 'chauffeur', statut: 'en_cours' }));
+    await assertSucceeds(lire('chauffeur'));
+
+    for (const statut of ['terminee', 'annulee']) {
+      await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), 'courses', 'c1'), { statut }));
+      await assertFails(lire('chauffeur'));
+      await assertSucceeds(lire('client'));
+      await assertSucceeds(lire('admin'));
+    }
+  });
+
+  test('personne n\'écrit la position exacte depuis l\'app, pas même l\'Admin (serveur seul)', async () => {
+    for (const uid of ['client', 'chauffeur', 'admin', 'autreClient']) {
+      const ref = doc(en(uid), 'courses', 'c1', 'prive', 'depart');
+      await assertFails(setDoc(ref, exacte));
+      await assertFails(setDoc(ref, { latitude: 0, longitude: 0 }));
+    }
+    await poserExacte();
+    for (const uid of ['client', 'chauffeur', 'admin']) {
+      await assertFails(updateDoc(doc(en(uid), 'courses', 'c1', 'prive', 'depart'), { latitude: 1 }));
+    }
+    await assertFails(deleteDoc(doc(en('client'), 'courses', 'c1', 'prive', 'depart')));
+    await assertFails(deleteDoc(doc(en('chauffeur'), 'courses', 'c1', 'prive', 'depart')));
+  });
+
+  test('l\'Admin liste et supprime (nettoyage des données) ; personne d\'autre ne liste', async () => {
+    await poserExacte();
+    await assertSucceeds(getDocs(collection(en('admin'), 'courses', 'c1', 'prive')));
+    for (const uid of ['client', 'chauffeur', 'autreClient']) {
+      await assertFails(getDocs(collection(en(uid), 'courses', 'c1', 'prive')));
+    }
+    await assertSucceeds(deleteDoc(doc(en('admin'), 'courses', 'c1', 'prive', 'depart')));
+  });
+
+  test('course supprimée : le document privé n\'est plus lisible par personne d\'autre que l\'Admin', async () => {
+    await poserExacte();
+    await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'courses', 'c1')));
+    await assertFails(lire('client'));
+    await assertFails(lire('chauffeur'));
+  });
+});
+
 describe('courses : cycle de vie côté chauffeur', () => {
   beforeEach(() => env.withSecurityRulesDisabled((ctx) =>
     setDoc(doc(ctx.firestore(), 'courses', 'c2'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'acceptee', prixFcfa: 2000 })));

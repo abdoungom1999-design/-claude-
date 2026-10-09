@@ -7,6 +7,8 @@ import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestor
 import { HttpsError } from 'firebase-functions/v2/https';
 import { ClientGoogle } from '../src/google';
 import { DISTANCE_ARRIVEE_M, INTERVALLE_MIN_MS, itineraireCourse } from '../src/itineraire';
+import { departExactDe } from '../src/paiements';
+import { arrondirPosition } from '../src/proximite';
 
 const midi = new Date(Date.UTC(2026, 9, 9, 12));
 const apres = (ms: number) => new Date(midi.getTime() + ms);
@@ -52,6 +54,16 @@ const course = (id: string, extra: Record<string, unknown> = {}) =>
     longitudeArrivee: destination.longitude,
     ...extra,
   });
+
+/**
+ * Course telle que le serveur la crée aujourd'hui : départ arrondi dans la
+ * course, position exacte du client dans son document privé (sauf [exact] nul).
+ */
+async function courseMasquee(id: string, extra: Record<string, unknown> = {}, exact: unknown = client) {
+  const arrondi = arrondirPosition(client.latitude, client.longitude);
+  await course(id, { latitudeDepart: arrondi.latitude, longitudeDepart: arrondi.longitude, departArrondi: true, ...extra });
+  if (exact) await departExactDe(db.doc(`courses/${id}`)).set(exact as Record<string, unknown>);
+}
 
 async function refuse(promesse: Promise<unknown>, code: string): Promise<HttpsError> {
   try {
@@ -156,4 +168,60 @@ test('Google en panne, clé absente ou aucun itinéraire : « indisponible » (l
   await refuse(itineraireCourse(db, googleFactice({ error: { message: 'quota' } }, 429).google, 'moussa', demande(), midi), 'unavailable');
   await refuse(itineraireCourse(db, googleFactice({}).google, 'moussa', demande(), apres(60_000)), 'unavailable');
   await refuse(itineraireCourse(db, null, 'moussa', demande(), apres(120_000)), 'unavailable');
+});
+
+test('départ arrondi dans la course : l\'itinéraire mène à la position exacte du client (document privé)', async () => {
+  await courseMasquee('c1');
+  const arrondi = arrondirPosition(client.latitude, client.longitude);
+  assert.notDeepEqual(arrondi, client, 'le test n\'a de sens que si l\'arrondi diffère de la position exacte');
+  const { google, appels } = googleFactice();
+
+  const r = await itineraireCourse(db, google, 'moussa', demande(), midi);
+
+  assert.equal(r.vers, 'client');
+  assert.deepEqual(appels[0].corps.destination.location.latLng, client);
+});
+
+test('départ arrondi : chauffeur arrivé jugé sur la position exacte, pas sur l\'arrondi', async () => {
+  await courseMasquee('c1');
+  const { google, appels } = googleFactice();
+  const aCoteDuClient = { latitude: client.latitude + 0.0001, longitude: client.longitude }; // ~11 m du client
+
+  const r = await itineraireCourse(db, google, 'moussa', demande({ depuis: aCoteDuClient }), midi);
+
+  assert.equal(r.trace, '');
+  assert.ok(r.distanceM < DISTANCE_ARRIVEE_M, String(r.distanceM));
+  assert.equal(appels.length, 0);
+});
+
+test('départ arrondi sans document privé : refusé proprement, jamais d\'itinéraire vers la position arrondie', async () => {
+  await courseMasquee('c1', {}, null);
+  const { google, appels } = googleFactice();
+
+  await refuse(itineraireCourse(db, google, 'moussa', demande(), midi), 'failed-precondition');
+  assert.equal(appels.length, 0);
+
+  // Document privé abîmé (coordonnées manquantes ou d'un autre type) : même refus.
+  await departExactDe(db.doc('courses/c1')).set({ latitude: 'x' });
+  await refuse(itineraireCourse(db, google, 'moussa', demande(), apres(60_000)), 'failed-precondition');
+  assert.equal(appels.length, 0);
+});
+
+test('départ arrondi : le document privé n\'est lu que pour le chauffeur attribué', async () => {
+  await courseMasquee('c1');
+  const { google, appels } = googleFactice();
+
+  await refuse(itineraireCourse(db, google, 'awa', demande(), midi), 'permission-denied');
+  await refuse(itineraireCourse(db, google, 'intrus', demande(), midi), 'permission-denied');
+  assert.equal(appels.length, 0);
+});
+
+test('client à bord, départ arrondi : l\'itinéraire mène à la destination exacte, sans toucher au document privé', async () => {
+  await courseMasquee('c1', { statut: 'en_cours' }, null);
+  const { google, appels } = googleFactice();
+
+  const r = await itineraireCourse(db, google, 'moussa', demande(), midi);
+
+  assert.equal(r.vers, 'destination');
+  assert.deepEqual(appels[0].corps.destination.location.latLng, destination);
 });

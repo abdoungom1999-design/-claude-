@@ -292,6 +292,28 @@ service cloud.firestore {
       // client dans la foulée.
 
       allow delete: if estAdmin();
+
+      // Position EXACTE du départ du client (souvent sa position GPS). Tant
+      // que la course attend un chauffeur, tout chauffeur actif peut la lire :
+      // le document de la course ne porte alors qu'un départ arrondi à ~150 m
+      // (`departArrondi`), et la position exacte est déposée ici par le serveur
+      // à la création. Elle n'est lisible que par le client de la course, par son
+      // chauffeur tant que la course est acceptée ou en cours (il la perd à la
+      // fin : plus aucun accès aux adresses exactes de ses anciens clients) et
+      // par l'Admin. Jamais écrite depuis l'app.
+      match /prive/{docId} {
+        function courseDuDepart() {
+          return get(/databases/$(database)/documents/courses/$(courseId)).data;
+        }
+
+        allow get: if connecte()
+          && (courseDuDepart().clientId == moi()
+              || (courseDuDepart().chauffeurId == moi() && courseDuDepart().statut in ['acceptee', 'en_cours'])
+              || estAdmin());
+        allow list: if estAdmin();
+        allow delete: if estAdmin();
+        allow create, update: if false;
+      }
     }
 
     // ---------------------------------------------------------------

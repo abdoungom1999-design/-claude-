@@ -11,9 +11,11 @@ import type { ClientGoogle } from '../src/google';
 import {
   annulerCourse,
   creerPaiement as creerPaiementCore,
+  departExactDe,
   surveiller,
   traiterEvenement,
 } from '../src/paiements';
+import { arrondirPosition, distanceKm, PAS_ANONYMISATION_M } from '../src/proximite';
 import { secretSimulation } from '../src/simulation';
 
 const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
@@ -80,8 +82,8 @@ beforeEach(async () => {
   remboursements = [];
   fournisseur = new FournisseurSimule('secret', 'https://page', remboursements);
   for (const nom of ['users', 'courses', 'commandes', 'distances', 'config']) {
-    const docs = await db.collection(nom).listDocuments();
-    await Promise.all(docs.map((d) => d.delete()));
+    // Récursif : une course porte aussi son document privé (position exacte du départ).
+    await db.recursiveDelete(db.collection(nom));
   }
   await db.doc('users/awa').set({ role: 'client', nom: 'Awa' });
   await db.doc('users/fatou').set({ role: 'client', nom: 'Fatou' });
@@ -191,6 +193,58 @@ test('paiement confirmé : course en attente créée pour les chauffeurs, comman
   assert.equal(c.latitudeArrivee, ALMADIES.latitude);
   assert.ok(c.timestamp instanceof Timestamp);
   assert.equal(await statutCommande(commandeId), 'payee');
+});
+
+test('course en attente : départ arrondi pour les chauffeurs, arrivée exacte', async () => {
+  const { courseId } = await payer();
+  const c = await course(courseId);
+
+  const arrondi = arrondirPosition(PLATEAU.latitude, PLATEAU.longitude);
+  assert.equal(c.departArrondi, true);
+  assert.equal(c.latitudeDepart, arrondi.latitude);
+  assert.equal(c.longitudeDepart, arrondi.longitude);
+  assert.notDeepEqual({ latitude: c.latitudeDepart, longitude: c.longitudeDepart }, PLATEAU, 'le départ exact ne doit pas figurer ici');
+  const ecartM = distanceKm(PLATEAU.latitude, PLATEAU.longitude, c.latitudeDepart, c.longitudeDepart) * 1000;
+  assert.ok(ecartM <= PAS_ANONYMISATION_M, `écart de ${Math.round(ecartM)} m : le départ arrondi reste dans sa case`);
+  assert.equal(c.latitudeArrivee, ALMADIES.latitude);
+  assert.equal(c.longitudeArrivee, ALMADIES.longitude);
+});
+
+test('position exacte du départ : dans le document privé de la course, et nulle part ailleurs sous la course', async () => {
+  const { courseId } = await payer();
+
+  const prive = await departExactDe(db.doc(`courses/${courseId}`)).get();
+  assert.deepEqual(prive.data(), PLATEAU);
+  assert.equal(prive.ref.path, `courses/${courseId}/prive/depart`);
+
+  // Les coordonnées exactes ne sont pas dans le document que lisent les chauffeurs.
+  const publique = JSON.stringify(await course(courseId));
+  assert.ok(!publique.includes(String(PLATEAU.latitude)), publique);
+  assert.ok(!publique.includes(String(PLATEAU.longitude)), publique);
+});
+
+test('même confirmation reçue plusieurs fois : une seule position exacte, pas de document privé orphelin', async () => {
+  const { commandeId } = await creerPaiement('awa', demande());
+  const e = await evenement(commandeId);
+  await Promise.all([1, 2, 3].map(() => traiterEvenement(db, fournisseur, e, midi)));
+  assert.equal(await nombre('courses'), 1);
+  assert.equal((await db.collectionGroup('prive').get()).size, 1);
+});
+
+test('paiement refusé, anomalie ou expiré : aucune course, donc aucune position exacte écrite', async () => {
+  const refusee = await creerPaiement('awa', demande());
+  await traiterEvenement(db, fournisseur, await evenement(refusee.commandeId, { reussi: false }), midi);
+  const anomalie = await creerPaiement('awa', demande());
+  await traiterEvenement(db, fournisseur, await evenement(anomalie.commandeId, { montantFcfa: 100 }), midi);
+  assert.equal(await nombre('courses'), 0);
+  assert.equal((await db.collectionGroup('prive').get()).size, 0);
+});
+
+test('la commande du client garde sa position exacte (lue par lui seul)', async () => {
+  const { commandeId } = await payer();
+  const commande = (await db.doc(`commandes/${commandeId}`).get()).data()!;
+  assert.equal(commande.latitudeDepart, PLATEAU.latitude);
+  assert.equal(commande.longitudeDepart, PLATEAU.longitude);
 });
 
 test('même confirmation reçue plusieurs fois (même simultanément) : une seule course', async () => {
