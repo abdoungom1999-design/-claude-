@@ -36,6 +36,19 @@ l'initiale du prénom à droite, icône de profil si le profil n'a pas de nom).
 Activité et Messages, Chauffeur (dont dossier KYC et écrans d'attente/blocage),
 Admin, Centre d'aide, sous-pages du Compte, commande et support.
 
+## Session conservée
+
+Un compte connecté le reste jusqu'à un appui sur « Se déconnecter » (téléphone, navigateur,
+application installée sur l'écran d'accueil). À l'ouverture,
+`lib/core/router/aiguillage_demarrage.dart` attend que Firebase ait relu la session, puis envoie
+le compte de l'écran de Bienvenue vers son accueil : `/accueil` (client), `/conducteur`
+(chauffeur) ou `/admin` (administrateur). Le rôle du compte est retenu sur l'appareil
+(`lib/features/auth/data/role_du_compte.dart`, stockage sécurisé) à chaque connexion et oublié à
+la déconnexion : l'arrivée n'attend pas le réseau. Ce rôle ne donne aucun droit, il choisit
+seulement l'écran d'arrivée. Sans session, ou en mode démo (Firebase non configuré), l'écran de
+Bienvenue s'affiche comme avant. Tests : `aiguillage_demarrage_test.dart`,
+`role_du_compte_test.dart`.
+
 ## Support
 
 « Contacter le support » ouvre un fil de demande d'aide (ticket `aide_<uid>`, collection
