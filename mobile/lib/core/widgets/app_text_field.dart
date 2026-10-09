@@ -18,6 +18,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.validator,
     this.onChanged,
+    this.onTap,
   });
 
   final String label;
@@ -31,6 +32,7 @@ class AppTextField extends StatelessWidget {
   final int maxLines;
   final String? Function(String?)? validator;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +48,7 @@ class AppTextField extends StatelessWidget {
       maxLines: obscureText ? 1 : maxLines,
       validator: validator,
       onChanged: onChanged,
+      onTap: onTap,
       style: const TextStyle(color: AppColors.texte, fontSize: 15.5, fontWeight: FontWeight.w500),
       cursorColor: AppColors.vert,
       decoration: InputDecoration(

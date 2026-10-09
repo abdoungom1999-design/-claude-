@@ -31,6 +31,13 @@ export interface Itineraire {
   distanceKm: number;
 }
 
+/** Itinéraire à suivre, pour guider un chauffeur sur la carte. */
+export interface ItineraireTrace {
+  distanceM: number;
+  /** Tracé au format « encoded polyline » de Google (points à 5 décimales). */
+  trace: string;
+}
+
 export class ErreurGoogle extends Error {}
 
 type Fetch = typeof fetch;
@@ -139,6 +146,38 @@ export class ClientGoogle {
     const metres = donnees.routes?.[0]?.distanceMeters;
     if (typeof metres !== 'number' || metres <= 0) return null;
     return { distanceKm: metres / 1000 };
+  }
+
+  /**
+   * Itinéraire à suivre (voiture, sans trafic) : distance et tracé, pour
+   * guider un chauffeur vers son client puis vers la destination. Mêmes
+   * réglages que [itineraire], plus le tracé. `null` si Google ne trouve
+   * aucun itinéraire.
+   */
+  async itineraireAvecTrace(depart: Point, arrivee: Point): Promise<ItineraireTrace | null> {
+    const donnees = (await this.appeler(
+      'https://routes.googleapis.com/directions/v2:computeRoutes',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          origin: { location: { latLng: depart } },
+          destination: { location: { latLng: arrivee } },
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_UNAWARE',
+          polylineQuality: 'HIGH_QUALITY',
+          polylineEncoding: 'ENCODED_POLYLINE',
+          languageCode: 'fr',
+          units: 'METRIC',
+        }),
+      },
+      'routes.distanceMeters,routes.polyline',
+    )) as { routes?: { distanceMeters?: number; polyline?: { encodedPolyline?: string } }[] };
+
+    const route = donnees.routes?.[0];
+    const metres = route?.distanceMeters;
+    const trace = route?.polyline?.encodedPolyline;
+    if (typeof metres !== 'number' || metres <= 0 || typeof trace !== 'string' || trace === '') return null;
+    return { distanceM: Math.round(metres), trace };
   }
 }
 

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/alertes/alerte_sonore.dart';
 import '../../../core/demo/demo_data.dart';
@@ -19,6 +20,7 @@ import '../../../core/widgets/onyx_vert.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../courses/data/course_service.dart';
+import '../../courses/data/itineraire_service.dart';
 import '../../finances/data/finance_service.dart';
 import '../../messages/data/chat_service.dart';
 import '../../messages/data/detecteur_nouveaux_messages.dart';
@@ -37,6 +39,7 @@ import 'validation_pending_page.dart';
 import 'widgets/actions_course_active.dart';
 import 'widgets/conducteur_bottom_nav.dart';
 import 'widgets/course_active_bandeau.dart';
+import 'widgets/guidage_course.dart';
 import 'widgets/nouvelle_course_reelle_sheet.dart';
 import 'widgets/nouvelle_course_sheet.dart';
 
@@ -64,6 +67,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
   final _locationService = DeviceLocationService();
   final _courseService = CourseService();
   final _positionService = PositionChauffeurService();
+  final _itineraires = ItineraireCloud();
   final _tempsEnLigne = TempsEnLigneService();
   final _random = Random();
 
@@ -302,7 +306,13 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     _abonnementCourseActive = _courseService.streamCourseActiveChauffeur(uid).listen(
       (course) {
         _positionService.definirCourse(course?.id);
-        if (mounted) setState(() => _courseActive = course);
+        if (mounted) {
+          setState(() {
+            // Course acceptée : l'écran de guidage vers le client est sur l'Accueil.
+            if (_courseActive == null && course != null) _indexSelectionne = 0;
+            _courseActive = course;
+          });
+        }
         _suivreClient(course?.clientId);
       },
       onError: (_) {},
@@ -512,11 +522,13 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     if (chauffeurId == null) return;
     _sheetCourseOuverte = true;
     final sonnerie = _sonner();
+    final position = _positionService.dernierePosition;
     final gagnee = await afficherNouvelleCourseReelleSheet(
       context,
       course: course,
       courseService: _courseService,
       chauffeurId: chauffeurId,
+      positionChauffeur: position == null ? null : LatLng(position.latitude, position.longitude),
     );
     sonnerie.cancel();
     _sheetCourseOuverte = false;
@@ -632,6 +644,16 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
               onBasculerStatut: _basculerStatut,
               gainsJourFcfa: DemoData.gainsEstimesFcfa,
               onSimulerCourse: _declencherNouvelleCourseDemo,
+              guidage: _courseActive == null
+                  ? null
+                  : GuidageCourse(
+                      // Une autre course : nouveau guidage, itinéraire recalculé.
+                      key: ValueKey(_courseActive!.id),
+                      course: _courseActive!,
+                      positions: _positionService.positions,
+                      positionInitiale: _positionService.dernierePosition,
+                      service: _itineraires,
+                    ),
             ),
           ),
           const EcranOnyxVert(child: ConducteurMessagesTab()),

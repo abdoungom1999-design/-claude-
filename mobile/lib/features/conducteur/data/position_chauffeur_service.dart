@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/location/maintien_ecran.dart';
+import '../../courses/data/position_chauffeur.dart';
 
 /// Rythme d'envoi de la position : au plus un envoi toutes les
 /// [intervalleMin] quand le chauffeur roule, et au moins un toutes les
@@ -64,7 +65,30 @@ class PositionChauffeurService {
   StreamSubscription<Position>? _flux;
   Timer? _minuteurBattement;
   Position? _derniere;
+  DateTime? _dernierRelevele;
   String? _uid;
+  final _positions = StreamController<PositionChauffeurDirect>.broadcast();
+
+  /// Chaque relevé GPS du chauffeur, pour son propre écran (guidage vers le
+  /// client) : tous les relevés, pas seulement ceux qui partent dans Firestore.
+  Stream<PositionChauffeurDirect> get positions => _positions.stream;
+
+  /// Dernier relevé GPS ; `null` tant que le suivi est coupé ou n'a rien reçu.
+  PositionChauffeurDirect? get dernierePosition {
+    final position = _derniere;
+    final uid = _uid;
+    final releveLe = _dernierRelevele;
+    return position == null || uid == null || releveLe == null ? null : _direct(uid, position, releveLe);
+  }
+
+  static PositionChauffeurDirect _direct(String uid, Position position, DateTime releveLe) => PositionChauffeurDirect(
+        uid: uid,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        majLe: releveLe,
+        cap: _nombre(position.heading),
+        vitesse: _nombre(position.speed),
+      );
 
   /// Course en cours du chauffeur : publiée avec sa position pour que
   /// SON client puisse le suivre (voir `firestore.rules`).
@@ -145,12 +169,16 @@ class PositionChauffeurService {
     _minuteurBattement?.cancel();
     _minuteurBattement = null;
     _derniere = null;
+    _dernierRelevele = null;
   }
 
   void _surPosition(Position position) {
-    if (_uid == null) return;
-    _derniere = position;
+    final uid = _uid;
+    if (uid == null) return;
     final maintenant = DateTime.now();
+    _derniere = position;
+    _dernierRelevele = maintenant;
+    _positions.add(_direct(uid, position, maintenant));
     if (_limiteur.peutEnvoyer(maintenant)) _envoyer(position, maintenant);
   }
 

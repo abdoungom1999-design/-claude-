@@ -18,6 +18,7 @@ class AddressSearchField extends StatefulWidget {
     required this.controller,
     required this.onSelected,
     this.onEdited,
+    this.onTap,
     this.prefixIcon,
     this.service,
   });
@@ -29,6 +30,9 @@ class AddressSearchField extends StatefulWidget {
   /// Appelé dès que l'utilisateur modifie le texte à la main : l'adresse
   /// précédemment choisie ne correspond plus, l'appelant doit l'oublier.
   final VoidCallback? onEdited;
+
+  /// Appelé quand l'utilisateur touche le champ.
+  final VoidCallback? onTap;
   final IconData? prefixIcon;
 
   /// Injectable pour les tests ; par défaut [ServiceAdresses.parDefaut].
@@ -113,6 +117,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
           controller: widget.controller,
           prefixIcon: widget.prefixIcon,
           onChanged: _surChangement,
+          onTap: widget.onTap,
           validator: (valeur) => (valeur == null || valeur.trim().isEmpty) ? 'Adresse requise' : null,
           suffixIcon: _recherche
               ? const Padding(

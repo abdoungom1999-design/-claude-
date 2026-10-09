@@ -18,6 +18,7 @@ import {
   verifierMotDePasseFirebase,
 } from './connexion_telephone';
 import { migrerDocumentsKyc as migrerKycCore, StockageFirebase } from './kyc_stockage';
+import { itineraireCourse as itineraireCourseCore } from './itineraire';
 import { chauffeursProches as chauffeursProchesCore } from './proximite';
 import { calculDistance } from './distances';
 import { corpsWebhook, ErreurSignature, FournisseurSimule, signer, type FournisseurPaiement } from './fournisseurs';
@@ -256,6 +257,11 @@ export const rechercherAdresses = onCall(options, (requete) =>
 /** Coordonnées de l'adresse choisie (Google Places). */
 export const coordonneesAdresse = onCall(options, (requete) =>
   coordonneesCore(google(), requete.auth?.uid, requete.data),
+);
+
+/** Chauffeur : tracé et distance pour rejoindre son client, puis la destination (Google Routes). */
+export const itineraireCourse = onCall(options, (requete) =>
+  itineraireCourseCore(getFirestore(), google(), requete.auth?.uid, requete.data, new Date()),
 );
 
 /** Accueil client : chauffeurs disponibles alentour, anonymes et arrondis à 150 m. */

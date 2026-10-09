@@ -80,7 +80,8 @@ class CourseActiveBandeau extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           _clientABord ? 'Vers ${course.adresseArrivee}' : 'Départ : ${course.adresseDepart}',
-                          maxLines: 1,
+                          // Deux lignes : « Départ : Position GPS du client » ne tient pas sur une.
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: AppColors.texte, fontSize: 12.5, fontWeight: FontWeight.w600),
                         ),

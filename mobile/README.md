@@ -49,6 +49,30 @@ seulement l'écran d'arrivée. Sans session, ou en mode démo (Firebase non conf
 Bienvenue s'affiche comme avant. Tests : `aiguillage_demarrage_test.dart`,
 `role_du_compte_test.dart`.
 
+## Commande par GPS et guidage du chauffeur
+
+**Départ automatique** : à l'ouverture de « Réserver une course »
+(`lib/features/client/presentation/passager_page.dart`), l'écran demande la position GPS du client
+(`localiserAppareil`, avec la demande d'autorisation) et pré-remplit le départ par « Ma position
+actuelle » (`lib/features/courses/data/depart_gps.dart`) : les coordonnées exactes de l'appareil sont
+enregistrées avec la course. Le client n'a plus qu'à choisir son arrivée ; il peut retoucher le
+départ à la main ou reprendre sa position (« Utiliser ma position actuelle »). Position introuvable
+(GPS coupé, autorisation refusée) : message et « Réessayer ». La course enregistre le libellé
+« Position GPS du client » (lu par le chauffeur, l'Admin et les notifications). L'écran Colis n'est
+pas concerné. Tests : `depart_gps_test.dart`.
+
+**Guidage du chauffeur** : dès qu'il accepte, l'Accueil du chauffeur devient un écran de guidage
+(`widgets/guidage_course.dart`, `data/guidage_controller.dart`) : repère du client au point GPS
+exact, position du chauffeur, itinéraire, distance et temps d'approche (22 km/h, comme l'attente
+affichée au client). Une fois le client à bord, le même écran guide vers la destination. L'itinéraire
+vient de la Cloud Function `itineraireCourse` (Google Routes, clé sur le serveur, réservée au
+chauffeur de la course) : un calcul à l'acceptation, un au changement de point visé, puis seulement
+si le chauffeur quitte son itinéraire (plus de 120 m) ; le reste à parcourir se déduit de sa position
+sur le tracé. Sans réponse du serveur : estimation à vol d'oiseau en pointillés, jamais de retour en
+arrière sur un itinéraire déjà obtenu. La proposition de course affiche « À ~1,2 km de vous ».
+Tests : `trace_utils_test.dart`, `guidage_controller_test.dart`, `guidage_course_test.dart`,
+`itineraire_chauffeur_test.dart`, et côté serveur `functions/test/itineraire.emulateur.test.ts`.
+
 ## Suivi des plantages et sauvegardes
 
 **Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics

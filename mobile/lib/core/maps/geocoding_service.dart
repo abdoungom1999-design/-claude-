@@ -12,11 +12,17 @@ class AdresseSuggestion {
     required this.libelle,
     required this.latitude,
     required this.longitude,
+    this.gps = false,
   });
 
   final String libelle;
   final double latitude;
   final double longitude;
+
+  /// Point pris sur le GPS de l'appareil (« Ma position actuelle ») et non
+  /// choisi dans une liste d'adresses : les coordonnées sont celles, exactes,
+  /// de l'appareil.
+  final bool gps;
 }
 
 /// Suggestion affichée pendant la saisie. Les suggestions Google n'ont

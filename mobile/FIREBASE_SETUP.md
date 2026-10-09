@@ -337,6 +337,14 @@ en `europe-west1` (même région que Firestore `eur3`) :
   estimation d'approche en minutes. Une fois la course acceptée, le
   client voit l'identité de SON chauffeur (nom, véhicule, plaque), lue
   dans son profil public : ce n'est pas passé par cette fonction.
+- `itineraireCourse` (chauffeur attribué à la course, acceptée ou client à
+  bord) : le tracé et la distance par la route pour rejoindre son client,
+  puis la destination (Google Routes API, même clé que les adresses, sans
+  trafic). Le point visé est lu dans la course, jamais envoyé par l'app ;
+  seul le chauffeur de la course l'obtient ; au plus un calcul toutes les
+  10 secondes par course (champ `itineraireLe`) ; à moins de 30 m du point
+  visé, la distance est rendue sans tracé et sans appel à Google. Si Google
+  ne répond pas, l'app se replie sur une estimation à vol d'oiseau.
 
 ### 7.1 Déploiement automatique (GitHub Actions)
 

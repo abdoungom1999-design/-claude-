@@ -21,7 +21,10 @@ class EstimationPrixCard extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           alignment: Alignment.topCenter,
           child: switch (controller.etat) {
-            EtatEstimation.adressesManquantes => const _Consigne(),
+            EtatEstimation.adressesManquantes => _Consigne(
+                departChoisi: controller.depart != null,
+                arriveeChoisie: controller.arrivee != null,
+              ),
             EtatEstimation.calcul => const _Calcul(),
             EtatEstimation.prete => _Prix(controller: controller),
             EtatEstimation.erreur => _Erreur(controller: controller),
@@ -33,18 +36,32 @@ class EstimationPrixCard extends StatelessWidget {
 }
 
 class _Consigne extends StatelessWidget {
-  const _Consigne();
+  const _Consigne({required this.departChoisi, required this.arriveeChoisie});
+
+  final bool departChoisi;
+  final bool arriveeChoisie;
+
+  /// Ne demande que ce qui manque : avec le GPS, le départ est déjà connu.
+  String get _texte {
+    if (departChoisi && !arriveeChoisie) {
+      return "Choisissez l'adresse d'arrivée dans les suggestions pour voir le prix.";
+    }
+    if (arriveeChoisie && !departChoisi) {
+      return "Choisissez l'adresse de départ dans les suggestions pour voir le prix.";
+    }
+    return "Choisissez l'adresse de départ et d'arrivée dans les suggestions pour voir le prix.";
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        Icon(Icons.payments_outlined, color: AppColors.texteDiscret),
-        SizedBox(width: 12),
+        const Icon(Icons.payments_outlined, color: AppColors.texteDiscret),
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
-            "Choisissez l'adresse de départ et d'arrivée dans les suggestions pour voir le prix.",
-            style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
+            _texte,
+            style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
           ),
         ),
       ],

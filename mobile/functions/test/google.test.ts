@@ -98,3 +98,40 @@ test('callables d\'adresses : connexion, validation, erreur Google -> "unavailab
     code('unavailable'),
   );
 });
+
+test('itinéraire avec tracé : distance en mètres et tracé encodé, mêmes réglages (voiture, sans trafic)', async () => {
+  const { f, appels } = fetchFactice({
+    routes: [{ distanceMeters: 1834.4, polyline: { encodedPolyline: '_p~iF~ps|U_ulLnnqC' } }],
+  });
+  const google = new ClientGoogle('CLE', f);
+  const itineraire = await google.itineraireAvecTrace(
+    { latitude: 14.69, longitude: -17.44 },
+    { latitude: 14.7, longitude: -17.45 },
+  );
+
+  assert.deepEqual(itineraire, { distanceM: 1834, trace: '_p~iF~ps|U_ulLnnqC' });
+  assert.equal(appels[0].url, 'https://routes.googleapis.com/directions/v2:computeRoutes');
+  assert.equal(entetes(appels[0])['X-Goog-FieldMask'], 'routes.distanceMeters,routes.polyline');
+  const corps = JSON.parse(appels[0].init.body as string);
+  assert.equal(corps.routingPreference, 'TRAFFIC_UNAWARE');
+  assert.equal(corps.polylineEncoding, 'ENCODED_POLYLINE');
+  assert.deepEqual(corps.origin.location.latLng, { latitude: 14.69, longitude: -17.44 });
+  assert.deepEqual(corps.destination.location.latLng, { latitude: 14.7, longitude: -17.45 });
+});
+
+test('itinéraire avec tracé : sans tracé, sans distance ou sans route -> null', async () => {
+  const depart = { latitude: 1, longitude: 1 };
+  const arrivee = { latitude: 2, longitude: 2 };
+  for (const reponse of [{}, { routes: [] }, { routes: [{ distanceMeters: 500 }] }, { routes: [{ polyline: { encodedPolyline: 'abc' } }] }]) {
+    const { f } = fetchFactice(reponse);
+    assert.equal(await new ClientGoogle('CLE', f).itineraireAvecTrace(depart, arrivee), null, JSON.stringify(reponse));
+  }
+});
+
+test('itinéraire avec tracé : erreur Google (clé refusée, quota) -> ErreurGoogle', async () => {
+  const { f } = fetchFactice({ error: { message: 'API key not valid' } }, 403);
+  await assert.rejects(
+    new ClientGoogle('CLE', f).itineraireAvecTrace({ latitude: 1, longitude: 1 }, { latitude: 2, longitude: 2 }),
+    ErreurGoogle,
+  );
+});

@@ -23,12 +23,18 @@ class ConducteurAccueilTab extends StatefulWidget {
     required this.onBasculerStatut,
     required this.gainsJourFcfa,
     required this.onSimulerCourse,
+    this.guidage,
   });
 
   final bool enLigne;
   final ValueChanged<bool> onBasculerStatut;
   final int gainsJourFcfa;
   final VoidCallback onSimulerCourse;
+
+  /// Écran de guidage vers le client (voir `GuidageCourse`) : dès qu'une course
+  /// est acceptée, il prend la place de la carte d'attente, de l'objectif du
+  /// jour et du bouton « GO ».
+  final Widget? guidage;
 
   @override
   State<ConducteurAccueilTab> createState() => _ConducteurAccueilTabState();
@@ -77,6 +83,8 @@ class _ConducteurAccueilTabState extends State<ConducteurAccueilTab> {
 
   @override
   Widget build(BuildContext context) {
+    final guidage = widget.guidage;
+    if (guidage != null) return Scaffold(backgroundColor: AppColors.fond, body: guidage);
     return Scaffold(
       backgroundColor: AppColors.fond,
       body: Stack(

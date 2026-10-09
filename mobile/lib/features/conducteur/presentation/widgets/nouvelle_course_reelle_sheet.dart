@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/format_fcfa.dart';
 import '../../../courses/data/course_service.dart';
+import '../../../courses/data/position_chauffeur.dart';
 
 /// Affiche la bottom sheet "Nouvelle course disponible !" pour une
 /// vraie course Firestore en attente (voir
@@ -13,11 +15,16 @@ import '../../../courses/data/course_service.dart';
 /// retourne `true` si ce chauffeur a remporté la course, `false`
 /// sinon (refusée, délai écoulé, ou déjà prise par un autre
 /// chauffeur pendant la transaction).
+///
+/// [positionChauffeur] (dernier relevé GPS du chauffeur, s'il en a un) sert à
+/// afficher à quelle distance il est du client : sans adresse écrite (départ
+/// pris sur le GPS du client), c'est ce qui lui permet de juger la course.
 Future<bool> afficherNouvelleCourseReelleSheet(
   BuildContext context, {
   required CourseFirestore course,
   required CourseService courseService,
   required String chauffeurId,
+  LatLng? positionChauffeur,
 }) async {
   final resultat = await showModalBottomSheet<bool>(
     context: context,
@@ -29,6 +36,7 @@ Future<bool> afficherNouvelleCourseReelleSheet(
       course: course,
       courseService: courseService,
       chauffeurId: chauffeurId,
+      positionChauffeur: positionChauffeur,
     ),
   );
   return resultat ?? false;
@@ -39,11 +47,13 @@ class _NouvelleCourseReelleSheet extends StatefulWidget {
     required this.course,
     required this.courseService,
     required this.chauffeurId,
+    this.positionChauffeur,
   });
 
   final CourseFirestore course;
   final CourseService courseService;
   final String chauffeurId;
+  final LatLng? positionChauffeur;
 
   @override
   State<_NouvelleCourseReelleSheet> createState() =>
@@ -100,9 +110,24 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
     Navigator.of(context).pop(gagnee);
   }
 
+  /// Distance et temps jusqu'au client, d'après la position du chauffeur ;
+  /// `null` si l'une des deux positions manque.
+  Approche? get _approche {
+    final moi = widget.positionChauffeur;
+    final points = widget.course.points;
+    if (moi == null || points == null) return null;
+    return Approche.estimer(
+      latChauffeur: moi.latitude,
+      lngChauffeur: moi.longitude,
+      latCible: points.latitudeDepart,
+      lngCible: points.longitudeDepart,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final estColis = widget.course.type == 'COLIS';
+    final approche = _approche;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -187,7 +212,11 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _LigneInfo(icon: Icons.my_location, texte: widget.course.adresseDepart),
+                _LigneInfo(
+                  icon: Icons.my_location,
+                  texte: widget.course.adresseDepart,
+                  detail: approche == null ? null : _libelleApproche(approche),
+                ),
                 const SizedBox(height: 10),
                 _LigneInfo(
                   icon: Icons.location_on_outlined,
@@ -307,22 +336,47 @@ class _CompteARebours extends StatelessWidget {
   }
 }
 
+/// « À ~1,2 km de vous · ~4 min » : le chemin jusqu'au client, estimé à vol d'oiseau.
+String _libelleApproche(Approche approche) {
+  final distance = approche.distanceKm < 1
+      ? '${(approche.distanceKm * 100).round() * 10} m'
+      : '${approche.distanceKm.toStringAsFixed(1).replaceAll('.', ',')} km';
+  return 'À ~$distance de vous · ~${approche.minutes} min';
+}
+
 class _LigneInfo extends StatelessWidget {
-  const _LigneInfo({required this.icon, required this.texte});
+  const _LigneInfo({required this.icon, required this.texte, this.detail});
 
   final IconData icon;
   final String texte;
 
+  /// Précision sous le texte (distance jusqu'au client).
+  final String? detail;
+
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 18, color: AppColors.texteDiscret),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            texte,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                texte,
+                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+              ),
+              if (detail != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    detail!,
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.vert),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
