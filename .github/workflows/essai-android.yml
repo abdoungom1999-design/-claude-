@@ -1,0 +1,105 @@
+name: Essai Android (démarrage et Crashlytics)
+
+# Compile l'app pour un émulateur Android, la lance dans la CI et vérifie : qu'elle
+# démarre sans planter, que Crashlytics s'initialise, qu'un plantage de test
+# est bien repéré et que son rapport part à Firebase. Les résultats sortent en
+# annotations (une par constat) sur la page du run.
+#
+# Ne publie rien : ni le site, ni l'APK, ni les fonctions, ni les règles. Lancé
+# à la main seulement (onglet Actions > Essai Android > Run workflow). Le
+# plantage de test envoie un vrai rapport au projet Firebase (marqué par le
+# modèle d'émulateur) : il apparaîtra dans la console Crashlytics.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: essai-android
+  cancel-in-progress: true
+
+jobs:
+  # Seul job qui touche aux secrets : il ne rend que l'identifiant (public) de l'app
+  # Android dans Firebase. Le job suivant, qui lance l'émulateur et des actions
+  # tierces, n'a accès à aucun secret.
+  identifiants:
+    runs-on: ubuntu-latest
+    outputs:
+      app_id: ${{ steps.app.outputs.app_id }}
+    steps:
+      - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
+        env:
+          COMPTE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$COMPTE_SERVICE" ]; then
+            echo "::error title=Essai impossible::Secret FIREBASE_SERVICE_ACCOUNT absent."
+            exit 1
+          fi
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Identifiant de l'app Android dans Firebase
+        id: app
+        run: |
+          jeton=$(gcloud auth print-access-token)
+          corps=$(curl -sf "https://firebase.googleapis.com/v1beta1/projects/sprint-vtc/androidApps" -H "Authorization: Bearer $jeton")
+          app_id=$(echo "$corps" | jq -r '[.apps[]? | select(.packageName == "sn.groupesantine.sprint")][0].appId // empty')
+          if [ -z "$app_id" ]; then
+            echo "::error title=Essai impossible::L'app Android n'est pas enregistrée dans Firebase."
+            exit 1
+          fi
+          echo "app_id=$app_id" >> "$GITHUB_OUTPUT"
+
+  essai:
+    needs: identifiants
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # Même compilation que l'APK publié (version finale), mais pour le
+      # processeur de l'émulateur (x86_64), signée avec la clé de debug, et avec
+      # ESSAI_PLANTAGE : l'app se plante exprès dix secondes après son démarrage.
+      - name: Compiler l'APK d'essai
+        run: |
+          flutter build apk --release \
+            --target-platform android-x64 \
+            --dart-define=FIREBASE_ANDROID_APP_ID=${{ needs.identifiants.outputs.app_id }} \
+            --dart-define=ESSAI_PLANTAGE=true
+
+      - name: Accélération matérielle de l'émulateur (KVM)
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Émulateur Android, installation et vérifications
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: mobile
+          script: bash tool/essai_android.sh

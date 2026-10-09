@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Le SDK Crashlytics lit ces deux ressources par leur nom (jamais par R.*) :
+     le réducteur de ressources ne doit pas les retirer de l'APK (res/values/crashlytics.xml). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/com.google.firebase.crashlytics.mapping_file_id,@bool/com.crashlytics.RequireBuildId" />

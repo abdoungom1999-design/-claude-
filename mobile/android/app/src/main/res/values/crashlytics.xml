@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Suivi des plantages (Firebase Crashlytics), sans le plugin Gradle de
+  Crashlytics.
+
+  Le SDK exige un identifiant de build que ce plugin génère d'habitude. Or le
+  plugin et la version actuelle d'Android Gradle (9.x) ne s'entendent pas encore
+  (publication du plugin en retard, identifiant parfois absent de l'app compilée) ;
+  de plus, l'app n'utilise pas google-services.json (identifiants Firebase
+  fournis à la compilation, voir lib/firebase_options.dart). On fournit donc
+  l'identifiant ici, une fois pour toutes : il ne sert qu'à relier un rapport au
+  fichier de correspondance du code obfusqué, que nous n'envoyons pas (les erreurs
+  Dart, qui sont l'essentiel, ne sont pas obfusquées dans cette app). Et, par
+  sécurité, le SDK n'est pas autorisé à refuser de démarrer si l'identifiant
+  manquait un jour.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="com.google.firebase.crashlytics.mapping_file_id" tools:ignore="UnusedResources,TypographyDashes" translatable="false">d962ad128d61ba531a2a8ef23c0e0137</string>
+    <bool name="com.crashlytics.RequireBuildId" tools:ignore="UnusedResources">false</bool>
+</resources>

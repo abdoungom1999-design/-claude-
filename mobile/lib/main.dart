@@ -1,9 +1,17 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'app.dart';
+import 'core/suivi/suivi_plantages.dart';
 import 'firebase_options.dart';
+
+/// Réservé à l'essai de la CI sur émulateur (.github/workflows/essai-android.yml) :
+/// l'app se plante exprès dix secondes après son démarrage, pour vérifier que
+/// Crashlytics reçoit le rapport. Jamais défini dans l'APK publié : sans effet.
+const _essaiPlantage = bool.fromEnvironment('ESSAI_PLANTAGE');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +23,11 @@ Future<void> main() async {
   if (DefaultFirebaseOptions.estConfigure) {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await _conserverLaSessionSurLeWeb();
+    // Android : les plantages partent vers Crashlytics (sans effet ailleurs, jamais bloquant).
+    await SuiviDesPlantages.instance.brancher();
+    if (_essaiPlantage) {
+      unawaited(Future<void>.delayed(const Duration(seconds: 10), SuiviDesPlantages.instance.plantagePourTest));
+    }
   }
 
   runApp(const SprintApp());

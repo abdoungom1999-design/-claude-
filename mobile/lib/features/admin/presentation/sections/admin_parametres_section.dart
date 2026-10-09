@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/demo/admin_demo_data.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/suivi/suivi_plantages.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/premium_dialog.dart';
@@ -9,6 +10,7 @@ import '../../../../core/utils/format_fcfa.dart';
 import '../../../../firebase_options.dart';
 import '../../../courses/data/course_service.dart';
 import '../widgets/carte_stockage_kyc.dart';
+import '../widgets/carte_suivi_plantages.dart';
 
 /// Page "Paramètres". En Firebase réel : les règles réellement
 /// appliquées par l'application (grille tarifaire, commission, moyens de
@@ -16,10 +18,13 @@ import '../widgets/carte_stockage_kyc.dart';
 /// depuis l'Admin. En mode démo : réglages simulés (villes actives, mode
 /// maintenance), qui n'agissent sur rien.
 class AdminParametresSection extends StatefulWidget {
-  const AdminParametresSection({super.key, this.demo});
+  const AdminParametresSection({super.key, this.demo, this.suivi});
 
   /// Force la version démo ou réelle (tests) ; par défaut, selon Firebase.
   final bool? demo;
+
+  /// Suivi des plantages affiché dans la version réelle (tests) ; par défaut, celui de l'app.
+  final SuiviDesPlantages? suivi;
 
   @override
   State<AdminParametresSection> createState() => _AdminParametresSectionState();
@@ -45,7 +50,7 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (!(widget.demo ?? !DefaultFirebaseOptions.estConfigure)) return const _ReglesEnVigueur();
+    if (!(widget.demo ?? !DefaultFirebaseOptions.estConfigure)) return _ReglesEnVigueur(suivi: widget.suivi);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 560),
       child: AppCard(
@@ -148,7 +153,9 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
 /// sont calculés par le moteur de tarification lui-même
 /// ([DemoData.estimerPrix]) : ils ne peuvent pas diverger de la réalité.
 class _ReglesEnVigueur extends StatelessWidget {
-  const _ReglesEnVigueur();
+  const _ReglesEnVigueur({this.suivi});
+
+  final SuiviDesPlantages? suivi;
 
   static int _prix(double km, int heureUtc) => DemoData.estimerPrix(
         type: 'PASSAGER',
@@ -216,7 +223,7 @@ class _ReglesEnVigueur extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [regles, const SizedBox(height: 20), const CarteStockageKyc()],
+      children: [regles, const SizedBox(height: 20), const CarteStockageKyc(), CarteSuiviPlantages(suivi: suivi)],
     );
   }
 }
