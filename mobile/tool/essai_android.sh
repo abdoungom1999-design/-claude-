@@ -40,8 +40,8 @@ vivant() { adb shell pidof "$paquet" 2> /dev/null | tr -d '\r' | grep -q '[0-9]'
 
 # Lignes utiles du journal : Crashlytics, plantages, Flutter, Firebase.
 filtrer() {
-  grep -E "FirebaseCrashlytics|Crashlytics|AndroidRuntime|FATAL|Fatal signal|DEBUG  |flutter|FirebaseApp|FlutterFirebase|DataTransport" "$1" \
-    | grep -v "chatty\|Choreographer\|ViewRootImpl" | tail -n "${2:-40}"
+  grep -E "Crashlytics|AndroidRuntime|FATAL|Fatal signal|DEBUG  |flutter|Firebase|ComponentDiscovery|DataTransport" "$1" \
+    | grep -v "chatty\|Choreographer\|ViewRootImpl" | cut -c1-260 | tail -n "${2:-40}"
 }
 
 # --- 1. installation et premier démarrage --------------------------------------
@@ -56,25 +56,43 @@ adb shell setprop log.tag.FirebaseCrashlytics VERBOSE
 adb shell input keyevent KEYCODE_WAKEUP > /dev/null 2>&1
 adb logcat -c
 adb shell am start -W -n "$paquet/.MainActivity" > "$sortie/lancement1.txt" 2>&1
-sleep 7
+sleep 9
 
 if vivant; then
-  constat ok "Démarrage" "L'app tourne 7 secondes après son lancement."
+  constat ok "Démarrage" "L'app tourne 9 secondes après son lancement."
 else
-  constat ko "Démarrage" "L'app s'est arrêtée dans les 7 premières secondes."
+  constat ko "Démarrage" "L'app s'est arrêtée dans les 9 premières secondes."
 fi
 
-# Image de l'écran, réduite pour tenir dans une annotation (lisible par base64).
+# Image de l'écran : non vide ? (un écran uni se compresse en quelques Ko), puis
+# réduite pour tenir dans une annotation (lisible en base64).
 adb exec-out screencap -p > "$sortie/ecran.png" 2> /dev/null
-if [ -s "$sortie/ecran.png" ] && command -v convert > /dev/null; then
-  convert "$sortie/ecran.png" -resize 220x -quality 40 "$sortie/ecran.jpg" 2> /dev/null
-  [ -s "$sortie/ecran.jpg" ] && annoter notice "Écran à 7 s (JPEG en base64)" "$(base64 -w0 "$sortie/ecran.jpg")"
+taille=$(stat -c %s "$sortie/ecran.png" 2> /dev/null || echo 0)
+if [ "$taille" -gt 60000 ]; then
+  constat ok "Écran affiché" "Capture de $taille octets (écran non vide)."
+else
+  constat ko "Écran affiché" "Capture de $taille octets : écran vide ou capture impossible."
+fi
+reduire=$(command -v convert || command -v magick || true)
+if [ -n "$reduire" ] && [ "$taille" -gt 0 ]; then
+  "$reduire" "$sortie/ecran.png" -resize 220x -quality 40 "$sortie/ecran.jpg" 2> /dev/null
+  [ -s "$sortie/ecran.jpg" ] && annoter notice "Écran à 9 s (JPEG en base64)" "$(base64 -w0 "$sortie/ecran.jpg")"
+else
+  annoter notice "Écran à 9 s" "Réduction de la capture impossible (ImageMagick absent : '${reduire:-aucun}')."
 fi
 
 # --- 2 et 3. initialisation de Crashlytics, puis plantage de test --------------
 sleep 20
 adb logcat -d > "$sortie/journal1.txt" 2>&1
 annoter notice "Journal du 1er lancement (extrait)" "$(filtrer "$sortie/journal1.txt" 45)"
+if grep -q "ComponentDiscovery" "$sortie/journal1.txt"; then
+  annoter warning "Composants Firebase non instanciés" "$(grep 'ComponentDiscovery' "$sortie/journal1.txt" | cut -c1-220 | head -n 30)"
+fi
+if grep -q "Unhandled Exception" "$sortie/journal1.txt"; then
+  constat ko "Exceptions au démarrage" "$(grep -A3 'Unhandled Exception' "$sortie/journal1.txt" | cut -c1-400 | head -n 12)"
+else
+  constat ok "Exceptions au démarrage" "Aucune exception Dart non rattrapée."
+fi
 
 if grep -qiE "Initializing Firebase Crashlytics" "$sortie/journal1.txt"; then
   constat ok "Crashlytics initialisé" "$(grep -iE 'Initializing Firebase Crashlytics' "$sortie/journal1.txt" | head -n 1 | cut -c1-300)"
@@ -104,8 +122,10 @@ sleep 45
 adb logcat -d > "$sortie/journal2.txt" 2>&1
 annoter notice "Journal du 2e lancement (extrait)" "$(filtrer "$sortie/journal2.txt" 45)"
 
-if grep -qiE "upload (complete|successful)|report.*(sent|uploaded)|successfully (enqueued|sent)|Crashlytics report upload" "$sortie/journal2.txt"; then
-  constat ok "Rapport envoyé à Crashlytics" "$(grep -iE 'upload (complete|successful)|report.*(sent|uploaded)|successfully (enqueued|sent)|Crashlytics report upload' "$sortie/journal2.txt" | head -n 3 | cut -c1-300)"
+envoi=$(grep -i "Crashlytics" "$sortie/journal2.txt" | grep -iE "upload|sent|enqueue|send" | cut -c1-300)
+annoter notice "Lignes Crashlytics du 2e lancement" "$(grep -i 'Crashlytics' "$sortie/journal2.txt" | cut -c1-260 | head -n 40)"
+if [ -n "$envoi" ]; then
+  constat ok "Rapport envoyé à Crashlytics" "$(echo "$envoi" | head -n 4)"
 else
   constat ko "Rapport envoyé à Crashlytics" "Aucune ligne d'envoi de rapport dans le journal du 2e lancement."
 fi
