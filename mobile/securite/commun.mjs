@@ -49,3 +49,5 @@ export const annoncerErreur = (titre, message) =>
   console.log(`::error title=${echapperAnnotation(titre)}::${echapperAnnotation(message)}`);
 export const annoncerAvertissement = (titre, message) =>
   console.log(`::warning title=${echapperAnnotation(titre)}::${echapperAnnotation(message)}`);
+export const annoncerNotice = (titre, message) =>
+  console.log(`::notice title=${echapperAnnotation(titre)}::${echapperAnnotation(message)}`);

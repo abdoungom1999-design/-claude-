@@ -365,6 +365,11 @@ depuis le navigateur, connecté avec le compte Google du projet Firebase :
    - Administrateur Cloud Scheduler (*Cloud Scheduler Admin*) : pour
      `surveillerCommandes`. Sans lui, le pipeline s'arrête **avant**
      tout déploiement avec l'erreur « Rôle manquant ».
+   - Pour les sauvegardes de la base (section 10, flux « Sauvegardes
+     Firestore », sans effet sur le déploiement) : `roles/datastore.backupSchedulesAdmin`
+     (planifications de sauvegarde) et `roles/datastore.backupsViewer`
+     (lecture des sauvegardes). Dans la liste des rôles, taper l'identifiant
+     dans le filtre.
    (Pour un compte déjà créé : page **IAM**, crayon à droite de
    `github-deploy`, **+ Ajouter un autre rôle**, **Enregistrer**.)
 3. Cliquer sur le compte `github-deploy` créé, onglet **Clés** >
@@ -604,3 +609,75 @@ Le test `test/splash_test.dart` vérifie qu'ils restent d'accord.
   Secret Manager ; jamais dans le code, l'app, GitHub ni un message. À activer
   sur le dépôt GitHub : Settings > Code security > alertes Dependabot, Secret
   scanning et Push protection.
+
+## 10. Sauvegardes de la base (automatiques)
+
+Les sauvegardes de Firestore sont prises **par Google**, pas par GitHub :
+elles continuent même si GitHub ou la CI s'arrêtent.
+
+- **Une par jour**, gardée **14 jours**, et **une par semaine** (le
+  dimanche), gardée **14 semaines** (le maximum accepté par Firestore). Les
+  heures sont choisies par Google (UTC).
+- Une sauvegarde contient les documents et les index de la base `(default)`.
+  Elle **ne contient pas** : les règles de sécurité (elles sont dans le
+  dépôt, `firestore.rules`), les comptes de connexion (Firebase Auth) ni les
+  fichiers (Firebase Storage : pièces KYC des chauffeurs).
+- Coût : facturé au volume stocké (par Go et par mois), donc modeste pour une
+  base de cette taille. La taille réelle de chaque sauvegarde est affichée
+  dans le résumé du contrôle (page du run, onglet Actions).
+
+### 10.1 Mise en place (une seule fois)
+
+1. Donner au compte `github-deploy` les deux rôles de la liste de l'étape
+   7.1 : `roles/datastore.backupSchedulesAdmin` et
+   `roles/datastore.backupsViewer` (page **IAM** de Google Cloud, crayon à
+   droite du compte, **+ Ajouter un autre rôle**, **Enregistrer**).
+2. GitHub : onglet **Actions** > **Sauvegardes Firestore** > **Run
+   workflow**. Le flux vérifie les droits, crée les deux planifications si
+   elles manquent (il n'en modifie aucune qui existe déjà), puis contrôle les
+   sauvegardes. Il ne déploie rien.
+3. La première sauvegarde est prise dans les 24 h. Le contrôle l'attend
+   (simple notice) pendant 36 h, puis échoue s'il n'en voit toujours aucune.
+
+Sans les deux rôles, le flux s'arrête au premier pas avec l'erreur « Droits
+manquants pour les sauvegardes » qui nomme les droits absents.
+
+### 10.2 Contrôle quotidien
+
+Chaque jour à 06 h 17 (UTC), le même flux refait ces vérifications : les
+droits, la présence des deux planifications (une planification supprimée par
+erreur est recréée) et l'âge de la dernière sauvegarde. Il échoue, avec une
+annotation rouge qui explique pourquoi, si la dernière sauvegarde a plus de
+36 h, si aucune n'existe alors que les planifications ont plus de 36 h, ou si
+Google refuse l'accès. Lancé par le planning, il ouvre alors un ticket GitHub
+« Sauvegardes Firestore : à vérifier » (un seul tant qu'il reste ouvert).
+
+GitHub suspend les flux planifiés d'un dépôt public sans activité pendant 60
+jours : les sauvegardes de Google, elles, continuent. Une durée de
+conservation modifiée à la main dans la console est signalée par un
+avertissement, jamais corrigée.
+
+### 10.3 Restaurer
+
+Une restauration **ne remplace jamais** la base en ligne : elle crée une
+**nouvelle base** à partir d'une sauvegarde, que l'on peut examiner sans rien
+risquer (les règles de sécurité sont à republier sur cette base). Depuis Cloud
+Shell ou un poste avec `gcloud` :
+
+```bash
+gcloud firestore backups list --project=sprint-vtc
+gcloud firestore databases restore --project=sprint-vtc \
+  --source-backup=projects/sprint-vtc/locations/<emplacement>/backups/<identifiant> \
+  --destination-database=restauration-AAAAMMJJ
+```
+
+Pour ramener des données dans la base en ligne, on exporte la base restaurée
+puis on l'importe dans `(default)` (`gcloud firestore export` / `import`), ou
+l'on recopie seulement les documents nécessaires. À faire avec le
+développeur, après l'avoir examiné : un import réécrit les documents de même
+chemin. Un essai de restauration (restaurer, comparer le nombre de documents,
+supprimer la base d'essai) est recommandé après la première sauvegarde, puis
+de temps en temps : une sauvegarde jamais restaurée n'est pas prouvée.
+
+Non couvert ici (à prévoir) : l'export des comptes de connexion (Firebase
+Auth) et la copie des fichiers Storage.

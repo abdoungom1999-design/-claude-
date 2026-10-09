@@ -17,6 +17,7 @@ sont **publics** : une alerte doit être traitée tout de suite.
 | Outils externes installés sous `.claude/` | `outils_design.mjs integrite` | un fichier absent du manifeste `outils_externes.json`, modifié depuis sa validation, exécutable, qui n'est pas du texte (`.md`, `.csv`, `LICENSE`), un lien symbolique ou un serveur MCP |
 | Lots de design (commits déclarés `Lot-Design: oui`) | `outils_design.mjs commits` | un fichier hors de la zone visuelle autorisée, ou une ligne nouvelle qui appelle le serveur, la base ou les secrets, ou qui touche aux moyens de paiement ouverts (Orange Money reste fermé) |
 | En-têtes de sécurité du site en ligne | étape du job `hebergement` | **n'avertit que** |
+| Sauvegardes de la base Firestore | `sauvegardes.mjs droits\|planifier\|verifier` (flux `.github/workflows/sauvegardes.yml`, chaque jour) | aucune sauvegarde récente (plus de 36 h), planification absente, droits manquants. **Ne bloque aucun déploiement** : flux séparé, ticket GitHub en cas d'échec planifié (`FIREBASE_SETUP.md`, section 10) |
 
 Une trouvaille n'est jamais affichée en entier (4 premiers caractères et
 longueur). Si la base d'avis (registre npm, pub.dev) est injoignable, le
