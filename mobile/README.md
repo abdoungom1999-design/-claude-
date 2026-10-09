@@ -28,6 +28,10 @@ Briques dans `lib/core/widgets/onyx_vert.dart` (`EcranOnyxVert`, `CarteVerre`,
 `ThemeOnyxVert`) et `lib/core/widgets/barre_navigation.dart`; jetons dans `AppColors`,
 thème sombre unique dans `AppTheme.sombre`.
 
+En-tête de l'accueil client : `lib/features/home/presentation/entete_accueil.dart`
+(marque « Sprint » et slogan `EnteteAccueil.slogan` à gauche, cloche et avatar à
+l'initiale du prénom à droite, icône de profil si le profil n'a pas de nom).
+
 Écrans migrés : Bienvenue/Connexion, Accueil, Compte et portefeuille,
 Activité et Messages, Chauffeur (dont dossier KYC et écrans d'attente/blocage),
 Admin, Centre d'aide, sous-pages du Compte, commande et support.
