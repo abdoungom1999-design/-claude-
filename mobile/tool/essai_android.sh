@@ -14,7 +14,10 @@
 #  1. l'APK s'installe, l'app démarre et affiche un écran, sans exception ;
 #  2. Crashlytics s'initialise (pas d'« identifiant de build manquant ») ;
 #  3. le plantage de test a bien lieu et Crashlytics en garde un rapport ;
-#  4. à l'ouverture suivante, ce rapport est envoyé à Firebase.
+#  4. ce rapport est remis à l'envoi puis accepté par le serveur de Crashlytics
+#     (HTTP 200). Android relance l'app en arrière-plan quelques secondes après
+#     le plantage pour faire cet envoi : un seul lancement suffit, donc un seul
+#     plantage de test par essai dans la console Firebase.
 set -u
 
 apk=build/app/outputs/flutter-apk/app-release.apk
@@ -55,10 +58,8 @@ if ! adb install -r "$apk" > "$sortie/installation.txt" 2>&1; then
 fi
 constat ok "Installation de l'APK" "$(stat -c %s "$apk") octets"
 
-# Journaux détaillés du SDK Crashlytics ; accès aux fichiers de l'app (image sans Play Store).
+# Journaux détaillés du SDK Crashlytics.
 adb shell setprop log.tag.FirebaseCrashlytics VERBOSE
-adb root > /dev/null 2>&1
-sleep 3
 adb shell input keyevent KEYCODE_WAKEUP > /dev/null 2>&1
 adb logcat -c
 adb shell am start -W -n "$paquet/.MainActivity" > "$sortie/lancement1.txt" 2>&1
@@ -108,36 +109,27 @@ else
   constat ok "Identifiant de build" "$(grep -E 'Mapping file ID is' "$sortie/journal1.txt" | head -n 1 | cut -c1-200)"
 fi
 
-if vivant; then
-  constat ko "Plantage de test" "L'app tourne encore 57 secondes après le lancement : le plantage de test n'a pas eu lieu."
-elif grep -qE "FirebaseCrashlyticsTestCrash" "$sortie/journal1.txt"; then
+if grep -q "FirebaseCrashlyticsTestCrash" "$sortie/journal1.txt" && grep -q "Handling uncaught exception" "$sortie/journal1.txt"; then
   constat ok "Plantage de test" "Plantage volontaire capté : $(grep -E 'Handling uncaught exception' "$sortie/journal1.txt" | head -n 1 | cut -c1-200)"
 else
-  constat ko "Plantage de test" "L'app s'est arrêtée, mais pas par le plantage de test."
+  constat ko "Plantage de test" "Le plantage de test n'a pas été capté par Crashlytics (30 s après le démarrage, 57 s après le lancement)."
 fi
 
-# Ce que Crashlytics a gardé sur le téléphone après le plantage.
-fichiers=$(adb shell 'find /data/data/sn.groupesantine.sprint/files/.com.google.firebase.crashlytics -type f 2>/dev/null' | tr -d '\r' | sed 's|.*/\.com\.google\.firebase\.crashlytics/||' | head -n 40)
-annoter notice "Fichiers de Crashlytics après le plantage" "${fichiers:-aucun (ou accès impossible)}"
-apres=$(awk '/FATAL EXCEPTION/{f=1} f' "$sortie/journal1.txt" | grep -E "Crashlytics|CctTransport|TRuntime|DataTransport" | cut -c1-250 | head -n 45)
-annoter notice "Crashlytics juste après le plantage (lancement 1)" "${apres:-aucune ligne}"
+# Crashlytics juste après le plantage : mise en file d'envoi, puis envoi.
+apres=$(awk '/FATAL EXCEPTION|FirebaseCrashlyticsTestCrash/{f=1} f' "$sortie/journal1.txt" | grep -E "Crashlytics|CctTransport|TRuntime|DataTransport" | cut -c1-250 | head -n 45)
+annoter notice "Crashlytics juste après le plantage" "${apres:-aucune ligne}"
 
-# --- 4. ouverture suivante : le rapport est envoyé -----------------------------
-adb logcat -c
-adb shell am start -W -n "$paquet/.MainActivity" > "$sortie/lancement2.txt" 2>&1
-sleep 40
-adb logcat -d > "$sortie/journal2.txt" 2>&1
-annoter notice "Crashlytics au 2e lancement (envoi du rapport)" "$(lignes_crashlytics "$sortie/journal2.txt" | grep -v 'automatic data collection' | head -n 60)"
-
-if grep -q "successfully enqueued to DataTransport" "$sortie/journal2.txt"; then
-  constat ok "Rapport remis à l'envoi" "$(grep 'successfully enqueued to DataTransport' "$sortie/journal2.txt" | head -n 1 | cut -c1-250)"
+# --- 4. envoi du rapport -------------------------------------------------------
+if grep -q "successfully enqueued to DataTransport" "$sortie/journal1.txt"; then
+  constat ok "Rapport remis à l'envoi" "$(grep 'successfully enqueued to DataTransport' "$sortie/journal1.txt" | head -n 1 | cut -c1-250)"
 else
-  constat ko "Rapport remis à l'envoi" "Aucune ligne « successfully enqueued to DataTransport » au 2e lancement."
+  constat ko "Rapport remis à l'envoi" "Aucune ligne « successfully enqueued to DataTransport » après le plantage."
 fi
-if grep -E "CctTransport|TRuntime" "$sortie/journal2.txt" | grep -qiE "status code: 200|HTTP 200|response code: 200"; then
-  constat ok "Serveur Crashlytics" "$(grep -E 'CctTransport|TRuntime' "$sortie/journal2.txt" | grep -iE 'status code: 200|HTTP 200|response code: 200' | head -n 1 | cut -c1-250)"
+if grep "CctTransportBackend" "$sortie/journal1.txt" | grep -q "crashlyticsreports-pa.googleapis.com" \
+   && grep "CctTransportBackend" "$sortie/journal1.txt" | grep -qE "Status Code: 200"; then
+  constat ok "Serveur Crashlytics" "$(grep 'CctTransportBackend' "$sortie/journal1.txt" | cut -c1-200 | tail -n 2 | tr '\n' ' ')"
 else
-  constat ko "Serveur Crashlytics" "Aucune réponse HTTP 200 du serveur de rapports."
+  constat ko "Serveur Crashlytics" "Pas de réponse HTTP 200 du serveur de rapports : $(grep 'CctTransportBackend' "$sortie/journal1.txt" | cut -c1-200 | tail -n 3 | tr '\n' ' ')"
 fi
 
 annoter notice "Bilan de l'essai" "$bilan"
