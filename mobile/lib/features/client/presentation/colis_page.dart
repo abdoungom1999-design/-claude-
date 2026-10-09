@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../core/location/localiser.dart';
+import '../../../core/maps/geocoding_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_fcfa.dart';
@@ -11,12 +13,17 @@ import '../../../core/widgets/payment_method_sheet.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../firebase_options.dart';
 import '../../courses/data/course_service.dart';
+import '../../courses/data/depart_gps.dart';
 import '../../portefeuille/data/portefeuille_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/estimation_course_controller.dart';
+import '../../courses/data/pricing_repository.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
+import 'depart_gps_controller.dart';
 import 'payment_processing_page.dart';
 import 'widgets/carte_commande.dart';
+import 'widgets/champ_depart_gps.dart';
+import 'widgets/depart_gps_etat.dart';
 import '../../../core/widgets/onyx_vert.dart';
 
 /// Écran d'envoi d'un colis, connecté à l'API. Carte réelle
@@ -25,8 +32,20 @@ import '../../../core/widgets/onyx_vert.dart';
 /// calculé (voir [EstimationCourseController]). Les champs
 /// destinataire/description restent locaux : l'API ne les persiste pas
 /// encore (hors périmètre de cette itération).
+///
+/// Comme pour une course moto, le point de retrait n'est pas à saisir : dès
+/// l'ouverture, l'écran prend la position GPS du client et pré-remplit le champ
+/// par « Ma position actuelle » (voir [DepartGps]). Le colis n'étant pas
+/// forcément là où se trouve le client, l'adresse reste modifiable à la main.
 class ColisPage extends StatefulWidget {
-  const ColisPage({super.key});
+  const ColisPage({super.key, this.localiser, this.adresses, this.pricingRepository, this.coursesRepository});
+
+  /// Injectables pour les tests : position de l'appareil, recherche
+  /// d'adresses, calcul du prix et création de la course (mode démo).
+  final Localiser? localiser;
+  final ServiceAdresses? adresses;
+  final PricingRepository? pricingRepository;
+  final CoursesRepository? coursesRepository;
 
   @override
   State<ColisPage> createState() => _ColisPageState();
@@ -36,12 +55,25 @@ class _ColisPageState extends State<ColisPage> {
   final _formKey = GlobalKey<FormState>();
   final _adresseRetraitController = TextEditingController();
   final _adresseLivraisonController = TextEditingController();
-  final _coursesRepository = CoursesRepository();
-  final _estimation = EstimationCourseController(type: 'COLIS');
+  late final _coursesRepository = widget.coursesRepository ?? CoursesRepository();
+  late final _estimation = EstimationCourseController(type: 'COLIS', pricingRepository: widget.pricingRepository);
   bool _enCours = false;
+
+  late final _gps = DepartGpsController(
+    estimation: _estimation,
+    texte: _adresseRetraitController,
+    localiser: widget.localiser,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _gps.chercherPosition();
+  }
 
   @override
   void dispose() {
+    _gps.dispose();
     _adresseRetraitController.dispose();
     _adresseLivraisonController.dispose();
     _estimation.dispose();
@@ -93,7 +125,7 @@ class _ColisPageState extends State<ColisPage> {
             builder: (_) => PaymentProcessingPage(
               methode: methode,
               type: 'COLIS',
-              adresseDepart: _adresseRetraitController.text.trim(),
+              adresseDepart: DepartGps.pourLaCourse(depart, _adresseRetraitController.text),
               adresseArrivee: _adresseLivraisonController.text.trim(),
               prixFcfa: estimation.prixFcfa,
               points: PointsCourse(
@@ -115,7 +147,7 @@ class _ColisPageState extends State<ColisPage> {
 
       final course = await _coursesRepository.creerCourse({
         'type': 'COLIS',
-        'adresseDepart': _adresseRetraitController.text.trim(),
+        'adresseDepart': DepartGps.pourLaCourse(depart, _adresseRetraitController.text),
         'latitudeDepart': depart.latitude,
         'longitudeDepart': depart.longitude,
         'adresseArrivee': _adresseLivraisonController.text.trim(),
@@ -155,24 +187,24 @@ class _ColisPageState extends State<ColisPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CarteCommande(estimation: _estimation),
+                CarteCommande(estimation: _estimation, localiser: widget.localiser),
                 const SizedBox(height: 24),
                 const Text(
                   'Détails du colis',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
-                AddressSearchField(
+                ChampDepartGps(
+                  gps: _gps,
                   label: 'Adresse de retrait',
-                  controller: _adresseRetraitController,
-                  prefixIcon: Icons.my_location,
-                  onSelected: _estimation.definirDepart,
-                  onEdited: _estimation.oublierDepart,
+                  service: widget.adresses,
+                  messageActif: DepartGpsEtat.messageActifColis,
                 ),
                 const SizedBox(height: 12),
                 AddressSearchField(
                   label: 'Adresse de livraison',
                   controller: _adresseLivraisonController,
+                  service: widget.adresses,
                   prefixIcon: Icons.location_on_outlined,
                   onSelected: _estimation.definirArrivee,
                   onEdited: _estimation.oublierArrivee,

@@ -19,8 +19,9 @@ import '../../courses/data/estimation_course_controller.dart';
 import '../../courses/data/pricing_repository.dart';
 import '../../courses/presentation/estimation_prix_card.dart';
 import 'payment_processing_page.dart';
+import 'depart_gps_controller.dart';
 import 'widgets/carte_commande.dart';
-import 'widgets/depart_gps_etat.dart';
+import 'widgets/champ_depart_gps.dart';
 import '../../../core/widgets/onyx_vert.dart';
 
 /// Écran de réservation d'une course "Passager" (moto-taxi), connecté à
@@ -54,76 +55,25 @@ class _PassagerPageState extends State<PassagerPage> {
   late final _estimation = EstimationCourseController(type: 'PASSAGER', pricingRepository: widget.pricingRepository);
   bool _enCours = false;
 
-  Localiser get _localiser => widget.localiser ?? localiserAppareil;
-
-  EtatDepartGps _gps = EtatDepartGps.recherche;
-
-  /// Numéro de la dernière recherche de position : une réponse arrivée en
-  /// retard, ou après que le client a choisi lui-même son départ, est ignorée.
-  int _rechercheGps = 0;
-
-  /// Change quand le texte du départ est remplacé de l'extérieur : le champ
-  /// est alors reconstruit, ses suggestions de saisie disparaissent.
-  int _versionChampDepart = 0;
+  late final _gps = DepartGpsController(
+    estimation: _estimation,
+    texte: _adresseDepartController,
+    localiser: widget.localiser,
+  );
 
   @override
   void initState() {
     super.initState();
-    _chercherPosition();
+    _gps.chercherPosition();
   }
 
   @override
   void dispose() {
+    _gps.dispose();
     _adresseDepartController.dispose();
     _adresseArriveeController.dispose();
     _estimation.dispose();
     super.dispose();
-  }
-
-  /// Prend la position GPS du client et en fait le départ. Appelée à
-  /// l'ouverture de l'écran, puis par « Utiliser ma position actuelle ».
-  /// Ne touche à rien si le client a choisi son départ entre-temps.
-  Future<void> _chercherPosition() async {
-    final recherche = ++_rechercheGps;
-    if (_gps != EtatDepartGps.recherche) {
-      setState(() {
-        _gps = EtatDepartGps.recherche;
-        _versionChampDepart++;
-      });
-    }
-    final position = await _localiser(demander: true);
-    if (!mounted || recherche != _rechercheGps) return;
-    if (position == null) {
-      setState(() => _gps = EtatDepartGps.indisponible);
-      return;
-    }
-    final depart = DepartGps.depuis(position);
-    _adresseDepartController.text = depart.libelle;
-    _estimation.definirDepart(depart);
-    setState(() => _gps = EtatDepartGps.actif);
-  }
-
-  /// Le client a choisi une adresse dans la liste : elle remplace le GPS.
-  void _departChoisi(AdresseSuggestion adresse) {
-    _rechercheGps++;
-    _estimation.definirDepart(adresse);
-    setState(() => _gps = EtatDepartGps.manuel);
-  }
-
-  /// Le client retouche le texte du départ : le point enregistré ne
-  /// correspond plus, il doit choisir une adresse (ou reprendre le GPS).
-  void _departModifie() {
-    _rechercheGps++;
-    _estimation.oublierDepart();
-    if (_gps != EtatDepartGps.manuel) setState(() => _gps = EtatDepartGps.manuel);
-  }
-
-  /// Toucher le champ quand il porte « Ma position actuelle » sélectionne
-  /// tout le texte : la première lettre tapée le remplace.
-  void _departTouche() {
-    if (_gps != EtatDepartGps.actif) return;
-    _adresseDepartController.selection =
-        TextSelection(baseOffset: 0, extentOffset: _adresseDepartController.text.length);
   }
 
   /// La commande n'a plus de vérification de session ici : accéder à
@@ -241,17 +191,7 @@ class _PassagerPageState extends State<PassagerPage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
-                AddressSearchField(
-                  key: ValueKey('depart-$_versionChampDepart'),
-                  label: 'Adresse de départ',
-                  controller: _adresseDepartController,
-                  service: widget.adresses,
-                  prefixIcon: Icons.my_location,
-                  onSelected: _departChoisi,
-                  onEdited: _departModifie,
-                  onTap: _departTouche,
-                ),
-                DepartGpsEtat(etat: _gps, onUtiliserMaPosition: _chercherPosition),
+                ChampDepartGps(gps: _gps, label: 'Adresse de départ', service: widget.adresses),
                 const SizedBox(height: 12),
                 AddressSearchField(
                   label: "Adresse d'arrivée",

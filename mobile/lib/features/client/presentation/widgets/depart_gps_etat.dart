@@ -20,10 +20,26 @@ enum EtatDepartGps {
 /// chercher, et lui laisse reprendre sa position GPS quand il a changé le
 /// départ ou que la localisation a échoué.
 class DepartGpsEtat extends StatelessWidget {
-  const DepartGpsEtat({super.key, required this.etat, required this.onUtiliserMaPosition});
+  const DepartGpsEtat({
+    super.key,
+    required this.etat,
+    required this.onUtiliserMaPosition,
+    this.messageActif = messageActifPassager,
+  });
+
+  /// Message du départ pris sur le GPS, pour une course moto.
+  static const messageActifPassager = 'Votre chauffeur viendra vous chercher à votre position GPS exacte.';
+
+  /// Message du départ pris sur le GPS, pour un colis : le colis n'est pas
+  /// forcément là où se trouve le client.
+  static const messageActifColis =
+      'Le chauffeur récupérera le colis à votre position GPS exacte. Modifiez l\'adresse si le colis est ailleurs.';
 
   final EtatDepartGps etat;
   final VoidCallback onUtiliserMaPosition;
+
+  /// Ce que le client lit quand le départ est sa position GPS.
+  final String messageActif;
 
   @override
   Widget build(BuildContext context) {
@@ -35,10 +51,10 @@ class DepartGpsEtat extends StatelessWidget {
             chargement: true,
             texte: 'Recherche de votre position GPS…',
           ),
-        EtatDepartGps.actif => const _Ligne(
+        EtatDepartGps.actif => _Ligne(
             icone: Icons.check_circle_rounded,
             couleur: AppColors.vert,
-            texte: 'Votre chauffeur viendra vous chercher à votre position GPS exacte.',
+            texte: messageActif,
           ),
         EtatDepartGps.indisponible => _Ligne(
             icone: Icons.location_off_outlined,
