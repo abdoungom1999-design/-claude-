@@ -9,7 +9,7 @@ class PolitiqueConfidentialitePage extends StatelessWidget {
     return const LegalPage(
       titre: 'Politique de confidentialité',
       icon: Icons.privacy_tip_outlined,
-      derniereMiseAJour: '22 septembre 2026',
+      derniereMiseAJour: '9 octobre 2026',
       intro:
           'Groupe Santine attache une importance particulière à la protection '
           'de vos données personnelles. La présente politique explique quelles '
@@ -29,12 +29,15 @@ class PolitiqueConfidentialitePage extends StatelessWidget {
         SectionJuridique(
           'Données collectées',
           'Nous collectons : les données d\'identification (nom, numéro de '
-              'téléphone, email) ; les données de localisation en temps réel '
-              'pendant une course (pour le suivi et la mise en relation avec '
-              'un Conducteur) ; l\'historique de vos courses et livraisons ; '
-              'les données techniques (type d\'appareil, adresse IP) ; et, pour '
-              'les Conducteurs, les données relatives au véhicule et aux '
-              'documents réglementaires.',
+              'téléphone, email) ; les données de localisation (votre position '
+              'GPS lorsque vous choisissez « Ma position actuelle » comme point '
+              'de départ, et la position en temps réel pendant une course, pour '
+              'le suivi et la mise en relation avec un Conducteur) ; '
+              'l\'historique de vos courses et livraisons ; les données '
+              'techniques (type d\'appareil, adresse IP) ainsi que les rapports '
+              'techniques d\'erreur de l\'application Android (voir « Suivi '
+              'technique des erreurs ») ; et, pour les Conducteurs, les données '
+              'relatives au véhicule et aux documents réglementaires.',
         ),
         SectionJuridique(
           'Finalités du traitement',
@@ -49,8 +52,11 @@ class PolitiqueConfidentialitePage extends StatelessWidget {
           'Le traitement repose sur l\'exécution du contrat de service qui '
               'vous lie à Groupe Santine lors de l\'utilisation de '
               'l\'application, sur votre consentement lorsque celui-ci est '
-              'requis (ex : notifications), et sur nos obligations légales '
-              '(ex : lutte contre la fraude, sécurité routière).',
+              'requis (ex : notifications, position GPS de votre téléphone), '
+              'sur nos obligations légales (ex : lutte contre la fraude, '
+              'sécurité routière) et sur notre intérêt légitime à assurer la '
+              'stabilité et la sécurité du service (ex : suivi technique des '
+              'erreurs).',
         ),
         SectionJuridique(
           'Partage des données',
@@ -61,6 +67,39 @@ class PolitiqueConfidentialitePage extends StatelessWidget {
               'traitement des transactions ; et les autorités compétentes '
               'lorsque la loi l\'exige. Groupe Santine ne vend jamais vos '
               'données personnelles à des tiers à des fins commerciales.',
+        ),
+        SectionJuridique(
+          'Position GPS et mise en relation',
+          'Lorsque vous commandez une course avec « Ma position actuelle », '
+              'l\'application relève la position GPS de votre téléphone, avec '
+              'votre autorisation, et l\'enregistre avec votre demande afin que '
+              'le Conducteur vous retrouve. Les Conducteurs disponibles ont accès '
+              'aux demandes en attente (point de départ, y compris votre position '
+              'GPS lorsque vous l\'avez choisie, destination et prix). Une fois '
+              'la course acceptée, votre position s\'affiche sur la carte du '
+              'Conducteur qui l\'accepte, avec l\'itinéraire pour vous rejoindre ; '
+              'pour calculer cet itinéraire, la position du Conducteur et le '
+              'point de rendez-vous sont transmis à notre prestataire Google '
+              '(Google Maps Platform). Votre position n\'est pas utilisée à des '
+              'fins publicitaires. Vous pouvez refuser ou retirer l\'autorisation '
+              'de localisation dans les réglages de votre téléphone : vous '
+              'saisissez alors votre adresse de départ à la main.',
+        ),
+        SectionJuridique(
+          'Suivi technique des erreurs',
+          'Lorsque l\'application Android Sprint rencontre une erreur imprévue '
+              'ou se ferme brutalement, un rapport technique est envoyé '
+              'automatiquement à notre prestataire Google (service Firebase '
+              'Crashlytics) afin que nous puissions corriger le problème '
+              'rapidement. Ce rapport contient uniquement des informations '
+              'techniques : version de l\'application, modèle et version '
+              'Android du téléphone, état de l\'application au moment de '
+              'l\'incident, message technique de l\'erreur et un identifiant '
+              'technique propre à l\'installation. Sprint n\'y ajoute ni votre '
+              'nom, ni votre numéro de téléphone, ni votre adresse e-mail, ni '
+              'l\'identifiant de votre compte. Ces rapports servent uniquement '
+              'à améliorer la stabilité et la sécurité de l\'application ; ils '
+              'ne sont pas utilisés à des fins publicitaires.',
         ),
         SectionJuridique(
           'Durée de conservation',
