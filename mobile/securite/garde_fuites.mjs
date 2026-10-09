@@ -35,7 +35,13 @@ export const MOTIFS = [
   { nom: 'jeton JWT', regex: /\beyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\b/g },
   {
     nom: 'adresse de service avec identifiants',
-    regex: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/'"]+:[^\s@/'"]{4,}@(?!localhost\b|127\.0\.0\.1\b|\[::1\])[^\s/'"]+/gi,
+    // Identifiants et serveur en ASCII imprimable (ni octet de contrôle, ni octet >= 0x7f) : dans un
+    // binaire, des chaînes voisines sans rapport ne doivent pas se lire comme une adresse. Cas réel, le
+    // snapshot Dart de l'APK : « http://10.0.2.2:3000 » suivi, après un octet d'en-tête, du nom privé
+    // « _consumer@16069316 ».
+    regex:
+      /\b[a-z][a-z0-9+.-]*:\/\/[^\s\x00-\x1f\x7f-\xff:@/'"]+:[^\s\x00-\x1f\x7f-\xff@/'"]{4,}@(?!localhost\b|127\.0\.0\.1\b|\[::1\])[^\s\x00-\x1f\x7f-\xff/'"]+/gi,
+    adresse: true,
   },
   { nom: 'clé API Google non autorisée', regex: /\bAIza[0-9A-Za-z_-]{35}\b/g, google: true },
 ];
@@ -73,16 +79,23 @@ export function clesAutorisees(racine, env = process.env) {
 }
 
 /**
- * Cherche les secrets dans un texte. [cheminRelatif] (depuis la racine du
- * dépôt) active le contrôle des noms de secrets du serveur pour le code
- * client ; [client] le force (site compilé, APK).
+ * Cherche les secrets dans un texte. [chemin] (depuis la racine du dépôt)
+ * active le contrôle des noms de secrets du serveur pour le code client ;
+ * [client] le force (site compilé, APK). [binaire] : le texte est un fichier
+ * binaire (bibliothèque de l'APK) : une adresse avec identifiants doit alors
+ * viser un serveur nommé avec un point (« db.exemple.com »), comme tout vrai
+ * service en ligne, ce qui écarte les chaînes voisines par hasard.
  */
-export function scannerTexte(texte, { chemin = '', autorisees = new Set(), client = false, decalageLigne = 0 } = {}) {
+export function scannerTexte(
+  texte,
+  { chemin = '', autorisees = new Set(), client = false, decalageLigne = 0, binaire = false } = {},
+) {
   const trouvailles = [];
   const ligneDe = (indice) => decalageLigne + texte.slice(0, indice).split('\n').length;
   for (const motif of MOTIFS) {
     for (const m of texte.matchAll(motif.regex)) {
       if (motif.google && autorisees.has(m[0])) continue;
+      if (motif.adresse && binaire && !m[0].slice(m[0].lastIndexOf('@') + 1).includes('.')) continue;
       trouvailles.push({ chemin, ligne: ligneDe(m.index), motif: motif.nom, extrait: masquer(m[0]) });
     }
   }
@@ -157,8 +170,11 @@ function parcourir(dossier, visiter) {
   }
 }
 
-/** Site compilé ou APK décompressé : tout fichier est scanné, le code est « client ». */
-export function scannerDossier(dossier, env = process.env, racine = process.cwd()) {
+/**
+ * Site compilé ou APK décompressé : tout fichier est scanné, le code est « client ».
+ * [binaire] : APK (bibliothèques natives et snapshot Dart), voir [scannerTexte].
+ */
+export function scannerDossier(dossier, env = process.env, racine = process.cwd(), { binaire = false } = {}) {
   const autorisees = clesAutorisees(racine, env);
   const trouvailles = [];
   let lus = 0;
@@ -166,7 +182,9 @@ export function scannerDossier(dossier, env = process.env, racine = process.cwd(
     if (statSync(chemin).size > TAILLE_MAX_OCTETS * 4) return;
     lus++;
     const texte = readFileSync(chemin).toString('latin1');
-    trouvailles.push(...scannerTexte(texte, { chemin: path.relative(dossier, chemin), autorisees, client: true }));
+    trouvailles.push(
+      ...scannerTexte(texte, { chemin: path.relative(dossier, chemin), autorisees, client: true, binaire }),
+    );
   });
   return { lus, trouvailles };
 }
@@ -224,7 +242,7 @@ function principal(argv) {
           annoncerAvertissement('Garde-fou secrets', `APK non analysé (unzip : ${(r.stderr || r.error?.message || 'échec').slice(0, 200)}).`);
           return 0;
         }
-        return rapporter(`APK ${path.basename(a)}`, scannerDossier(tmp, process.env, racineDepot()));
+        return rapporter(`APK ${path.basename(a)}`, scannerDossier(tmp, process.env, racineDepot(), { binaire: true }));
       } finally {
         rmSync(tmp, { recursive: true, force: true });
       }

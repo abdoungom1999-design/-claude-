@@ -49,6 +49,54 @@ test('du code ordinaire ne déclenche rien', () => {
   assert.deepEqual(scannerTexte(code, { chemin: 'mobile/lib/x.dart' }), []);
 });
 
+// Cas réel : le snapshot Dart de l'APK (libapp.so) range à la suite l'adresse de développement
+// « http://10.0.2.2:3000 » (émulateur Android) et des noms Dart privés du type « _consumer@16069316 ».
+// Lu comme du texte, cela ressemblait à « http://utilisateur:motdepasse@serveur ».
+const VOISINS_DU_SNAPSHOT = 'http://10.0.2.2:3000' + 'pausednull' + '¤' + '_consumer@16069316Datagram';
+
+test('binaire : des chaînes voisines par hasard ne forment pas une adresse avec identifiants', () => {
+  // Octet d'en-tête non imprimable entre les chaînes : jamais une adresse, même en texte.
+  assert.deepEqual(scannerTexte(VOISINS_DU_SNAPSHOT, { chemin: 'lib/arm64-v8a/libapp.so', client: true }), []);
+  assert.deepEqual(scannerTexte('http://10.0.2.2:3000\x00pausednull\x01_consumer@16069316Datagram', { client: true }), []);
+
+  // Même sans octet d'en-tête : dans un binaire, un serveur sans point n'est pas une adresse en ligne.
+  const imprimable = 'http://10.0.2.2:3000pausednull_consumer@16069316Datagram';
+  assert.equal(scannerTexte(imprimable, { client: true, binaire: false }).length, 1, 'en texte, le doute reste signalé');
+  assert.deepEqual(scannerTexte(imprimable, { client: true, binaire: true }), []);
+});
+
+test('binaire : une vraie adresse avec identifiants reste trouvée', () => {
+  const vraie = 'https://' + 'admin:' + 'motdepasse' + '@db.exemple.com/base';
+  for (const binaire of [false, true]) {
+    const trouvailles = scannerTexte(`\x00\x01${vraie}\x02`, { client: true, binaire });
+    assert.equal(trouvailles.length, 1, `binaire=${binaire}`);
+    assert.equal(trouvailles[0].motif, 'adresse de service avec identifiants');
+    assert.ok(!JSON.stringify(trouvailles).includes('motdepasse'));
+  }
+});
+
+test('APK : le snapshot Dart et ses voisinages binaires ne déclenchent plus de fausse alerte', () => {
+  const apk = dossierTemporaire();
+  try {
+    mkdirSync(path.join(apk, 'lib/arm64-v8a'), { recursive: true });
+    const so = Buffer.concat([
+      Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x00, 0x00]),
+      Buffer.from(VOISINS_DU_SNAPSHOT, 'latin1'),
+      Buffer.from([0x20, 0x00, 0xa0, 0x0a]),
+    ]);
+    writeFileSync(path.join(apk, 'lib/arm64-v8a/libapp.so'), so);
+    assert.equal(scannerDossier(apk, {}, '/inexistant', { binaire: true }).trouvailles.length, 0);
+
+    const secret = 'https://' + 'admin:' + 'motdepasse' + '@db.exemple.com/base';
+    writeFileSync(path.join(apk, 'lib/arm64-v8a/libflutter.so'), Buffer.concat([so, Buffer.from(secret, 'latin1')]));
+    const bilan = scannerDossier(apk, {}, '/inexistant', { binaire: true });
+    assert.equal(bilan.trouvailles.length, 1);
+    assert.equal(bilan.trouvailles[0].chemin, path.join('lib/arm64-v8a', 'libflutter.so'));
+  } finally {
+    rmSync(apk, { recursive: true, force: true });
+  }
+});
+
 test('clé Google : admise seulement si elle est connue comme publique', () => {
   const connue = faux['clé Google'];
   const autorisees = new Set([connue]);

@@ -10,7 +10,7 @@ sont **publics** : une alerte doit être traitée tout de suite.
 | Secrets dans les fichiers suivis par git | `garde_fuites.mjs fichiers` | clé privée, jeton GitHub/AWS/Slack/Wave, compte de service Google, clé Google inconnue, adresse avec mot de passe, nom d'un secret du serveur dans le code client |
 | Secrets dans les lignes ajoutées depuis le dernier déploiement réussi | `garde_fuites.mjs diff` | idem, y compris un secret ajouté puis retiré avant la publication. La plage couvre aussi les commits « [skip ci] » poussés entre deux publications |
 | Secrets dans le site compilé | `garde_fuites.mjs dossier build/web` | idem |
-| Secrets dans l'APK | `garde_fuites.mjs apk …` | **n'avertit que** (non bloquant tant qu'il n'a pas tourné sur un vrai APK de la CI) |
+| Secrets dans l'APK | `garde_fuites.mjs apk …` | **n'avertit que** (non bloquant : à rendre bloquant après une publication sans fausse alerte). Dans le snapshot Dart (`libapp.so`), une adresse avec identifiants doit viser un serveur nommé avec un point |
 | Vulnérabilités des Cloud Functions (production) | `audit_npm.mjs functions --prod --seuil high` | avis de gravité haute ou critique |
 | Vulnérabilités des outils de test (jamais déployés) | `audit_npm.mjs firestore_rules_test --seuil critical` | avis critique |
 | Avis de sécurité des paquets Dart | `avis_dart.mjs pubspec.lock` | un avis touche une version verrouillée |
@@ -28,6 +28,16 @@ contrôle le signale sans bloquer et se refait au push suivant.
 - **Secret trouvé** : le retirer du code **et le révoquer chez son émetteur**
   (le retirer du dépôt ne suffit pas : il a pu être copié). Les clés de
   paiement vivent dans Secret Manager, jamais dans le dépôt ni dans l'app.
+- **Alerte « adresse de service avec identifiants » dans `lib/…/libapp.so`
+  (APK)** : le snapshot Dart range des chaînes sans rapport les unes à côté
+  des autres, et le contrôle peut les lire comme `http://utilisateur:mot@serveur`.
+  Cas connu (runs #100 et #101) : l'adresse de développement
+  `http://10.0.2.2:3000` (`api_config.dart`) suivie d'un nom privé Dart du type
+  `_consumer@16069316`. Vérifié en recompilant le snapshot arm64 du même
+  commit avec le `gen_snapshot` du SDK Flutter et en relançant le contrôle sur
+  le fichier. Le contrôle ne lit plus que de l'ASCII imprimable, et un serveur
+  sans point ne compte pas dans un binaire. Si l'alerte revient, refaire cette
+  vérification avant de conclure à une fausse alerte.
 - **Dépendance vulnérable** : la mettre à jour. Si aucune version corrigée
   n'existe ou si la faille n'est pas atteignable par notre code, ajouter une
   exception **motivée et datée** dans `exceptions.json` :
