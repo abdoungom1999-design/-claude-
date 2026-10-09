@@ -9,7 +9,7 @@ import 'core/suivi/suivi_plantages.dart';
 import 'firebase_options.dart';
 
 /// Réservé à l'essai de la CI sur émulateur (.github/workflows/essai-android.yml) :
-/// l'app se plante exprès dix secondes après son démarrage, pour vérifier que
+/// l'app se plante exprès trente secondes après son démarrage, pour vérifier que
 /// Crashlytics reçoit le rapport. Jamais défini dans l'APK publié : sans effet.
 const _essaiPlantage = bool.fromEnvironment('ESSAI_PLANTAGE');
 
@@ -26,7 +26,7 @@ Future<void> main() async {
     // Android : les plantages partent vers Crashlytics (sans effet ailleurs, jamais bloquant).
     await SuiviDesPlantages.instance.brancher();
     if (_essaiPlantage) {
-      unawaited(Future<void>.delayed(const Duration(seconds: 10), SuiviDesPlantages.instance.plantagePourTest));
+      unawaited(Future<void>.delayed(const Duration(seconds: 30), SuiviDesPlantages.instance.plantagePourTest));
     }
   }
 

@@ -77,7 +77,7 @@ jobs:
 
       # Même compilation que l'APK publié (version finale), mais pour le
       # processeur de l'émulateur (x86_64), signée avec la clé de debug, et avec
-      # ESSAI_PLANTAGE : l'app se plante exprès dix secondes après son démarrage.
+      # ESSAI_PLANTAGE : l'app se plante exprès trente secondes après son démarrage.
       - name: Compiler l'APK d'essai
         run: |
           flutter build apk --release \
