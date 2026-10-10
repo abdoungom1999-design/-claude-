@@ -36,6 +36,7 @@ import {
   traiterEvenementRecharge,
 } from './portefeuille';
 import { MessagerieFcm, notifierAcceptation as notifierAcceptationCore, notifierMessage as notifierMessageCore } from './notifications';
+import { AccesGoogleReel, prevenirAdmins, verifierSauvegardes as verifierSauvegardesCore } from './sauvegardes';
 import { pageMessage, pagePaiement, secretSimulation } from './simulation';
 
 // Région la plus proche de Dakar et de Firestore (eur3, voir
@@ -246,6 +247,24 @@ export const surveillerCommandes = onSchedule(
     if (bilan.expirees || bilan.sansChauffeur || rechargesExpirees) {
       logger.info('Surveillance des commandes', { ...bilan, rechargesExpirees });
     }
+  },
+);
+
+/**
+ * Contrôle quotidien des sauvegardes de la base, fait par Google lui-même
+ * (indépendant de GitHub) : prévient les Admin par notification si la
+ * dernière sauvegarde a plus de 36 h ou si une planification manque. Lecture
+ * seule ; rôles nécessaires et détail : FIREBASE_SETUP.md, section 10.4.
+ */
+export const verifierSauvegardes = onSchedule(
+  { schedule: '7 9 * * *', timeZone: 'Africa/Dakar', retryCount: 0, timeoutSeconds: 120 },
+  async () => {
+    const db = getFirestore();
+    await verifierSauvegardesCore({
+      google: new AccesGoogleReel(),
+      prevenir: (push) => prevenirAdmins(db, messagerie, push),
+      maintenant: new Date(),
+    });
   },
 );
 

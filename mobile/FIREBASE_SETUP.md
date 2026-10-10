@@ -315,6 +315,11 @@ en `europe-west1` (même région que Firestore `eur3`) :
   bout de 10 minutes → annulée et remboursée. Un remboursement refusé par
   l'opérateur laisse la commande en `remboursement_echoue`, à traiter à
   la main.
+- `verifierSauvegardes` (chaque jour à 09 h 07, heure de Dakar, soit UTC) :
+  contrôle des sauvegardes de la base fait par Google lui-même, sans GitHub.
+  Lecture seule ; prévient les comptes Admin par notification si la dernière
+  sauvegarde a plus de 36 h, si une planification manque ou si Google refuse
+  la lecture (section 10.4). Fonction privée, comme `surveillerCommandes`.
 - `rembourserCourseAdmin` (Admin, depuis un ticket du support) :
   remboursement intégral d'une course terminée ou annulée, avec un motif
   obligatoire. Refusé si la course est encore en cours ou déjà
@@ -708,6 +713,48 @@ de temps en temps : une sauvegarde jamais restaurée n'est pas prouvée.
 
 Non couvert ici (à prévoir) : l'export des comptes de connexion (Firebase
 Auth) et la copie des fichiers Storage.
+
+### 10.4 Contrôle par une fonction Google (indépendant de GitHub)
+
+Les flux planifiés de GitHub ne sont pas garantis : le 10 octobre 2026, celui
+de 06 h 17 UTC est parti à 12 h 34 UTC, avec plus de 6 h de retard. La
+fonction `verifierSauvegardes` refait donc le même contrôle de l'intérieur de
+Google, chaque jour à 09 h 07 (heure de Dakar, soit UTC) :
+
+- elle lit les planifications et les sauvegardes (lecture seule : elle ne
+  crée, ne supprime et ne restaure rien) ;
+- tout va bien (les deux planifications existent, la dernière sauvegarde a
+  moins de 36 h) : rien n'est envoyé, sauf le dimanche, où les Admin reçoivent
+  « Sauvegardes : tout va bien ». Si ce petit message cesse d'arriver, c'est le
+  contrôle lui-même qu'il faut regarder ;
+- sinon (sauvegarde périmée ou absente, planification manquante, ou Google qui
+  refuse la lecture) : notification « Sauvegardes : à vérifier » aux appareils
+  des comptes Admin, **tous les jours** tant que ça dure, et erreur dans le
+  journal de la fonction (console Firebase > Functions > Journaux,
+  `verifierSauvegardes`). Si aucun appareil Admin n'a les notifications
+  actives, le journal le dit aussi.
+
+**Mise en place, une seule fois.** Donner au compte qui exécute les Cloud
+Functions, `671806634534-compute@developer.gserviceaccount.com` (« Compte de
+service Compute Engine par défaut », lu sur la fonction `surveillerCommandes`
+en ligne), les deux rôles de lecture suivants : page **IAM** de Google Cloud,
+crayon à droite de ce compte, **+ Ajouter un autre rôle** (taper
+l'identifiant dans le filtre), **Enregistrer**.
+
+- `roles/datastore.backupsViewer` : lire les sauvegardes ;
+- `roles/datastore.backupSchedulesViewer` : lire les planifications.
+
+Sans eux, la fonction répond « Lecture des planifications impossible (HTTP
+403) » et alerte, au lieu de laisser croire que tout va bien. Pour voir ce que
+Google a réellement accordé (lecture seule, rien n'est modifié) : GitHub >
+**Actions** > **Sauvegardes Firestore** > **Run workflow**, case
+**diagnostic** cochée. Le journal nomme le compte qui exécute les fonctions,
+dit pour chacun des deux rôles s'il est « présent » ou « ABSENT », et teste un
+par un les droits du compte de déploiement pour l'essai de restauration.
+
+Coût : une tâche Cloud Scheduler en plus (les trois premières par compte de
+facturation sont gratuites, 0,10 $ par mois au-delà), une exécution par jour
+(dans le quota gratuit des fonctions), notifications gratuites.
 
 ## 11. Suivi des plantages (Firebase Crashlytics, Android)
 

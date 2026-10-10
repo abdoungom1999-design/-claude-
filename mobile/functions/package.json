@@ -8,8 +8,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test lib/test/tarification.test.js lib/test/validation.test.js lib/test/google.test.js lib/test/fournisseurs.test.js lib/test/proximite.test.js lib/test/notifications.test.js lib/test/kyc_stockage.test.js lib/test/connexion_telephone.test.js",
-    "test:emulateur": "npm run build && ../firestore_rules_test/node_modules/.bin/firebase emulators:exec --only firestore,auth --project demo-sprint \"node --test --test-concurrency=1 lib/test/paiements.emulateur.test.js lib/test/admin.emulateur.test.js lib/test/proximite.emulateur.test.js lib/test/itineraire.emulateur.test.js lib/test/notifications.emulateur.test.js lib/test/portefeuille.emulateur.test.js lib/test/kyc_stockage.emulateur.test.js lib/test/connexion_telephone.emulateur.test.js\""
+    "test": "npm run build && node --test lib/test/tarification.test.js lib/test/validation.test.js lib/test/google.test.js lib/test/fournisseurs.test.js lib/test/proximite.test.js lib/test/notifications.test.js lib/test/kyc_stockage.test.js lib/test/connexion_telephone.test.js lib/test/sauvegardes.test.js",
+    "test:emulateur": "npm run build && ../firestore_rules_test/node_modules/.bin/firebase emulators:exec --only firestore,auth --project demo-sprint \"node --test --test-concurrency=1 lib/test/paiements.emulateur.test.js lib/test/admin.emulateur.test.js lib/test/proximite.emulateur.test.js lib/test/itineraire.emulateur.test.js lib/test/notifications.emulateur.test.js lib/test/portefeuille.emulateur.test.js lib/test/kyc_stockage.emulateur.test.js lib/test/connexion_telephone.emulateur.test.js lib/test/sauvegardes.emulateur.test.js\""
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",

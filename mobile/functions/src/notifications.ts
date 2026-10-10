@@ -12,7 +12,9 @@ import { HttpsError } from 'firebase-functions/v2/https';
  *   - message du chauffeur au client (ou l'inverse) pendant leur course ;
  *   - nouvelle course, aux chauffeurs en ligne, libres et non sanctionnés ;
  *   - course acceptée, au client ;
- *   - course annulée par le chauffeur ou faute de chauffeur, au client.
+ *   - course annulée par le chauffeur ou faute de chauffeur, au client ;
+ *   - sauvegardes de la base à vérifier (ou, le dimanche, « tout va bien »),
+ *     aux comptes Admin : voir `sauvegardes.ts`.
  *
  * Trois sortes de téléphones reçoivent la même notification : l'APK
  * Android, le site ouvert dans un navigateur (Chrome, Edge, Firefox,
@@ -58,6 +60,7 @@ export const LIENS = {
   messagesClient: '/#/accueil/messages',
   activiteClient: '/#/accueil/activite',
   chauffeur: '/#/conducteur',
+  admin: '/#/admin',
 } as const;
 
 const CODES_JETON_MORT = [
