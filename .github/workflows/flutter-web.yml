@@ -556,11 +556,13 @@ jobs:
           echo "Empreinte SHA-1 présentée à Google : conforme."
           ls -lh "$apk"
 
-      # Aucun secret dans l'APK. Non bloquant tant que ce contrôle n'a pas
-      # tourné sur un vrai APK de la CI (à rendre bloquant ensuite).
+      # Aucun secret dans l'APK. BLOQUANT (depuis la validation du client, après
+      # le run #102 où le contrôle corrigé est passé sans fausse alerte) : en cas
+      # d'alerte, l'APK n'est pas publié ; le site l'est quand même, avec l'APK
+      # déjà en ligne (voir le job hebergement). Une alerte sur libapp.so se
+      # vérifie d'abord selon securite/LISEZMOI.md avant de conclure à une fausse alerte.
       - name: Sécurité · aucun secret dans l'APK
         if: steps.secret.outputs.present == 'true'
-        continue-on-error: true
         env:
           GOOGLE_MAPS_ANDROID_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY }}
         run: node securite/garde_fuites.mjs apk build/app/outputs/flutter-apk/app-release.apk

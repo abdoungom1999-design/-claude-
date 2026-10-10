@@ -10,7 +10,7 @@ sont **publics** : une alerte doit être traitée tout de suite.
 | Secrets dans les fichiers suivis par git | `garde_fuites.mjs fichiers` | clé privée, jeton GitHub/AWS/Slack/Wave, compte de service Google, clé Google inconnue, adresse avec mot de passe, nom d'un secret du serveur dans le code client |
 | Secrets dans les lignes ajoutées depuis le dernier déploiement réussi | `garde_fuites.mjs diff` | idem, y compris un secret ajouté puis retiré avant la publication. La plage couvre aussi les commits « [skip ci] » poussés entre deux publications |
 | Secrets dans le site compilé | `garde_fuites.mjs dossier build/web` | idem |
-| Secrets dans l'APK | `garde_fuites.mjs apk …` | **n'avertit que** (non bloquant : à rendre bloquant après une publication sans fausse alerte). Dans le snapshot Dart (`libapp.so`), une adresse avec identifiants doit viser un serveur nommé avec un point |
+| Secrets dans l'APK | `garde_fuites.mjs apk …` | **bloque la publication de l'APK** (bloquant depuis le run #102, sans fausse alerte) : le site est publié quand même, avec l'APK déjà en ligne. Dans le snapshot Dart (`libapp.so`), une adresse avec identifiants doit viser un serveur nommé avec un point |
 | Vulnérabilités des Cloud Functions (production) | `audit_npm.mjs functions --prod --seuil high` | avis de gravité haute ou critique |
 | Vulnérabilités des outils de test (jamais déployés) | `audit_npm.mjs firestore_rules_test --seuil critical` | avis critique |
 | Avis de sécurité des paquets Dart | `avis_dart.mjs pubspec.lock` | un avis touche une version verrouillée |
