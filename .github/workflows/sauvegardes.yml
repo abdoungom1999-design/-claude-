@@ -12,6 +12,11 @@ on:
   schedule:
     - cron: "17 6 * * *"
   workflow_dispatch:
+    inputs:
+      diagnostic:
+        description: "Ajouter le diagnostic des droits Google (lecture seule : compte qui exécute les fonctions, droits manquants)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -63,6 +68,11 @@ jobs:
 
       - name: Une sauvegarde récente existe-t-elle ?
         run: node securite/sauvegardes.mjs verifier
+
+      # Lancé à la main avec la case cochée : n'écrit rien chez Google, ne change pas le verdict du contrôle.
+      - name: Diagnostic des droits (lecture seule)
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.diagnostic
+        run: node securite/sauvegardes.mjs diagnostic
 
       - name: Ticket GitHub (contrôle planifié en échec)
         if: failure() && github.event_name == 'schedule'

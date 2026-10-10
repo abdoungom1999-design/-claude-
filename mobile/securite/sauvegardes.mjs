@@ -4,6 +4,8 @@
 //   node securite/sauvegardes.mjs droits      le compte de déploiement a-t-il les droits nécessaires ?
 //   node securite/sauvegardes.mjs planifier   crée les planifications manquantes (n'en modifie aucune)
 //   node securite/sauvegardes.mjs verifier    une sauvegarde récente existe-t-elle réellement ?
+//   node securite/sauvegardes.mjs diagnostic  (lecture seule) quel compte exécute les fonctions, et quels droits manquent
+//                                             pour le contrôle par fonction planifiée et pour l'essai de restauration ?
 //
 // Les sauvegardes sont prises par Google (planification gérée de Firestore),
 // pas par GitHub : une par jour, gardée 14 jours, et une par semaine (le
@@ -256,6 +258,56 @@ export async function lireSauvegardes(fetcher, jeton) {
   };
 }
 
+/** Rôles que le compte qui exécute les Cloud Functions doit avoir pour que la fonction de contrôle lise les sauvegardes. */
+export const ROLES_FONCTION = ['roles/datastore.backupsViewer', 'roles/datastore.backupSchedulesViewer'];
+
+/** Droits du compte de déploiement pour l'essai de restauration : permission Google, et à quoi elle sert. */
+export const DROITS_RESTAURATION = [
+  ['datastore.backups.restoreDatabase', 'restaurer une sauvegarde dans une nouvelle base'],
+  ['datastore.databases.create', 'créer la base d\'essai'],
+  ['datastore.databases.getMetadata', 'lire l\'état d\'une base'],
+  ['datastore.databases.list', 'lister les bases'],
+  ['datastore.operations.get', 'suivre la restauration en cours'],
+  ['datastore.operations.list', 'lister les opérations en cours'],
+  ['datastore.entities.get', 'lire des documents pour la comparaison'],
+  ['datastore.entities.list', 'lister les collections et les documents'],
+  ['datastore.databases.delete', 'supprimer la base d\'essai'],
+];
+
+const CLOUD_RUN = 'https://run.googleapis.com/v2';
+const REGION_FONCTIONS = 'europe-west1';
+/** Fonction déjà en ligne dont on lit le compte d'exécution (service Cloud Run, nom en minuscules). */
+const FONCTION_TEMOIN = 'surveillercommandes';
+
+/** Une permission à la fois : une permission inconnue de Google ferait refuser toute la demande. */
+export async function testerDroit(fetcher, jeton, droit) {
+  const r = await appeler(fetcher, jeton, 'POST', `${GESTIONNAIRE}/projects/${PROJET}:testIamPermissions`, { permissions: [droit] });
+  if (!r.ok) return { droit, etat: 'inconnu', detail: `HTTP ${r.statut} : ${detail(r)}` };
+  return { droit, etat: (r.json?.permissions ?? []).includes(droit) ? 'accordé' : 'manquant' };
+}
+
+/** Compte qui exécute les Cloud Functions, lu sur une fonction déjà déployée. */
+export async function lireCompteDesFonctions(fetcher, jeton) {
+  const r = await appeler(fetcher, jeton, 'GET', `${CLOUD_RUN}/projects/${PROJET}/locations/${REGION_FONCTIONS}/services/${FONCTION_TEMOIN}`);
+  if (!r.ok) return { erreur: `Lecture de la fonction ${FONCTION_TEMOIN} impossible (HTTP ${r.statut}) : ${detail(r)}` };
+  const compte = r.json?.template?.serviceAccount;
+  return typeof compte === 'string' && compte ? { compte } : { erreur: `Google ne nomme pas le compte d'exécution de ${FONCTION_TEMOIN}.` };
+}
+
+/** Rôles que ce compte de service a directement sur le projet (liés sans condition). */
+export async function lireRolesDuCompte(fetcher, jeton, compte) {
+  const r = await appeler(fetcher, jeton, 'POST', `${GESTIONNAIRE}/projects/${PROJET}:getIamPolicy`, {
+    options: { requestedPolicyVersion: 3 },
+  });
+  if (!r.ok) return { erreur: `Lecture des rôles du projet impossible (HTTP ${r.statut}) : ${detail(r)}` };
+  const membre = `serviceAccount:${compte}`;
+  const roles = (Array.isArray(r.json?.bindings) ? r.json.bindings : [])
+    .filter((liaison) => !liaison.condition && Array.isArray(liaison.members) && liaison.members.includes(membre))
+    .map((liaison) => liaison.role)
+    .sort();
+  return { roles };
+}
+
 const AIDE_DROITS =
   'Dans Google Cloud > IAM, ajoutez au compte « github-deploy » les rôles « roles/datastore.backupSchedulesAdmin » et ' +
   '« roles/datastore.backupsViewer » (voir mobile/FIREBASE_SETUP.md, section 10), puis relancez ce contrôle.';
@@ -342,11 +394,50 @@ async function commandeVerifier({ fetcher, jeton, maintenant, ecrireResume }) {
   return 1;
 }
 
+/**
+ * Lecture seule : de quoi dire au propriétaire du projet, sans rien supposer, quels rôles
+ * donner (contrôle par fonction planifiée) et quel droit temporaire accorder (essai de restauration).
+ */
+async function commandeDiagnostic({ fetcher, jeton }) {
+  const resultat = { compte: null, rolesManquants: null, droitsManquants: [] };
+
+  const fonctions = await lireCompteDesFonctions(fetcher, jeton);
+  if (fonctions.erreur) {
+    console.log(`Compte qui exécute les Cloud Functions : illisible. ${fonctions.erreur}`);
+  } else {
+    resultat.compte = fonctions.compte;
+    console.log(`Compte qui exécute les Cloud Functions (lu sur « ${FONCTION_TEMOIN} », ${REGION_FONCTIONS}) : ${fonctions.compte}`);
+    const roles = await lireRolesDuCompte(fetcher, jeton, fonctions.compte);
+    if (roles.erreur) {
+      console.log(`  Ses rôles sur le projet : illisibles. ${roles.erreur}`);
+    } else {
+      console.log(`  Ses rôles sur le projet : ${roles.roles.length > 0 ? roles.roles.join(', ') : 'aucun'}`);
+      resultat.rolesManquants = ROLES_FONCTION.filter((role) => !roles.roles.includes(role));
+      for (const role of ROLES_FONCTION) console.log(`  ${roles.roles.includes(role) ? 'présent ' : 'ABSENT  '} ${role}`);
+    }
+  }
+
+  console.log("Droits du compte de déploiement pour l'essai de restauration :");
+  for (const [droit, utilite] of DROITS_RESTAURATION) {
+    const test = await testerDroit(fetcher, jeton, droit);
+    if (test.etat !== 'accordé') resultat.droitsManquants.push(droit);
+    console.log(`  ${test.etat.padEnd(8)} ${droit} (${utilite})${test.detail ? ` — ${test.detail}` : ''}`);
+  }
+
+  const morceaux = [
+    `compte des fonctions : ${resultat.compte ?? 'illisible'}`,
+    `rôles à donner à ce compte : ${resultat.rolesManquants === null ? 'non vérifiés' : resultat.rolesManquants.join(', ') || 'aucun'}`,
+    `droits de restauration manquants au compte de déploiement : ${resultat.droitsManquants.join(', ') || 'aucun'}`,
+  ];
+  annoncerNotice('Diagnostic des droits (lecture seule)', morceaux.join(' ; '));
+  return 0;
+}
+
 export async function principal(argv, { fetcher = fetch, env = process.env, maintenant = new Date() } = {}) {
   const commande = argv[0];
-  const commandes = { droits: commandeDroits, planifier: commandePlanifier, verifier: commandeVerifier };
+  const commandes = { droits: commandeDroits, planifier: commandePlanifier, verifier: commandeVerifier, diagnostic: commandeDiagnostic };
   if (!commandes[commande]) {
-    console.error('Usage : node securite/sauvegardes.mjs droits | planifier | verifier');
+    console.error('Usage : node securite/sauvegardes.mjs droits | planifier | verifier | diagnostic');
     return 2;
   }
   const jeton = env.JETON_GOOGLE;

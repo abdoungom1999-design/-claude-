@@ -6,7 +6,9 @@ import path from 'node:path';
 import {
   BASE_DE_DONNEES,
   DROITS_REQUIS,
+  DROITS_RESTAURATION,
   PLANIFICATIONS,
+  ROLES_FONCTION,
   decrireStatistiques,
   ecartsDeRetention,
   evaluerFraicheur,
@@ -42,8 +44,11 @@ function fauxGoogle(routes) {
   const fetcher = async (url, options = {}) => {
     const methode = options.method ?? 'GET';
     const cle = `${methode} ${url}`;
-    appels.push({ methode, url, corps: options.body ? JSON.parse(options.body) : undefined, autorisation: options.headers?.authorization });
-    const reponse = routes[cle] ?? { statut: 404, corps: { error: { message: `route inconnue : ${cle}` } } };
+    const corps = options.body ? JSON.parse(options.body) : undefined;
+    appels.push({ methode, url, corps, autorisation: options.headers?.authorization });
+    // Une route peut être une fonction du corps de la demande (réponse qui dépend de ce qui est demandé).
+    const route = typeof routes[cle] === 'function' ? routes[cle](corps) : routes[cle];
+    const reponse = route ?? { statut: 404, corps: { error: { message: `route inconnue : ${cle}` } } };
     return new Response(JSON.stringify(reponse.corps ?? {}), { status: reponse.statut ?? 200 });
   };
   return { fetcher, appels };
@@ -407,6 +412,89 @@ test('le résumé nomme un problème sans sauvegarde ni planification', () => {
   assert.match(texte, /PROBLÈME/);
   assert.match(texte, /quotidienne : ABSENTE/);
   assert.match(texte, /Aucune pour le moment/);
+});
+
+const URL_DROITS_PROJET = 'https://cloudresourcemanager.googleapis.com/v1/projects/sprint-vtc:testIamPermissions';
+const URL_POLITIQUE = 'https://cloudresourcemanager.googleapis.com/v1/projects/sprint-vtc:getIamPolicy';
+const URL_FONCTION = 'https://run.googleapis.com/v2/projects/sprint-vtc/locations/europe-west1/services/surveillercommandes';
+const COMPTE_FONCTIONS = '671806634534-compute@developer.gserviceaccount.com';
+
+/** Faux Google pour le diagnostic : le compte de déploiement n'a que les droits listés. */
+const routesDiagnostic = ({ accordes = [], roles = [], extra = {} } = {}) => ({
+  [`GET ${URL_FONCTION}`]: { corps: { template: { serviceAccount: COMPTE_FONCTIONS } } },
+  [`POST ${URL_POLITIQUE}`]: {
+    corps: {
+      bindings: [
+        { role: 'roles/editor', members: [`serviceAccount:${COMPTE_FONCTIONS}`, 'user:autre@example.com'] },
+        ...roles.map((role) => ({ role, members: [`serviceAccount:${COMPTE_FONCTIONS}`] })),
+        // Une liaison avec condition ne vaut pas un rôle accordé sans condition.
+        { role: 'roles/datastore.backupSchedulesViewer', condition: { expression: 'false' }, members: [`serviceAccount:${COMPTE_FONCTIONS}`] },
+      ],
+    },
+  },
+  [`POST ${URL_DROITS_PROJET}`]: (corps) => ({ corps: { permissions: corps.permissions.filter((p) => accordes.includes(p)) } }),
+  ...extra,
+});
+
+test('diagnostic : nomme le compte des fonctions, les rôles qui lui manquent et les droits de restauration absents', async () => {
+  const r = await lancer(
+    ['diagnostic'],
+    routesDiagnostic({
+      accordes: ['datastore.databases.list', 'datastore.databases.getMetadata', 'datastore.entities.get'],
+      roles: ['roles/datastore.backupsViewer'],
+    }),
+  );
+  assert.equal(r.code, 0);
+  assert.match(r.sortie, new RegExp(`lu sur « surveillercommandes », europe-west1\\) : ${COMPTE_FONCTIONS}`));
+  assert.match(r.sortie, /Ses rôles sur le projet : roles\/datastore\.backupsViewer, roles\/editor/);
+  assert.match(r.sortie, /présent {2}roles\/datastore\.backupsViewer/);
+  assert.match(r.sortie, /ABSENT {3}roles\/datastore\.backupSchedulesViewer/);
+  assert.match(r.sortie, /accordé {2}datastore\.databases\.list/);
+  assert.match(r.sortie, /manquant datastore\.backups\.restoreDatabase \(restaurer une sauvegarde dans une nouvelle base\)/);
+  assert.match(r.sortie, /manquant datastore\.databases\.delete/);
+  // Une permission testée à la fois, et rien n'est écrit chez Google.
+  const tests = r.appels.filter((a) => a.url === URL_DROITS_PROJET);
+  assert.equal(tests.length, DROITS_RESTAURATION.length);
+  assert.ok(tests.every((a) => a.corps.permissions.length === 1));
+  assert.deepEqual(new Set(r.appels.map((a) => a.methode)), new Set(['GET', 'POST']));
+  assert.ok(r.appels.filter((a) => a.methode === 'POST').every((a) => a.url === URL_DROITS_PROJET || a.url === URL_POLITIQUE));
+  const notice = r.sortie.split('\n').find((ligne) => ligne.startsWith('::notice title=Diagnostic des droits'));
+  assert.ok(notice);
+  assert.match(notice, /rôles à donner à ce compte : roles\/datastore\.backupSchedulesViewer ;/);
+  assert.match(notice, /droits de restauration manquants au compte de déploiement : datastore\.backups\.restoreDatabase, /);
+  assert.equal(r.sortie.includes(JETON), false);
+});
+
+test('diagnostic : tout est en place = « aucun » partout', async () => {
+  const r = await lancer(
+    ['diagnostic'],
+    routesDiagnostic({ accordes: DROITS_RESTAURATION.map(([droit]) => droit), roles: ROLES_FONCTION }),
+  );
+  assert.equal(r.code, 0);
+  for (const role of ROLES_FONCTION) assert.match(r.sortie, new RegExp(`présent {2}${role.replace('.', '\\.')}`));
+  assert.doesNotMatch(r.sortie, /^ {2}(ABSENT|manquant|inconnu)/m);
+  assert.match(r.sortie, /rôles à donner à ce compte : aucun ;/);
+  assert.match(r.sortie, /droits de restauration manquants au compte de déploiement : aucun$/m);
+});
+
+test('diagnostic : lectures refusées ou permission inconnue = dit « illisible » / « inconnu », sans planter', async () => {
+  const r = await lancer(['diagnostic'], {
+    [`GET ${URL_FONCTION}`]: { statut: 403, corps: { error: { message: 'Permission denied' } } },
+    [`POST ${URL_DROITS_PROJET}`]: (corps) =>
+      corps.permissions[0] === 'datastore.operations.list'
+        ? { statut: 400, corps: { error: { message: 'Permission datastore.operations.list is not valid' } } }
+        : { corps: {} },
+  });
+  assert.equal(r.code, 0);
+  assert.match(r.sortie, /Compte qui exécute les Cloud Functions : illisible\. .*HTTP 403.*Permission denied/);
+  assert.match(r.sortie, /inconnu {2}datastore\.operations\.list .*HTTP 400/);
+  assert.match(r.sortie, /compte des fonctions : illisible ; rôles à donner à ce compte : non vérifiés/);
+  assert.doesNotMatch(r.sortie, /undefined|NaN/);
+
+  const sansPolitique = await lancer(['diagnostic'], routesDiagnostic({ extra: { [`POST ${URL_POLITIQUE}`]: { statut: 403, corps: { error: { message: 'refusé' } } } } }));
+  assert.equal(sansPolitique.code, 0);
+  assert.match(sansPolitique.sortie, /Ses rôles sur le projet : illisibles\. .*HTTP 403/);
+  assert.match(sansPolitique.sortie, /rôles à donner à ce compte : non vérifiés/);
 });
 
 test('commande inconnue ou jeton absent : code 2, et le jeton n\'est jamais affiché', async () => {
