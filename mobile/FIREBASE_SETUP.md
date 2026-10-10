@@ -719,12 +719,21 @@ documents collection par collection dans cette base et dans la base en ligne
 (page du run : tableau et verdict), puis supprime la base d'essai, même si
 l'essai a échoué. Garde-fous : la base en ligne n'est que lue ; seules les
 bases nommées `restauration-essai-<numéro>` peuvent être créées ou supprimées ;
-le droit de supprimer est vérifié avant de créer quoi que ce soit. Les écarts
+le droit de supprimer est vérifié avant de créer quoi que ce soit. Google
+annonce la restauration terminée avant que la base réponde (« database is
+undergoing a restore ») : le flux attend qu'elle serve (20 minutes au plus) et
+réessaie la suppression tant que Google la refuse pour cette raison. Les écarts
 positifs sont normaux (la base en ligne a continué de vivre depuis la
-sauvegarde) ; une collection vide dans la base restaurée alors qu'elle ne l'est
-pas en ligne fait échouer l'essai (« à regarder »). Si la suppression échoue,
-l'annotation donne le chemin pour la supprimer à la main (Google Cloud >
-Firestore > Bases de données) : une base laissée en place est facturée. Le
+sauvegarde) ; une collection essentielle (`users`, `courses`, `commandes`,
+`portefeuilles`, `profils_publics`, `chats`, `messages`) vide dans la base
+restaurée alors qu'elle ne l'est pas en ligne fait échouer l'essai (« à
+regarder »), une autre (par exemple `prive`, née après la première sauvegarde)
+est seulement signalée, et un comptage impossible rend l'essai non concluant. Si
+un essai laisse sa base en place (annotation « Base d'essai non supprimée »),
+relancer le flux avec la case **base_existante** (nom de la base) : rien n'est
+restauré à nouveau, elle est comptée puis supprimée. Sinon, la supprimer à la
+main (Google Cloud > Firestore > Bases de données) : une base laissée en place
+est facturée. Le
 compte de déploiement a déjà tous les droits nécessaires (vérifié par le
 diagnostic de la section 10.4). Coût : la restauration est facturée à la taille
 des données restaurées, plus le stockage de la base d'essai le temps du test

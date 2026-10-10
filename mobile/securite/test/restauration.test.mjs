@@ -5,8 +5,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { BASE_DE_DONNEES, DROITS_RESTAURATION } from '../sauvegardes.mjs';
 import {
+  attendreBaseServie,
+  baseCible,
   collectionsDesRegles,
   comparerComptages,
+  compterAvecAttente,
+  fetcherRenouvelable,
   compterDocuments,
   idBaseEssai,
   principal,
@@ -248,6 +252,105 @@ test('suppression : déjà absente = rien à faire ; refus ou base qui reste = e
   assert.equal(aucun.appels.length, 0);
 });
 
+test('base visée : celle d\'un essai resté en place si on la nomme, sinon celle de ce run ; jamais une autre', () => {
+  assert.deepEqual(baseCible({ GITHUB_RUN_ID: '7' }), { id: 'restauration-essai-7', existante: false });
+  assert.deepEqual(baseCible({ GITHUB_RUN_ID: '7', BASE_ESSAI_EXISTANTE: '' }), { id: 'restauration-essai-7', existante: false });
+  assert.deepEqual(baseCible({ GITHUB_RUN_ID: '7', BASE_ESSAI_EXISTANTE: ' restauration-essai-38057777495 ' }), { id: 'restauration-essai-38057777495', existante: true });
+  assert.throws(() => baseCible({ GITHUB_RUN_ID: '7', BASE_ESSAI_EXISTANTE: '(default)' }), /n'est pas une base d'essai/);
+  assert.throws(() => baseCible({ GITHUB_RUN_ID: '7', BASE_ESSAI_EXISTANTE: 'restauration-essai-1; rm -rf' }), /n'est pas une base d'essai/);
+  assert.throws(() => baseCible({}), /GITHUB_RUN_ID/);
+});
+
+test('attente de la base restaurée : réessaie tant que Google dit « restore », s\'arrête sur toute autre erreur', async () => {
+  const restore = { statut: 400, corps: { error: { message: 'Cannot serve requests when the database is undergoing a restore.' } } };
+  const lente = fauxGoogle({ [`POST ${URL_ESSAI}/documents:listCollectionIds`]: [restore, restore, racines(['users'])] });
+  const pauses = [];
+  assert.deepEqual(await attendreBaseServie(lente.fetcher, JETON, ID_ESSAI, async (ms) => pauses.push(ms)), { collections: ['users'], attentes: 2 });
+  assert.deepEqual(pauses, [15000, 15000]);
+
+  const refus = fauxGoogle({ [`POST ${URL_ESSAI}/documents:listCollectionIds`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
+  const autre = await attendreBaseServie(refus.fetcher, JETON, ID_ESSAI, async () => {});
+  assert.match(autre.erreur, /HTTP 403.*Permission denied/);
+  assert.equal(refus.appels.length, 1, 'pas de réessai pour un refus');
+
+  const jamais = fauxGoogle({ [`POST ${URL_ESSAI}/documents:listCollectionIds`]: restore });
+  assert.match((await attendreBaseServie(jamais.fetcher, JETON, ID_ESSAI, async () => {})).erreur, /ne répond toujours pas au bout de 20 minutes/);
+  assert.equal(jamais.appels.length, 80);
+});
+
+test('comptage avec attente : refait tant que Google dit « restore », pas pour une autre erreur', async () => {
+  const restore = { statut: 400, corps: { error: { message: 'Cannot serve requests when the database is undergoing a restore.' } } };
+  const { fetcher, appels } = fauxGoogle({
+    [`POST ${URL_ESSAI}/documents:runAggregationQuery`]: (corps, n) => (n < 3 ? restore : comptages({ users: 3 })(corps)),
+  });
+  assert.deepEqual(await compterAvecAttente(fetcher, JETON, ID_ESSAI, 'users', async () => {}), { n: 3 });
+  assert.equal(appels.length, 3);
+
+  const refus = fauxGoogle({ [`POST ${URL_ESSAI}/documents:runAggregationQuery`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
+  assert.match((await compterAvecAttente(refus.fetcher, JETON, ID_ESSAI, 'users', async () => {})).erreur, /HTTP 403/);
+  assert.equal(refus.appels.length, 1);
+});
+
+test('suppression pendant la restauration : Google refuse d\'abord, on réessaie toutes les 20 s jusqu\'à ce que ça passe', async () => {
+  const restore = { statut: 400, corps: { error: { message: "Cannot serve because the database 'restauration-essai-4242' of project 'sprint-vtc' is in the middle of restore." } } };
+  const { fetcher, appels } = fauxGoogle({
+    [`GET ${URL_ESSAI}`]: [{ corps: {} }, { corps: {} }, { corps: {} }, { statut: 404 }],
+    [`DELETE ${URL_ESSAI}`]: [restore, restore, { corps: { name: 'op' } }],
+  });
+  const pauses = [];
+  assert.deepEqual(await supprimerBaseEssai(fetcher, JETON, ID_ESSAI, async (ms) => pauses.push(ms)), { supprimee: true });
+  assert.equal(appels.filter((a) => a.methode === 'DELETE').length, 3);
+  assert.deepEqual(pauses.slice(0, 2), [20000, 20000]);
+
+  // Un refus qui n'a rien à voir avec la restauration n'est pas réessayé.
+  const refus = fauxGoogle({ [`GET ${URL_ESSAI}`]: { corps: {} }, [`DELETE ${URL_ESSAI}`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
+  assert.match((await supprimerBaseEssai(refus.fetcher, JETON, ID_ESSAI, async () => {})).erreur, /refusée \(HTTP 403\)/);
+  assert.equal(refus.appels.filter((a) => a.methode === 'DELETE').length, 1);
+
+  // Toujours « en restauration » après 20 minutes : abandon, avec la marche à suivre à la main (étape nettoyer).
+  const bloquee = fauxGoogle({ [`GET ${URL_ESSAI}`]: { corps: {} }, [`DELETE ${URL_ESSAI}`]: restore });
+  assert.match((await supprimerBaseEssai(bloquee.fetcher, JETON, ID_ESSAI, async () => {})).erreur, /refusée \(HTTP 400\).*in the middle of restore/);
+  assert.equal(bloquee.appels.filter((a) => a.methode === 'DELETE').length, 61);
+});
+
+test('comparaison : seule une collection essentielle vide est suspecte ; une autre est « née depuis la sauvegarde ? »', () => {
+  const recente = comparerComptages({ users: 3, courses: 2 }, { users: 3, courses: 2, prive: 2 });
+  assert.equal(recente.verdict, 'ok');
+  assert.equal(recente.lignes.find((l) => l.nom === 'prive').statut, 'vide-recente');
+
+  for (const essentielle of ['users', 'courses', 'commandes', 'portefeuilles', 'profils_publics', 'chats', 'messages']) {
+    const c = comparerComptages({ autre: 1 }, { autre: 1, [essentielle]: 4 });
+    assert.equal(c.verdict, 'suspect', essentielle);
+    assert.equal(c.lignes.find((l) => l.nom === essentielle).statut, 'vide');
+  }
+});
+
+test('jeton expiré (401) : un jeton neuf est demandé une fois, la demande refaite, et le jeton neuf sert ensuite', async () => {
+  const vus = [];
+  let tour = 0;
+  const fetcher = async (url, options = {}) => {
+    vus.push(options.headers?.authorization);
+    tour++;
+    return new Response('{}', { status: tour === 1 ? 401 : 200 });
+  };
+  let renouvellements = 0;
+  const enveloppe = fetcherRenouvelable(fetcher, async () => {
+    renouvellements++;
+    return 'jeton-neuf';
+  });
+  assert.equal((await enveloppe('https://exemple.test/a', { headers: { authorization: 'Bearer ancien' } })).status, 200);
+  assert.equal((await enveloppe('https://exemple.test/b', { headers: { authorization: 'Bearer ancien' } })).status, 200);
+  assert.deepEqual(vus, ['Bearer ancien', 'Bearer jeton-neuf', 'Bearer jeton-neuf']);
+  assert.equal(renouvellements, 1);
+
+  // Le renouvellement lui-même échoue : on rend la réponse 401 telle quelle, sans boucle.
+  const toujours401 = async () => new Response('{}', { status: 401 });
+  const sansJeton = fetcherRenouvelable(toujours401, async () => {
+    throw new Error('gcloud absent');
+  });
+  assert.equal((await sansJeton('https://exemple.test/c')).status, 401);
+});
+
 // ---------------------------------------------------------------------
 // Commandes
 // ---------------------------------------------------------------------
@@ -329,7 +432,7 @@ test('essai : une collection vide après restauration = « à regarder », code 
   assert.match(vide.sortie, /::warning title=Essai non concluant::/);
 });
 
-test('essai : un comptage qui échoue est signalé sans faire croire à une base vide', async () => {
+test('essai : un comptage qui échoue = essai non concluant (code 1), jamais « réussi » ni « vide »', async () => {
   const r = await lancer(
     ['essai'],
     routesEssai({
@@ -337,13 +440,82 @@ test('essai : un comptage qui échoue est signalé sans faire croire à une base
         [`POST ${URL_ESSAI}/documents:runAggregationQuery`]: (corps) =>
           corps.structuredAggregationQuery.structuredQuery.from[0].collectionId === 'chats'
             ? { statut: 500, corps: { error: { message: 'panne' } } }
-            : comptages({ users: 3, courses: 2 })(corps),
+            : comptages({ users: 3, courses: 2, jetons: 6, journal_admin: 1 })(corps),
       },
     }),
   );
-  assert.match(r.sortie, /::warning title=Comptages incomplets::Non comptées : chats \(restaurée\)/);
-  // « chats » n'a qu'un comptage (en ligne) : il apparaît comme absent de la restauration, donc signalé « vide ».
   assert.equal(r.code, 1);
+  assert.match(r.sortie, /::error title=Comptages incomplets::Non comptées : chats \(restaurée\)\. Essai non concluant/);
+  assert.doesNotMatch(r.sortie, /Restauration réussie/);
+});
+
+test('essai : Google annonce la restauration finie mais la base ne répond pas encore = on attend, puis on compte', async () => {
+  const enRestauration = { statut: 400, corps: { error: { message: 'Cannot serve requests when the database is undergoing a restore.' } } };
+  const r = await lancer(
+    ['essai'],
+    routesEssai({
+      extra: {
+        [`POST ${URL_ESSAI}/documents:listCollectionIds`]: [enRestauration, enRestauration, racines(['users', 'courses', 'chats'])],
+        // Un comptage tombe encore une fois sur la base « en restauration » : il est refait.
+        [`POST ${URL_ESSAI}/documents:runAggregationQuery`]: (corps, n) =>
+          n === 1 ? enRestauration : comptages({ users: 3, courses: 2, chats: 4, jetons: 6, journal_admin: 1 })(corps),
+      },
+    }),
+  );
+  assert.equal(r.code, 0, r.sortie);
+  assert.match(r.sortie, /La base répond après 2 attente\(s\) de 15 s\./);
+  assert.ok(r.pauses.filter((ms) => ms === 15000).length >= 3, 'attentes de 15 s');
+  assert.match(r.sortie, /::notice title=Restauration réussie::/);
+});
+
+test('essai : la base ne répond jamais = erreur claire au bout de 20 minutes, rien n\'est compté', async () => {
+  const enRestauration = { statut: 400, corps: { error: { message: 'Cannot serve requests when the database is undergoing a restore.' } } };
+  const r = await lancer(['essai'], routesEssai({ extra: { [`POST ${URL_ESSAI}/documents:listCollectionIds`]: enRestauration } }));
+  assert.equal(r.code, 1);
+  assert.match(r.sortie, /::error title=Base restaurée injoignable::La base restauration-essai-4242 ne répond toujours pas au bout de 20 minutes/);
+  assert.equal(r.pauses.length, 1 + 80, 'une attente pendant l\'opération de restauration, puis 80 en attendant que la base serve');
+  assert.equal(r.appels.some((a) => a.url.endsWith('documents:runAggregationQuery')), false);
+});
+
+test('essai : une collection née après la sauvegarde (vide dans la restauration) est signalée sans faire échouer l\'essai', async () => {
+  const r = await lancer(
+    ['essai'],
+    routesEssai({ restauree: { users: 3, courses: 2, chats: 4, journal_admin: 1 }, enLigne: { users: 5, courses: 2, chats: 4, prive: 2 } }),
+  );
+  assert.equal(r.code, 0, r.sortie);
+  assert.match(r.sortie, /prive\s+0\s+2\s+2\s+vide : collection née depuis la sauvegarde \?/);
+  assert.match(r.sortie, /::notice title=Collections vides après restauration::prive : vides dans la restauration/);
+  assert.match(r.sortie, /::notice title=Restauration réussie::/);
+});
+
+test('essai sur une base déjà restaurée : pas de nouvelle restauration, on lit la sauvegarde d\'origine, on compte', async () => {
+  const r = await lancer(
+    ['essai'],
+    routesEssai({
+      extra: {
+        [`GET ${URL_ESSAI}`]: { corps: { name: `projects/sprint-vtc/databases/${ID_ESSAI}`, sourceInfo: { backup: { backup: SAUVEGARDE.name } } } },
+      },
+    }),
+    { env: { BASE_ESSAI_EXISTANTE: ID_ESSAI, GITHUB_RUN_ID: '' } },
+  );
+  assert.equal(r.code, 0, r.sortie);
+  assert.equal(r.appels.some((a) => a.url === URL_RESTAURER), false, 'aucune restauration');
+  assert.equal(r.appels.some((a) => a.methode === 'DELETE'), false);
+  assert.match(r.sortie, /Base d'essai déjà restaurée : restauration-essai-4242, issue de la sauvegarde 2026-10-09T15:24:08\.043109Z\./);
+  assert.match(r.sortie, /::notice title=Restauration réussie::.*à partir de la sauvegarde du 2026-10-09T15:24:08\.043109Z/);
+});
+
+test('essai sur une base déjà restaurée : base introuvable ou nom qui n\'est pas celui d\'une base d\'essai = refusé', async () => {
+  const introuvable = await lancer(['essai'], routesEssai(), { env: { BASE_ESSAI_EXISTANTE: ID_ESSAI } });
+  assert.equal(introuvable.code, 1);
+  assert.match(introuvable.sortie, /::error title=Base d'essai introuvable::restauration-essai-4242 : HTTP 404/);
+
+  for (const interdit of ['(default)', 'default', 'autre-base', 'restauration-essai-']) {
+    const r = await lancer(['essai'], routesEssai(), { env: { BASE_ESSAI_EXISTANTE: interdit } });
+    assert.equal(r.code, 1, interdit);
+    assert.match(r.sortie, /::error title=Essai de restauration impossible::Base refusée/);
+    assert.equal(r.appels.length, 0, 'aucun appel à Google');
+  }
 });
 
 test('essai : hors GitHub Actions (pas de numéro de run) = refusé', async () => {
@@ -364,6 +536,22 @@ test('nettoyer : supprime la base d\'essai de ce run, ou dit qu\'il n\'y a rien 
   const absente = await lancer(['nettoyer'], { [`GET ${URL_ESSAI}`]: { statut: 404 } });
   assert.equal(absente.code, 0);
   assert.match(absente.sortie, /n'existe pas \(rien à supprimer\)/);
+});
+
+test('nettoyer : avec une base d\'essai restée en place, supprime celle-là (et refuse tout autre nom)', async () => {
+  const r = await lancer(
+    ['nettoyer'],
+    { [`GET ${URL_ESSAI}`]: [{ corps: {} }, { statut: 404 }], [`DELETE ${URL_ESSAI}`]: { corps: {} } },
+    { env: { BASE_ESSAI_EXISTANTE: ID_ESSAI, GITHUB_RUN_ID: '99' } },
+  );
+  assert.equal(r.code, 0);
+  assert.match(r.sortie, /La base restauration-essai-4242 est supprimée/);
+  assert.ok(r.appels.every((a) => a.url === URL_ESSAI), 'seulement cette base');
+
+  const refusee = await lancer(['nettoyer'], {}, { env: { BASE_ESSAI_EXISTANTE: '(default)' } });
+  assert.equal(refusee.code, 1);
+  assert.match(refusee.sortie, /::error title=Nettoyage impossible::Base refusée/);
+  assert.equal(refusee.appels.length, 0);
 });
 
 test('nettoyer : suppression refusée = code 1 et la marche à suivre à la main', async () => {

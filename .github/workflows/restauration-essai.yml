@@ -4,15 +4,22 @@ name: Essai de restauration Firestore
 # seulement, restaure la dernière sauvegarde de la base dans une base
 # TEMPORAIRE (restauration-essai-<numéro du run>), compte les documents
 # collection par collection dans cette base et dans la base en ligne, puis
-# supprime la base d'essai (étape finale, qui tourne même si l'essai a échoué).
-# La base en ligne n'est jamais modifiée ni supprimée : elle n'est que lue
-# (comptages). Il ne déploie rien. Détails : mobile/FIREBASE_SETUP.md, section 10.3.
+# supprime la base d'essai (étape finale, qui tourne même si l'essai a échoué ;
+# Google refuse de supprimer une base tant que sa restauration n'est pas vraiment
+# finie, l'étape patiente). La base en ligne n'est jamais modifiée ni supprimée :
+# elle n'est que lue (comptages). Il ne déploie rien. Détails : mobile/FIREBASE_SETUP.md,
+# section 10.3.
 on:
   workflow_dispatch:
     inputs:
       confirmation:
         description: "Écrire RESTAURER pour confirmer (crée une base temporaire, facturée quelques centimes, puis la supprime)"
         required: true
+        type: string
+      base_existante:
+        description: "Facultatif : base d'essai restée en place d'un essai précédent (restauration-essai-<numéro>) : rien n'est restauré, elle est comptée puis supprimée"
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -26,7 +33,7 @@ jobs:
   restauration:
     if: inputs.confirmation == 'RESTAURER'
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 100
     defaults:
       run:
         working-directory: mobile
@@ -61,9 +68,13 @@ jobs:
         run: node securite/restauration.mjs lister
 
       - name: Essai de restauration
+        env:
+          BASE_ESSAI_EXISTANTE: ${{ inputs.base_existante }}
         run: node securite/restauration.mjs essai
 
       # Toujours, même si l'essai a échoué : une base laissée en place est facturée.
       - name: Suppression de la base d'essai
         if: always() && env.JETON_GOOGLE != ''
+        env:
+          BASE_ESSAI_EXISTANTE: ${{ inputs.base_existante }}
         run: node securite/restauration.mjs nettoyer
