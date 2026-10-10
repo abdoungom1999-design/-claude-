@@ -103,6 +103,13 @@ secrets de l'APK (`securite/garde_fuites.mjs apk`). Après la mise en ligne, l'a
 rouverte (PWA) et l'APK réinstallé : une ancienne version ne lit pas la position exacte et montrerait au
 chauffeur la zone au lieu du point.
 
+Mise en ligne du 10 octobre 2026 (run #103) : le décodage de l'itinéraire du chauffeur est corrigé sur le
+web (`lib/core/maps/trace_utils.dart` : sur la PWA, les opérateurs binaires de Dart font 32 bits et « ~ »
+rend un entier non signé, donc toute longitude négative sortait du globe et le guidage retombait sur la
+ligne droite ; l'APK n'était pas touché), le contrôle des secrets de l'APK est bloquant, et le contrôle de
+la page /android/ réessaie après la publication. Après la mise en ligne, rouvrir la PWA (iPhone) et
+réinstaller l'APK.
+
 ## Suivi des plantages et sauvegardes
 
 **Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics
