@@ -461,7 +461,7 @@ async function commandeVerifier({ fetcher, jeton, maintenant, ecrireResume }) {
  * Lecture seule : de quoi dire au propriétaire du projet, sans rien supposer, quels rôles
  * donner (contrôle par fonction planifiée) et quel droit temporaire accorder (essai de restauration).
  */
-async function commandeDiagnostic({ fetcher, jeton }) {
+async function commandeDiagnostic({ fetcher, jeton, maintenant }) {
   const resultat = { compte: null, rolesManquants: null, droitsManquants: [] };
 
   const fonctions = await lireCompteDesFonctions(fetcher, jeton);
@@ -491,6 +491,21 @@ async function commandeDiagnostic({ fetcher, jeton }) {
       `Fonction de contrôle verifierSauvegardes : tâche ${String(t.name).split('/').pop()}, état ${t.state ?? '?'}, ` +
         `planification « ${t.schedule ?? '?'} » (${t.timeZone ?? '?'}), dernière exécution ${t.lastAttemptTime ?? 'aucune'} : ${etatDerniereExecution(t)}.`,
     );
+  }
+
+  // Ce que la fonction a écrit dans son journal depuis 24 h : ses exécutions planifiées, sans la relancer.
+  if (tache.tache) {
+    const journal = await lireJournalFonction(fetcher, jeton, new Date(maintenant.getTime() - 24 * 3_600_000).toISOString());
+    if (journal.erreur) {
+      console.log(`Journal de la fonction (24 h) : illisible. ${journal.erreur}`);
+    } else if (journal.lignes.length === 0) {
+      console.log('Journal de la fonction (24 h) : aucune ligne.');
+    } else {
+      const recentes = journal.lignes.slice(-12);
+      console.log(`Journal de la fonction (24 h, ${recentes.length} dernière(s) ligne(s) sur ${journal.lignes.length}) :`);
+      for (const ligne of recentes) console.log(`  ${ligne.quand} ${ligne.gravite.padEnd(7)} ${ligne.texte}`);
+      annoncerNotice('Journal de la fonction (24 h)', recentes.map((ligne) => `${ligne.quand.slice(11, 19)} ${ligne.gravite} ${ligne.texte}`).join(' | ').slice(0, 900));
+    }
   }
 
   const bases = await listerBases(fetcher, jeton);

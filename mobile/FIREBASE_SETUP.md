@@ -807,7 +807,9 @@ dit pour chacun des deux rôles s'il est « présent » ou « ABSENT », et test
 par un les droits du compte de déploiement pour l'essai de restauration.
 
 Après la publication de la fonction, le même diagnostic dit où en est sa tâche
-planifiée (état, heure de la dernière exécution, réussie ou échouée), et la
+planifiée (état, heure de la dernière exécution, réussie ou échouée) et montre ce
+que la fonction a écrit dans son journal depuis 24 h (ses exécutions de 09 h 07,
+sans la relancer) ; la
 case **lancer_fonction** du même flux force une exécution tout de suite : la
 fonction fait son contrôle avec les droits du compte qui l'exécute, puis le flux
 dit ce que Google en a vu et affiche les lignes qu'elle a écrites dans son

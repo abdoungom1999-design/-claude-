@@ -594,6 +594,29 @@ test('diagnostic : dit quelles bases existent et signale une base d\'essai rest�
   assert.equal(reste.code, 0);
 });
 
+test('diagnostic : montre ce que la fonction a écrit dans son journal depuis 24 h (sans la relancer)', async () => {
+  const publiee = { [`GET ${URL_TACHES}`]: { corps: { jobs: [tache({ lastAttemptTime: '2026-10-11T09:07:03Z', status: {} })] } } };
+  const lignes = Array.from({ length: 15 }, (_, i) => entree(`2026-10-11T09:07:${String(i).padStart(2, '0')}Z`, 'INFO', `ligne ${i + 1}`));
+  const r = await lancer(['diagnostic'], routesDiagnostic({ extra: { ...publiee, [`POST ${URL_JOURNAL}`]: { corps: { entries: lignes } } } }));
+  assert.equal(r.code, 0);
+  assert.match(r.sortie, /Journal de la fonction \(24 h, 12 dernière\(s\) ligne\(s\) sur 15\) :/);
+  assert.match(r.sortie, /2026-10-11T09:07:14Z INFO {4}ligne 15/);
+  assert.doesNotMatch(r.sortie, /ligne 3\b/);
+  assert.match(r.sortie, /::notice title=Journal de la fonction \(24 h\)::/);
+  const lecture = r.appels.find((a) => a.url === URL_JOURNAL);
+  assert.equal(lecture.corps.filter, 'resource.labels.service_name="verifiersauvegardes" AND timestamp>="2026-10-09T07:00:00.000Z"');
+  assert.equal(r.appels.some((a) => a.url === URL_LANCER), false, 'rien n\'est lancé');
+
+  // Fonction pas publiée : pas de journal à lire ; journal illisible ou vide : dit, sans échouer.
+  const pasPubliee = await lancer(['diagnostic'], routesDiagnostic({ extra: { [`GET ${URL_TACHES}`]: { corps: { jobs: [autreTache] } } } }));
+  assert.doesNotMatch(pasPubliee.sortie, /Journal de la fonction/);
+  const illisible = await lancer(['diagnostic'], routesDiagnostic({ extra: { ...publiee, [`POST ${URL_JOURNAL}`]: { statut: 403, corps: { error: { message: 'refusé' } } } } }));
+  assert.match(illisible.sortie, /Journal de la fonction \(24 h\) : illisible\. .*HTTP 403/);
+  const vide = await lancer(['diagnostic'], routesDiagnostic({ extra: { ...publiee, [`POST ${URL_JOURNAL}`]: { corps: {} } } }));
+  assert.match(vide.sortie, /Journal de la fonction \(24 h\) : aucune ligne\./);
+  for (const x of [illisible, vide]) assert.equal(x.code, 0);
+});
+
 test('lancer-fonction : force la tâche, attend la nouvelle exécution et la dit réussie', async () => {
   const { fetcher, appels } = fauxGoogle({
     [`GET ${URL_TACHES}`]: [
