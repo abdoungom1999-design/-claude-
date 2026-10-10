@@ -17,6 +17,10 @@ on:
         description: "Ajouter le diagnostic des droits Google (lecture seule : compte qui exécute les fonctions, droits manquants)"
         type: boolean
         default: false
+      lancer_fonction:
+        description: "Forcer une exécution de la fonction de contrôle verifierSauvegardes chez Google, puis dire ce qu'elle a donné (à faire après sa publication)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -73,6 +77,12 @@ jobs:
       - name: Diagnostic des droits (lecture seule)
         if: always() && github.event_name == 'workflow_dispatch' && inputs.diagnostic
         run: node securite/sauvegardes.mjs diagnostic
+
+      # Lancé à la main avec la case cochée : la fonction fait son contrôle tout de suite (elle ne prévient les Admin
+      # que s'il y a un problème) ; ne change pas le verdict du contrôle de ce flux.
+      - name: Lancer la fonction de contrôle chez Google
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.lancer_fonction
+        run: node securite/sauvegardes.mjs lancer-fonction
 
       - name: Ticket GitHub (contrôle planifié en échec)
         if: failure() && github.event_name == 'schedule'

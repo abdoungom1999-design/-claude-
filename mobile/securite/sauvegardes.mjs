@@ -6,6 +6,8 @@
 //   node securite/sauvegardes.mjs verifier    une sauvegarde récente existe-t-elle réellement ?
 //   node securite/sauvegardes.mjs diagnostic  (lecture seule) quel compte exécute les fonctions, et quels droits manquent
 //                                             pour le contrôle par fonction planifiée et pour l'essai de restauration ?
+//   node securite/sauvegardes.mjs lancer-fonction   force une exécution de la fonction de contrôle verifierSauvegardes (Cloud
+//                                             Scheduler) et dit ce que Google en a vu
 //
 // Les sauvegardes sont prises par Google (planification gérée de Firestore),
 // pas par GitHub : une par jour, gardée 14 jours, et une par semaine (le
@@ -294,6 +296,38 @@ export async function lireCompteDesFonctions(fetcher, jeton) {
   return typeof compte === 'string' && compte ? { compte } : { erreur: `Google ne nomme pas le compte d'exécution de ${FONCTION_TEMOIN}.` };
 }
 
+const CLOUD_SCHEDULER = 'https://cloudscheduler.googleapis.com/v1';
+
+/**
+ * Tâche Cloud Scheduler de la fonction `verifierSauvegardes` (Firebase la nomme
+ * `firebase-schedule-<fonction>-<région>`) : `{ tache }`, `{ absente: true }` tant que la
+ * fonction n'est pas publiée, ou `{ erreur }`.
+ */
+export async function lireTacheFonction(fetcher, jeton) {
+  const r = await appeler(fetcher, jeton, 'GET', `${CLOUD_SCHEDULER}/projects/${PROJET}/locations/${REGION_FONCTIONS}/jobs`);
+  if (!r.ok) return { erreur: `Lecture des tâches planifiées impossible (HTTP ${r.statut}) : ${detail(r)}` };
+  const taches = Array.isArray(r.json?.jobs) ? r.json.jobs : [];
+  const tache = taches.find((t) => /verifiersauvegardes/i.test(String(t?.name ?? '')));
+  return tache ? { tache } : { absente: true };
+}
+
+/** « réussie », « ÉCHOUÉE (code 13 : …) » ou « pas encore lancée » : ce que dit Google de la dernière exécution. */
+export function etatDerniereExecution(tache) {
+  if (!tache.lastAttemptTime) return 'pas encore lancée';
+  const statut = tache.status ?? {};
+  const code = Number(statut.code ?? 0);
+  return code === 0 ? 'réussie' : `ÉCHOUÉE (code ${code}${statut.message ? ` : ${statut.message}` : ''})`;
+}
+
+/** Force une exécution de la tâche planifiée (la fonction fait alors son contrôle, comme à 09 h 07). */
+export async function lancerTacheFonction(fetcher, jeton) {
+  const lue = await lireTacheFonction(fetcher, jeton);
+  if (lue.erreur || lue.absente) return lue;
+  const r = await appeler(fetcher, jeton, 'POST', `${CLOUD_SCHEDULER}/${lue.tache.name}:run`, {});
+  if (!r.ok) return { erreur: `Lancement de la tâche impossible (HTTP ${r.statut}) : ${detail(r)}` };
+  return { lancee: true, tache: lue.tache };
+}
+
 /** Rôles que ce compte de service a directement sur le projet (liés sans condition). */
 export async function lireRolesDuCompte(fetcher, jeton, compte) {
   const r = await appeler(fetcher, jeton, 'POST', `${GESTIONNAIRE}/projects/${PROJET}:getIamPolicy`, {
@@ -417,6 +451,19 @@ async function commandeDiagnostic({ fetcher, jeton }) {
     }
   }
 
+  const tache = await lireTacheFonction(fetcher, jeton);
+  if (tache.erreur) {
+    console.log(`Fonction de contrôle verifierSauvegardes : tâche planifiée illisible. ${tache.erreur}`);
+  } else if (tache.absente) {
+    console.log("Fonction de contrôle verifierSauvegardes : pas de tâche planifiée (la fonction n'est pas encore publiée).");
+  } else {
+    const t = tache.tache;
+    console.log(
+      `Fonction de contrôle verifierSauvegardes : tâche ${String(t.name).split('/').pop()}, état ${t.state ?? '?'}, ` +
+        `planification « ${t.schedule ?? '?'} » (${t.timeZone ?? '?'}), dernière exécution ${t.lastAttemptTime ?? 'aucune'} : ${etatDerniereExecution(t)}.`,
+    );
+  }
+
   console.log("Droits du compte de déploiement pour l'essai de restauration :");
   for (const [droit, utilite] of DROITS_RESTAURATION) {
     const test = await testerDroit(fetcher, jeton, droit);
@@ -433,11 +480,52 @@ async function commandeDiagnostic({ fetcher, jeton }) {
   return 0;
 }
 
-export async function principal(argv, { fetcher = fetch, env = process.env, maintenant = new Date() } = {}) {
+/**
+ * Force une exécution de la fonction de contrôle (tâche Cloud Scheduler) et dit ce que Google en a vu :
+ * la preuve, tout de suite, que la fonction tourne avec les droits du compte qui l'exécute.
+ * Elle n'écrit rien chez Google ; elle ne prévient les Admin que s'il y a un problème (ou le dimanche).
+ */
+async function commandeLancerFonction({ fetcher, jeton, pause }) {
+  const lancement = await lancerTacheFonction(fetcher, jeton);
+  if (lancement.erreur) {
+    annoncerErreur('Fonction non lancée', lancement.erreur);
+    return 1;
+  }
+  if (lancement.absente) {
+    annoncerErreur('Fonction non lancée', "Pas de tâche planifiée pour verifierSauvegardes : la fonction n'est pas encore publiée.");
+    return 1;
+  }
+  const avant = lancement.tache.lastAttemptTime ?? null;
+  console.log(`Tâche ${String(lancement.tache.name).split('/').pop()} lancée (dernière exécution connue : ${avant ?? 'aucune'}).`);
+  for (let lecture = 0; lecture < 12; lecture++) {
+    await pause(5000);
+    const lue = await lireTacheFonction(fetcher, jeton);
+    if (lue.tache && lue.tache.lastAttemptTime && lue.tache.lastAttemptTime !== avant) {
+      const etat = etatDerniereExecution(lue.tache);
+      console.log(`Dernière exécution : ${lue.tache.lastAttemptTime} : ${etat}.`);
+      if (etat !== 'réussie') {
+        annoncerErreur('Fonction de contrôle en échec', `La tâche planifiée a rendu : ${etat}. Voir le journal de la fonction verifierSauvegardes (console Firebase > Functions).`);
+        return 1;
+      }
+      annoncerNotice('Fonction de contrôle lancée', `La fonction verifierSauvegardes a tourné chez Google (${lue.tache.lastAttemptTime}) : ${etat}.`);
+      return 0;
+    }
+  }
+  annoncerAvertissement('Exécution non confirmée', "Google n'a pas encore indiqué de nouvelle exécution au bout d'une minute : relancer le diagnostic dans quelques minutes.");
+  return 1;
+}
+
+export async function principal(argv, { fetcher = fetch, env = process.env, maintenant = new Date(), pause } = {}) {
   const commande = argv[0];
-  const commandes = { droits: commandeDroits, planifier: commandePlanifier, verifier: commandeVerifier, diagnostic: commandeDiagnostic };
+  const commandes = {
+    droits: commandeDroits,
+    planifier: commandePlanifier,
+    verifier: commandeVerifier,
+    diagnostic: commandeDiagnostic,
+    'lancer-fonction': commandeLancerFonction,
+  };
   if (!commandes[commande]) {
-    console.error('Usage : node securite/sauvegardes.mjs droits | planifier | verifier | diagnostic');
+    console.error('Usage : node securite/sauvegardes.mjs droits | planifier | verifier | diagnostic | lancer-fonction');
     return 2;
   }
   const jeton = env.JETON_GOOGLE;
@@ -448,7 +536,13 @@ export async function principal(argv, { fetcher = fetch, env = process.env, main
   const ecrireResume = (texte) => {
     if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, texte);
   };
-  return commandes[commande]({ fetcher, jeton, maintenant, ecrireResume });
+  return commandes[commande]({
+    fetcher,
+    jeton,
+    maintenant,
+    ecrireResume,
+    pause: pause ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
+  });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) principal(process.argv.slice(2)).then((code) => process.exit(code));

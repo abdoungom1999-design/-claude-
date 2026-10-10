@@ -781,6 +781,13 @@ Google a réellement accordé (lecture seule, rien n'est modifié) : GitHub >
 dit pour chacun des deux rôles s'il est « présent » ou « ABSENT », et teste un
 par un les droits du compte de déploiement pour l'essai de restauration.
 
+Après la publication de la fonction, le même diagnostic dit où en est sa tâche
+planifiée (état, heure de la dernière exécution, réussie ou échouée), et la
+case **lancer_fonction** du même flux force une exécution tout de suite : la
+fonction fait son contrôle avec les droits du compte qui l'exécute, puis le flux
+dit ce que Google en a vu (elle ne prévient les Admin que s'il y a un problème,
+ou le dimanche).
+
 Coût : une tâche Cloud Scheduler en plus (les trois premières par compte de
 facturation sont gratuites, 0,10 $ par mois au-delà), une exécution par jour
 (dans le quota gratuit des fonctions), notifications gratuites.

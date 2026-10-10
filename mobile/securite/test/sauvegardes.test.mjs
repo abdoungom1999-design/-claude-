@@ -11,8 +11,11 @@ import {
   ROLES_FONCTION,
   decrireStatistiques,
   ecartsDeRetention,
+  etatDerniereExecution,
   evaluerFraicheur,
   formaterAge,
+  lancerTacheFonction,
+  lireTacheFonction,
   planificationsACreer,
   principal,
   resumeMarkdown,
@@ -41,13 +44,18 @@ const sauvegarde = (heures, extra = {}) => ({
 /** Faux serveur Google : réponses par « METHODE adresse » ; garde la trace des appels. */
 function fauxGoogle(routes) {
   const appels = [];
+  const compteurs = {};
   const fetcher = async (url, options = {}) => {
     const methode = options.method ?? 'GET';
     const cle = `${methode} ${url}`;
     const corps = options.body ? JSON.parse(options.body) : undefined;
     appels.push({ methode, url, corps, autorisation: options.headers?.authorization });
-    // Une route peut être une fonction du corps de la demande (réponse qui dépend de ce qui est demandé).
-    const route = typeof routes[cle] === 'function' ? routes[cle](corps) : routes[cle];
+    compteurs[cle] = (compteurs[cle] ?? 0) + 1;
+    // Une route peut être une fonction du corps de la demande (réponse qui dépend de ce qui est demandé),
+    // ou une liste : une réponse par appel, la dernière se répète.
+    let brute = routes[cle];
+    if (Array.isArray(brute)) brute = brute[Math.min(compteurs[cle], brute.length) - 1];
+    const route = typeof brute === 'function' ? brute(corps, compteurs[cle]) : brute;
     const reponse = route ?? { statut: 404, corps: { error: { message: `route inconnue : ${cle}` } } };
     return new Response(JSON.stringify(reponse.corps ?? {}), { status: reponse.statut ?? 200 });
   };
@@ -495,6 +503,128 @@ test('diagnostic : lectures refusées ou permission inconnue = dit « illisible 
   assert.equal(sansPolitique.code, 0);
   assert.match(sansPolitique.sortie, /Ses rôles sur le projet : illisibles\. .*HTTP 403/);
   assert.match(sansPolitique.sortie, /rôles à donner à ce compte : non vérifiés/);
+});
+
+const URL_TACHES = 'https://cloudscheduler.googleapis.com/v1/projects/sprint-vtc/locations/europe-west1/jobs';
+const NOM_TACHE = 'projects/sprint-vtc/locations/europe-west1/jobs/firebase-schedule-verifierSauvegardes-europe-west1';
+const URL_LANCER = `https://cloudscheduler.googleapis.com/v1/${NOM_TACHE}:run`;
+const tache = (extra = {}) => ({
+  name: NOM_TACHE,
+  state: 'ENABLED',
+  schedule: '7 9 * * *',
+  timeZone: 'Africa/Dakar',
+  ...extra,
+});
+const autreTache = { name: 'projects/sprint-vtc/locations/europe-west1/jobs/firebase-schedule-surveillerCommandes-europe-west1', state: 'ENABLED' };
+
+test('tâche planifiée de la fonction : trouvée parmi les autres, absente tant que la fonction n\'est pas publiée, ou illisible', async () => {
+  const trouvee = fauxGoogle({ [`GET ${URL_TACHES}`]: { corps: { jobs: [autreTache, tache({ lastAttemptTime: '2026-10-11T09:07:03Z' })] } } });
+  const lue = await lireTacheFonction(trouvee.fetcher, JETON);
+  assert.equal(lue.tache.name, NOM_TACHE);
+  assert.equal(lue.tache.lastAttemptTime, '2026-10-11T09:07:03Z');
+
+  const absente = fauxGoogle({ [`GET ${URL_TACHES}`]: { corps: { jobs: [autreTache] } } });
+  assert.deepEqual(await lireTacheFonction(absente.fetcher, JETON), { absente: true });
+  const vide = fauxGoogle({ [`GET ${URL_TACHES}`]: { corps: {} } });
+  assert.deepEqual(await lireTacheFonction(vide.fetcher, JETON), { absente: true });
+
+  const refus = fauxGoogle({ [`GET ${URL_TACHES}`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
+  assert.match((await lireTacheFonction(refus.fetcher, JETON)).erreur, /Lecture des tâches planifiées impossible \(HTTP 403\) : Permission denied/);
+});
+
+test('dernière exécution de la tâche : réussie, échouée avec le code de Google, ou pas encore lancée', () => {
+  assert.equal(etatDerniereExecution(tache()), 'pas encore lancée');
+  assert.equal(etatDerniereExecution(tache({ lastAttemptTime: 'x' })), 'réussie');
+  assert.equal(etatDerniereExecution(tache({ lastAttemptTime: 'x', status: {} })), 'réussie');
+  assert.equal(etatDerniereExecution(tache({ lastAttemptTime: 'x', status: { code: 0 } })), 'réussie');
+  assert.equal(etatDerniereExecution(tache({ lastAttemptTime: 'x', status: { code: 13, message: 'INTERNAL' } })), 'ÉCHOUÉE (code 13 : INTERNAL)');
+  assert.equal(etatDerniereExecution(tache({ lastAttemptTime: 'x', status: { code: 7 } })), 'ÉCHOUÉE (code 7)');
+});
+
+test('diagnostic : dit où en est la tâche planifiée de la fonction de contrôle', async () => {
+  const publiee = await lancer(
+    ['diagnostic'],
+    routesDiagnostic({ extra: { [`GET ${URL_TACHES}`]: { corps: { jobs: [tache({ lastAttemptTime: '2026-10-11T09:07:03Z', status: {} })] } } } }),
+  );
+  assert.match(
+    publiee.sortie,
+    /Fonction de contrôle verifierSauvegardes : tâche firebase-schedule-verifierSauvegardes-europe-west1, état ENABLED, planification « 7 9 \* \* \* » \(Africa\/Dakar\), dernière exécution 2026-10-11T09:07:03Z : réussie\./,
+  );
+
+  const pasPubliee = await lancer(['diagnostic'], routesDiagnostic({ extra: { [`GET ${URL_TACHES}`]: { corps: { jobs: [autreTache] } } } }));
+  assert.match(pasPubliee.sortie, /pas de tâche planifiée \(la fonction n'est pas encore publiée\)/);
+
+  const illisible = await lancer(['diagnostic'], routesDiagnostic({ extra: { [`GET ${URL_TACHES}`]: { statut: 403, corps: { error: { message: 'refusé' } } } } }));
+  assert.match(illisible.sortie, /tâche planifiée illisible\. .*HTTP 403/);
+  for (const r of [publiee, pasPubliee, illisible]) {
+    assert.equal(r.code, 0);
+    assert.doesNotMatch(r.sortie, /undefined|NaN/);
+  }
+});
+
+test('lancer-fonction : force la tâche, attend la nouvelle exécution et la dit réussie', async () => {
+  const { fetcher, appels } = fauxGoogle({
+    [`GET ${URL_TACHES}`]: [
+      { corps: { jobs: [tache({ lastAttemptTime: '2026-10-10T09:07:01Z', status: {} })] } },
+      { corps: { jobs: [tache({ lastAttemptTime: '2026-10-10T09:07:01Z', status: {} })] } },
+      { corps: { jobs: [tache({ lastAttemptTime: '2026-10-10T15:42:10Z', status: {} })] } },
+    ],
+    [`POST ${URL_LANCER}`]: { corps: tache() },
+  });
+  const sortie = [];
+  const journal = mock.method(console, 'log', (...morceaux) => sortie.push(morceaux.join(' ')));
+  const pauses = [];
+  try {
+    const code = await principal(['lancer-fonction'], { fetcher, env: { JETON_GOOGLE: JETON }, maintenant: MAINTENANT, pause: async (ms) => pauses.push(ms) });
+    assert.equal(code, 0);
+  } finally {
+    journal.mock.restore();
+  }
+  const texte = sortie.join('\n');
+  assert.match(texte, /Tâche firebase-schedule-verifierSauvegardes-europe-west1 lancée \(dernière exécution connue : 2026-10-10T09:07:01Z\)/);
+  assert.match(texte, /Dernière exécution : 2026-10-10T15:42:10Z : réussie\./);
+  assert.match(texte, /::notice title=Fonction de contrôle lancée::/);
+  assert.deepEqual(appels.map((a) => a.methode), ['GET', 'POST', 'GET', 'GET']);
+  assert.deepEqual(pauses, [5000, 5000]);
+});
+
+test('lancer-fonction : fonction pas publiée, lancement refusé, exécution en échec ou jamais confirmée = code 1', async () => {
+  const absente = await lancer(['lancer-fonction'], { [`GET ${URL_TACHES}`]: { corps: { jobs: [autreTache] } } });
+  assert.equal(absente.code, 1);
+  assert.match(absente.sortie, /::error title=Fonction non lancée::Pas de tâche planifiée pour verifierSauvegardes/);
+  assert.equal(absente.appels.some((a) => a.methode === 'POST'), false);
+
+  const refusee = await lancer(['lancer-fonction'], {
+    [`GET ${URL_TACHES}`]: { corps: { jobs: [tache()] } },
+    [`POST ${URL_LANCER}`]: { statut: 403, corps: { error: { message: 'Permission denied' } } },
+  });
+  assert.equal(refusee.code, 1);
+  assert.match(refusee.sortie, /Lancement de la tâche impossible \(HTTP 403\) : Permission denied/);
+
+  const enEchec = await lancer(['lancer-fonction'], {
+    [`GET ${URL_TACHES}`]: [
+      { corps: { jobs: [tache()] } },
+      { corps: { jobs: [tache({ lastAttemptTime: '2026-10-10T15:42:10Z', status: { code: 13, message: 'INTERNAL' } })] } },
+    ],
+    [`POST ${URL_LANCER}`]: { corps: tache() },
+  });
+  assert.equal(enEchec.code, 1);
+  assert.match(enEchec.sortie, /::error title=Fonction de contrôle en échec::La tâche planifiée a rendu : ÉCHOUÉE \(code 13 : INTERNAL\)/);
+
+  const muette = await lancer(['lancer-fonction'], {
+    [`GET ${URL_TACHES}`]: { corps: { jobs: [tache({ lastAttemptTime: '2026-10-10T09:07:01Z' })] } },
+    [`POST ${URL_LANCER}`]: { corps: tache() },
+  });
+  assert.equal(muette.code, 1);
+  assert.match(muette.sortie, /::warning title=Exécution non confirmée::/);
+});
+
+test('lancer-fonction (module) : le lancement renvoie la tâche trouvée', async () => {
+  const { fetcher, appels } = fauxGoogle({ [`GET ${URL_TACHES}`]: { corps: { jobs: [tache()] } }, [`POST ${URL_LANCER}`]: { corps: tache() } });
+  const r = await lancerTacheFonction(fetcher, JETON);
+  assert.equal(r.lancee, true);
+  assert.equal(r.tache.name, NOM_TACHE);
+  assert.deepEqual(appels.at(-1).corps, {});
 });
 
 test('commande inconnue ou jeton absent : code 2, et le jeton n\'est jamais affiché', async () => {
