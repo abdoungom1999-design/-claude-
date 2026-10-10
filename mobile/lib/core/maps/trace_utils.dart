@@ -34,18 +34,24 @@ abstract final class TraceUtils {
     var latitude = 0;
     var longitude = 0;
 
+    // De l'arithmétique, jamais d'opérateurs binaires (« ~ », « << », « >> », « | ») :
+    // sur le web (la PWA de l'iPhone), ils ne travaillent que sur 32 bits et « ~ » rend un
+    // entier non signé. Chaque coordonnée négative (toutes les longitudes de Dakar) sortait
+    // alors du globe et l'itinéraire du chauffeur retombait sur la ligne droite. Les tests
+    // de la machine virtuelle ne le voyaient pas : voir aussi `trace_utils_test.dart`.
     int lireValeur() {
       var resultat = 0;
-      var decalage = 0;
+      var poids = 1;
       int octet;
       do {
         if (index >= encode.length) throw const FormatException('Tracé tronqué.');
         octet = encode.codeUnitAt(index++) - 63;
         if (octet < 0) throw const FormatException('Caractère de tracé invalide.');
-        resultat |= (octet & 0x1f) << decalage;
-        decalage += 5;
-      } while (octet >= 0x20);
-      return (resultat & 1) != 0 ? ~(resultat >> 1) : (resultat >> 1);
+        resultat += (octet % 32) * poids;
+        poids *= 32;
+      } while (octet >= 32);
+      // Pair : positif ; impair : négatif (valeur = -(résultat + 1) / 2).
+      return resultat.isOdd ? -((resultat + 1) ~/ 2) : resultat ~/ 2;
     }
 
     while (index < encode.length) {

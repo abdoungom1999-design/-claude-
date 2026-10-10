@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sprint/core/maps/trace_utils.dart';
@@ -54,6 +56,48 @@ void main() {
         expect(decode[i].latitude, closeTo(trace[i].latitude, 1e-9));
         expect(decode[i].longitude, closeTo(trace[i].longitude, 1e-9));
       }
+    });
+
+    test('tracé du serveur à Dakar : longitudes négatives, deltas des deux signes', () {
+      // Réponse réelle de la fonction itineraireCourse sur l'émulateur : le décodage de ce texte
+      // donnait « coordonnées hors du globe » sur le web (la PWA), pas sur la machine virtuelle.
+      final points = TraceUtils.decoder('czsxAv}piB?gRmL??eRmL??me@');
+      const attendus = [
+        LatLng(14.6885, -17.459),
+        LatLng(14.6885, -17.45592),
+        LatLng(14.69065, -17.45592),
+        LatLng(14.69065, -17.45285),
+        LatLng(14.6928, -17.45285),
+        LatLng(14.6928, -17.4467),
+      ];
+      expect(points, hasLength(attendus.length));
+      for (var i = 0; i < attendus.length; i++) {
+        expect(points[i].latitude, closeTo(attendus[i].latitude, 1e-9), reason: 'latitude $i');
+        expect(points[i].longitude, closeTo(attendus[i].longitude, 1e-9), reason: 'longitude $i');
+      }
+    });
+
+    test('aller-retour sur un maillage de Dakar, dans les deux sens (deltas négatifs et positifs)', () {
+      final trace = [
+        for (var i = 0; i < 40; i++) LatLng(14.60 + (i * 37 % 29) / 100, -17.55 + (i * 53 % 31) / 100),
+      ];
+      final decode = TraceUtils.decoder(_encoder(trace));
+      expect(decode, hasLength(trace.length));
+      for (var i = 0; i < trace.length; i++) {
+        expect(decode[i].latitude, closeTo(trace[i].latitude, 1e-5), reason: 'latitude $i');
+        expect(decode[i].longitude, closeTo(trace[i].longitude, 1e-5), reason: 'longitude $i');
+      }
+    });
+
+    test('le décodeur n\'emploie aucun opérateur binaire : ils sont faux sur le web (32 bits, « ~ » non signé)', () {
+      // Cette suite tourne sur la machine virtuelle, où les entiers font 64 bits : elle ne peut pas
+      // voir ce défaut. On garde donc la cause hors du code (voir le commentaire de lireValeur).
+      final source = File('lib/core/maps/trace_utils.dart')
+          .readAsLinesSync()
+          .where((ligne) => !ligne.trimLeft().startsWith('//'))
+          .join('\n');
+      final binaire = RegExp(r'<<|>>|\|=|&=|(?<![~/])~(?!/)|\s&\s|\s\|\s|\s\^\s');
+      expect(binaire.allMatches(source).map((m) => m.group(0)).toList(), isEmpty);
     });
 
     test('texte vide : aucun point', () {

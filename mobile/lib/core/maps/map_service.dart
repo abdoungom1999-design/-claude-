@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../config/google_maps_config.dart';
 import '../network/api_exception.dart';
+import 'trace_utils.dart';
 
 /// Suggestion d'adresse retournée par l'autocomplétion Google Places.
 class SuggestionAdresseGoogle {
@@ -227,35 +228,8 @@ class MapService {
   }
 
   /// Décode une polyligne encodée (algorithme standard Google) en une
-  /// liste de points, pour tracer l'itinéraire sur la carte.
-  List<LatLng> _decoderPolyline(String encodee) {
-    final points = <LatLng>[];
-    var index = 0;
-    var lat = 0;
-    var lng = 0;
-
-    while (index < encodee.length) {
-      var resultat = 0;
-      var decalage = 0;
-      int octet;
-      do {
-        octet = encodee.codeUnitAt(index++) - 63;
-        resultat |= (octet & 0x1f) << decalage;
-        decalage += 5;
-      } while (octet >= 0x20);
-      lat += (resultat & 1) != 0 ? ~(resultat >> 1) : (resultat >> 1);
-
-      resultat = 0;
-      decalage = 0;
-      do {
-        octet = encodee.codeUnitAt(index++) - 63;
-        resultat |= (octet & 0x1f) << decalage;
-        decalage += 5;
-      } while (octet >= 0x20);
-      lng += (resultat & 1) != 0 ? ~(resultat >> 1) : (resultat >> 1);
-
-      points.add(LatLng(lat / 1e5, lng / 1e5));
-    }
-    return points;
-  }
+  /// liste de points, pour tracer l'itinéraire sur la carte. Un seul
+  /// décodeur dans l'app : [TraceUtils.decoder], correct aussi sur le web.
+  List<LatLng> _decoderPolyline(String encodee) =>
+      TraceUtils.decoder(encodee).map((p) => LatLng(p.latitude, p.longitude)).toList();
 }
