@@ -810,8 +810,9 @@ Après la publication de la fonction, le même diagnostic dit où en est sa tâc
 planifiée (état, heure de la dernière exécution, réussie ou échouée), et la
 case **lancer_fonction** du même flux force une exécution tout de suite : la
 fonction fait son contrôle avec les droits du compte qui l'exécute, puis le flux
-dit ce que Google en a vu (elle ne prévient les Admin que s'il y a un problème,
-ou le dimanche).
+dit ce que Google en a vu et affiche les lignes qu'elle a écrites dans son
+journal (son verdict : « Dernière sauvegarde il y a N h. » ; en échec s'il y a
+une erreur). Elle ne prévient les Admin que s'il y a un problème, ou le dimanche.
 
 Coût : une tâche Cloud Scheduler en plus (les trois premières par compte de
 facturation sont gratuites, 0,10 $ par mois au-delà), une exécution par jour

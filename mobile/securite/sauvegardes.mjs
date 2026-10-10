@@ -327,6 +327,26 @@ export function etatDerniereExecution(tache) {
   return code === 0 ? 'réussie' : `ÉCHOUÉE (code ${code}${statut.message ? ` : ${statut.message}` : ''})`;
 }
 
+const CLOUD_LOGGING = 'https://logging.googleapis.com/v2';
+
+/**
+ * Lignes que la fonction `verifierSauvegardes` a écrites dans son journal (Cloud Logging) depuis cet instant, la
+ * plus ancienne d'abord : ce qu'elle a réellement vu et décidé. `{ erreur }` si le journal est illisible.
+ */
+export async function lireJournalFonction(fetcher, jeton, depuis) {
+  const r = await appeler(fetcher, jeton, 'POST', `${CLOUD_LOGGING}/entries:list`, {
+    resourceNames: [`projects/${PROJET}`],
+    filter: `resource.labels.service_name="verifiersauvegardes" AND timestamp>="${depuis}"`,
+    orderBy: 'timestamp asc',
+    pageSize: 50,
+  });
+  if (!r.ok) return { erreur: `Lecture du journal impossible (HTTP ${r.statut}) : ${detail(r)}` };
+  const lignes = (Array.isArray(r.json?.entries) ? r.json.entries : [])
+    .map((e) => ({ quand: e?.timestamp ?? '?', gravite: String(e?.severity ?? 'DEFAULT'), texte: String(e?.jsonPayload?.message ?? e?.textPayload ?? '').slice(0, 300) }))
+    .filter((ligne) => ligne.texte);
+  return { lignes };
+}
+
 /** Force une exécution de la tâche planifiée (la fonction fait alors son contrôle, comme à 09 h 07). */
 export async function lancerTacheFonction(fetcher, jeton) {
   const lue = await lireTacheFonction(fetcher, jeton);
@@ -502,11 +522,41 @@ async function commandeDiagnostic({ fetcher, jeton }) {
 }
 
 /**
+ * Affiche ce que la fonction a écrit dans son journal pendant son exécution (il arrive quelques secondes après).
+ * Code 1 si elle y a écrit une erreur : elle a vu un problème de sauvegarde, ou n'a pas pu lire.
+ */
+async function afficherJournalFonction({ fetcher, jeton, pause, depuis }) {
+  let journal = { lignes: [] };
+  for (let essai = 0; essai < 4; essai++) {
+    await pause(8000);
+    journal = await lireJournalFonction(fetcher, jeton, depuis);
+    if (journal.erreur || journal.lignes.length > 0) break;
+  }
+  if (journal.erreur) {
+    console.log(`Journal de la fonction : illisible. ${journal.erreur}`);
+    return 0;
+  }
+  if (journal.lignes.length === 0) {
+    console.log("Journal de la fonction : aucune ligne pour cette exécution (pas encore arrivée chez Google ?).");
+    return 0;
+  }
+  console.log('Journal de la fonction :');
+  for (const ligne of journal.lignes) console.log(`  ${ligne.quand} ${ligne.gravite.padEnd(7)} ${ligne.texte}`);
+  const erreurs = journal.lignes.filter((ligne) => ligne.gravite === 'ERROR' || ligne.gravite === 'CRITICAL');
+  if (erreurs.length > 0) {
+    annoncerErreur('La fonction a signalé un problème', erreurs.map((ligne) => ligne.texte).join(' | '));
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Force une exécution de la fonction de contrôle (tâche Cloud Scheduler) et dit ce que Google en a vu :
  * la preuve, tout de suite, que la fonction tourne avec les droits du compte qui l'exécute.
  * Elle n'écrit rien chez Google ; elle ne prévient les Admin que s'il y a un problème (ou le dimanche).
  */
-async function commandeLancerFonction({ fetcher, jeton, pause }) {
+async function commandeLancerFonction({ fetcher, jeton, pause, maintenant }) {
+  const depuis = new Date(maintenant.getTime() - 5000).toISOString();
   const lancement = await lancerTacheFonction(fetcher, jeton);
   if (lancement.erreur) {
     annoncerErreur('Fonction non lancée', lancement.erreur);
@@ -529,7 +579,7 @@ async function commandeLancerFonction({ fetcher, jeton, pause }) {
         return 1;
       }
       annoncerNotice('Fonction de contrôle lancée', `La fonction verifierSauvegardes a tourné chez Google (${lue.tache.lastAttemptTime}) : ${etat}.`);
-      return 0;
+      return afficherJournalFonction({ fetcher, jeton, pause, depuis });
     }
   }
   annoncerAvertissement('Exécution non confirmée', "Google n'a pas encore indiqué de nouvelle exécution au bout d'une minute : relancer le diagnostic dans quelques minutes.");

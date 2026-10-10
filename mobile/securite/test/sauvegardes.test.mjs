@@ -16,6 +16,7 @@ import {
   formaterAge,
   lancerTacheFonction,
   listerBases,
+  lireJournalFonction,
   lireTacheFonction,
   planificationsACreer,
   principal,
@@ -74,11 +75,16 @@ const JETON = 'jeton-de-test-ne-jamais-afficher';
 async function lancer(argv, routes, { env = {}, maintenant = MAINTENANT } = {}) {
   const { fetcher, appels } = fauxGoogle(routes);
   const sortie = [];
+  const pauses = [];
   const journal = mock.method(console, 'log', (...morceaux) => sortie.push(morceaux.join(' ')));
   const erreurs = mock.method(console, 'error', (...morceaux) => sortie.push(morceaux.join(' ')));
   try {
-    const code = await principal(argv, { fetcher, env: { JETON_GOOGLE: JETON, ...env }, maintenant });
-    return { code, sortie: sortie.join('\n'), appels };
+    // Les attentes (suivi de la tâche planifiée, arrivée du journal) sont notées, pas vécues.
+    const pause = async (ms) => {
+      pauses.push(ms);
+    };
+    const code = await principal(argv, { fetcher, env: { JETON_GOOGLE: JETON, ...env }, maintenant, pause });
+    return { code, sortie: sortie.join('\n'), appels, pauses };
   } finally {
     journal.mock.restore();
     erreurs.mock.restore();
@@ -610,8 +616,68 @@ test('lancer-fonction : force la tâche, attend la nouvelle exécution et la dit
   assert.match(texte, /Tâche firebase-schedule-verifierSauvegardes-europe-west1 lancée \(dernière exécution connue : 2026-10-10T09:07:01Z\)/);
   assert.match(texte, /Dernière exécution : 2026-10-10T15:42:10Z : réussie\./);
   assert.match(texte, /::notice title=Fonction de contrôle lancée::/);
-  assert.deepEqual(appels.map((a) => a.methode), ['GET', 'POST', 'GET', 'GET']);
-  assert.deepEqual(pauses, [5000, 5000]);
+  assert.deepEqual(appels.map((a) => a.methode), ['GET', 'POST', 'GET', 'GET', 'POST']);
+  assert.deepEqual(pauses, [5000, 5000, 8000]);
+  // Sans accès au journal, l'exécution reste réussie : on le dit, sans faire échouer.
+  assert.match(texte, /Journal de la fonction : illisible\. .*HTTP 404/);
+});
+
+const URL_JOURNAL = 'https://logging.googleapis.com/v2/entries:list';
+const entree = (quand, gravite, message) => ({ timestamp: quand, severity: gravite, jsonPayload: { message } });
+
+test('journal de la fonction : lignes lues depuis l\'instant du lancement, la plus ancienne d\'abord', async () => {
+  const { fetcher, appels } = fauxGoogle({
+    [`POST ${URL_JOURNAL}`]: {
+      corps: {
+        entries: [
+          entree('2026-10-10T23:50:01Z', 'INFO', 'Sauvegardes Firestore : Dernière sauvegarde il y a 8 h.'),
+          { timestamp: '2026-10-10T23:50:02Z', severity: 'DEFAULT', textPayload: 'Function execution took 900 ms' },
+          { timestamp: '2026-10-10T23:50:03Z', severity: 'INFO' },
+        ],
+      },
+    },
+  });
+  const r = await lireJournalFonction(fetcher, JETON, '2026-10-10T23:49:55.000Z');
+  assert.deepEqual(r.lignes.map((l) => [l.quand, l.gravite, l.texte]), [
+    ['2026-10-10T23:50:01Z', 'INFO', 'Sauvegardes Firestore : Dernière sauvegarde il y a 8 h.'],
+    ['2026-10-10T23:50:02Z', 'DEFAULT', 'Function execution took 900 ms'],
+  ]);
+  assert.deepEqual(appels[0].corps, {
+    resourceNames: ['projects/sprint-vtc'],
+    filter: 'resource.labels.service_name="verifiersauvegardes" AND timestamp>="2026-10-10T23:49:55.000Z"',
+    orderBy: 'timestamp asc',
+    pageSize: 50,
+  });
+
+  const refus = fauxGoogle({ [`POST ${URL_JOURNAL}`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
+  assert.match((await lireJournalFonction(refus.fetcher, JETON, 'x')).erreur, /Lecture du journal impossible \(HTTP 403\) : Permission denied/);
+  const vide = fauxGoogle({ [`POST ${URL_JOURNAL}`]: { corps: {} } });
+  assert.deepEqual(await lireJournalFonction(vide.fetcher, JETON, 'x'), { lignes: [] });
+});
+
+test('lancer-fonction : montre le journal de la fonction (son verdict), et échoue si elle y a écrit une erreur', async () => {
+  const routes = (entrees) => ({
+    [`GET ${URL_TACHES}`]: [
+      { corps: { jobs: [tache({ lastAttemptTime: '2026-10-10T09:07:01Z' })] } },
+      { corps: { jobs: [tache({ lastAttemptTime: '2026-10-10T23:50:00Z', status: {} })] } },
+    ],
+    [`POST ${URL_LANCER}`]: { corps: tache() },
+    [`POST ${URL_JOURNAL}`]: [{ corps: {} }, { corps: { entries: entrees } }],
+  });
+
+  const bien = await lancer(['lancer-fonction'], routes([entree('2026-10-10T23:50:01Z', 'INFO', 'Sauvegardes Firestore : Dernière sauvegarde il y a 8 h.')]));
+  assert.equal(bien.code, 0, bien.sortie);
+  assert.match(bien.sortie, /Journal de la fonction :\n {2}2026-10-10T23:50:01Z INFO {4}Sauvegardes Firestore : Dernière sauvegarde il y a 8 h\./);
+  assert.equal(bien.pauses.filter((ms) => ms === 8000).length, 2, 'le journal arrive avec un peu de retard : on réessaie');
+
+  const probleme = await lancer(['lancer-fonction'], routes([entree('2026-10-10T23:50:01Z', 'ERROR', 'Sauvegardes Firestore à vérifier : Planification absente : hebdomadaire.')]));
+  assert.equal(probleme.code, 1);
+  assert.match(probleme.sortie, /::error title=La fonction a signalé un problème::Sauvegardes Firestore à vérifier : Planification absente : hebdomadaire\./);
+
+  const rien = await lancer(['lancer-fonction'], { ...routes([]), [`POST ${URL_JOURNAL}`]: { corps: {} } });
+  assert.equal(rien.code, 0);
+  assert.match(rien.sortie, /Journal de la fonction : aucune ligne pour cette exécution/);
+  assert.equal(rien.pauses.filter((ms) => ms === 8000).length, 4);
 });
 
 test('lancer-fonction : fonction pas publiée, lancement refusé, exécution en échec ou jamais confirmée = code 1', async () => {
