@@ -7,6 +7,7 @@ import {
   BASE_DE_DONNEES,
   DROITS_REQUIS,
   PLANIFICATIONS,
+  decrireStatistiques,
   ecartsDeRetention,
   evaluerFraicheur,
   formaterAge,
@@ -15,6 +16,7 @@ import {
   resumeMarkdown,
   retentionEnSecondes,
   sauvegardesDeLaBase,
+  statistiquesDe,
   typeDePlanification,
   verifierDroits,
 } from '../sauvegardes.mjs';
@@ -281,6 +283,63 @@ test('verifier : sauvegarde récente = code 0, résumé écrit pour la page du r
   } finally {
     rmSync(dossier, { recursive: true, force: true });
   }
+});
+
+test('statistiques d\'une sauvegarde : taille en Mo et documents, ou rien tant que Google ne les donne pas', () => {
+  assert.deepEqual(statistiquesDe(sauvegarde(1)), { taille: '2.5 Mo', documents: 1234 });
+  for (const stats of [undefined, null, {}, { sizeBytes: 'abc' }, { sizeBytes: null, documentCount: '' }, { sizeBytes: -5, documentCount: '-1' }]) {
+    assert.deepEqual(statistiquesDe({ stats }), { taille: null, documents: null }, JSON.stringify(stats));
+  }
+  assert.deepEqual(statistiquesDe(undefined), { taille: null, documents: null });
+  assert.deepEqual(statistiquesDe({ stats: { documentCount: '42' } }), { taille: null, documents: 42 });
+
+  assert.equal(decrireStatistiques(sauvegarde(1)), '2.5 Mo  1234 documents');
+  assert.equal(decrireStatistiques({}), 'taille et nombre de documents non communiqués par Google');
+  assert.equal(decrireStatistiques({ stats: { documentCount: '42' } }), 'taille inconnue  42 documents');
+  assert.equal(decrireStatistiques({ stats: { sizeBytes: '1500000' } }), '1.5 Mo  ? documents');
+});
+
+test('verifier : sauvegarde prête sans statistiques (Google ne les donne pas encore) = code 0, jamais « NaN »', async () => {
+  const dossier = mkdtempSync(path.join(tmpdir(), 'sauvegardes-'));
+  const resume = path.join(dossier, 'resume.md');
+  try {
+    const r = await lancer(
+      ['verifier'],
+      {
+        [`GET ${URL_PLANIFICATIONS}`]: { corps: { backupSchedules: [quotidienne(), hebdomadaire()] } },
+        [`GET ${URL_BASE}`]: { corps: { locationId: 'eur3' } },
+        // stats absent de la réponse : JSON.stringify écarte la valeur undefined.
+        [`GET ${URL_SAUVEGARDES}`]: { corps: { backups: [sauvegarde(21, { stats: undefined })] } },
+      },
+      { env: { GITHUB_STEP_SUMMARY: resume } },
+    );
+    assert.equal(r.code, 0);
+    assert.match(r.sortie, /1 prête\(s\)\. Dernière sauvegarde il y a 21 h/);
+    assert.match(r.sortie, /taille et nombre de documents non communiqués par Google/);
+    assert.match(r.sortie, /état READY ; champs reçus : database, expireTime, name, snapshotTime, state\./);
+    assert.match(r.sortie, /::notice title=Taille de la sauvegarde non communiquée::/);
+    assert.doesNotMatch(r.sortie, /NaN/);
+
+    const texte = readFileSync(resume, 'utf8');
+    assert.match(texte, /Sauvegardes de la base Firestore · OK/);
+    assert.match(texte, /\| non communiquée \| non communiqué \|/);
+    assert.match(texte, /entièrement copiée/);
+    assert.doesNotMatch(texte, /NaN/);
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+});
+
+test('verifier : avec les statistiques, pas de notice ni de mention « non communiqué »', async () => {
+  const r = await lancer(['verifier'], {
+    [`GET ${URL_PLANIFICATIONS}`]: { corps: { backupSchedules: [quotidienne(), hebdomadaire()] } },
+    [`GET ${URL_BASE}`]: { corps: { locationId: 'eur3' } },
+    [`GET ${URL_SAUVEGARDES}`]: { corps: { backups: [sauvegarde(5)] } },
+  });
+  assert.equal(r.code, 0);
+  assert.match(r.sortie, /2\.5 Mo\s+1234 documents/);
+  assert.match(r.sortie, /champs reçus : database, expireTime, name, snapshotTime, state, stats\./);
+  assert.doesNotMatch(r.sortie, /non communiqu|::notice/);
 });
 
 test('verifier : sauvegarde périmée, absente ou planification manquante = code 1 avec une erreur visible', async () => {

@@ -144,7 +144,34 @@ export function evaluerFraicheur({ planifications, sauvegardes, maintenant = new
   return { statut: 'perimee', derniere, ageHeures, message };
 }
 
-const enMegaoctets = (octets) => (Number(octets) / 1_000_000).toFixed(1);
+/** Entier d'une réponse JSON de Google (les int64 arrivent en texte) ; null s'il est absent ou illisible. */
+const entierGoogle = (valeur) => {
+  if (typeof valeur === 'number' && Number.isFinite(valeur) && valeur >= 0) return valeur;
+  if (typeof valeur === 'string' && /^\d+$/.test(valeur)) return Number(valeur);
+  return null;
+};
+
+/**
+ * Taille (« 2.5 Mo ») et nombre de documents d'une sauvegarde, ou null pour
+ * chacun tant que Google ne les donne pas : le champ `stats` reste vide jusqu'à
+ * ce que la sauvegarde soit entièrement copiée sur son stockage secondaire
+ * (documentation de l'API Firestore Admin). Une sauvegarde prête sans `stats`
+ * existe bel et bien, mais son contenu n'est pas chiffré : jamais « NaN ».
+ */
+export function statistiquesDe(sauvegarde) {
+  const octets = entierGoogle(sauvegarde?.stats?.sizeBytes);
+  return {
+    taille: octets === null ? null : `${(octets / 1_000_000).toFixed(1)} Mo`,
+    documents: entierGoogle(sauvegarde?.stats?.documentCount),
+  };
+}
+
+/** « 2.5 Mo  1234 documents », ou la mention que Google ne les a pas encore communiqués. */
+export function decrireStatistiques(sauvegarde) {
+  const { taille, documents } = statistiquesDe(sauvegarde);
+  if (taille === null && documents === null) return 'taille et nombre de documents non communiqués par Google';
+  return `${taille ?? 'taille inconnue'}  ${documents ?? '?'} documents`;
+}
 
 /** Résumé en Markdown pour la page du run (GITHUB_STEP_SUMMARY). */
 export function resumeMarkdown({ planifications, sauvegardes, evaluation, emplacement }) {
@@ -161,7 +188,11 @@ export function resumeMarkdown({ planifications, sauvegardes, evaluation, emplac
   } else {
     lignes.push('| Instantané (UTC) | Conservée jusqu\'au | Taille | Documents |', '|---|---|---|---|');
     for (const s of sauvegardes.slice(0, 5)) {
-      lignes.push(`| ${s.snapshotTime} | ${s.expireTime ?? '?'} | ${enMegaoctets(s.stats?.sizeBytes)} Mo | ${s.stats?.documentCount ?? '?'} |`);
+      const { taille, documents } = statistiquesDe(s);
+      lignes.push(`| ${s.snapshotTime} | ${s.expireTime ?? '?'} | ${taille ?? 'non communiquée'} | ${documents ?? 'non communiqué'} |`);
+    }
+    if (sauvegardes.slice(0, 5).some((s) => statistiquesDe(s).taille === null)) {
+      lignes.push('', 'Taille et nombre de documents : Google ne les renseigne qu\'une fois la sauvegarde entièrement copiée.');
     }
   }
   return `${lignes.join('\n')}\n`;
@@ -287,7 +318,20 @@ async function commandeVerifier({ fetcher, jeton, maintenant, ecrireResume }) {
   ecrireResume(resumeMarkdown({ planifications: lecture.planifications, sauvegardes: lues.sauvegardes, evaluation, emplacement: lues.emplacement }));
   console.log(`Sauvegardes (${lues.emplacement}) : ${lues.sauvegardes.length} prête(s). ${evaluation.message}`);
   for (const s of lues.sauvegardes.slice(0, 3)) {
-    console.log(`  ${s.snapshotTime}  ${enMegaoctets(s.stats?.sizeBytes)} Mo  ${s.stats?.documentCount ?? '?'} documents  jusqu'au ${s.expireTime ?? '?'}`);
+    console.log(`  ${s.snapshotTime}  ${decrireStatistiques(s)}  jusqu'au ${s.expireTime ?? '?'}`);
+  }
+  const derniere = lues.sauvegardes[0];
+  if (derniere) {
+    // Seulement les noms des champs : de quoi voir ce que Google renvoie vraiment, sans rien divulguer.
+    console.log(`  Dernière : état ${derniere.state ?? '?'} ; champs reçus : ${Object.keys(derniere).sort().join(', ')}.`);
+    const { taille, documents } = statistiquesDe(derniere);
+    if (taille === null && documents === null) {
+      annoncerNotice(
+        'Taille de la sauvegarde non communiquée',
+        'La sauvegarde existe et est prête, mais Google ne donne pas encore sa taille ni son nombre de documents ' +
+          '(champ « stats » vide tant qu\'elle n\'est pas entièrement copiée). Seul un essai de restauration prouve son contenu.',
+      );
+    }
   }
   if (evaluation.statut === 'ok') return 0;
   if (evaluation.statut === 'attente') {

@@ -646,8 +646,12 @@ elles continuent même si GitHub ou la CI s'arrêtent.
   dépôt, `firestore.rules`), les comptes de connexion (Firebase Auth) ni les
   fichiers (Firebase Storage : pièces KYC des chauffeurs).
 - Coût : facturé au volume stocké (par Go et par mois), donc modeste pour une
-  base de cette taille. La taille réelle de chaque sauvegarde est affichée
-  dans le résumé du contrôle (page du run, onglet Actions).
+  base de cette taille. La taille et le nombre de documents de chaque
+  sauvegarde sont affichés dans le résumé du contrôle (page du run, onglet
+  Actions) dès que Google les communique : il ne les renseigne qu'une fois la
+  sauvegarde entièrement copiée, et le contrôle écrit « non communiquée » d'ici
+  là. La sauvegarde existe alors, mais seul un essai de restauration (10.3)
+  prouve son contenu.
 
 ### 10.1 Mise en place (une seule fois)
 
