@@ -669,6 +669,7 @@ test('lancer-fonction : montre le journal de la fonction (son verdict), et écho
   assert.equal(bien.code, 0, bien.sortie);
   assert.match(bien.sortie, /Journal de la fonction :\n {2}2026-10-10T23:50:01Z INFO {4}Sauvegardes Firestore : Dernière sauvegarde il y a 8 h\./);
   assert.equal(bien.pauses.filter((ms) => ms === 8000).length, 2, 'le journal arrive avec un peu de retard : on réessaie');
+  assert.match(bien.sortie, /::notice title=Journal de la fonction::INFO Sauvegardes Firestore : Dernière sauvegarde il y a 8 h\./);
 
   const probleme = await lancer(['lancer-fonction'], routes([entree('2026-10-10T23:50:01Z', 'ERROR', 'Sauvegardes Firestore à vérifier : Planification absente : hebdomadaire.')]));
   assert.equal(probleme.code, 1);

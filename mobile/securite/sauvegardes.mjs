@@ -542,6 +542,8 @@ async function afficherJournalFonction({ fetcher, jeton, pause, depuis }) {
   }
   console.log('Journal de la fonction :');
   for (const ligne of journal.lignes) console.log(`  ${ligne.quand} ${ligne.gravite.padEnd(7)} ${ligne.texte}`);
+  // Aussi en annotation : lisible en haut de la page du run, sans ouvrir le journal.
+  annoncerNotice('Journal de la fonction', journal.lignes.map((ligne) => `${ligne.gravite} ${ligne.texte}`).join(' | ').slice(0, 900));
   const erreurs = journal.lignes.filter((ligne) => ligne.gravite === 'ERROR' || ligne.gravite === 'CRITICAL');
   if (erreurs.length > 0) {
     annoncerErreur('La fonction a signalé un problème', erreurs.map((ligne) => ligne.texte).join(' | '));
