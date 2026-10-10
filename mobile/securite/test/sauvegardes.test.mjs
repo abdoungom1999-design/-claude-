@@ -337,7 +337,7 @@ test('verifier : sauvegarde prête sans statistiques (Google ne les donne pas en
     const texte = readFileSync(resume, 'utf8');
     assert.match(texte, /Sauvegardes de la base Firestore · OK/);
     assert.match(texte, /\| non communiquée \| non communiqué \|/);
-    assert.match(texte, /entièrement copiée/);
+    assert.match(texte, /champ « stats » absent/);
     assert.doesNotMatch(texte, /NaN/);
   } finally {
     rmSync(dossier, { recursive: true, force: true });

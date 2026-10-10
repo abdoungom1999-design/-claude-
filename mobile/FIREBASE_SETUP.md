@@ -653,10 +653,10 @@ elles continuent même si GitHub ou la CI s'arrêtent.
 - Coût : facturé au volume stocké (par Go et par mois), donc modeste pour une
   base de cette taille. La taille et le nombre de documents de chaque
   sauvegarde sont affichés dans le résumé du contrôle (page du run, onglet
-  Actions) dès que Google les communique : il ne les renseigne qu'une fois la
-  sauvegarde entièrement copiée, et le contrôle écrit « non communiquée » d'ici
-  là. La sauvegarde existe alors, mais seul un essai de restauration (10.3)
-  prouve son contenu.
+  Actions) quand Google les communique ; le 10 octobre 2026 il ne l'a pas fait,
+  même 24 h après la prise (sa documentation parle d'une copie à terminer), et
+  le contrôle écrit alors « non communiquée ». La sauvegarde existe, mais seul
+  un essai de restauration (10.3) prouve son contenu.
 
 ### 10.1 Mise en place (une seule fois)
 

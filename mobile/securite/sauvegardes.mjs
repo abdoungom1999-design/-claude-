@@ -157,9 +157,10 @@ const entierGoogle = (valeur) => {
 
 /**
  * Taille (« 2.5 Mo ») et nombre de documents d'une sauvegarde, ou null pour
- * chacun tant que Google ne les donne pas : le champ `stats` reste vide jusqu'à
- * ce que la sauvegarde soit entièrement copiée sur son stockage secondaire
- * (documentation de l'API Firestore Admin). Une sauvegarde prête sans `stats`
+ * chacun quand Google ne les donne pas : la documentation de l'API Firestore
+ * Admin dit que le champ `stats` reste vide jusqu'à ce que la sauvegarde soit
+ * entièrement copiée sur son stockage secondaire, mais celle du 9 octobre 2026
+ * n'en avait toujours pas 24 h plus tard. Une sauvegarde prête sans `stats`
  * existe bel et bien, mais son contenu n'est pas chiffré : jamais « NaN ».
  */
 export function statistiquesDe(sauvegarde) {
@@ -196,7 +197,7 @@ export function resumeMarkdown({ planifications, sauvegardes, evaluation, emplac
       lignes.push(`| ${s.snapshotTime} | ${s.expireTime ?? '?'} | ${taille ?? 'non communiquée'} | ${documents ?? 'non communiqué'} |`);
     }
     if (sauvegardes.slice(0, 5).some((s) => statistiquesDe(s).taille === null)) {
-      lignes.push('', 'Taille et nombre de documents : Google ne les renseigne qu\'une fois la sauvegarde entièrement copiée.');
+      lignes.push('', 'Taille et nombre de documents : Google ne les a pas renseignés pour cette sauvegarde (champ « stats » absent de sa réponse).');
     }
   }
   return `${lignes.join('\n')}\n`;
@@ -421,8 +422,9 @@ async function commandeVerifier({ fetcher, jeton, maintenant, ecrireResume }) {
     if (taille === null && documents === null) {
       annoncerNotice(
         'Taille de la sauvegarde non communiquée',
-        'La sauvegarde existe et est prête, mais Google ne donne pas encore sa taille ni son nombre de documents ' +
-          '(champ « stats » vide tant qu\'elle n\'est pas entièrement copiée). Seul un essai de restauration prouve son contenu.',
+        'La sauvegarde existe et est prête, mais Google ne donne pas sa taille ni son nombre de documents ' +
+          '(champ « stats » absent de sa réponse). Seul un essai de restauration prouve son contenu ' +
+          '(flux « Essai de restauration Firestore »).',
       );
     }
   }
