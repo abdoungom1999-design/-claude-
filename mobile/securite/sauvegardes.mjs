@@ -296,6 +296,13 @@ export async function lireCompteDesFonctions(fetcher, jeton) {
   return typeof compte === 'string' && compte ? { compte } : { erreur: `Google ne nomme pas le compte d'exécution de ${FONCTION_TEMOIN}.` };
 }
 
+/** Bases Firestore du projet (lecture seule) : `(default)` et, si un essai de restauration a mal fini, ses bases d'essai. */
+export async function listerBases(fetcher, jeton) {
+  const r = await appeler(fetcher, jeton, 'GET', `${FIRESTORE}/projects/${PROJET}/databases`);
+  if (!r.ok) return { erreur: `Lecture des bases impossible (HTTP ${r.statut}) : ${detail(r)}` };
+  return { bases: (Array.isArray(r.json?.databases) ? r.json.databases : []).map((b) => String(b?.name ?? '').split('/').pop()) };
+}
+
 const CLOUD_SCHEDULER = 'https://cloudscheduler.googleapis.com/v1';
 
 /**
@@ -462,6 +469,18 @@ async function commandeDiagnostic({ fetcher, jeton }) {
       `Fonction de contrôle verifierSauvegardes : tâche ${String(t.name).split('/').pop()}, état ${t.state ?? '?'}, ` +
         `planification « ${t.schedule ?? '?'} » (${t.timeZone ?? '?'}), dernière exécution ${t.lastAttemptTime ?? 'aucune'} : ${etatDerniereExecution(t)}.`,
     );
+  }
+
+  const bases = await listerBases(fetcher, jeton);
+  if (bases.erreur) {
+    console.log(`Bases Firestore du projet : illisibles. ${bases.erreur}`);
+  } else {
+    console.log(`Bases Firestore du projet : ${bases.bases.join(', ') || 'aucune'}.`);
+    const restes = bases.bases.filter((id) => id.startsWith('restauration-essai-'));
+    if (restes.length > 0) {
+      console.log(`BASE D'ESSAI RESTÉE EN PLACE (facturée tant qu'elle existe) : ${restes.join(', ')}.`);
+      annoncerAvertissement("Base d'essai restée en place", `${restes.join(', ')} : à supprimer (flux « Essai de restauration Firestore », case base_existante).`);
+    }
   }
 
   console.log("Droits du compte de déploiement pour l'essai de restauration :");

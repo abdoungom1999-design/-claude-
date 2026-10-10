@@ -742,6 +742,22 @@ confirmer pour l'emplacement `nam5`). Les collections comptées sont celles des
 règles de sécurité et celles trouvées à la racine des deux bases : un document
 rangé dans une sous-collection absente des règles n'est pas compté.
 
+**Premier essai, 10 octobre 2026.** La sauvegarde du 9 octobre (15 h 24 UTC)
+est restaurée en 15 min 42 s : 246 documents dans 22 collections (la base en
+ligne en compte 270 ce jour-là). `users` 6 sur 6, `portefeuilles` 2 sur 2,
+`profils_publics` 5 sur 5, `chats` 4 sur 4 ; `courses` 62 (66 en ligne),
+`commandes` 35 (41), `messages` 81 (89) : des documents créés depuis ;
+`positions_chauffeurs` 1 (0 en ligne) : une position supprimée depuis ;
+`prive` 0 (2 en ligne) : cette collection est née avec la publication du 9
+octobre au soir, après la sauvegarde. La base d'essai a été supprimée. Au premier
+lancement, le flux avait compté trop tôt (Google annonce la restauration finie
+avant que la base réponde) et la suppression avait été refusée : la base d'essai
+est restée 24 minutes en place, ce que le flux corrigé évite (attente, réessais)
+et que le diagnostic de la section 10.4 signale (« Bases Firestore du projet »).
+Le temps d'une restauration est à compter en dizaines de minutes ; elle crée une
+nouvelle base, y ramener les données en ligne passe par l'export puis l'import
+ci-dessus.
+
 Non couvert ici (à prévoir) : l'export des comptes de connexion (Firebase
 Auth) et la copie des fichiers Storage.
 

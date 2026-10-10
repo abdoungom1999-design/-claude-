@@ -15,6 +15,7 @@ import {
   evaluerFraicheur,
   formaterAge,
   lancerTacheFonction,
+  listerBases,
   lireTacheFonction,
   planificationsACreer,
   principal,
@@ -560,6 +561,31 @@ test('diagnostic : dit où en est la tâche planifiée de la fonction de contrô
     assert.equal(r.code, 0);
     assert.doesNotMatch(r.sortie, /undefined|NaN/);
   }
+});
+
+const URL_BASES = 'https://firestore.googleapis.com/v1/projects/sprint-vtc/databases';
+
+test('bases du projet : listées, ou lecture refusée', async () => {
+  const { fetcher } = fauxGoogle({ [`GET ${URL_BASES}`]: { corps: { databases: [{ name: 'projects/sprint-vtc/databases/(default)' }, { name: 'projects/sprint-vtc/databases/restauration-essai-17' }] } } });
+  assert.deepEqual(await listerBases(fetcher, JETON), { bases: ['(default)', 'restauration-essai-17'] });
+  const vide = fauxGoogle({ [`GET ${URL_BASES}`]: { corps: {} } });
+  assert.deepEqual(await listerBases(vide.fetcher, JETON), { bases: [] });
+  const refus = fauxGoogle({ [`GET ${URL_BASES}`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
+  assert.match((await listerBases(refus.fetcher, JETON)).erreur, /Lecture des bases impossible \(HTTP 403\) : Permission denied/);
+});
+
+test('diagnostic : dit quelles bases existent et signale une base d\'essai restée en place', async () => {
+  const propre = await lancer(['diagnostic'], routesDiagnostic({ extra: { [`GET ${URL_BASES}`]: { corps: { databases: [{ name: 'projects/sprint-vtc/databases/(default)' }] } } } }));
+  assert.match(propre.sortie, /Bases Firestore du projet : \(default\)\./);
+  assert.doesNotMatch(propre.sortie, /BASE D'ESSAI RESTÉE EN PLACE/);
+
+  const reste = await lancer(
+    ['diagnostic'],
+    routesDiagnostic({ extra: { [`GET ${URL_BASES}`]: { corps: { databases: [{ name: 'projects/sprint-vtc/databases/(default)' }, { name: 'projects/sprint-vtc/databases/restauration-essai-38057777495' }] } } } }),
+  );
+  assert.match(reste.sortie, /BASE D'ESSAI RESTÉE EN PLACE \(facturée tant qu'elle existe\) : restauration-essai-38057777495\./);
+  assert.match(reste.sortie, /::warning title=Base d'essai restée en place::restauration-essai-38057777495/);
+  assert.equal(reste.code, 0);
 });
 
 test('lancer-fonction : force la tâche, attend la nouvelle exécution et la dit réussie', async () => {
