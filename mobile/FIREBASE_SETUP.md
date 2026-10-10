@@ -711,6 +711,28 @@ chemin. Un essai de restauration (restaurer, comparer le nombre de documents,
 supprimer la base d'essai) est recommandé après la première sauvegarde, puis
 de temps en temps : une sauvegarde jamais restaurée n'est pas prouvée.
 
+**Essai automatisé.** GitHub > **Actions** > **Essai de restauration
+Firestore** > **Run workflow**, écrire `RESTAURER` dans la case. Le flux
+restaure la dernière sauvegarde dans une base temporaire
+`restauration-essai-<numéro du run>` (jamais dans la base en ligne), compte les
+documents collection par collection dans cette base et dans la base en ligne
+(page du run : tableau et verdict), puis supprime la base d'essai, même si
+l'essai a échoué. Garde-fous : la base en ligne n'est que lue ; seules les
+bases nommées `restauration-essai-<numéro>` peuvent être créées ou supprimées ;
+le droit de supprimer est vérifié avant de créer quoi que ce soit. Les écarts
+positifs sont normaux (la base en ligne a continué de vivre depuis la
+sauvegarde) ; une collection vide dans la base restaurée alors qu'elle ne l'est
+pas en ligne fait échouer l'essai (« à regarder »). Si la suppression échoue,
+l'annotation donne le chemin pour la supprimer à la main (Google Cloud >
+Firestore > Bases de données) : une base laissée en place est facturée. Le
+compte de déploiement a déjà tous les droits nécessaires (vérifié par le
+diagnostic de la section 10.4). Coût : la restauration est facturée à la taille
+des données restaurées, plus le stockage de la base d'essai le temps du test
+(quelques centimes pour une base de cette taille ; tarifs de Google à
+confirmer pour l'emplacement `nam5`). Les collections comptées sont celles des
+règles de sécurité et celles trouvées à la racine des deux bases : un document
+rangé dans une sous-collection absente des règles n'est pas compté.
+
 Non couvert ici (à prévoir) : l'export des comptes de connexion (Firebase
 Auth) et la copie des fichiers Storage.
 
@@ -733,6 +755,13 @@ Google, chaque jour à 09 h 07 (heure de Dakar, soit UTC) :
   journal de la fonction (console Firebase > Functions > Journaux,
   `verifierSauvegardes`). Si aucun appareil Admin n'a les notifications
   actives, le journal le dit aussi.
+
+**Recevoir les alertes.** Elles arrivent sur les appareils Admin qui ont activé
+les notifications : ouvrir l'espace Admin sur le téléphone ou l'ordinateur, page
+**Paramètres**, carte **Notifications**, bouton **Activer les notifications**
+(l'APK Android demande l'autorisation dès l'ouverture de l'espace Admin ; sur
+l'iPhone, il faut d'abord installer le site sur l'écran d'accueil). Se
+déconnecter de l'espace Admin supprime l'appareil de la liste.
 
 **Mise en place, une seule fois.** Donner au compte qui exécute les Cloud
 Functions, `671806634534-compute@developer.gserviceaccount.com` (« Compte de

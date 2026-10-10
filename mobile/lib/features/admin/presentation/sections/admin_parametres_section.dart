@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/demo/admin_demo_data.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/notifications/carte_notifications.dart';
+import '../../../../core/notifications/notifications_push.dart';
 import '../../../../core/suivi/suivi_plantages.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -18,13 +20,16 @@ import '../widgets/carte_suivi_plantages.dart';
 /// depuis l'Admin. En mode démo : réglages simulés (villes actives, mode
 /// maintenance), qui n'agissent sur rien.
 class AdminParametresSection extends StatefulWidget {
-  const AdminParametresSection({super.key, this.demo, this.suivi});
+  const AdminParametresSection({super.key, this.demo, this.suivi, this.push});
 
   /// Force la version démo ou réelle (tests) ; par défaut, selon Firebase.
   final bool? demo;
 
   /// Suivi des plantages affiché dans la version réelle (tests) ; par défaut, celui de l'app.
   final SuiviDesPlantages? suivi;
+
+  /// Notifications affichées dans la version réelle (tests) ; par défaut, celles de l'app.
+  final NotificationsPush? push;
 
   @override
   State<AdminParametresSection> createState() => _AdminParametresSectionState();
@@ -50,7 +55,7 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (!(widget.demo ?? !DefaultFirebaseOptions.estConfigure)) return _ReglesEnVigueur(suivi: widget.suivi);
+    if (!(widget.demo ?? !DefaultFirebaseOptions.estConfigure)) return _ReglesEnVigueur(suivi: widget.suivi, push: widget.push);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 560),
       child: AppCard(
@@ -153,9 +158,10 @@ class _AdminParametresSectionState extends State<AdminParametresSection> {
 /// sont calculés par le moteur de tarification lui-même
 /// ([DemoData.estimerPrix]) : ils ne peuvent pas diverger de la réalité.
 class _ReglesEnVigueur extends StatelessWidget {
-  const _ReglesEnVigueur({this.suivi});
+  const _ReglesEnVigueur({this.suivi, this.push});
 
   final SuiviDesPlantages? suivi;
+  final NotificationsPush? push;
 
   static int _prix(double km, int heureUtc) => DemoData.estimerPrix(
         type: 'PASSAGER',
@@ -223,7 +229,43 @@ class _ReglesEnVigueur extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [regles, const SizedBox(height: 20), const CarteStockageKyc(), CarteSuiviPlantages(suivi: suivi)],
+      children: [
+        regles,
+        const SizedBox(height: 20),
+        _CarteNotificationsAdmin(push: push),
+        const CarteStockageKyc(),
+        CarteSuiviPlantages(suivi: suivi),
+      ],
+    );
+  }
+}
+
+/// Les alertes importantes arrivent sur cet appareil une fois les notifications
+/// activées (contrôle quotidien des sauvegardes de la base, par exemple). Ni la
+/// carte ni son espacement n'apparaissent tant que l'état de l'appareil n'est pas connu.
+class _CarteNotificationsAdmin extends StatelessWidget {
+  const _CarteNotificationsAdmin({this.push});
+
+  final NotificationsPush? push;
+
+  @override
+  Widget build(BuildContext context) {
+    final service = push ?? NotificationsPush.instance;
+    return ValueListenableBuilder<EtatNotifications>(
+      valueListenable: service.etat,
+      builder: (context, etat, _) {
+        if (etat == EtatNotifications.inconnu) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: CarteNotifications(
+              push: service,
+              raison: 'les alertes importantes, comme un problème de sauvegarde de la base',
+            ),
+          ),
+        );
+      },
     );
   }
 }

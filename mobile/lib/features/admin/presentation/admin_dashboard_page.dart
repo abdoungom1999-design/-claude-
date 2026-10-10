@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/notifications/notifications_push.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/widgets/onyx_vert.dart';
 import '../../../firebase_options.dart';
@@ -21,7 +24,11 @@ import 'widgets/admin_topbar.dart';
 /// page ne montre que des données Firestore ; sans Firebase, les données
 /// de démonstration ([AdminDemoData]) permettent de naviguer.
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({super.key});
+  const AdminDashboardPage({super.key, this.notificationsPush, this.monUid});
+
+  /// Injectables pour les tests ; par défaut, ceux de l'application.
+  final NotificationsPush? notificationsPush;
+  final String? monUid;
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -43,6 +50,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             (n) => debugPrint('Profils publics synchronisés : $n comptes.'),
             onError: (Object e) => debugPrint('Synchronisation des profils publics impossible : $e'),
           );
+    }
+    _activerNotificationsPush();
+  }
+
+  /// Alertes de l'Admin (sauvegardes de la base à vérifier...) : cet appareil
+  /// enregistre son jeton, comme ceux des clients et des chauffeurs. Sur le
+  /// site, l'autorisation se donne avec le bouton de Paramètres (règle des
+  /// navigateurs). La déconnexion supprime le jeton.
+  void _activerNotificationsPush() {
+    final uid = widget.monUid ?? _uidConnecte();
+    if (uid == null) return;
+    unawaited((widget.notificationsPush ?? NotificationsPush.instance).activer(uid: uid, surAppui: (_) {}));
+  }
+
+  static String? _uidConnecte() {
+    if (!DefaultFirebaseOptions.estConfigure) return null;
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
     }
   }
 
