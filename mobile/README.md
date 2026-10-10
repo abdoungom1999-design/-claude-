@@ -110,6 +110,14 @@ ligne droite ; l'APK n'était pas touché), le contrôle des secrets de l'APK es
 la page /android/ réessaie après la publication. Après la mise en ligne, rouvrir la PWA (iPhone) et
 réinstaller l'APK.
 
+Mise en ligne du 10 octobre 2026 (run #104) : le contrôle quotidien des sauvegardes de la base est fait
+par une fonction planifiée Google, `verifierSauvegardes` (`functions/src/sauvegardes.ts`, chaque jour à
+09 h 07 UTC, indépendante de GitHub), qui prévient les comptes Admin par notification (et dit « tout va
+bien » le dimanche). Pour que l'alerte arrive, l'espace Admin enregistre maintenant l'appareil pour les
+notifications : carte « Notifications » dans Admin > Paramètres, à activer une fois par appareil. Après la
+mise en ligne, rouvrir la PWA (iPhone), réinstaller l'APK, puis activer les notifications dans Admin >
+Paramètres.
+
 ## Suivi des plantages et sauvegardes
 
 **Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics
@@ -122,7 +130,11 @@ touche à Firebase, à Gradle ou à R8, lancer l'essai sur émulateur (Actions >
 
 **Sauvegardes** : la base Firestore est sauvegardée par Google chaque jour (14 jours) et chaque
 semaine (14 semaines) ; le flux « Sauvegardes Firestore » les met en place et vérifie chaque
-jour qu'une sauvegarde récente existe (`securite/sauvegardes.mjs`).
+jour qu'une sauvegarde récente existe (`securite/sauvegardes.mjs`). La fonction Google
+`verifierSauvegardes` refait ce contrôle sans dépendre de GitHub et prévient les Admin par
+notification. Le flux « Essai de restauration Firestore » restaure la dernière sauvegarde dans
+une base temporaire, compte les documents et la supprime (essai du 10 octobre 2026 : 246
+documents, 22 collections).
 
 Détails, restauration et choix techniques : `FIREBASE_SETUP.md`, sections 10 et 11.
 
