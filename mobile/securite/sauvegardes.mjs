@@ -327,6 +327,38 @@ export function etatDerniereExecution(tache) {
   return code === 0 ? 'réussie' : `ÉCHOUÉE (code ${code}${statut.message ? ` : ${statut.message}` : ''})`;
 }
 
+/**
+ * Combien de comptes Admin existent et combien d'appareils ont enregistré leurs notifications (lecture seule).
+ * Seulement des nombres : ni identifiant de compte, ni jeton, ni nom ne sont rendus.
+ */
+export async function compterAppareilsAdmin(fetcher, jeton) {
+  const racine = `${FIRESTORE}/${BASE_DE_DONNEES}/documents`;
+  const admins = await appeler(fetcher, jeton, 'POST', `${racine}:runQuery`, {
+    structuredQuery: {
+      from: [{ collectionId: 'users' }],
+      where: { fieldFilter: { field: { fieldPath: 'role' }, op: 'EQUAL', value: { stringValue: 'admin' } } },
+      select: { fields: [{ fieldPath: '__name__' }] },
+    },
+  });
+  if (!admins.ok) return { erreur: `Lecture des comptes Admin impossible (HTTP ${admins.statut}) : ${detail(admins)}` };
+  const comptes = (Array.isArray(admins.json) ? admins.json : []).map((e) => String(e?.document?.name ?? '').split('/').pop()).filter(Boolean);
+  const plateformes = {};
+  let appareils = 0;
+  for (const compte of comptes) {
+    const r = await appeler(fetcher, jeton, 'POST', `${racine}/appareils/${encodeURIComponent(compte)}:runQuery`, {
+      structuredQuery: { from: [{ collectionId: 'jetons' }], select: { fields: [{ fieldPath: 'plateforme' }] } },
+    });
+    if (!r.ok) return { erreur: `Lecture des appareils impossible (HTTP ${r.statut}) : ${detail(r)}` };
+    for (const e of Array.isArray(r.json) ? r.json : []) {
+      if (!e?.document) continue;
+      appareils++;
+      const plateforme = e.document.fields?.plateforme?.stringValue ?? 'inconnue';
+      plateformes[plateforme] = (plateformes[plateforme] ?? 0) + 1;
+    }
+  }
+  return { admins: comptes.length, appareils, plateformes };
+}
+
 const CLOUD_LOGGING = 'https://logging.googleapis.com/v2';
 
 /**
@@ -513,6 +545,21 @@ async function commandeDiagnostic({ fetcher, jeton, maintenant }) {
       console.log(`Journal de la fonction (24 h, ${recentes.length} dernière(s) ligne(s) sur ${journal.lignes.length}) :`);
       for (const ligne of recentes) console.log(`  ${ligne.quand} ${ligne.gravite.padEnd(7)} ${ligne.texte}`);
       annoncerNotice('Journal de la fonction (24 h)', recentes.map((ligne) => `${ligne.quand.slice(11, 19)} ${ligne.gravite} ${ligne.texte}`).join(' | ').slice(0, 900));
+    }
+  }
+
+  // Les alertes n'arrivent que sur les appareils Admin qui ont activé leurs notifications (Admin > Paramètres).
+  const appareilsAdmin = await compterAppareilsAdmin(fetcher, jeton);
+  if (appareilsAdmin.erreur) {
+    console.log(`Appareils Admin pour les notifications : illisibles. ${appareilsAdmin.erreur}`);
+  } else {
+    const detailPlateformes = Object.entries(appareilsAdmin.plateformes).map(([nom, n]) => `${nom} ${n}`).join(', ');
+    const ligne =
+      `Comptes Admin : ${appareilsAdmin.admins} ; appareils enregistrés pour leurs notifications : ${appareilsAdmin.appareils}` +
+      `${detailPlateformes ? ` (${detailPlateformes})` : ''}.`;
+    console.log(ligne);
+    if (appareilsAdmin.appareils === 0) {
+      annoncerAvertissement('Aucun appareil Admin enregistré', 'Les alertes des sauvegardes n\'atteindraient personne : activer les notifications dans Admin > Paramètres.');
     }
   }
 

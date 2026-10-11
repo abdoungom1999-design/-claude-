@@ -14,6 +14,7 @@ import {
   etatDerniereExecution,
   evaluerFraicheur,
   formaterAge,
+  compterAppareilsAdmin,
   lancerTacheFonction,
   listerBases,
   lireJournalFonction,
@@ -432,6 +433,7 @@ test('le résumé nomme un problème sans sauvegarde ni planification', () => {
 const URL_DROITS_PROJET = 'https://cloudresourcemanager.googleapis.com/v1/projects/sprint-vtc:testIamPermissions';
 const URL_POLITIQUE = 'https://cloudresourcemanager.googleapis.com/v1/projects/sprint-vtc:getIamPolicy';
 const URL_FONCTION = 'https://run.googleapis.com/v2/projects/sprint-vtc/locations/europe-west1/services/surveillercommandes';
+const URL_DOCUMENTS = 'https://firestore.googleapis.com/v1/projects/sprint-vtc/databases/(default)/documents';
 const COMPTE_FONCTIONS = '671806634534-compute@developer.gserviceaccount.com';
 
 /** Faux Google pour le diagnostic : le compte de déploiement n'a que les droits listés. */
@@ -472,7 +474,12 @@ test('diagnostic : nomme le compte des fonctions, les rôles qui lui manquent et
   assert.equal(tests.length, DROITS_RESTAURATION.length);
   assert.ok(tests.every((a) => a.corps.permissions.length === 1));
   assert.deepEqual(new Set(r.appels.map((a) => a.methode)), new Set(['GET', 'POST']));
-  assert.ok(r.appels.filter((a) => a.methode === 'POST').every((a) => a.url === URL_DROITS_PROJET || a.url === URL_POLITIQUE));
+  // Les « POST » du diagnostic sont tous des lectures : test de droits, politique du projet, requêtes Firestore.
+  assert.ok(
+    r.appels
+      .filter((a) => a.methode === 'POST')
+      .every((a) => a.url === URL_DROITS_PROJET || a.url === URL_POLITIQUE || (a.url.startsWith(URL_DOCUMENTS) && a.url.endsWith(':runQuery'))),
+  );
   const notice = r.sortie.split('\n').find((ligne) => ligne.startsWith('::notice title=Diagnostic des droits'));
   assert.ok(notice);
   assert.match(notice, /rôles à donner à ce compte : roles\/datastore\.backupSchedulesViewer ;/);
@@ -615,6 +622,70 @@ test('diagnostic : montre ce que la fonction a écrit dans son journal depuis 24
   const vide = await lancer(['diagnostic'], routesDiagnostic({ extra: { ...publiee, [`POST ${URL_JOURNAL}`]: { corps: {} } } }));
   assert.match(vide.sortie, /Journal de la fonction \(24 h\) : aucune ligne\./);
   for (const x of [illisible, vide]) assert.equal(x.code, 0);
+});
+
+const docAdmin = (uid) => ({ document: { name: `projects/sprint-vtc/databases/(default)/documents/users/${uid}` }, readTime: 'x' });
+const docJeton = (uid, id, plateforme) => ({ document: { name: `projects/sprint-vtc/databases/(default)/documents/appareils/${uid}/jetons/${id}`, fields: { plateforme: { stringValue: plateforme } } }, readTime: 'x' });
+
+test('appareils Admin : nombres seulement (comptes, appareils, plateformes), jamais un identifiant ni un jeton', async () => {
+  const { fetcher, appels } = fauxGoogle({
+    [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('uidAdminSecret1'), docAdmin('uidAdminSecret2')] },
+    [`POST ${URL_DOCUMENTS}/appareils/uidAdminSecret1:runQuery`]: { corps: [docJeton('uidAdminSecret1', 'jetonSecretA', 'android'), docJeton('uidAdminSecret1', 'jetonSecretB', 'web')] },
+    [`POST ${URL_DOCUMENTS}/appareils/uidAdminSecret2:runQuery`]: { corps: [docJeton('uidAdminSecret2', 'jetonSecretC', 'web')] },
+  });
+  const r = await compterAppareilsAdmin(fetcher, JETON);
+  assert.deepEqual(r, { admins: 2, appareils: 3, plateformes: { android: 1, web: 2 } });
+  assert.equal(JSON.stringify(r).includes('Secret'), false);
+  // Lecture seule, et seulement les champs utiles : le nom du document pour les comptes, la plateforme pour les appareils.
+  assert.ok(appels.every((a) => a.methode === 'POST' && a.url.endsWith(':runQuery')));
+  assert.deepEqual(appels[0].corps.structuredQuery.select, { fields: [{ fieldPath: '__name__' }] });
+  assert.deepEqual(appels[0].corps.structuredQuery.where.fieldFilter, { field: { fieldPath: 'role' }, op: 'EQUAL', value: { stringValue: 'admin' } });
+  assert.deepEqual(appels[1].corps.structuredQuery.select, { fields: [{ fieldPath: 'plateforme' }] });
+});
+
+test('appareils Admin : aucun appareil (réponse sans document), aucun compte, ou lecture refusée', async () => {
+  const sansAppareil = fauxGoogle({
+    [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('a1')] },
+    [`POST ${URL_DOCUMENTS}/appareils/a1:runQuery`]: { corps: [{ readTime: 'x' }] },
+  });
+  assert.deepEqual(await compterAppareilsAdmin(sansAppareil.fetcher, JETON), { admins: 1, appareils: 0, plateformes: {} });
+
+  const sansCompte = fauxGoogle({ [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [{ readTime: 'x' }] } });
+  assert.deepEqual(await compterAppareilsAdmin(sansCompte.fetcher, JETON), { admins: 0, appareils: 0, plateformes: {} });
+
+  const refus = fauxGoogle({ [`POST ${URL_DOCUMENTS}:runQuery`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
+  assert.match((await compterAppareilsAdmin(refus.fetcher, JETON)).erreur, /Lecture des comptes Admin impossible \(HTTP 403\) : Permission denied/);
+
+  const refusAppareils = fauxGoogle({
+    [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('a1')] },
+    [`POST ${URL_DOCUMENTS}/appareils/a1:runQuery`]: { statut: 500, corps: { error: { message: 'panne' } } },
+  });
+  assert.match((await compterAppareilsAdmin(refusAppareils.fetcher, JETON)).erreur, /Lecture des appareils impossible \(HTTP 500\) : panne/);
+});
+
+test('diagnostic : dit combien d\'appareils Admin ont activé leurs notifications, et avertit s\'il n\'y en a aucun', async () => {
+  const avec = await lancer(['diagnostic'], routesDiagnostic({
+    extra: {
+      [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('a1')] },
+      [`POST ${URL_DOCUMENTS}/appareils/a1:runQuery`]: { corps: [docJeton('a1', 'j1', 'web')] },
+    },
+  }));
+  assert.match(avec.sortie, /Comptes Admin : 1 ; appareils enregistrés pour leurs notifications : 1 \(web 1\)\./);
+  assert.doesNotMatch(avec.sortie, /Aucun appareil Admin enregistré/);
+
+  const sans = await lancer(['diagnostic'], routesDiagnostic({
+    extra: {
+      [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('a1')] },
+      [`POST ${URL_DOCUMENTS}/appareils/a1:runQuery`]: { corps: [{ readTime: 'x' }] },
+    },
+  }));
+  assert.match(sans.sortie, /Comptes Admin : 1 ; appareils enregistrés pour leurs notifications : 0\./);
+  assert.match(sans.sortie, /::warning title=Aucun appareil Admin enregistré::/);
+  assert.equal(sans.code, 0);
+
+  const illisible = await lancer(['diagnostic'], routesDiagnostic({ extra: { [`POST ${URL_DOCUMENTS}:runQuery`]: { statut: 403, corps: { error: { message: 'refusé' } } } } }));
+  assert.match(illisible.sortie, /Appareils Admin pour les notifications : illisibles\. .*HTTP 403/);
+  assert.equal(illisible.code, 0);
 });
 
 test('lancer-fonction : force la tâche, attend la nouvelle exécution et la dit réussie', async () => {
