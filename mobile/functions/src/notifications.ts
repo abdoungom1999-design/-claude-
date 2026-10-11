@@ -48,8 +48,15 @@ export interface EnvoiPush {
 }
 
 export interface Messagerie {
-  /** Envoie à ces jetons ; renvoie ceux que Google déclare morts (à supprimer). */
-  envoyer(jetons: string[], push: EnvoiPush): Promise<{ envoyes: number; invalides: string[] }>;
+  /**
+   * Envoie à ces jetons ; renvoie ceux que Google déclare morts (à supprimer)
+   * et, s'il y en a, le décompte des échecs par code d'erreur de Google
+   * (jamais un jeton).
+   */
+  envoyer(
+    jetons: string[],
+    push: EnvoiPush,
+  ): Promise<{ envoyes: number; invalides: string[]; echecs?: Record<string, number> }>;
 }
 
 /** Adresse publique du site (Firebase Hosting) : les liens des notifications web sont absolus. */
@@ -91,21 +98,46 @@ export function messageFcm(jetons: string[], push: EnvoiPush): MulticastMessage 
   };
 }
 
+/**
+ * Ce que Google a répondu pour un lot de jetons : combien sont passés, quels
+ * jetons sont morts (à supprimer) et, pour tous les échecs, combien par code
+ * d'erreur (sans jamais citer un jeton : le journal peut être lu par d'autres).
+ */
+export function depouillerReponses(
+  jetons: string[],
+  reponses: { success: boolean; error?: { code: string } }[],
+): { envoyes: number; invalides: string[]; echecs: Record<string, number> } {
+  let envoyes = 0;
+  const invalides: string[] = [];
+  const echecs: Record<string, number> = {};
+  reponses.forEach((r, index) => {
+    if (r.success) {
+      envoyes++;
+      return;
+    }
+    const code = r.error?.code ?? 'inconnu';
+    echecs[code] = (echecs[code] ?? 0) + 1;
+    if (r.error && CODES_JETON_MORT.includes(r.error.code)) invalides.push(jetons[index]);
+  });
+  return { envoyes, invalides, echecs };
+}
+
 /** Envoi réel par Firebase Cloud Messaging. */
 export class MessagerieFcm implements Messagerie {
   async envoyer(jetons: string[], push: EnvoiPush) {
     let envoyes = 0;
     const invalides: string[] = [];
+    const echecs: Record<string, number> = {};
     // 500 jetons au plus par envoi groupé.
     for (let i = 0; i < jetons.length; i += 500) {
       const lot = jetons.slice(i, i + 500);
       const reponse = await getMessaging().sendEachForMulticast(messageFcm(lot, push));
-      reponse.responses.forEach((r, index) => {
-        if (r.success) envoyes++;
-        else if (r.error && CODES_JETON_MORT.includes(r.error.code)) invalides.push(lot[index]);
-      });
+      const lu = depouillerReponses(lot, reponse.responses);
+      envoyes += lu.envoyes;
+      invalides.push(...lu.invalides);
+      for (const [code, n] of Object.entries(lu.echecs)) echecs[code] = (echecs[code] ?? 0) + n;
     }
-    return { envoyes, invalides };
+    return { envoyes, invalides, echecs };
   }
 }
 
@@ -133,10 +165,19 @@ export async function pousser(
   try {
     const appareils = await jetonsDe(db, uids);
     if (appareils.length === 0) return 0;
-    const { envoyes, invalides } = await messagerie.envoyer(
+    const { envoyes, invalides, echecs } = await messagerie.envoyer(
       appareils.map((a) => a.jeton),
       push,
     );
+    if (echecs && Object.keys(echecs).length > 0) {
+      // Seulement des nombres et des codes d'erreur de Google : jamais un jeton.
+      logger.warn("Notification push : des appareils n'ont pas été atteints", {
+        appareils: appareils.length,
+        envoyes,
+        echecs,
+        jetonsSupprimes: invalides.length,
+      });
+    }
     await Promise.all(
       appareils
         .filter((a) => invalides.includes(a.jeton))

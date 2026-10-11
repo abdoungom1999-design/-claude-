@@ -329,7 +329,9 @@ export function etatDerniereExecution(tache) {
 
 /**
  * Combien de comptes Admin existent et combien d'appareils ont enregistré leurs notifications (lecture seule).
- * Seulement des nombres : ni identifiant de compte, ni jeton, ni nom ne sont rendus.
+ * Pour chaque appareil : sa plateforme et la date de son dernier enregistrement (l'app le renouvelle à chaque
+ * ouverture de l'espace Admin avec les notifications actives). Ni identifiant de compte, ni jeton, ni nom ne
+ * sont rendus.
  */
 export async function compterAppareilsAdmin(fetcher, jeton) {
   const racine = `${FIRESTORE}/${BASE_DE_DONNEES}/documents`;
@@ -343,10 +345,11 @@ export async function compterAppareilsAdmin(fetcher, jeton) {
   if (!admins.ok) return { erreur: `Lecture des comptes Admin impossible (HTTP ${admins.statut}) : ${detail(admins)}` };
   const comptes = (Array.isArray(admins.json) ? admins.json : []).map((e) => String(e?.document?.name ?? '').split('/').pop()).filter(Boolean);
   const plateformes = {};
+  const liste = [];
   let appareils = 0;
   for (const compte of comptes) {
     const r = await appeler(fetcher, jeton, 'POST', `${racine}/appareils/${encodeURIComponent(compte)}:runQuery`, {
-      structuredQuery: { from: [{ collectionId: 'jetons' }], select: { fields: [{ fieldPath: 'plateforme' }] } },
+      structuredQuery: { from: [{ collectionId: 'jetons' }], select: { fields: [{ fieldPath: 'plateforme' }, { fieldPath: 'majLe' }] } },
     });
     if (!r.ok) return { erreur: `Lecture des appareils impossible (HTTP ${r.statut}) : ${detail(r)}` };
     for (const e of Array.isArray(r.json) ? r.json : []) {
@@ -354,9 +357,12 @@ export async function compterAppareilsAdmin(fetcher, jeton) {
       appareils++;
       const plateforme = e.document.fields?.plateforme?.stringValue ?? 'inconnue';
       plateformes[plateforme] = (plateformes[plateforme] ?? 0) + 1;
+      liste.push({ plateforme, majLe: e.document.fields?.majLe?.timestampValue ?? null });
     }
   }
-  return { admins: comptes.length, appareils, plateformes };
+  // Du plus ancien au plus récent enregistrement : on reconnaît ainsi quel appareil est arrivé en dernier.
+  liste.sort((a, b) => String(a.majLe ?? '').localeCompare(String(b.majLe ?? '')));
+  return { admins: comptes.length, appareils, plateformes, liste };
 }
 
 const CLOUD_LOGGING = 'https://logging.googleapis.com/v2';
@@ -558,6 +564,10 @@ async function commandeDiagnostic({ fetcher, jeton, maintenant }) {
       `Comptes Admin : ${appareilsAdmin.admins} ; appareils enregistrés pour leurs notifications : ${appareilsAdmin.appareils}` +
       `${detailPlateformes ? ` (${detailPlateformes})` : ''}.`;
     console.log(ligne);
+    for (const appareil of appareilsAdmin.liste) {
+      const quand = appareil.majLe ? `${String(appareil.majLe).replace('T', ' ').slice(0, 16)} UTC` : 'date inconnue';
+      console.log(`  ${appareil.plateforme}, dernier enregistrement le ${quand}`);
+    }
     if (appareilsAdmin.appareils === 0) {
       annoncerAvertissement('Aucun appareil Admin enregistré', 'Les alertes des sauvegardes n\'atteindraient personne : activer les notifications dans Admin > Paramètres.');
     }

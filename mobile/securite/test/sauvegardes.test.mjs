@@ -625,22 +625,43 @@ test('diagnostic : montre ce que la fonction a écrit dans son journal depuis 24
 });
 
 const docAdmin = (uid) => ({ document: { name: `projects/sprint-vtc/databases/(default)/documents/users/${uid}` }, readTime: 'x' });
-const docJeton = (uid, id, plateforme) => ({ document: { name: `projects/sprint-vtc/databases/(default)/documents/appareils/${uid}/jetons/${id}`, fields: { plateforme: { stringValue: plateforme } } }, readTime: 'x' });
+const docJeton = (uid, id, plateforme, majLe) => ({
+  document: {
+    name: `projects/sprint-vtc/databases/(default)/documents/appareils/${uid}/jetons/${id}`,
+    fields: { plateforme: { stringValue: plateforme }, ...(majLe ? { majLe: { timestampValue: majLe } } : {}) },
+  },
+  readTime: 'x',
+});
 
 test('appareils Admin : nombres seulement (comptes, appareils, plateformes), jamais un identifiant ni un jeton', async () => {
   const { fetcher, appels } = fauxGoogle({
     [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('uidAdminSecret1'), docAdmin('uidAdminSecret2')] },
-    [`POST ${URL_DOCUMENTS}/appareils/uidAdminSecret1:runQuery`]: { corps: [docJeton('uidAdminSecret1', 'jetonSecretA', 'android'), docJeton('uidAdminSecret1', 'jetonSecretB', 'web')] },
+    [`POST ${URL_DOCUMENTS}/appareils/uidAdminSecret1:runQuery`]: {
+      corps: [
+        docJeton('uidAdminSecret1', 'jetonSecretA', 'android', '2026-10-11T14:21:05.123456Z'),
+        docJeton('uidAdminSecret1', 'jetonSecretB', 'web', '2026-10-11T13:52:10.5Z'),
+      ],
+    },
     [`POST ${URL_DOCUMENTS}/appareils/uidAdminSecret2:runQuery`]: { corps: [docJeton('uidAdminSecret2', 'jetonSecretC', 'web')] },
   });
   const r = await compterAppareilsAdmin(fetcher, JETON);
-  assert.deepEqual(r, { admins: 2, appareils: 3, plateformes: { android: 1, web: 2 } });
+  assert.deepEqual(r, {
+    admins: 2,
+    appareils: 3,
+    plateformes: { android: 1, web: 2 },
+    // Du plus ancien au plus récent ; un appareil sans date passe en premier.
+    liste: [
+      { plateforme: 'web', majLe: null },
+      { plateforme: 'web', majLe: '2026-10-11T13:52:10.5Z' },
+      { plateforme: 'android', majLe: '2026-10-11T14:21:05.123456Z' },
+    ],
+  });
   assert.equal(JSON.stringify(r).includes('Secret'), false);
   // Lecture seule, et seulement les champs utiles : le nom du document pour les comptes, la plateforme pour les appareils.
   assert.ok(appels.every((a) => a.methode === 'POST' && a.url.endsWith(':runQuery')));
   assert.deepEqual(appels[0].corps.structuredQuery.select, { fields: [{ fieldPath: '__name__' }] });
   assert.deepEqual(appels[0].corps.structuredQuery.where.fieldFilter, { field: { fieldPath: 'role' }, op: 'EQUAL', value: { stringValue: 'admin' } });
-  assert.deepEqual(appels[1].corps.structuredQuery.select, { fields: [{ fieldPath: 'plateforme' }] });
+  assert.deepEqual(appels[1].corps.structuredQuery.select, { fields: [{ fieldPath: 'plateforme' }, { fieldPath: 'majLe' }] });
 });
 
 test('appareils Admin : aucun appareil (réponse sans document), aucun compte, ou lecture refusée', async () => {
@@ -648,10 +669,10 @@ test('appareils Admin : aucun appareil (réponse sans document), aucun compte, o
     [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('a1')] },
     [`POST ${URL_DOCUMENTS}/appareils/a1:runQuery`]: { corps: [{ readTime: 'x' }] },
   });
-  assert.deepEqual(await compterAppareilsAdmin(sansAppareil.fetcher, JETON), { admins: 1, appareils: 0, plateformes: {} });
+  assert.deepEqual(await compterAppareilsAdmin(sansAppareil.fetcher, JETON), { admins: 1, appareils: 0, plateformes: {}, liste: [] });
 
   const sansCompte = fauxGoogle({ [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [{ readTime: 'x' }] } });
-  assert.deepEqual(await compterAppareilsAdmin(sansCompte.fetcher, JETON), { admins: 0, appareils: 0, plateformes: {} });
+  assert.deepEqual(await compterAppareilsAdmin(sansCompte.fetcher, JETON), { admins: 0, appareils: 0, plateformes: {}, liste: [] });
 
   const refus = fauxGoogle({ [`POST ${URL_DOCUMENTS}:runQuery`]: { statut: 403, corps: { error: { message: 'Permission denied' } } } });
   assert.match((await compterAppareilsAdmin(refus.fetcher, JETON)).erreur, /Lecture des comptes Admin impossible \(HTTP 403\) : Permission denied/);
@@ -667,10 +688,13 @@ test('diagnostic : dit combien d\'appareils Admin ont activé leurs notification
   const avec = await lancer(['diagnostic'], routesDiagnostic({
     extra: {
       [`POST ${URL_DOCUMENTS}:runQuery`]: { corps: [docAdmin('a1')] },
-      [`POST ${URL_DOCUMENTS}/appareils/a1:runQuery`]: { corps: [docJeton('a1', 'j1', 'web')] },
+      [`POST ${URL_DOCUMENTS}/appareils/a1:runQuery`]: { corps: [docJeton('a1', 'jetonSecretX', 'web', '2026-10-11T13:52:10.5Z'), docJeton('a1', 'jetonSecretY', 'web')] },
     },
   }));
-  assert.match(avec.sortie, /Comptes Admin : 1 ; appareils enregistrés pour leurs notifications : 1 \(web 1\)\./);
+  assert.match(avec.sortie, /Comptes Admin : 1 ; appareils enregistrés pour leurs notifications : 2 \(web 2\)\./);
+  assert.match(avec.sortie, /^ {2}web, dernier enregistrement le date inconnue$/m);
+  assert.match(avec.sortie, /^ {2}web, dernier enregistrement le 2026-10-11 13:52 UTC$/m);
+  assert.doesNotMatch(avec.sortie, /Secret|\ba1\b/);
   assert.doesNotMatch(avec.sortie, /Aucun appareil Admin enregistré/);
 
   const sans = await lancer(['diagnostic'], routesDiagnostic({

@@ -790,6 +790,23 @@ les notifications : ouvrir l'espace Admin sur le téléphone ou l'ordinateur, pa
 l'iPhone, il faut d'abord installer le site sur l'écran d'accueil). Se
 déconnecter de l'espace Admin supprime l'appareil de la liste.
 
+**Si un appareil ne reçoit rien.**
+
+- Site ouvert **au premier plan** (onglet visible, ou appli installée à
+  l'écran) : le navigateur n'affiche aucune notification, le site a ses propres
+  alertes. Mettre Sprint en arrière-plan (autre onglet ou autre appli, écran
+  verrouillé) avant un test.
+- Mac : les notifications de Google Chrome doivent aussi être autorisées dans
+  Réglages Système > Notifications (cause trouvée par le client le 11 octobre
+  2026 : elles y étaient coupées, alors que le site les avait acceptées).
+- Google peut déclarer l'identifiant d'un appareil invalide : le serveur le
+  retire alors de la liste (le diagnostic compte un appareil de moins). Sur cet
+  appareil, se déconnecter de l'espace Admin puis s'y reconnecter : l'app
+  supprime l'ancien identifiant et en demande un neuf. Une fois la fonction
+  republiée avec le journal détaillé, la ligne « des appareils n'ont pas été
+  atteints » du journal donne le nombre d'échecs par code d'erreur de Google
+  (jamais un identifiant).
+
 **Mise en place, une seule fois.** Donner au compte qui exécute les Cloud
 Functions, `671806634534-compute@developer.gserviceaccount.com` (« Compte de
 service Compute Engine par défaut », lu sur la fonction `surveillerCommandes`
@@ -812,9 +829,9 @@ Après la publication de la fonction, le même diagnostic dit où en est sa tâc
 planifiée (état, heure de la dernière exécution, réussie ou échouée) et montre ce
 que la fonction a écrit dans son journal depuis 24 h (ses exécutions de 09 h 07,
 sans la relancer) et compte
-les comptes Admin et les appareils qui ont activé leurs notifications (des
-nombres seulement, jamais un identifiant ni un jeton ; un avertissement s'il n'y
-en a aucun) ; la
+les comptes Admin et les appareils qui ont activé leurs notifications (pour
+chaque appareil, sa plateforme et la date de son dernier enregistrement, jamais
+un identifiant ni un jeton ; un avertissement s'il n'y en a aucun) ; la
 case **lancer_fonction** du même flux force une exécution tout de suite : la
 fonction fait son contrôle avec les droits du compte qui l'exécute, puis le flux
 dit ce que Google en a vu et affiche les lignes qu'elle a écrites dans son
