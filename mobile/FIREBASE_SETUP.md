@@ -845,6 +845,17 @@ tourné seule à 09 h 07 UTC, sans intervention (« Dernière sauvegarde il y a
 atteint personne. Ce n'est pas une panne du contrôle : il reste à activer les
 notifications sur l'appareil Admin (carte **Notifications**, voir plus haut).
 
+Premier envoi reçu pour de vrai, le 11 octobre 2026 : une fois les notifications
+activées, deux tests forcés (case **lancer_fonction**) ont montré les deux causes
+décrites plus haut. À 14 h 27 UTC, 2 appareils étaient enregistrés mais Google
+n'en a accepté qu'un ; l'autre identifiant, refusé comme invalide, a été retiré de
+la liste (le diagnostic compte alors 1 appareil). Après déconnexion puis
+reconnexion de l'espace Admin sur le téléphone, le test de 16 h 38 UTC a été
+accepté par Google pour les 2 appareils et le client a confirmé avoir reçu sur
+son téléphone « Sauvegardes : tout va bien. Dernière sauvegarde il y a 1 h. ».
+Réception sur le Mac non confirmée par le client. Étape « alarme des
+sauvegardes » validée et close par le client le même jour.
+
 Coût : une tâche Cloud Scheduler en plus (les trois premières par compte de
 facturation sont gratuites, 0,10 $ par mois au-delà), une exécution par jour
 (dans le quota gratuit des fonctions), notifications gratuites.
