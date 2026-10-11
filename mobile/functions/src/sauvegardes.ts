@@ -299,7 +299,12 @@ export async function verifierSauvegardes(dep: Dependances): Promise<Verdict> {
     logger.info(`Sauvegardes Firestore : ${verdict.message}`);
     if (dep.maintenant.getUTCDay() === JOUR_BILAN) {
       const remis = await dep.prevenir(bilanHebdomadaire(verdict));
-      logger.info('Sauvegardes Firestore : bilan hebdomadaire envoyé', { appareils: remis });
+      if (remis === 0) {
+        // Le contrôle a bien tourné, mais le « tout va bien » n'est arrivé nulle part : à dire, pas à taire.
+        logger.warn("Sauvegardes Firestore : bilan hebdomadaire non remis : aucun appareil Admin n'a les notifications actives.");
+      } else {
+        logger.info('Sauvegardes Firestore : bilan hebdomadaire envoyé', { appareils: remis });
+      }
     }
   } else if (verdict.statut === 'attente') {
     logger.info(`Sauvegardes Firestore : ${verdict.message}`);

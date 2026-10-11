@@ -369,6 +369,23 @@ test('contrôle complet : tout va bien un dimanche = le « tout va bien » de la
     await verifierSauvegardes(dep);
     assert.equal(envoyes.length, 1);
     assert.equal(envoyes[0].titre, 'Sauvegardes : tout va bien');
+    assert.ok(journal.ecrits.some((e) => e.niveau === 'info' && /bilan hebdomadaire envoyé/.test(e.texte)));
+    assert.equal(journal.ecrits.some((e) => e.niveau === 'warn' || e.niveau === 'error'), false);
+  } finally {
+    journal.restaurer();
+  }
+});
+
+test('contrôle complet : le « tout va bien » du dimanche qui n\'atteint aucun téléphone n\'est pas journalisé comme envoyé', async () => {
+  const journal = surveillerJournal();
+  try {
+    const { dep, envoyes } = dependances(toutVaBien(21, DIMANCHE), DIMANCHE, 0);
+    assert.equal((await verifierSauvegardes(dep)).statut, 'ok');
+    assert.equal(envoyes.length, 1);
+    assert.ok(journal.ecrits.some((e) => e.niveau === 'warn' && /bilan hebdomadaire non remis : aucun appareil Admin/.test(e.texte)));
+    assert.equal(journal.ecrits.some((e) => /bilan hebdomadaire envoyé/.test(e.texte)), false);
+    // Les sauvegardes vont bien : ce n'est pas une erreur, donc la CI ne l'affiche pas comme un échec.
+    assert.equal(journal.ecrits.some((e) => e.niveau === 'error'), false);
   } finally {
     journal.restaurer();
   }

@@ -773,7 +773,9 @@ Google, chaque jour à 09 h 07 (heure de Dakar, soit UTC) :
 - tout va bien (les deux planifications existent, la dernière sauvegarde a
   moins de 36 h) : rien n'est envoyé, sauf le dimanche, où les Admin reçoivent
   « Sauvegardes : tout va bien ». Si ce petit message cesse d'arriver, c'est le
-  contrôle lui-même qu'il faut regarder ;
+  contrôle lui-même qu'il faut regarder. Si aucun appareil Admin n'a les
+  notifications actives, il n'arrive nulle part et le journal l'écrit en
+  avertissement (« bilan hebdomadaire non remis ») au lieu de dire « envoyé » ;
 - sinon (sauvegarde périmée ou absente, planification manquante, ou Google qui
   refuse la lecture) : notification « Sauvegardes : à vérifier » aux appareils
   des comptes Admin, **tous les jours** tant que ça dure, et erreur dans le
@@ -809,12 +811,22 @@ par un les droits du compte de déploiement pour l'essai de restauration.
 Après la publication de la fonction, le même diagnostic dit où en est sa tâche
 planifiée (état, heure de la dernière exécution, réussie ou échouée) et montre ce
 que la fonction a écrit dans son journal depuis 24 h (ses exécutions de 09 h 07,
-sans la relancer) ; la
+sans la relancer) et compte
+les comptes Admin et les appareils qui ont activé leurs notifications (des
+nombres seulement, jamais un identifiant ni un jeton ; un avertissement s'il n'y
+en a aucun) ; la
 case **lancer_fonction** du même flux force une exécution tout de suite : la
 fonction fait son contrôle avec les droits du compte qui l'exécute, puis le flux
 dit ce que Google en a vu et affiche les lignes qu'elle a écrites dans son
 journal (son verdict : « Dernière sauvegarde il y a N h. » ; en échec s'il y a
 une erreur). Elle ne prévient les Admin que s'il y a un problème, ou le dimanche.
+
+Première exécution planifiée, constatée le 11 octobre 2026 : la fonction a
+tourné seule à 09 h 07 UTC, sans intervention (« Dernière sauvegarde il y a
+18 h. »), mais aucun appareil Admin n'avait encore activé ses notifications
+(1 compte Admin, 0 appareil enregistré) : le « tout va bien » du dimanche n'a donc
+atteint personne. Ce n'est pas une panne du contrôle : il reste à activer les
+notifications sur l'appareil Admin (carte **Notifications**, voir plus haut).
 
 Coût : une tâche Cloud Scheduler en plus (les trois premières par compte de
 facturation sont gratuites, 0,10 $ par mois au-delà), une exécution par jour
