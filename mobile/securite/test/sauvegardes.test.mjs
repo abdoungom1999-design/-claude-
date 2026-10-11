@@ -656,6 +656,8 @@ test('journal de la fonction : lignes lues depuis l\'instant du lancement, la pl
           entree('2026-10-10T23:50:01Z', 'INFO', 'Sauvegardes Firestore : Dernière sauvegarde il y a 8 h.'),
           { timestamp: '2026-10-10T23:50:02Z', severity: 'DEFAULT', textPayload: 'Function execution took 900 ms' },
           { timestamp: '2026-10-10T23:50:03Z', severity: 'INFO' },
+          { timestamp: '2026-10-10T23:50:04Z', severity: 'INFO', jsonPayload: { message: 'Sauvegardes Firestore : bilan hebdomadaire envoyé', appareils: 1 } },
+          { timestamp: '2026-10-10T23:50:05Z', severity: 'INFO', jsonPayload: { message: 'sans donnée jointe' } },
         ],
       },
     },
@@ -664,6 +666,8 @@ test('journal de la fonction : lignes lues depuis l\'instant du lancement, la pl
   assert.deepEqual(r.lignes.map((l) => [l.quand, l.gravite, l.texte]), [
     ['2026-10-10T23:50:01Z', 'INFO', 'Sauvegardes Firestore : Dernière sauvegarde il y a 8 h.'],
     ['2026-10-10T23:50:02Z', 'DEFAULT', 'Function execution took 900 ms'],
+    ['2026-10-10T23:50:04Z', 'INFO', 'Sauvegardes Firestore : bilan hebdomadaire envoyé {"appareils":1}'],
+    ['2026-10-10T23:50:05Z', 'INFO', 'sans donnée jointe'],
   ]);
   assert.deepEqual(appels[0].corps, {
     resourceNames: ['projects/sprint-vtc'],

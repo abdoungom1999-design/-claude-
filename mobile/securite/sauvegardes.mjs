@@ -341,8 +341,16 @@ export async function lireJournalFonction(fetcher, jeton, depuis) {
     pageSize: 50,
   });
   if (!r.ok) return { erreur: `Lecture du journal impossible (HTTP ${r.statut}) : ${detail(r)}` };
+  // Les données jointes à un message (par exemple « appareils: 1 » pour le bilan du dimanche) sont des champs à part.
+  const complement = (charge) => {
+    const donnees = Object.fromEntries(Object.entries(charge && typeof charge === 'object' ? charge : {}).filter(([cle]) => cle !== 'message'));
+    return Object.keys(donnees).length > 0 ? ` ${JSON.stringify(donnees)}` : '';
+  };
   const lignes = (Array.isArray(r.json?.entries) ? r.json.entries : [])
-    .map((e) => ({ quand: e?.timestamp ?? '?', gravite: String(e?.severity ?? 'DEFAULT'), texte: String(e?.jsonPayload?.message ?? e?.textPayload ?? '').slice(0, 300) }))
+    .map((e) => {
+      const message = String(e?.jsonPayload?.message ?? e?.textPayload ?? '');
+      return { quand: e?.timestamp ?? '?', gravite: String(e?.severity ?? 'DEFAULT'), texte: message ? `${message}${complement(e?.jsonPayload)}`.slice(0, 300) : '' };
+    })
     .filter((ligne) => ligne.texte);
   return { lignes };
 }
