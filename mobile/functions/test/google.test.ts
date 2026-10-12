@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { coordonneesAdresse, rechercherAdresses } from '../src/adresses';
 import { ClientGoogle, ErreurGoogle } from '../src/google';
+import { BIAIS_ZONE } from '../src/zone';
 
 interface Appel {
   url: string;
@@ -22,7 +23,7 @@ function fetchFactice(reponse: unknown, statut = 200) {
 const entetes = (a: Appel) => a.init.headers as Record<string, string>;
 const SESSION = 'session-12345678';
 
-test('autocomplétion : Sénégal, Dakar en priorité, clé en en-tête, propositions lisibles', async () => {
+test('autocomplétion : Sénégal, zone Dakar-Thiès-Mbour en priorité, clé en en-tête, propositions lisibles', async () => {
   const { f, appels } = fetchFactice({
     suggestions: [
       {
@@ -46,7 +47,10 @@ test('autocomplétion : Sénégal, Dakar en priorité, clé en en-tête, proposi
   assert.equal(corps.sessionToken, SESSION);
   assert.deepEqual(corps.includedRegionCodes, ['sn']);
   assert.equal(corps.languageCode, 'fr');
-  assert.ok(corps.locationBias.circle.radius > 0);
+  // Priorité (pas restriction) à tout le rectangle de la zone de service, plus à un cercle autour de Dakar.
+  assert.deepEqual(corps.locationBias, BIAIS_ZONE);
+  assert.equal(corps.locationBias.circle, undefined);
+  assert.equal(corps.locationRestriction, undefined);
 });
 
 test('coordonnées : même session, champs minimaux (coût), latitude/longitude', async () => {

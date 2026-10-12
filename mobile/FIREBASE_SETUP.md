@@ -292,8 +292,9 @@ en `europe-west1` (même région que Firestore `eur3`) :
   estimée (vol d'oiseau + 10 %) pour ne jamais bloquer une commande.
   C'est ce prix que l'app affiche avant la commande.
 - `rechercherAdresses` et `coordonneesAdresse` : recherche d'adresses
-  Google Places (API New) pour l'app, limitée au Sénégal, Dakar en
-  priorité. Si elles échouent, l'app bascule sur OpenStreetMap.
+  Google Places (API New) pour l'app, limitée au Sénégal, la zone de
+  service (Dakar, Thiès, Mbour : voir plus bas) en priorité. Si elles
+  échouent, l'app bascule sur OpenStreetMap.
 - `creerPaiement` : recalcule ce prix, enregistre une commande en
   attente (`commandes`) et renvoie le lien de paiement de l'opérateur.
   Si le prix a changé depuis son affichage (passage en heure de
@@ -365,6 +366,23 @@ en `europe-west1` (même région que Firestore `eur3`) :
   lues par le client seul) gardent la position exacte. Une course d'avant ce
   masquage garde sa position exacte dans son document. Un document de course
   supprimé à la main (Admin) laisse son document privé : à supprimer avec.
+- Zone de service : Dakar, Thiès et Mbour, avec les routes qui les relient, en
+  un seul rectangle (ouest -17,63 ; est -16,75 ; nord 14,90 ; sud 14,30).
+  C'est une aide à la saisie, **pas une barrière** : aucune règle ni aucune
+  fonction ne refuse une commande dont les coordonnées sont ailleurs au Sénégal
+  (seules les valeurs impossibles, latitude hors de ±90 ou longitude hors de
+  ±180, sont refusées), et la carte se déplace librement. Le rectangle sert à
+  deux endroits : la priorité donnée à Google Places pour les adresses
+  (`functions/src/zone.ts`) et la recherche d'adresses de secours
+  OpenStreetMap, qui ne cherche que dedans (`lib/core/maps/zone_service.dart`).
+  Les deux fichiers ont les mêmes chiffres (un test le vérifie) : pour étendre
+  la zone, changer les quatre bords des deux. La carte s'ouvre sur Dakar tant que
+  la position de l'appareil n'est pas connue, puis se centre sur elle. La grille
+  de prix (prise en charge 300 FCFA + 200 FCFA par km, minimum 1 000 FCFA) est la
+  même partout. Les nouvelles courses préviennent encore tous les chauffeurs en
+  ligne, quelle que soit leur ville (`chauffeursEligibles`), et l'app chauffeur
+  affiche toutes les courses en attente : à revoir si les trois villes
+  fonctionnent ensemble (filtre par distance, décision du client).
 
 ### 7.1 Déploiement automatique (GitHub Actions)
 

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../firebase_options.dart';
 import '../firebase/fonctions_cloud.dart';
+import 'zone_service.dart';
 
 /// Adresse choisie, avec ses coordonnées GPS.
 class AdresseSuggestion {
@@ -141,24 +142,27 @@ class AdressesGoogle implements ServiceAdresses {
 /// debounce). Pour un usage en production à plus grande échelle, prévoir
 /// un Nominatim auto-hébergé ou un fournisseur payant (Google, Mapbox…).
 class GeocodingService implements ServiceAdresses {
-  GeocodingService()
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: 'https://nominatim.openstreetmap.org',
-          connectTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
-          headers: {
-            'User-Agent':
-                'SprintApp-Dakar/1.0 (+https://github.com/abdoungom1999-design/-claude-)',
-          },
-        ),
-      );
+  /// [dio] ne sert qu'aux tests (réponses de Nominatim simulées).
+  GeocodingService({Dio? dio})
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: 'https://nominatim.openstreetmap.org',
+              connectTimeout: const Duration(seconds: 8),
+              receiveTimeout: const Duration(seconds: 8),
+              headers: {
+                'User-Agent':
+                    'SprintApp-Dakar/1.0 (+https://github.com/abdoungom1999-design/-claude-)',
+              },
+            ),
+          );
 
   final Dio _dio;
 
-  /// Emprise approximative de Dakar et environs (left,top,right,bottom),
-  /// pour prioriser les résultats locaux.
-  static const _viewbox = '-17.63,14.85,-17.10,14.60';
+  /// La recherche reste dans la zone de service (Dakar, Thiès, Mbour) :
+  /// voir [ZoneDeService].
+  static const _viewbox = ZoneDeService.viewbox;
 
   @override
   Future<List<PropositionAdresse>> rechercher(String requete) async {

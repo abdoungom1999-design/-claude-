@@ -1,4 +1,5 @@
 import type { Point } from './tarification';
+import { BIAIS_ZONE } from './zone';
 
 /**
  * Appels à Google Maps Platform depuis les Cloud Functions : la clé
@@ -8,9 +9,6 @@ import type { Point } from './tarification';
  * - Routes API : distance par la route, qui sert au prix.
  */
 
-/** Centre de Dakar : les résultats proches sont favorisés. */
-const CENTRE_DAKAR = { latitude: 14.7167, longitude: -17.4677 };
-const RAYON_PRIORITE_M = 30000;
 const DELAI_MS = 5000;
 
 export interface PropositionAdresse {
@@ -69,7 +67,10 @@ export class ClientGoogle {
     return reponse.json();
   }
 
-  /** Autocomplétion d'adresses, limitée au Sénégal, Dakar en priorité. */
+  /**
+   * Autocomplétion d'adresses, limitée au Sénégal, la zone de service (Dakar,
+   * Thiès, Mbour : voir `zone.ts`) en priorité.
+   */
   async autocompletion(texte: string, session: string): Promise<PropositionAdresse[]> {
     const donnees = (await this.appeler(
       'https://places.googleapis.com/v1/places:autocomplete',
@@ -81,7 +82,7 @@ export class ClientGoogle {
           languageCode: 'fr',
           regionCode: 'sn',
           includedRegionCodes: ['sn'],
-          locationBias: { circle: { center: CENTRE_DAKAR, radius: RAYON_PRIORITE_M } },
+          locationBias: BIAIS_ZONE,
         }),
       },
       'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat',
