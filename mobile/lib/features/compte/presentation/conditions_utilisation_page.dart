@@ -27,7 +27,9 @@ class ConditionsUtilisationPage extends StatelessWidget {
               'indépendants (« Conducteur »). Groupe Santine n\'est ni '
               'transporteur, ni employeur des Conducteurs : elle fournit '
               'uniquement l\'outil de mise en relation, de géolocalisation, de '
-              'calcul tarifaire et de paiement.',
+              'calcul tarifaire et de paiement. Les courses sont limitées à '
+              '30 km au plus, à l\'intérieur d\'une même ville (Dakar, Thiès '
+              'ou Mbour).',
         ),
         SectionJuridique(
           'Création de compte et éligibilité',

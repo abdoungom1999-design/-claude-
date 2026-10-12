@@ -143,14 +143,16 @@ void main() {
       }
     });
 
-    test('en attendant les prix de province du client : mêmes montants qu\'à Dakar, une seule grille pour la moto et le colis', () {
-      // Quand le client donne les prix de Thiès et de Mbour, la première vérification est à mettre à jour avec eux.
+    test('prix du client (12 octobre 2026) : Dakar 300 + 200 par km, minimum 1 000 ; province 150 + 100 par km, minimum 300', () {
+      expect(
+        DemoData.tarifs(ZoneTarifaire.dakar, 'PASSAGER'),
+        const TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
+      );
       expect(
         DemoData.tarifs(ZoneTarifaire.province, 'PASSAGER'),
-        DemoData.tarifs(ZoneTarifaire.dakar, 'PASSAGER'),
-        reason: 'les prix de province ont été fixés : mettre ce test à jour',
+        const TarifsDeCourse(prisEnCharge: 150, parKm: 100, parMinute: 0, prixMinimum: 300),
       );
-      // L'écran Admin « Règles en vigueur » n'affiche qu'une grille par zone : elle vaut pour la moto et le colis.
+      // Mêmes prix pour la moto et le colis : l'écran Admin « Règles en vigueur » n'affiche qu'une grille par zone.
       for (final zone in ZoneTarifaire.values) {
         expect(DemoData.tarifs(zone, 'COLIS'), DemoData.tarifs(zone, 'PASSAGER'), reason: '$zone');
       }
@@ -158,10 +160,21 @@ void main() {
 
     test('le mode démo calcule le prix avec la grille de la zone demandée (Dakar par défaut)', () {
       final midi = DateTime.utc(2026, 10, 12, 12);
-      final parDefaut = DemoData.estimerPrix(type: 'PASSAGER', distanceKm: 15, maintenant: midi);
-      expect(parDefaut.prixFcfa, 3300);
-      for (final zone in ZoneTarifaire.values) {
-        expect(DemoData.estimerPrix(type: 'PASSAGER', distanceKm: 15, maintenant: midi, zone: zone).prixFcfa, 3300);
+      final pointe = DateTime.utc(2026, 10, 12, 8);
+      int prix(double km, DateTime quand, {ZoneTarifaire? zone, String type = 'PASSAGER'}) => zone == null
+          ? DemoData.estimerPrix(type: type, distanceKm: km, maintenant: quand).prixFcfa
+          : DemoData.estimerPrix(type: type, distanceKm: km, maintenant: quand, zone: zone).prixFcfa;
+
+      expect(prix(15, midi), 3300, reason: 'sans zone : Dakar, comme avant');
+      expect(prix(15, midi, zone: ZoneTarifaire.dakar), 3300);
+      for (final type in ['PASSAGER', 'COLIS']) {
+        const province = ZoneTarifaire.province;
+        expect(prix(0.5, midi, zone: province, type: type), 300, reason: 'minimum de course');
+        expect(prix(2, midi, zone: province, type: type), 400); // 150 + 200 = 350 -> 400
+        expect(prix(5, midi, zone: province, type: type), 700); // 650 -> 700
+        expect(prix(15, midi, zone: province, type: type), 1700); // 1 650 -> 1 700
+        // Majoration x1,2 conservée en province : 650 x 1,2 = 780 -> 800.
+        expect(prix(5, pointe, zone: province, type: type), 800);
       }
     });
   });

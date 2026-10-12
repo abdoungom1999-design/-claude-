@@ -69,14 +69,31 @@ test('zones : la grille de province est celle qui sert aux départs de province 
     // Dakar et les colis de province n'ont pas bougé.
     assert.equal(estimerPrix('PASSAGER', 10, a(12), 'DAKAR').prixFcfa, 2300);
     assert.equal(estimerPrix('PASSAGER', 10, a(12)).prixFcfa, 2300);
-    assert.equal(estimerPrix('COLIS', 10, a(12), 'PROVINCE').prixFcfa, 2300);
+    assert.equal(estimerPrix('COLIS', 10, a(12), 'PROVINCE').prixFcfa, 1200); // 150 + 10 x 100 = 1 150 -> 1 200
   } finally {
     Object.assign(TARIFS_PAR_ZONE.PROVINCE.PASSAGER, avant.PASSAGER);
     Object.assign(TARIFS_PAR_ZONE.PROVINCE.COLIS, avant.COLIS);
   }
 });
 
-test("zones : en attendant les prix de province du client, mêmes montants qu'à Dakar (aucun prix ne change)", () => {
-  // Quand le client donne les prix de Thiès et de Mbour, ce test est à mettre à jour avec eux.
-  assert.deepEqual(TARIFS_PAR_ZONE.PROVINCE, TARIFS_PAR_ZONE.DAKAR, 'les prix de province ont été fixés : mettre ce test à jour');
+test('province (Thiès, Mbour) : 150 FCFA + 100 FCFA par km, minimum 300 FCFA, comme décidé par le client le 12 octobre 2026', () => {
+  const grille = { prisEnCharge: 150, parKm: 100, parMinute: 0, prixMinimum: 300 };
+  assert.deepEqual(TARIFS_PAR_ZONE.PROVINCE, { PASSAGER: grille, COLIS: grille }, 'mêmes prix pour la moto et pour le colis');
+  const province = (type: 'PASSAGER' | 'COLIS', km: number, heure = 12) => estimerPrix(type, km, a(heure), 'PROVINCE').prixFcfa;
+  for (const type of ['PASSAGER', 'COLIS'] as const) {
+    assert.equal(province(type, 0.5), 300, 'minimum de course'); // 150 + 50 = 200 -> 300
+    assert.equal(province(type, 1), 300); // 250 -> 300
+    assert.equal(province(type, 2), 400); // 350 -> 400
+    assert.equal(province(type, 5), 700); // 650 -> 700
+    assert.equal(province(type, 10), 1200); // 1 150 -> 1 200
+    assert.equal(province(type, 15), 1700); // 1 650 -> 1 700
+    // Majoration x1,2 conservée aux heures de pointe et la nuit, avant l'arrondi à la centaine.
+    assert.equal(province(type, 5, 8), 800); // 650 x 1,2 = 780 -> 800
+    assert.equal(province(type, 5, 18), 800);
+    assert.equal(province(type, 5, 23), 800);
+    assert.equal(province(type, 10, 8), 1400); // 1 150 x 1,2 = 1 380 -> 1 400
+  }
+  // Dakar n'a pas bougé : la province est environ moitié moins chère.
+  assert.equal(estimerPrix('PASSAGER', 5, a(12), 'DAKAR').prixFcfa, 1300);
+  assert.equal(estimerPrix('PASSAGER', 5, a(8), 'PROVINCE').motifMajoration, 'Heure de pointe');
 });

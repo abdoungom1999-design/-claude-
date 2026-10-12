@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DISTANCE_TRAJET_MAX_KM, validerTrajet } from '../src/commandes';
 import { FRAICHEUR_POSITION_ALERTE_MS, RAYON_ALERTE_KM } from '../src/notifications';
-import { distanceKm } from '../src/tarification';
+import { distanceKm, TARIFS_PAR_ZONE, type TypeCourse, type ZoneTarifaire } from '../src/tarification';
 import { BIAIS_ZONE, VILLES_PROVINCE, ZONE_SERVICE, zoneTarifaire } from '../src/zone';
 
 interface Lieu {
@@ -185,4 +185,29 @@ test('trajet trop long : l\'app affiche mot pour mot le message du serveur', () 
   }
   assert.equal(messageDart, messageServeur);
   assert.match(messageServeur, /^Ce trajet dépasse 30 km\./);
+});
+
+test('grilles de prix : l\'app (mode démo, écran Admin) et le serveur ont exactement les mêmes montants, par zone et par type', () => {
+  const source = sourceDart('core', 'demo', 'demo_data.dart');
+  const grillesDart = {} as Record<string, Record<string, unknown>>;
+  for (const [, zone, bloc] of source.matchAll(/ZoneTarifaire\.(dakar|province): \{([\s\S]*?)\n    \},/g)) {
+    const grille: Record<string, unknown> = {};
+    for (const [, type, prisEnCharge, parKm, parMinute, prixMinimum] of bloc.matchAll(
+      /'(PASSAGER|COLIS)': TarifsDeCourse\(prisEnCharge: (\d+), parKm: (\d+), parMinute: (\d+), prixMinimum: (\d+)\)/g,
+    )) {
+      grille[type] = {
+        prisEnCharge: Number(prisEnCharge),
+        parKm: Number(parKm),
+        parMinute: Number(parMinute),
+        prixMinimum: Number(prixMinimum),
+      };
+    }
+    grillesDart[zone.toUpperCase()] = grille;
+  }
+  assert.deepEqual(Object.keys(grillesDart).sort(), ['DAKAR', 'PROVINCE']);
+  for (const zone of ['DAKAR', 'PROVINCE'] as ZoneTarifaire[]) {
+    for (const type of ['PASSAGER', 'COLIS'] as TypeCourse[]) {
+      assert.deepEqual(grillesDart[zone][type], { ...TARIFS_PAR_ZONE[zone][type] }, `${zone} ${type}`);
+    }
+  }
 });

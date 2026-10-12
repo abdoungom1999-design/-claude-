@@ -395,14 +395,15 @@ en `europe-west1` (même région que Firestore `eur3`) :
     de Mbour, Saly, Somone et Nianing comprises) ou Dakar (tout le reste, banlieue
     comprise). Les grilles sont dans `functions/src/tarification.ts`
     (`TARIFS_DAKAR`, `TARIFS_PROVINCE`) et dans `DemoData` côté app (mode démo et
-    écran Admin « Règles en vigueur », qui affiche les deux). **Les prix de
-    province sont en attente du client** : en attendant, mêmes montants qu'à
-    Dakar, donc aucun prix ne change. Pour les fixer : changer les nombres de la
-    province aux deux endroits, puis mettre à jour les deux tests qui disent
-    « province = Dakar » (`tarification.test.ts` et `zone_service_test.dart`) ; la
-    majoration, l'arrondi à la centaine et le minimum s'appliquent comme à Dakar.
-    L'estimation, le paiement Wave et le paiement par solde passent tous par le
-    même calcul : le prix vu est le prix payé.
+    écran Admin « Règles en vigueur », qui affiche les deux). **Prix fixés par
+    le client le 12 octobre 2026.** Dakar : prise en charge 300 FCFA + 200 FCFA
+    par km, minimum 1 000 FCFA. Province (Thiès et Mbour, moto et colis) : prise
+    en charge 150 FCFA + 100 FCFA par km, minimum 300 FCFA. La majoration x1,2
+    des heures de pointe et de la nuit et l'arrondi à la centaine s'appliquent
+    aux deux. Pour les changer : les nombres aux deux endroits, puis les tests
+    qui les citent (un test vérifie que l'app et le serveur ont les mêmes
+    montants). L'estimation, le paiement Wave et le paiement par solde passent
+    tous par le même calcul : le prix vu est le prix payé.
   - **Chauffeurs alertés à moins de 30 km du départ** (`RAYON_ALERTE_KM`,
     `notifications.ts`, et `RayonAlertes` côté app chauffeur). Le serveur lit
     `positions_chauffeurs/{uid}` ; un chauffeur dont la position date de plus de

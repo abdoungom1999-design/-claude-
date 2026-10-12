@@ -162,8 +162,15 @@ void main() {
     // Les deux grilles (Dakar, province), la zone et les deux limites décidées par le client.
     expect(find.text('Tarifs à Dakar'), findsOneWidget);
     expect(find.text('Tarifs à Thiès et Mbour'), findsOneWidget);
-    expect(find.text('Comme à Dakar'), findsOneWidget);
-    expect(find.textContaining('Les prix de Thiès et de Mbour seront fixés prochainement'), findsOneWidget);
+    // Dakar : 300 + 200 par km, minimum 1 000 ; province : 150 + 100 par km, minimum 300.
+    expect(find.text('Prise en charge'), findsNWidgets(2));
+    expect(find.text(formaterFcfa(300)), findsNWidgets(2), reason: 'prise en charge de Dakar et minimum de la province');
+    expect(find.text(formaterFcfa(150)), findsOneWidget);
+    expect(find.text(formaterFcfa(200)), findsOneWidget);
+    expect(find.text(formaterFcfa(100)), findsOneWidget);
+    expect(find.text(formaterFcfa(1000)), findsOneWidget);
+    expect(find.text('Comme à Dakar'), findsNothing);
+    expect(find.textContaining('seront fixés prochainement'), findsNothing);
     expect(find.text('Zone et courses'), findsOneWidget);
     expect(find.text('Dakar, Thiès, Mbour'), findsOneWidget);
     expect(find.text('30 km (même ville)'), findsOneWidget);

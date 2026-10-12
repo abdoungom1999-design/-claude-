@@ -206,18 +206,18 @@ class DemoData {
 
   /// Les grilles, par zone (selon le point de départ) puis par type de course.
   ///
-  /// Province (Thiès, Mbour) : EN ATTENTE DES PRIX DU CLIENT (décision du
-  /// 12 octobre 2026). Tant qu'ils ne sont pas donnés, mêmes montants qu'à
-  /// Dakar, donc aucun prix ne change. Pour les fixer, ne changer que les
-  /// nombres de la province, ici et dans `functions/src/tarification.ts`.
+  /// Province (Thiès, Mbour) : prix donnés par le client le 12 octobre 2026
+  /// (prise en charge 150, 100 par km, minimum 300 ; les mêmes pour Thiès et
+  /// Mbour, pour la moto et pour le colis). Les mêmes nombres sont dans
+  /// `functions/src/tarification.ts` : un test vérifie qu'ils restent identiques.
   static const Map<ZoneTarifaire, Map<String, TarifsDeCourse>> _grilles = {
     ZoneTarifaire.dakar: {
       'PASSAGER': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
       'COLIS': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
     },
     ZoneTarifaire.province: {
-      'PASSAGER': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
-      'COLIS': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
+      'PASSAGER': TarifsDeCourse(prisEnCharge: 150, parKm: 100, parMinute: 0, prixMinimum: 300),
+      'COLIS': TarifsDeCourse(prisEnCharge: 150, parKm: 100, parMinute: 0, prixMinimum: 300),
     },
   };
 

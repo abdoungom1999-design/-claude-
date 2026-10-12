@@ -42,16 +42,18 @@ const TARIFS_DAKAR: Record<TypeCourse, Tarifs> = {
 
 /**
  * Grille de la province (Thiès, Mbour), moins chère que celle de Dakar pour
- * suivre le marché des motos « Jakarta ».
+ * suivre le marché des motos « Jakarta ». Prix donnés par le client le
+ * 12 octobre 2026 : prise en charge 150 FCFA, 100 FCFA par km, minimum
+ * 300 FCFA, les mêmes pour Thiès et Mbour, pour la moto et pour le colis ; la
+ * majoration x1,2 (heures de pointe, nuit) et l'arrondi à la centaine
+ * s'appliquent comme à Dakar.
  *
- * EN ATTENTE DES PRIX DU CLIENT (décision du 12 octobre 2026) : tant qu'ils ne
- * sont pas donnés, les montants sont ceux de Dakar, donc aucun prix ne change.
- * Pour les fixer, ne changer que les nombres ci-dessous, puis ceux de la
- * province dans `DemoData` côté app (mode démo et écran Admin).
+ * Pour les changer : ces nombres, ceux de la province dans `DemoData` côté app
+ * (mode démo et écran Admin) et les deux tests qui les citent.
  */
 const TARIFS_PROVINCE: Record<TypeCourse, Tarifs> = {
-  PASSAGER: { prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000 },
-  COLIS: { prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000 },
+  PASSAGER: { prisEnCharge: 150, parKm: 100, parMinute: 0, prixMinimum: 300 },
+  COLIS: { prisEnCharge: 150, parKm: 100, parMinute: 0, prixMinimum: 300 },
 };
 
 /** Les grilles, par zone puis par type de course (exportées pour les tests). */
