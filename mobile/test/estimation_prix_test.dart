@@ -18,6 +18,8 @@ import 'package:sprint/features/courses/presentation/estimation_prix_card.dart';
 final _plateau = AdresseSuggestion(libelle: 'Plateau', latitude: 14.6680, longitude: -17.4380);
 final _almadies = AdresseSuggestion(libelle: 'Almadies', latitude: 14.7450, longitude: -17.5170);
 final _ouakam = AdresseSuggestion(libelle: 'Ouakam', latitude: 14.7230, longitude: -17.4870);
+final _thies = AdresseSuggestion(libelle: 'Thiès', latitude: 14.7910, longitude: -16.9359);
+final _gareThies = AdresseSuggestion(libelle: 'Gare de Thiès', latitude: 14.7892, longitude: -16.9253);
 
 /// Tarification contrôlée par le test : chaque appel attend que le test
 /// complète sa réponse.
@@ -185,6 +187,43 @@ void main() {
       expect(tarification.demandes, isEmpty);
     });
 
+    test('trajet entre deux villes (Dakar → Thiès) : refusé sans appeler la tarification, avec le message du serveur', () {
+      final tarification = _TarificationFactice();
+      final controller = EstimationCourseController(type: 'PASSAGER', pricingRepository: tarification)
+        ..definirDepart(_plateau)
+        ..definirArrivee(_thies);
+      expect(controller.etat, EtatEstimation.erreur);
+      expect(controller.erreur, EstimationCourseController.messageTrajetTropLong);
+      expect(controller.erreur, contains('dépasse 30 km'));
+      expect(controller.peutCommander, isFalse);
+      expect(tarification.demandes, isEmpty);
+
+      // Choisir une destination plus proche (dans la même ville) lève le refus.
+      controller.definirDepart(_thies);
+      controller.definirArrivee(_gareThies);
+      expect(controller.etat, EtatEstimation.calcul);
+      expect(tarification.demandes, hasLength(1));
+    });
+
+    test('le plafond est de 30 km (distance par la route estimée) : 29,9 km passe, 30,1 km non', () {
+      expect(EstimationCourseController.distanceMaximaleKm, 30);
+      AdresseSuggestion arrivee(double km) => AdresseSuggestion(
+            libelle: 'A',
+            latitude: _plateau.latitude + km / DistanceUtils.coefficientDetour / 111.195,
+            longitude: _plateau.longitude,
+          );
+      final tarification = _TarificationFactice();
+      final dedans = EstimationCourseController(type: 'PASSAGER', pricingRepository: tarification)
+        ..definirDepart(_plateau)
+        ..definirArrivee(arrivee(29.9));
+      expect(dedans.etat, EtatEstimation.calcul);
+      final dehors = EstimationCourseController(type: 'PASSAGER', pricingRepository: tarification)
+        ..definirDepart(_plateau)
+        ..definirArrivee(arrivee(30.1));
+      expect(dehors.etat, EtatEstimation.erreur);
+      expect(tarification.demandes, hasLength(1));
+    });
+
     test('une réponse en retard ne remplace pas le prix du dernier trajet choisi', () async {
       final tarification = _TarificationFactice();
       final controller = EstimationCourseController(type: 'PASSAGER', pricingRepository: tarification)
@@ -215,6 +254,16 @@ void main() {
       expect(find.text('Prix estimé'), findsOneWidget);
       expect(find.text('~4 800 FCFA'), findsOneWidget);
       expect(find.text('≈ 20 min'), findsOneWidget);
+    });
+
+    testWidgets('trajet trop long : le message explique la règle, sans bouton « Réessayer »', (tester) async {
+      final controller = EstimationCourseController(type: 'PASSAGER', pricingRepository: _TarificationFactice())
+        ..definirDepart(_plateau)
+        ..definirArrivee(_thies);
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: EstimationPrixCard(controller: controller))));
+
+      expect(find.text(EstimationCourseController.messageTrajetTropLong), findsOneWidget);
+      expect(find.text('Réessayer'), findsNothing);
     });
 
     testWidgets('écran Passager : "Commander" désactivé tant que le prix n\'est pas calculé', (tester) async {

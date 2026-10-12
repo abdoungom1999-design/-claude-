@@ -10,12 +10,26 @@ import {
   type Point,
   type TypeCourse,
 } from './tarification';
+import { zoneTarifaire } from './zone';
 
 /** En dessous, départ et arrivée sont le même lieu (même seuil que l'app). */
 export const DISTANCE_MIN_KM = 0.1;
 
-/** Au-delà, la course est hors zone (protection contre les saisies absurdes). */
+/**
+ * Au-delà, une position est absurde (protection contre les saisies folles, et
+ * de l'itinéraire d'un chauffeur : voir `itineraire.ts`). Ce n'est pas la limite
+ * d'une course : voir [DISTANCE_TRAJET_MAX_KM].
+ */
 export const DISTANCE_MAX_KM = 100;
+
+/**
+ * Sprint est réservé aux petits trajets à l'intérieur d'une même ville
+ * (décision du client, 12 octobre 2026) : une course plus longue que cela,
+ * Dakar → Thiès par exemple, est refusée. Mesurée comme tout le reste ici
+ * (vol d'oiseau x 1,1, voir [Trajet.distanceKm]), donc sans appeler Google.
+ * Dakar de bout en bout (Almadies → Keur Massar) reste en dessous.
+ */
+export const DISTANCE_TRAJET_MAX_KM = 30;
 
 /**
  * 100 % mobile money : la plateforme encaisse chaque course, soit par le
@@ -27,7 +41,7 @@ export interface Trajet {
   type: TypeCourse;
   depart: Point;
   arrivee: Point;
-  /** Vol d'oiseau x 1,1 : sert aux contrôles (même lieu, hors zone). */
+  /** Vol d'oiseau x 1,1 : sert aux contrôles (même lieu, trajet trop long). */
   distanceKm: number;
 }
 
@@ -85,8 +99,11 @@ export function validerTrajet(donnees: unknown): Trajet {
   if (distanceKm < DISTANCE_MIN_KM) {
     throw invalide("L'adresse de départ et l'adresse d'arrivée sont identiques.");
   }
-  if (distanceKm > DISTANCE_MAX_KM) {
-    throw invalide(`Ce trajet dépasse ${DISTANCE_MAX_KM} km : il est hors de la zone desservie.`);
+  if (distanceKm > DISTANCE_TRAJET_MAX_KM) {
+    throw invalide(
+      `Ce trajet dépasse ${DISTANCE_TRAJET_MAX_KM} km. Sprint est réservé aux petits trajets à l'intérieur ` +
+        "d'une même ville (Dakar, Thiès ou Mbour) : choisissez une destination plus proche.",
+    );
   }
   return { type: d.type as TypeCourse, depart, arrivee, distanceKm };
 }
@@ -126,7 +143,8 @@ export async function estimer(
   if (!uid) throw new HttpsError('unauthenticated', 'Connectez-vous pour estimer un trajet.');
   const trajet = validerTrajet(donnees);
   const distance = await calcul(trajet.depart, trajet.arrivee);
-  return { ...estimerPrix(trajet.type, distance.distanceKm, maintenant), sourceDistance: distance.source };
+  const zone = zoneTarifaire(trajet.depart);
+  return { ...estimerPrix(trajet.type, distance.distanceKm, maintenant, zone), sourceDistance: distance.source };
 }
 
 /** Client connecté, avec un profil, ni suspendu ni banni. */
@@ -154,7 +172,7 @@ export interface PrixServeur {
  */
 export async function prixServeur(calcul: CalculDistance, demande: Demande, maintenant: Date): Promise<PrixServeur> {
   const distance = await calcul(demande.depart, demande.arrivee);
-  const estimation = estimerPrix(demande.type, distance.distanceKm, maintenant);
+  const estimation = estimerPrix(demande.type, distance.distanceKm, maintenant, zoneTarifaire(demande.depart));
   if (estimation.prixFcfa !== demande.prixAttendu) {
     throw new HttpsError('failed-precondition', 'Le prix de ce trajet a changé.', {
       raison: 'prix-modifie',

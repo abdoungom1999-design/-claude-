@@ -8,8 +8,11 @@ import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestor
 import { HttpsError } from 'firebase-functions/v2/https';
 import { FournisseurSimule } from '../src/fournisseurs';
 import {
+  chauffeursEligibles,
+  FRAICHEUR_POSITION_ALERTE_MS,
   LIENS,
   LONGUEUR_MAX_TEXTE,
+  RAYON_ALERTE_KM,
   SITE,
   MAX_CHAUFFEURS_PREVENUS,
   notifierAcceptation,
@@ -51,7 +54,7 @@ before(() => {
 after(() => deleteApp(app));
 
 async function vider() {
-  for (const nom of ['users', 'courses', 'commandes', 'chats', 'appareils', 'profils_publics']) {
+  for (const nom of ['users', 'courses', 'commandes', 'chats', 'appareils', 'profils_publics', 'positions_chauffeurs']) {
     await db.recursiveDelete(db.collection(nom));
   }
 }
@@ -273,6 +276,97 @@ test('nouvelle course : colis, course déjà prise ou inconnue, plafond de chauf
   for (let i = 0; i < MAX_CHAUFFEURS_PREVENUS + 10; i++) await chauffeur(`c${i}`);
   await notifierNouvelleCourse(db, fcm, 'colis');
   assert.ok(fcm.envois[0].jetons.length <= MAX_CHAUFFEURS_PREVENUS);
+});
+
+// --- Filtre des alertes : un chauffeur n'est prévenu que d'une course à moins de 30 km de lui ---
+
+const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
+const ALMADIES = { latitude: 14.7456, longitude: -17.5134 };
+const THIES = { latitude: 14.791, longitude: -16.9359 };
+const MBOUR = { latitude: 14.4196, longitude: -16.964 };
+
+/** Ce que l'app du chauffeur publie : sa position et l'heure du relevé. */
+async function position(uid: string, lieu: { latitude: number; longitude: number }, majLe: Date) {
+  await db.doc(`positions_chauffeurs/${uid}`).set({ ...lieu, precision: 10, majLe: Timestamp.fromDate(majLe) });
+}
+
+/** Une course en attente dont le départ (arrondi, comme en vrai) est à [lieu]. */
+const courseEnAttente = (id: string, lieu: { latitude: number; longitude: number }) =>
+  db.doc(`courses/${id}`).set({
+    clientId: 'awa', statut: 'en_attente', type: 'PASSAGER', adresseDepart: 'Départ', adresseArrivee: 'Arrivée',
+    prixFcfa: 2300, latitudeDepart: lieu.latitude, longitudeDepart: lieu.longitude, departArrondi: true,
+  });
+
+test('nouvelle course à Dakar : les chauffeurs de Thiès et de Mbour ne sont pas prévenus, ceux de Dakar oui', async () => {
+  await courseEnAttente('course', PLATEAU);
+  const recent = new Date(midi.getTime() - 60 * 1000);
+  for (const uid of ['dakar', 'thies', 'mbour']) await chauffeur(uid);
+  await position('dakar', ALMADIES, recent);
+  await position('thies', THIES, recent);
+  await position('mbour', MBOUR, recent);
+
+  assert.equal(await notifierNouvelleCourse(db, fcm, 'course', midi), 1);
+  assert.deepEqual(fcm.envois[0].jetons, ['jeton_dakar']);
+});
+
+test('nouvelle course à Thiès : le chauffeur de Thiès est prévenu, pas celui de Dakar', async () => {
+  await courseEnAttente('course', THIES);
+  const recent = new Date(midi.getTime() - 60 * 1000);
+  await chauffeur('dakar');
+  await chauffeur('thies');
+  await position('dakar', PLATEAU, recent);
+  await position('thies', THIES, recent);
+
+  assert.equal(await notifierNouvelleCourse(db, fcm, 'course', midi), 1);
+  assert.deepEqual(fcm.envois[0].jetons, ['jeton_thies']);
+});
+
+test('alertes : position inconnue, absente ou trop ancienne = le chauffeur est prévenu comme avant', async () => {
+  const depart = PLATEAU;
+  const ancienne = new Date(midi.getTime() - FRAICHEUR_POSITION_ALERTE_MS - 60 * 1000);
+  const recente = new Date(midi.getTime() - 60 * 1000);
+  for (const uid of ['sansPosition', 'positionAncienne', 'positionIllisible', 'proche', 'loin']) await chauffeur(uid);
+  await position('positionAncienne', THIES, ancienne);
+  await db.doc('positions_chauffeurs/positionIllisible').set({ latitude: 'x', longitude: null, majLe: Timestamp.fromDate(recente) });
+  await position('proche', ALMADIES, recente);
+  await position('loin', THIES, recente);
+
+  const ids = await chauffeursEligibles(db, depart, midi);
+  assert.deepEqual(ids.sort(), ['positionAncienne', 'positionIllisible', 'proche', 'sansPosition']);
+});
+
+test('alertes : le rayon est de 30 km (juste dedans = prévenu, juste dehors = non)', async () => {
+  assert.equal(RAYON_ALERTE_KM, 30);
+  const recent = new Date(midi.getTime() - 60 * 1000);
+  // 1 degré de latitude = 111,195 km : 0,2690° ≈ 29,9 km, 0,2710° ≈ 30,1 km.
+  await chauffeur('dedans');
+  await chauffeur('dehors');
+  await position('dedans', { latitude: PLATEAU.latitude + 0.269, longitude: PLATEAU.longitude }, recent);
+  await position('dehors', { latitude: PLATEAU.latitude + 0.271, longitude: PLATEAU.longitude }, recent);
+
+  assert.deepEqual(await chauffeursEligibles(db, PLATEAU, midi), ['dedans']);
+});
+
+test('alertes : un chauffeur éloigné ne prend la place de personne dans le plafond', async () => {
+  const recent = new Date(midi.getTime() - 60 * 1000);
+  for (let i = 0; i < MAX_CHAUFFEURS_PREVENUS + 20; i++) {
+    await chauffeur(`loin${i}`);
+    await position(`loin${i}`, THIES, recent);
+  }
+  for (const uid of ['proche1', 'proche2', 'proche3']) {
+    await chauffeur(uid);
+    await position(uid, ALMADIES, recent);
+  }
+  assert.deepEqual((await chauffeursEligibles(db, PLATEAU, midi)).sort(), ['proche1', 'proche2', 'proche3']);
+});
+
+test('alertes : course sans coordonnées de départ (ancienne) = aucun filtre, comme avant', async () => {
+  const recent = new Date(midi.getTime() - 60 * 1000);
+  await db.doc('courses/ancienne').set({ clientId: 'awa', statut: 'en_attente', type: 'PASSAGER', adresseDepart: 'A', adresseArrivee: 'B', prixFcfa: 1500 });
+  await chauffeur('thies');
+  await position('thies', THIES, recent);
+  assert.equal(await notifierNouvelleCourse(db, fcm, 'ancienne', midi), 1);
+  assert.deepEqual(await chauffeursEligibles(db, undefined, midi), ['thies']);
 });
 
 // ---------------------------------------------------------------------

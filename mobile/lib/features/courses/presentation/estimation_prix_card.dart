@@ -174,7 +174,10 @@ class _Erreur extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final memeAdresse = (controller.distanceKm ?? 1) < EstimationCourseController.distanceMinimaleKm;
+    final distance = controller.distanceKm ?? 1;
+    // Réessayer ne changerait rien : il faut changer d'adresse.
+    final memeAdresse = distance < EstimationCourseController.distanceMinimaleKm;
+    final tropLong = distance > EstimationCourseController.distanceMaximaleKm;
     return Row(
       children: [
         const Icon(Icons.error_outline_rounded, color: AppColors.danger),
@@ -185,7 +188,7 @@ class _Erreur extends StatelessWidget {
             style: const TextStyle(fontSize: 13, color: AppColors.danger, height: 1.4),
           ),
         ),
-        if (!memeAdresse)
+        if (!memeAdresse && !tropLong)
           TextButton(
             onPressed: controller.reessayer,
             child: const Text('Réessayer', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.vert)),

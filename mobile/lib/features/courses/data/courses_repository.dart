@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/demo/demo_data.dart';
+import '../../../core/maps/zone_service.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 
@@ -31,9 +32,14 @@ class CoursesRepository {
   Future<CourseCreee> creerCourse(Map<String, dynamic> donnees) async {
     if (ApiConfig.modeDemo) {
       await Future.delayed(const Duration(milliseconds: 600));
+      final latitude = donnees['latitudeDepart'];
+      final longitude = donnees['longitudeDepart'];
       final estimation = DemoData.estimerPrix(
         type: donnees['type'] as String? ?? 'PASSAGER',
         distanceKm: (donnees['distanceKm'] as num?)?.toDouble() ?? 0,
+        zone: latitude is num && longitude is num
+            ? ZoneDeService.zoneTarifaire(latitude.toDouble(), longitude.toDouble())
+            : ZoneTarifaire.dakar,
       );
       return CourseCreee(
         id: DemoData.nouvelIdCourse(),

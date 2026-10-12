@@ -9,13 +9,13 @@ class ConditionsUtilisationPage extends StatelessWidget {
     return const LegalPage(
       titre: 'Conditions d\'utilisation',
       icon: Icons.description_outlined,
-      derniereMiseAJour: '22 septembre 2026',
+      derniereMiseAJour: '12 octobre 2026',
       intro:
           'Les présentes Conditions Générales d\'Utilisation (« CGU ») régissent '
           'l\'accès et l\'utilisation de l\'application Sprint, éditée par Groupe '
           'Santine, mettant en relation des Clients avec des Conducteurs '
           'partenaires indépendants pour des services de transport de personnes '
-          '(moto-taxi) et de livraison de colis à Dakar et dans ses environs. '
+          '(moto-taxi) et de livraison de colis à Dakar, Thiès, Mbour et leurs environs. '
           'En créant un compte ou en utilisant l\'application, vous acceptez '
           'sans réserve les présentes CGU.',
       sections: [

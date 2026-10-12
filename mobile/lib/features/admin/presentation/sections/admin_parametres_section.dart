@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/demo/admin_demo_data.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/maps/zone_service.dart';
 import '../../../../core/notifications/carte_notifications.dart';
 import '../../../../core/notifications/notifications_push.dart';
 import '../../../../core/suivi/suivi_plantages.dart';
@@ -10,7 +11,9 @@ import '../../../../core/widgets/premium_dialog.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/utils/format_fcfa.dart';
 import '../../../../firebase_options.dart';
+import '../../../conducteur/data/rayon_alertes.dart';
 import '../../../courses/data/course_service.dart';
+import '../../../courses/data/estimation_course_controller.dart';
 import '../widgets/carte_stockage_kyc.dart';
 import '../widgets/carte_suivi_plantages.dart';
 
@@ -181,6 +184,9 @@ class _ReglesEnVigueur extends StatelessWidget {
           ),
         );
     const titre = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
+    // Une seule grille pour la moto et le colis (un test le garantit).
+    final dakar = DemoData.tarifs(ZoneTarifaire.dakar, 'PASSAGER');
+    final province = DemoData.tarifs(ZoneTarifaire.province, 'PASSAGER');
 
     final regles = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 620),
@@ -197,10 +203,25 @@ class _ReglesEnVigueur extends StatelessWidget {
               style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
             ),
             const SizedBox(height: 22),
-            const Text('Tarifs', style: titre),
-            ligne('Prise en charge', formaterFcfa(300)),
-            ligne('Prix par kilomètre', formaterFcfa(200)),
-            ligne('Prix minimum', formaterFcfa(1000)),
+            const Text('Tarifs à Dakar', style: titre),
+            ligne('Prise en charge', formaterFcfa(dakar.prisEnCharge)),
+            ligne('Prix par kilomètre', formaterFcfa(dakar.parKm)),
+            ligne('Prix minimum', formaterFcfa(dakar.prixMinimum)),
+            const SizedBox(height: 8),
+            // Selon le point de départ de la course.
+            if (province == dakar) ...[
+              ligne('Tarifs à Thiès et Mbour', 'Comme à Dakar'),
+              const Text(
+                'Les prix de Thiès et de Mbour seront fixés prochainement ; en attendant, ce sont ceux de Dakar.',
+                style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
+              ),
+            ] else ...[
+              const Text('Tarifs à Thiès et Mbour', style: titre),
+              ligne('Prise en charge', formaterFcfa(province.prisEnCharge)),
+              ligne('Prix par kilomètre', formaterFcfa(province.parKm)),
+              ligne('Prix minimum', formaterFcfa(province.prixMinimum)),
+            ],
+            const SizedBox(height: 8),
             ligne('Distance facturée', 'Par la route (Google)'),
             ligne('Heures de pointe (7 h – 10 h, 17 h – 20 h)', '× 1,2'),
             ligne('Tarif de nuit (22 h – 5 h)', '× 1,2'),
@@ -216,6 +237,11 @@ class _ReglesEnVigueur extends StatelessWidget {
               'bloquer une commande.',
               style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
             ),
+            const Divider(height: 36, color: AppColors.bord),
+            const Text('Zone et courses', style: titre),
+            ligne('Villes servies', 'Dakar, Thiès, Mbour'),
+            ligne('Trajet maximum', '${EstimationCourseController.distanceMaximaleKm.round()} km (même ville)'),
+            ligne('Alertes chauffeurs', 'À moins de ${RayonAlertes.rayonKm.round()} km'),
             const Divider(height: 36, color: AppColors.bord),
             const Text('Commission et paiement', style: titre),
             ligne('Commission Sprint', '${Commission.pourcentage} % du prix'),

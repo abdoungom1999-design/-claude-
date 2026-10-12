@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { distanceRouteEstimeeKm, estimerPrix, motifMajoration } from '../src/tarification';
+import { distanceRouteEstimeeKm, estimerPrix, motifMajoration, TARIFS_PAR_ZONE, ZONES_TARIFAIRES } from '../src/tarification';
 
 const a = (heure: number) => new Date(Date.UTC(2026, 8, 27, heure));
 
@@ -44,4 +44,39 @@ test('parité exacte avec le calcul de l\'app Flutter (25 cas)', () => {
     assert.equal(estimation.prixFcfa, cas.prixFcfa, `prix ${cas.trajet} à ${cas.heure} h`);
     assert.equal(estimation.dureeEstimeeMin, cas.dureeEstimeeMin);
   }
+});
+
+test('zones : sans zone indiquée, la grille de Dakar, exactement comme avant', () => {
+  assert.deepEqual(estimerPrix('PASSAGER', 15, a(12)), estimerPrix('PASSAGER', 15, a(12), 'DAKAR'));
+  assert.equal(estimerPrix('PASSAGER', 15, a(12)).zoneTarifaire, 'DAKAR');
+  assert.deepEqual([...ZONES_TARIFAIRES], ['DAKAR', 'PROVINCE']);
+});
+
+test('zones : le résultat dit quelle grille a servi', () => {
+  assert.equal(estimerPrix('COLIS', 4, a(12), 'PROVINCE').zoneTarifaire, 'PROVINCE');
+  assert.equal(estimerPrix('COLIS', 4, a(12), 'DAKAR').zoneTarifaire, 'DAKAR');
+});
+
+test('zones : la grille de province est celle qui sert aux départs de province (et elle seule)', () => {
+  const avant = { PASSAGER: { ...TARIFS_PAR_ZONE.PROVINCE.PASSAGER }, COLIS: { ...TARIFS_PAR_ZONE.PROVINCE.COLIS } };
+  try {
+    // Des prix de province de démonstration : 200 + 100 x km, minimum 500.
+    Object.assign(TARIFS_PAR_ZONE.PROVINCE.PASSAGER, { prisEnCharge: 200, parKm: 100, parMinute: 0, prixMinimum: 500 });
+    assert.equal(estimerPrix('PASSAGER', 10, a(12), 'PROVINCE').prixFcfa, 1200);
+    assert.equal(estimerPrix('PASSAGER', 1, a(12), 'PROVINCE').prixFcfa, 500);
+    // La majoration s'applique à la grille de province comme à celle de Dakar.
+    assert.equal(estimerPrix('PASSAGER', 10, a(8), 'PROVINCE').prixFcfa, 1400); // 1 200 x 1,2 = 1 440 -> 1 400
+    // Dakar et les colis de province n'ont pas bougé.
+    assert.equal(estimerPrix('PASSAGER', 10, a(12), 'DAKAR').prixFcfa, 2300);
+    assert.equal(estimerPrix('PASSAGER', 10, a(12)).prixFcfa, 2300);
+    assert.equal(estimerPrix('COLIS', 10, a(12), 'PROVINCE').prixFcfa, 2300);
+  } finally {
+    Object.assign(TARIFS_PAR_ZONE.PROVINCE.PASSAGER, avant.PASSAGER);
+    Object.assign(TARIFS_PAR_ZONE.PROVINCE.COLIS, avant.COLIS);
+  }
+});
+
+test("zones : en attendant les prix de province du client, mêmes montants qu'à Dakar (aucun prix ne change)", () => {
+  // Quand le client donne les prix de Thiès et de Mbour, ce test est à mettre à jour avec eux.
+  assert.deepEqual(TARIFS_PAR_ZONE.PROVINCE, TARIFS_PAR_ZONE.DAKAR, 'les prix de province ont été fixés : mettre ce test à jour');
 });

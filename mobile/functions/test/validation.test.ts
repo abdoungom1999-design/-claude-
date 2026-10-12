@@ -1,13 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { HttpsError } from 'firebase-functions/v2/https';
-import { estimer, validerDemande } from '../src/commandes';
+import { DISTANCE_MAX_KM, DISTANCE_TRAJET_MAX_KM, estimer, prixServeur, validerDemande } from '../src/commandes';
 import type { CalculDistance } from '../src/distances';
 import { METHODES_ACTIVES, METHODES_CONNUES, METHODES_RECHARGE, verifierMethode } from '../src/methodes_paiement';
-import { distanceRouteEstimeeKm } from '../src/tarification';
+import { COEFFICIENT_DETOUR, distanceRouteEstimeeKm, type Point } from '../src/tarification';
 
 const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
 const ALMADIES = { latitude: 14.7456, longitude: -17.5134 };
+const KEUR_MASSAR = { latitude: 14.7836, longitude: -17.3114 };
+const THIES = { latitude: 14.791, longitude: -16.9359 };
+const GARE_DE_THIES = { latitude: 14.7892, longitude: -16.9253 };
+const MBOUR = { latitude: 14.4196, longitude: -16.964 };
+const SALY = { latitude: 14.4472, longitude: -17.0 };
 const midi = new Date(Date.UTC(2026, 8, 27, 12));
 
 /** Secours sans Google : vol d'oiseau x 1,1. */
@@ -75,7 +80,7 @@ test('trajet invalide : type, coordonnées, même lieu, hors zone (sans appeler 
   await rejete(
     estimer(compteur, 'awa', { type: 'PASSAGER', depart: PLATEAU, arrivee: { latitude: 16.02, longitude: -16.5 } }, midi),
     'invalid-argument',
-    /hors de la zone/,
+    /dépasse 30 km/,
   );
   await rejete(estimer(compteur, 'awa', null, midi), 'invalid-argument');
   assert.equal(appels, 0);
@@ -118,4 +123,73 @@ test('recharge : le mobile money actif est Wave seul', () => {
   assert.equal(verifierMethode('WAVE', METHODES_RECHARGE, 'recharger'), 'WAVE');
   refuse(() => verifierMethode('ORANGE_MONEY', METHODES_RECHARGE, 'recharger'), 'failed-precondition', /rechargez avec Wave\./);
   refuse(() => verifierMethode('PORTEFEUILLE', METHODES_RECHARGE, 'recharger'), 'invalid-argument', /Wave uniquement/);
+});
+
+// --- Sprint = petits trajets à l'intérieur d'une même ville (décision du client, 12 octobre 2026) ---
+
+test('trajet entre deux villes (Dakar → Thiès...) : refusé, message clair, sans appeler Google, pour l\'estimation comme pour le paiement', async () => {
+  let appels = 0;
+  const compteur: CalculDistance = async (d, a) => {
+    appels++;
+    return route13(d, a);
+  };
+  const entreVilles: [string, Point, Point][] = [
+    ['Dakar → Thiès', PLATEAU, THIES],
+    ['Thiès → Dakar', THIES, PLATEAU],
+    ['Thiès → Mbour', THIES, MBOUR],
+    ['Mbour → Dakar', MBOUR, PLATEAU],
+  ];
+  for (const [nom, depart, arrivee] of entreVilles) {
+    for (const type of ['PASSAGER', 'COLIS']) {
+      await rejete(estimer(compteur, 'awa', { type, depart, arrivee }, midi), 'invalid-argument', /dépasse 30 km.*même ville.*Dakar, Thiès ou Mbour/);
+    }
+    refuse(() => validerDemande(commande({ depart, arrivee })), 'invalid-argument', /dépasse 30 km/);
+    refuse(() => validerDemande(commande({ depart, arrivee, methodePaiement: 'PORTEFEUILLE' })), 'invalid-argument', /dépasse 30 km/);
+    assert.ok(distanceRouteEstimeeKm(depart, arrivee) > DISTANCE_TRAJET_MAX_KM, nom);
+  }
+  assert.equal(appels, 0);
+});
+
+test('petits trajets dans une même ville : acceptés (Dakar de bout en bout, Thiès, Mbour et Saly)', async () => {
+  const petits: [string, Point, Point][] = [
+    ['Plateau → Almadies', PLATEAU, ALMADIES],
+    ['Keur Massar → Almadies (le plus long de Dakar)', KEUR_MASSAR, ALMADIES],
+    ['Thiès centre → gare', THIES, GARE_DE_THIES],
+    ['Mbour → Saly', MBOUR, SALY],
+  ];
+  for (const [nom, depart, arrivee] of petits) {
+    assert.ok(distanceRouteEstimeeKm(depart, arrivee) <= DISTANCE_TRAJET_MAX_KM, nom);
+    const e = await estimer(route13, 'awa', { type: 'PASSAGER', depart, arrivee }, midi);
+    assert.ok(e.prixFcfa > 0, nom);
+    assert.equal(validerDemande(commande({ depart, arrivee })).distanceKm, distanceRouteEstimeeKm(depart, arrivee), nom);
+  }
+});
+
+test('plafond du trajet : 30 km mesurés en vol d\'oiseau x 1,1 (29,9 passe, 30,1 non) ; 100 km restent la protection contre les saisies absurdes', async () => {
+  assert.equal(DISTANCE_TRAJET_MAX_KM, 30);
+  assert.equal(DISTANCE_MAX_KM, 100);
+  const arrivee = (km: number): Point => ({ latitude: PLATEAU.latitude + km / COEFFICIENT_DETOUR / 111.195, longitude: PLATEAU.longitude });
+  assert.ok(Math.abs(distanceRouteEstimeeKm(PLATEAU, arrivee(29.9)) - 29.9) < 0.01);
+
+  const e = await estimer(route13, 'awa', { type: 'PASSAGER', depart: PLATEAU, arrivee: arrivee(29.9) }, midi);
+  assert.ok(e.prixFcfa > 0);
+  await rejete(estimer(route13, 'awa', { type: 'PASSAGER', depart: PLATEAU, arrivee: arrivee(30.1) }, midi), 'invalid-argument', /dépasse 30 km/);
+});
+
+test('zone tarifaire : Thiès et Mbour = province, Dakar et sa banlieue = Dakar, pour l\'estimation comme pour le prix recalculé à la commande', async () => {
+  const cas: [string, Point, Point, string][] = [
+    ['Plateau', PLATEAU, ALMADIES, 'DAKAR'],
+    ['Keur Massar', KEUR_MASSAR, PLATEAU, 'DAKAR'],
+    ['Thiès', THIES, GARE_DE_THIES, 'PROVINCE'],
+    ['Mbour', MBOUR, SALY, 'PROVINCE'],
+    ['Saly', SALY, MBOUR, 'PROVINCE'],
+  ];
+  for (const [nom, depart, arrivee, zone] of cas) {
+    const estimation = await estimer(route13, 'awa', { type: 'PASSAGER', depart, arrivee }, midi);
+    assert.equal(estimation.zoneTarifaire, zone, nom);
+    // À la commande, le serveur recalcule avec la même grille : le prix vu est le prix payé.
+    const recalcule = await prixServeur(route13, validerDemande(commande({ depart, arrivee, prixAttendu: estimation.prixFcfa })), midi);
+    assert.equal(recalcule.estimation.zoneTarifaire, zone, nom);
+    assert.equal(recalcule.estimation.prixFcfa, estimation.prixFcfa, nom);
+  }
 });

@@ -159,6 +159,15 @@ void main() {
           '${formaterFcfa(1600)} · 15 km à midi = ${formaterFcfa(3300)}.'),
       findsOneWidget,
     );
+    // Les deux grilles (Dakar, province), la zone et les deux limites décidées par le client.
+    expect(find.text('Tarifs à Dakar'), findsOneWidget);
+    expect(find.text('Tarifs à Thiès et Mbour'), findsOneWidget);
+    expect(find.text('Comme à Dakar'), findsOneWidget);
+    expect(find.textContaining('Les prix de Thiès et de Mbour seront fixés prochainement'), findsOneWidget);
+    expect(find.text('Zone et courses'), findsOneWidget);
+    expect(find.text('Dakar, Thiès, Mbour'), findsOneWidget);
+    expect(find.text('30 km (même ville)'), findsOneWidget);
+    expect(find.text('À moins de 30 km'), findsOneWidget);
     expect(find.text('Mode maintenance'), findsNothing);
   });
 }

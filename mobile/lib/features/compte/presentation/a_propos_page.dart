@@ -35,7 +35,7 @@ class AProposPage extends StatelessWidget {
             const Text(
               'Sprint est l\'application de VTC moto-taxi et de livraison de '
               'colis de Groupe Santine, conçue pour connecter rapidement et '
-              'en toute sécurité les habitants de Dakar à des chauffeurs '
+              'en toute sécurité les habitants de Dakar, Thiès et Mbour à des chauffeurs '
               'partenaires vérifiés.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.5),

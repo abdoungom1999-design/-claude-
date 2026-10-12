@@ -368,22 +368,49 @@ en `europe-west1` (même région que Firestore `eur3`) :
   supprimé à la main (Admin) laisse son document privé : à supprimer avec.
 - Zone de service : Dakar, Thiès et Mbour, avec les routes qui les relient, en
   un seul rectangle (ouest -17,63 ; est -16,75 ; nord 14,90 ; sud 14,30).
-  C'est une aide à la saisie, **pas une barrière** : aucune règle ni aucune
-  fonction ne refuse une commande dont les coordonnées sont ailleurs au Sénégal
-  (seules les valeurs impossibles, latitude hors de ±90 ou longitude hors de
-  ±180, sont refusées), et la carte se déplace librement. Le rectangle sert à
-  deux endroits : la priorité donnée à Google Places pour les adresses
-  (`functions/src/zone.ts`) et la recherche d'adresses de secours
-  OpenStreetMap, qui ne cherche que dedans (`lib/core/maps/zone_service.dart`).
-  Les deux fichiers ont les mêmes chiffres (un test le vérifie) : pour étendre
-  la zone, changer les quatre bords des deux. La carte s'ouvre sur Dakar tant que
-  la position de l'appareil n'est pas connue, puis se centre sur elle. La grille
-  de prix (prise en charge 300 FCFA + 200 FCFA par km, minimum 1 000 FCFA) est la
-  même partout. Les nouvelles courses préviennent encore tous les chauffeurs en
-  ligne, quelle que soit leur ville (`chauffeursEligibles`), et l'app chauffeur
-  affiche toutes les courses en attente : à revoir si les trois villes
-  fonctionnent ensemble (filtre par distance, décision du client).
-
+  Pour les adresses, c'est une aide à la saisie, **pas une barrière** : aucune
+  règle ni aucune fonction ne refuse une adresse ailleurs au Sénégal, et la
+  carte se déplace librement. Le rectangle sert à deux endroits : la priorité
+  donnée à Google Places (`functions/src/zone.ts`) et la recherche d'adresses de
+  secours OpenStreetMap, qui ne cherche que dedans
+  (`lib/core/maps/zone_service.dart`). Les deux fichiers ont les mêmes chiffres
+  (un test le vérifie) : pour étendre la zone, changer les quatre bords des
+  deux. La carte s'ouvre sur Dakar tant que la position de l'appareil n'est pas
+  connue, puis se centre sur elle.
+- Trois règles décidées par le client le 12 octobre 2026 (Sprint = petits
+  trajets dans une même ville ; un tarif pour la province ; des chauffeurs
+  alertés seulement près du départ) :
+  - **Trajet de 30 km au plus** (`DISTANCE_TRAJET_MAX_KM`, `commandes.ts`),
+    mesuré comme le reste du contrôle (vol d'oiseau x 1,1, sans appeler
+    Google). Au-delà, `estimerPrix`, `creerPaiement` et le paiement par solde
+    refusent avec « Ce trajet dépasse 30 km. Sprint est réservé aux petits
+    trajets à l'intérieur d'une même ville (Dakar, Thiès ou Mbour) : choisissez
+    une destination plus proche. » ; l'app le dit aussitôt, sans appeler le
+    serveur, et ne propose pas de commander. Dakar de bout en bout (Almadies →
+    Keur Massar) reste en dessous ; Dakar → Thiès, Thiès → Mbour et Dakar → Mbour
+    sont refusés. Les 100 km de `DISTANCE_MAX_KM` restent la protection contre
+    les positions absurdes (itinéraire du chauffeur).
+  - **Deux grilles de prix**, choisies par le POINT DE DÉPART de la course :
+    province (départ à moins de 15 km du centre de Thiès ou de 20 km du centre
+    de Mbour, Saly, Somone et Nianing comprises) ou Dakar (tout le reste, banlieue
+    comprise). Les grilles sont dans `functions/src/tarification.ts`
+    (`TARIFS_DAKAR`, `TARIFS_PROVINCE`) et dans `DemoData` côté app (mode démo et
+    écran Admin « Règles en vigueur », qui affiche les deux). **Les prix de
+    province sont en attente du client** : en attendant, mêmes montants qu'à
+    Dakar, donc aucun prix ne change. Pour les fixer : changer les nombres de la
+    province aux deux endroits, puis mettre à jour les deux tests qui disent
+    « province = Dakar » (`tarification.test.ts` et `zone_service_test.dart`) ; la
+    majoration, l'arrondi à la centaine et le minimum s'appliquent comme à Dakar.
+    L'estimation, le paiement Wave et le paiement par solde passent tous par le
+    même calcul : le prix vu est le prix payé.
+  - **Chauffeurs alertés à moins de 30 km du départ** (`RAYON_ALERTE_KM`,
+    `notifications.ts`, et `RayonAlertes` côté app chauffeur). Le serveur lit
+    `positions_chauffeurs/{uid}` ; un chauffeur dont la position date de plus de
+    30 minutes, ou qui n'en a pas, est alerté comme avant (aucune course
+    manquée). Le plafond de 100 chauffeurs s'applique après ce tri. L'app
+    chauffeur applique la même règle à sa liste de courses en attente.
+  Un test relit l'app et le serveur pour vérifier qu'ils ont les mêmes villes,
+  les mêmes rayons, le même plafond de trajet et le même message.
 ### 7.1 Déploiement automatique (GitHub Actions)
 
 À chaque push, GitHub Actions teste le backend puis déploie les Cloud

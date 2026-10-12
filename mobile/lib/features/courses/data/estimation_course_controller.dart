@@ -34,6 +34,17 @@ class EstimationCourseController extends ChangeNotifier {
   /// En dessous, départ et arrivée sont considérés comme le même lieu.
   static const distanceMinimaleKm = 0.1;
 
+  /// Sprint est réservé aux petits trajets à l'intérieur d'une même ville
+  /// (décision du client, 12 octobre 2026) : au-delà, le trajet est refusé,
+  /// ici avant tout appel et par le serveur (`DISTANCE_TRAJET_MAX_KM` dans
+  /// `functions/src/commandes.ts`, même valeur, mesurée de la même façon).
+  static const distanceMaximaleKm = 30.0;
+
+  /// Le message du serveur pour un trajet trop long, mot pour mot.
+  static const messageTrajetTropLong =
+      'Ce trajet dépasse 30 km. Sprint est réservé aux petits trajets à l\'intérieur d\'une même ville '
+      '(Dakar, Thiès ou Mbour) : choisissez une destination plus proche.';
+
   AdresseSuggestion? _depart;
   AdresseSuggestion? _arrivee;
   EstimationPrix? _estimation;
@@ -121,6 +132,11 @@ class EstimationCourseController extends ChangeNotifier {
     }
     if (distance < distanceMinimaleKm) {
       _erreur = "L'adresse de départ et l'adresse d'arrivée sont identiques.";
+      _notifier();
+      return;
+    }
+    if (distance > distanceMaximaleKm) {
+      _erreur = messageTrajetTropLong;
       _notifier();
       return;
     }

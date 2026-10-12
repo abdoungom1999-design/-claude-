@@ -28,6 +28,7 @@ import '../../messages/data/detecteur_nouveaux_messages.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
 import '../data/conducteur_repository.dart';
 import '../data/position_chauffeur_service.dart';
+import '../data/rayon_alertes.dart';
 import 'conducteur_compte_bloque_page.dart';
 import 'conducteur_en_attente_page.dart';
 import 'conducteur_kyc_page.dart';
@@ -524,10 +525,14 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
 
   /// Dès qu'une course en attente apparaît (et qu'aucune bottom sheet
   /// n'est déjà affichée), propose la plus ancienne non encore refusée
-  /// par ce chauffeur pendant cette session En ligne.
+  /// par ce chauffeur pendant cette session En ligne, et à moins de 30 km de
+  /// lui (voir [RayonAlertes]).
   void _traiterCoursesEnAttente(List<CourseFirestore> courses) {
     if (!mounted || !_enLigne || _sheetCourseOuverte || _courseActive != null) return;
-    final proposables = courses.where((c) => !_idsCoursesIgnorees.contains(c.id));
+    final position = _positionService.dernierePosition;
+    final proposables = courses.where(
+      (c) => !_idsCoursesIgnorees.contains(c.id) && RayonAlertes.proposer(c, position),
+    );
     if (proposables.isEmpty) return;
     _proposerCourseReelle(proposables.first);
   }

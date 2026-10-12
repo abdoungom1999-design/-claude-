@@ -32,7 +32,7 @@ class BanniereProm {
 const banniereParDefaut = <BanniereProm>[
   BanniereProm(
     titre: 'Vos colis livrés en sécurité',
-    sousTitre: 'Livraison express partout à Dakar',
+    sousTitre: 'Livraison express à Dakar, Thiès, Mbour',
     image: 'assets/promo/colis.jpg',
     icone: Icons.inventory_2_outlined,
     action: ActionBanniere.colis,

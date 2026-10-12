@@ -1,3 +1,5 @@
+import { distanceKm, type Point, type ZoneTarifaire } from './tarification';
+
 /**
  * Zone où Sprint est ouvert : Dakar, Thiès et Mbour, avec les routes qui les
  * relient (un seul rectangle, en degrés).
@@ -30,3 +32,21 @@ export const BIAIS_ZONE = {
     high: { latitude: ZONE_SERVICE.nord, longitude: ZONE_SERVICE.est },
   },
 } as const;
+
+/**
+ * Villes de province, qui ont leur propre grille de prix (voir
+ * `tarification.ts`). Un départ à moins de `rayonKm` du centre d'une de ces
+ * villes est tarifé « province » ; tout le reste, Dakar et sa banlieue
+ * comprises, garde la grille de Dakar. Les deux cercles ne se touchent pas
+ * (Thiès et Mbour sont à environ 41 km l'une de l'autre).
+ */
+export const VILLES_PROVINCE = [
+  { nom: 'Thiès', centre: { latitude: 14.791, longitude: -16.9359 }, rayonKm: 15 },
+  /** 20 km : Saly, la Somone, Nianing et Ngaparou sont comprises. */
+  { nom: 'Mbour', centre: { latitude: 14.4196, longitude: -16.964 }, rayonKm: 20 },
+] as const;
+
+/** Grille de prix d'une course, selon son point de départ. */
+export function zoneTarifaire(depart: Point): ZoneTarifaire {
+  return VILLES_PROVINCE.some((ville) => distanceKm(ville.centre, depart) <= ville.rayonKm) ? 'PROVINCE' : 'DAKAR';
+}

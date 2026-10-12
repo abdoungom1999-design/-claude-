@@ -3,6 +3,7 @@ import 'dart:math';
 import '../../features/admin/data/admin_repository.dart';
 import '../../features/conducteur/data/conducteur_repository.dart';
 import '../../features/courses/data/pricing_repository.dart';
+import '../maps/zone_service.dart';
 
 /// Jeu de données factices utilisé uniquement en [ApiConfig.modeDemo],
 /// pour permettre de naviguer et d'interagir avec l'application sans
@@ -203,31 +204,40 @@ class DemoData {
 
   static const double _vitesseMoyenneKmh = 22;
 
-  static const _tarifsPassager = _Tarifs(
-    prisEnCharge: 300,
-    parKm: 200,
-    parMinute: 0,
-    prixMinimum: 1000,
-  );
+  /// Les grilles, par zone (selon le point de départ) puis par type de course.
+  ///
+  /// Province (Thiès, Mbour) : EN ATTENTE DES PRIX DU CLIENT (décision du
+  /// 12 octobre 2026). Tant qu'ils ne sont pas donnés, mêmes montants qu'à
+  /// Dakar, donc aucun prix ne change. Pour les fixer, ne changer que les
+  /// nombres de la province, ici et dans `functions/src/tarification.ts`.
+  static const Map<ZoneTarifaire, Map<String, TarifsDeCourse>> _grilles = {
+    ZoneTarifaire.dakar: {
+      'PASSAGER': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
+      'COLIS': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
+    },
+    ZoneTarifaire.province: {
+      'PASSAGER': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
+      'COLIS': TarifsDeCourse(prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000),
+    },
+  };
 
-  static const _tarifsColis = _Tarifs(
-    prisEnCharge: 300,
-    parKm: 200,
-    parMinute: 0,
-    prixMinimum: 1000,
-  );
+  /// Grille d'une zone pour un type de course (`'PASSAGER'` ou `'COLIS'`).
+  static TarifsDeCourse tarifs(ZoneTarifaire zone, String type) =>
+      _grilles[zone]![type == 'COLIS' ? 'COLIS' : 'PASSAGER']!;
 
   /// [maintenant] : pour les tests (majoration selon l'heure) ; par
-  /// défaut, l'heure actuelle.
+  /// défaut, l'heure actuelle. [zone] : la grille du point de départ
+  /// (Dakar par défaut).
   static EstimationPrix estimerPrix({
     required String type,
     required double distanceKm,
     DateTime? maintenant,
+    ZoneTarifaire zone = ZoneTarifaire.dakar,
   }) {
     final distance = distanceKm < 0 ? 0.0 : distanceKm;
     // Durée affichée au client ; facturée seulement si parMinute > 0.
     final dureeEstimeeMin = ((distance / _vitesseMoyenneKmh) * 60).round();
-    final tarifs = type == 'COLIS' ? _tarifsColis : _tarifsPassager;
+    final tarifs = DemoData.tarifs(zone, type);
     final heure = (maintenant ?? DateTime.now()).toUtc().hour;
     final motifMajoration = _motifMajoration(heure);
     final multiplicateurTrafic = motifMajoration == null ? 1.0 : 1.2;
@@ -657,8 +667,9 @@ class CourseHistorique {
   int? noteDonnee;
 }
 
-class _Tarifs {
-  const _Tarifs({
+/// Une grille de prix : prise en charge, prix au kilomètre, minimum.
+class TarifsDeCourse {
+  const TarifsDeCourse({
     required this.prisEnCharge,
     required this.parKm,
     required this.parMinute,
@@ -669,4 +680,15 @@ class _Tarifs {
   final int parKm;
   final int parMinute;
   final int prixMinimum;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TarifsDeCourse &&
+      other.prisEnCharge == prisEnCharge &&
+      other.parKm == parKm &&
+      other.parMinute == parMinute &&
+      other.prixMinimum == prixMinimum;
+
+  @override
+  int get hashCode => Object.hash(prisEnCharge, parKm, parMinute, prixMinimum);
 }

@@ -2,6 +2,7 @@ import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { getMessaging, type MulticastMessage } from 'firebase-admin/messaging';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { distanceKm, type Point } from './tarification';
 
 /**
  * Notifications push (Android) : elles arrivent même quand l'app est fermée.
@@ -10,7 +11,8 @@ import { HttpsError } from 'firebase-functions/v2/https';
  * `appareils/{uid}/jetons/{jeton}` (voir firestore.rules). Le serveur seul
  * envoie, et seulement dans ces cas :
  *   - message du chauffeur au client (ou l'inverse) pendant leur course ;
- *   - nouvelle course, aux chauffeurs en ligne, libres et non sanctionnés ;
+ *   - nouvelle course, aux chauffeurs en ligne, libres, non sanctionnés et à
+ *     moins de 30 km du départ (voir [RAYON_ALERTE_KM]) ;
  *   - course acceptée, au client ;
  *   - course annulée par le chauffeur ou faute de chauffeur, au client ;
  *   - sauvegardes de la base à vérifier (ou, le dimanche, « tout va bien »),
@@ -354,8 +356,58 @@ export async function notifierAcceptation(
 /** Nombre maximal de chauffeurs prévenus pour une même course. */
 export const MAX_CHAUFFEURS_PREVENUS = 100;
 
-/** Chauffeurs validés, non sanctionnés, en ligne et sans course en cours. */
-export async function chauffeursEligibles(db: Firestore): Promise<string[]> {
+/**
+ * Un chauffeur n'est prévenu que d'une course à moins de ce rayon de lui
+ * (décision du client, 12 octobre 2026) : une course à Thiès ne réveille pas
+ * les chauffeurs de Dakar, ni l'inverse. Même rayon dans l'app chauffeur
+ * (`lib/features/conducteur/data/rayon_alertes.dart`) : un test vérifie qu'ils
+ * restent identiques.
+ */
+export const RAYON_ALERTE_KM = 30;
+
+/**
+ * Au-delà de cet âge, la dernière position publiée d'un chauffeur n'est plus
+ * fiable : il est prévenu comme avant, plutôt que de risquer qu'une course lui
+ * échappe.
+ */
+export const FRAICHEUR_POSITION_ALERTE_MS = 30 * 60 * 1000;
+
+/**
+ * Garde, parmi [ids], les chauffeurs qui peuvent être à moins de
+ * [RAYON_ALERTE_KM] de [depart] : ceux dont la position récente est dans le
+ * rayon, et ceux dont on ne sait pas où ils sont (aucune position, ou trop
+ * ancienne).
+ */
+async function chauffeursDansLeRayon(db: Firestore, ids: string[], depart: Point, maintenant: Date): Promise<string[]> {
+  if (ids.length === 0) return ids;
+  const positions = await db.getAll(...ids.map((id) => db.doc(`positions_chauffeurs/${id}`)));
+  const limite = maintenant.getTime() - FRAICHEUR_POSITION_ALERTE_MS;
+  return ids.filter((_, i) => {
+    const position = positions[i];
+    const majLe = position.get('majLe');
+    const latitude = position.get('latitude');
+    const longitude = position.get('longitude');
+    const connue =
+      position.exists &&
+      majLe instanceof Timestamp &&
+      majLe.toMillis() >= limite &&
+      typeof latitude === 'number' &&
+      typeof longitude === 'number';
+    return !connue || distanceKm({ latitude, longitude }, depart) <= RAYON_ALERTE_KM;
+  });
+}
+
+/**
+ * Chauffeurs validés, non sanctionnés, en ligne et sans course en cours ; si le
+ * [depart] de la course est connu, seulement ceux qui n'en sont pas trop loin
+ * (voir [RAYON_ALERTE_KM]). Le plafond de [MAX_CHAUFFEURS_PREVENUS] s'applique
+ * après ce tri : un chauffeur éloigné ne prend la place de personne.
+ */
+export async function chauffeursEligibles(
+  db: Firestore,
+  depart?: Point,
+  maintenant: Date = new Date(),
+): Promise<string[]> {
   const enLigne = await db
     .collection('users')
     .where('role', '==', 'conducteur')
@@ -367,12 +419,13 @@ export async function chauffeursEligibles(db: Firestore): Promise<string[]> {
     const chauffeurId = c.get('chauffeurId');
     if (typeof chauffeurId === 'string') occupes.add(chauffeurId);
   }
-  return enLigne.docs
+  const libres = enLigne.docs
     .filter((u) => u.get('statutValidation') === 'valide')
     .filter((u) => !['suspendu', 'banni'].includes(u.get('statutCompte') ?? 'actif'))
     .filter((u) => !occupes.has(u.id))
-    .map((u) => u.id)
-    .slice(0, MAX_CHAUFFEURS_PREVENUS);
+    .map((u) => u.id);
+  const proches = depart ? await chauffeursDansLeRayon(db, libres, depart, maintenant) : libres;
+  return proches.slice(0, MAX_CHAUFFEURS_PREVENUS);
 }
 
 const fcfa = (montant: number) => `${Math.round(montant).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} FCFA`;
@@ -382,12 +435,17 @@ export async function notifierNouvelleCourse(
   db: Firestore,
   messagerie: Messagerie | undefined,
   courseId: string,
+  maintenant: Date = new Date(),
 ): Promise<number> {
   if (!messagerie) return 0;
   try {
     const course = await db.doc(`courses/${courseId}`).get();
     if (!course.exists || course.get('statut') !== 'en_attente') return 0;
-    const chauffeurs = await chauffeursEligibles(db);
+    // Départ arrondi à ~150 m (masquage) : sans importance pour un rayon de 30 km.
+    const latitude = course.get('latitudeDepart');
+    const longitude = course.get('longitudeDepart');
+    const depart = typeof latitude === 'number' && typeof longitude === 'number' ? { latitude, longitude } : undefined;
+    const chauffeurs = await chauffeursEligibles(db, depart, maintenant);
     const prix = course.get('prixFcfa');
     return await pousser(db, messagerie, chauffeurs, {
       titre: course.get('type') === 'COLIS' ? 'Nouveau colis à livrer' : 'Nouvelle course',

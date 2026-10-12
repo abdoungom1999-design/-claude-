@@ -8,6 +8,10 @@
  * charge + kilomètres, sans facturation à la minute ; majoration x1,2 en
  * heure de pointe et la nuit ; prix arrondi à la centaine, minimum
  * 1 000 FCFA. Ex. : 15 km hors pointe = 300 + 15 x 200 = 3 300 FCFA.
+ *
+ * Deux grilles, selon le POINT DE DÉPART : Dakar, et la province (Thiès et
+ * Mbour, motos « Jakarta », moins chères). Voir `zoneTarifaire` dans
+ * `zone.ts`.
  */
 
 export type TypeCourse = 'PASSAGER' | 'COLIS';
@@ -19,16 +23,41 @@ export interface Point {
   longitude: number;
 }
 
-interface Tarifs {
+export interface Tarifs {
   prisEnCharge: number;
   parKm: number;
   parMinute: number;
   prixMinimum: number;
 }
 
-const TARIFS: Record<TypeCourse, Tarifs> = {
+/** Grille applicable à une course : celle de Dakar, ou celle de la province (Thiès, Mbour). */
+export type ZoneTarifaire = 'DAKAR' | 'PROVINCE';
+
+export const ZONES_TARIFAIRES: readonly ZoneTarifaire[] = ['DAKAR', 'PROVINCE'];
+
+const TARIFS_DAKAR: Record<TypeCourse, Tarifs> = {
   PASSAGER: { prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000 },
   COLIS: { prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000 },
+};
+
+/**
+ * Grille de la province (Thiès, Mbour), moins chère que celle de Dakar pour
+ * suivre le marché des motos « Jakarta ».
+ *
+ * EN ATTENTE DES PRIX DU CLIENT (décision du 12 octobre 2026) : tant qu'ils ne
+ * sont pas donnés, les montants sont ceux de Dakar, donc aucun prix ne change.
+ * Pour les fixer, ne changer que les nombres ci-dessous, puis ceux de la
+ * province dans `DemoData` côté app (mode démo et écran Admin).
+ */
+const TARIFS_PROVINCE: Record<TypeCourse, Tarifs> = {
+  PASSAGER: { prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000 },
+  COLIS: { prisEnCharge: 300, parKm: 200, parMinute: 0, prixMinimum: 1000 },
+};
+
+/** Les grilles, par zone puis par type de course (exportées pour les tests). */
+export const TARIFS_PAR_ZONE: Record<ZoneTarifaire, Record<TypeCourse, Tarifs>> = {
+  DAKAR: TARIFS_DAKAR,
+  PROVINCE: TARIFS_PROVINCE,
 };
 
 /** Durée affichée au client ; facturée seulement si `parMinute` > 0. */
@@ -52,6 +81,8 @@ export interface EstimationPrix {
   prixFcfa: number;
   /** "Heure de pointe", "Tarif de nuit" ; `null` sans majoration. */
   motifMajoration: string | null;
+  /** Grille appliquée, selon le départ de la course. */
+  zoneTarifaire: ZoneTarifaire;
 }
 
 const versRadians = (degres: number): number => degres * (Math.PI / 180);
@@ -82,10 +113,15 @@ export function motifMajoration(heureUtc: number): string | null {
   return null;
 }
 
-export function estimerPrix(type: TypeCourse, distanceKmBrut: number, maintenant: Date): EstimationPrix {
+export function estimerPrix(
+  type: TypeCourse,
+  distanceKmBrut: number,
+  maintenant: Date,
+  zone: ZoneTarifaire = 'DAKAR',
+): EstimationPrix {
   const distance = distanceKmBrut < 0 ? 0 : distanceKmBrut;
   const dureeEstimeeMin = Math.round((distance / VITESSE_MOYENNE_KMH) * 60);
-  const tarifs = TARIFS[type];
+  const tarifs = TARIFS_PAR_ZONE[zone][type];
   const motif = motifMajoration(maintenant.getUTCHours());
   const multiplicateurTrafic = motif === null ? 1.0 : MULTIPLICATEUR_MAJORATION;
 
@@ -99,5 +135,6 @@ export function estimerPrix(type: TypeCourse, distanceKmBrut: number, maintenant
     multiplicateurTrafic,
     prixFcfa: Math.max(prixArrondi, tarifs.prixMinimum),
     motifMajoration: motif,
+    zoneTarifaire: zone,
   };
 }
