@@ -118,6 +118,21 @@ notifications : carte « Notifications » dans Admin > Paramètres, à activer u
 mise en ligne, rouvrir la PWA (iPhone), réinstaller l'APK, puis activer les notifications dans Admin >
 Paramètres.
 
+Mise en ligne du 12 octobre 2026 (run #105) : Sprint s'ouvre à Thiès et à Mbour en plus de Dakar, avec
+trois règles décidées par le client. **Trajets** : au plus 30 km, à l'intérieur d'une même ville ; un trajet
+plus long (Dakar → Thiès, l'aéroport...) est refusé avant le paiement, avec un message clair
+(`DISTANCE_TRAJET_MAX_KM` dans `functions/src/commandes.ts`, même plafond et même message dans l'app). **Prix** :
+deux grilles selon le départ de la course : Dakar (300 FCFA + 200 FCFA par km, minimum 1 000 FCFA) et la
+province, c'est-à-dire à moins de 15 km du centre de Thiès ou 20 km de celui de Mbour (150 FCFA + 100 FCFA par km,
+minimum 300 FCFA, moto et colis) ; majoration x1,2 aux heures de pointe et la nuit dans les deux
+(`functions/src/tarification.ts`, `functions/src/zone.ts`). **Alertes** : un chauffeur n'est prévenu que des
+courses à moins de 30 km de lui (`functions/src/notifications.ts`, `lib/features/conducteur/data/rayon_alertes.dart`).
+La recherche d'adresses (Google Places, et OpenStreetMap en secours) couvre les trois villes
+(`lib/core/maps/zone_service.dart`), les conditions d'utilisation portent la clause des 30 km, et les journaux
+des fonctions sont plus précis (bilan hebdomadaire des sauvegardes « non remis », codes d'erreur de Google quand
+un appareil refuse une notification). Après la mise en ligne, rouvrir la PWA (iPhone) et réinstaller l'APK : une
+ancienne version de l'app chauffeur propose encore toutes les courses, quelle que soit leur distance.
+
 ## Suivi des plantages et sauvegardes
 
 **Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics
