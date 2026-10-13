@@ -84,13 +84,24 @@ test('remboursement intégral d\'une course terminée : commande remboursée, pa
   assert.equal(entree.partChauffeurRetireeFcfa, 1955);
 });
 
-test('part du chauffeur : même formule sans commission figée, rien sur une course annulée', async () => {
+test('part du chauffeur : sans commission figée (course très ancienne), le taux d\'avant le 13 octobre 2026 (15 %) ; rien sur une course annulée', async () => {
   await course('c1', 'terminee');
   const r1 = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c1', motif: 'x' }, maintenant);
   assert.equal(r1.partChauffeurRetireeFcfa, 1955);
   await course('c2', 'annulee');
   const r2 = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c2', motif: 'x' }, maintenant);
   assert.deepEqual(r2, { rembourse: true, montantFcfa: 2300, partChauffeurRetireeFcfa: 0 });
+});
+
+test('part du chauffeur : lue sur la commission figée de la course, jamais recalculée au taux du jour (10 % ou 15 %)', async () => {
+  await course('c10', 'terminee', { commissionFcfa: 230 }); // figée à 10 % : 2 300 - 230
+  const r10 = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c10', motif: 'x' }, maintenant);
+  assert.deepEqual(r10, { rembourse: true, montantFcfa: 2300, partChauffeurRetireeFcfa: 2070 });
+  await course('c15', 'terminee', { commissionFcfa: 345 }); // figée à 15 %, avant le 13 octobre 2026
+  const r15 = await rembourserCourseAdmin(db, fournisseur, 'chef', { courseId: 'c15', motif: 'x' }, maintenant);
+  assert.deepEqual(r15, { rembourse: true, montantFcfa: 2300, partChauffeurRetireeFcfa: 1955 });
+  assert.equal((await db.doc('courses/c10').get()).get('partChauffeurRetireeFcfa'), 2070);
+  assert.equal((await db.doc('courses/c15').get()).get('partChauffeurRetireeFcfa'), 1955);
 });
 
 test('remboursement : le client est prévenu dans son ticket', async () => {

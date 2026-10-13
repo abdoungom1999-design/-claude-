@@ -312,7 +312,7 @@ void main() {
 
       await tester.tap(find.textContaining('Rembourser'));
       await tester.pumpAndSettle();
-      // Course terminée : 85 % de 2 300 (commission 345) ne seront pas payés au chauffeur.
+      // Course terminée : 2 300 moins la commission figée de 345 ne seront pas payés au chauffeur.
       expect(find.textContaining('sa part (${formaterFcfa(1955)}) est retirée'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Rembourser'));
       await tester.pumpAndSettle();

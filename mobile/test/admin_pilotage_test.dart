@@ -11,12 +11,13 @@ import 'package:sprint/features/finances/data/comptabilite.dart';
 // Dimanche 27/09/2026, 15 h à Dakar (UTC).
 final _maintenant = DateTime.utc(2026, 9, 27, 15);
 
+// Courses du 27 septembre 2026, donc d'avant le passage de la commission à 10 % : 15 %, figés.
 LigneCourse _terminee(String client, String chauffeur, int prix, DateTime date) => LigneCourse(
       courseId: '$client-$prix',
       chauffeurId: chauffeur,
       clientId: client,
       prixFcfa: prix,
-      commissionFcfa: Commission.de(prix),
+      commissionFcfa: Commission.historique(prix),
       methodePaiement: 'WAVE',
       date: date,
     );
@@ -152,7 +153,13 @@ void main() {
     await _afficher(tester, const AdminParametresSection(demo: false));
     expect(find.text('Règles en vigueur'), findsOneWidget);
     expect(find.text('Wave, solde Sprint (Orange Money bientôt)'), findsOneWidget);
-    expect(find.text('15 % du prix'), findsOneWidget);
+    expect(find.text('10 % du prix'), findsOneWidget); // commission de Sprint
+    expect(find.text('90 % du prix'), findsOneWidget); // part du chauffeur
+    expect(
+      find.text('Les courses terminées avant le changement de taux gardent leur commission de 15 %.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('85 %'), findsNothing);
     // 300 + 5 x 200 = 1 300 ; x 1,2 en pointe = 1 560 -> 1 600 ; 300 + 15 x 200 = 3 300.
     expect(
       find.text('Exemples calculés : 5 km à midi = ${formaterFcfa(1300)} · 5 km à 8 h = '

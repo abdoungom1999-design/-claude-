@@ -403,7 +403,7 @@ describe('courses : cycle de vie côté chauffeur', () => {
     const db = en('chauffeur');
     await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'), { statut: 'en_cours' }));
     await assertSucceeds(updateDoc(doc(db, 'courses', 'c2'),
-      { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: 300 }));
+      { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: 200 }));
   });
 
   test('sauter une étape, revenir en arrière ou toucher au prix : refusé', async () => {
@@ -893,21 +893,32 @@ describe('finances', () => {
   const terminer = (commission, extra = {}) =>
     updateDoc(doc(en('chauffeur'), 'courses', 'f1'), { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: commission, ...extra });
 
-  test('fin de course : commission = 15 % arrondi à l\'inférieur (3 100 -> 465)', async () => {
-    await assertSucceeds(terminer(465));
+  test('fin de course : commission = 10 % arrondi à l\'inférieur (3 100 -> 310)', async () => {
+    await assertSucceeds(terminer(310));
+  });
+
+  test('l\'ancien taux de 15 % (3 100 -> 465) n\'est plus accepté : une ancienne version de l\'app est refusée', async () => {
+    await assertFails(terminer(465));
+  });
+
+  test('arrondi à l\'inférieur : 3 155 -> 315', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'courses', 'f1'), { clientId: 'client', chauffeurId: 'chauffeur', statut: 'en_cours', prixFcfa: 3155 }));
+    await assertFails(terminer(316));
+    await assertSucceeds(terminer(315));
   });
 
   test('commission sous-évaluée, absente, ou prix modifié à la fin : refusé', async () => {
     await assertFails(terminer(0));
-    await assertFails(terminer(464));
+    await assertFails(terminer(309));
     await assertFails(updateDoc(doc(en('chauffeur'), 'courses', 'f1'), { statut: 'terminee', termineeLe: serverTimestamp() }));
-    await assertFails(terminer(465, { prixFcfa: 100 }));
+    await assertFails(terminer(310, { prixFcfa: 100 }));
   });
 
   test('course remboursée au client : ni le chauffeur ni le client ne peuvent effacer la marque', async () => {
     await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'courses', 'f1'), {
-      clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee', prixFcfa: 3100, commissionFcfa: 465,
-      rembourseeLe: new Date(), rembourseePar: 'admin', partChauffeurRetireeFcfa: 2635,
+      clientId: 'client', chauffeurId: 'chauffeur', statut: 'terminee', prixFcfa: 3100, commissionFcfa: 310,
+      rembourseeLe: new Date(), rembourseePar: 'admin', partChauffeurRetireeFcfa: 2790,
     }));
     for (const qui of ['chauffeur', 'client']) {
       await assertFails(updateDoc(doc(en(qui), 'courses', 'f1'), { rembourseeLe: deleteField() }));

@@ -189,7 +189,7 @@ class AdminDemoData {
   // calcul de prix réel de l'app (voir DemoData.estimerPrix), pour rester
   // fidèle à la demande ("champs de saisie simulés").
 
-  static double commissionPourcent = 15.0;
+  static double commissionPourcent = 10.0;
   static int prixBaseFcfa = 500;
   static int prixParKmFcfa = 150;
 

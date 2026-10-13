@@ -17,6 +17,8 @@ import 'package:sprint/features/finances/data/finance_service.dart';
 // Dimanche 27/09/2026, 15 h (Dakar = UTC) ; la semaine commence le lundi 21.
 final _maintenant = DateTime.utc(2026, 9, 27, 15);
 
+/// Une course terminée, avec sa commission figée : celle du 15 % d'avant le
+/// 13 octobre 2026 par défaut, celle du taux actuel (10 %) avec [auTauxActuel].
 LigneCourse _ligne(
   String id,
   String chauffeur,
@@ -24,12 +26,13 @@ LigneCourse _ligne(
   required String methode,
   required DateTime date,
   bool remboursee = false,
+  bool auTauxActuel = false,
 }) =>
     LigneCourse(
       courseId: id,
       chauffeurId: chauffeur,
       prixFcfa: prix,
-      commissionFcfa: Commission.de(prix),
+      commissionFcfa: auTauxActuel ? Commission.de(prix) : Commission.historique(prix),
       methodePaiement: methode,
       date: date,
       remboursee: remboursee,
@@ -47,7 +50,7 @@ final _avecRemboursement = [
 Reglement _versement(String chauffeur, int montant) =>
     Reglement(id: 'r', chauffeurId: chauffeur, montantFcfa: montant, date: _maintenant);
 
-// Parts chauffeur (85 %) : 2 550, 1 700, 8 500 et 3 400.
+// Courses d'avant le 13 octobre 2026 (commission figée de 15 %) : parts chauffeur de 2 550, 1 700, 8 500 et 3 400.
 final _courses = [
   _ligne('a', 'moussa', 3000, methode: 'WAVE', date: DateTime.utc(2026, 9, 27, 9)), // aujourd'hui
   _ligne('b', 'moussa', 2000, methode: 'ORANGE_MONEY', date: DateTime.utc(2026, 9, 27, 11)), // aujourd'hui
@@ -95,15 +98,63 @@ class _FinanceFactice extends FinanceService {
 
 void main() {
   group('Comptabilité (100 % mobile money)', () {
-    test('commission 15 % arrondie à l\'inférieur, comme les règles Firestore', () {
-      expect(Commission.de(3000), 450);
-      expect(Commission.de(3100), 465);
-      expect(Commission.de(1010), 151); // 151,5
+    test('commission de 10 % (décision du 13 octobre 2026), arrondie à l\'inférieur, comme les règles Firestore', () {
+      expect(Commission.pourcentage, 10);
+      expect(Commission.de(3000), 300);
+      expect(Commission.de(3100), 310);
+      expect(Commission.de(300), 30); // course minimum de province
+      expect(Commission.de(1005), 100); // 100,5
     });
 
-    test('chaque course : Sprint doit 85 % au chauffeur', () {
+    test('l\'ancien taux de 15 % reste connu, pour les courses terminées avant le changement', () {
+      expect(Commission.pourcentageHistorique, 15);
+      expect(Commission.historique(3000), 450);
+      expect(Commission.historique(3100), 465);
+      expect(Commission.historique(1010), 151); // 151,5
+    });
+
+    test('course d\'avant le changement : Sprint doit 85 % au chauffeur, comme avant', () {
       expect(_courses[0].partChauffeurFcfa, 2550);
       expect(_courses[1].partChauffeurFcfa, 1700);
+      expect(_courses[0].pourcentageCommission, 15);
+    });
+
+    test('course terminée au taux de 10 % : Sprint doit 90 % au chauffeur', () {
+      final ligne = _ligne('n', 'moussa', 3100, methode: 'WAVE', date: DateTime.utc(2026, 10, 14, 9), auTauxActuel: true);
+      expect(ligne.commissionFcfa, 310);
+      expect(ligne.partChauffeurFcfa, 2790);
+      expect(ligne.pourcentageCommission, 10);
+      // Course minimum de province : 300 FCFA, dont 30 pour Sprint et 270 pour le chauffeur.
+      final minimum = _ligne('m', 'moussa', 300, methode: 'WAVE', date: DateTime.utc(2026, 10, 14, 9), auTauxActuel: true);
+      expect((minimum.commissionFcfa, minimum.partChauffeurFcfa), (30, 270));
+    });
+
+    test('taux affiché pour une période : celui de ses courses, aucun si elles n\'ont pas toutes le même', () {
+      LigneCourse a(int jour, {required bool nouveau}) =>
+          _ligne('x$jour', 'moussa', 2000, methode: 'WAVE', date: DateTime.utc(2026, 10, jour, 9), auTauxActuel: nouveau);
+      final avant = a(12, nouveau: false);
+      final apres = a(14, nouveau: true);
+      final apresBis = a(15, nouveau: true);
+
+      expect(Compte(courses: [avant]).pourcentageCommission, 15);
+      expect(Compte(courses: [apres, apresBis]).pourcentageCommission, 10);
+      expect(Compte(courses: [avant, apres]).pourcentageCommission, isNull, reason: 'période à cheval sur le changement');
+      expect(Compte(courses: const []).pourcentageCommission, 10, reason: 'aucune course : le taux actuel');
+
+      // Une course remboursée ne compte pas : seule une course payée donne le taux de la période.
+      final avantRemboursee =
+          _ligne('r', 'moussa', 2000, methode: 'WAVE', date: DateTime.utc(2026, 10, 12, 9), remboursee: true);
+      expect(Compte(courses: [avantRemboursee, apres]).pourcentageCommission, 10);
+      expect(Compte(courses: [avantRemboursee]).pourcentageCommission, 10);
+    });
+
+    test('une période à cheval sur le changement garde la commission exacte de chaque course', () {
+      final avant = _ligne('a', 'moussa', 3000, methode: 'WAVE', date: DateTime.utc(2026, 10, 12, 9)); // 450
+      final apres = _ligne('b', 'moussa', 3000, methode: 'WAVE', date: DateTime.utc(2026, 10, 14, 9), auTauxActuel: true); // 300
+      final compte = Compte(courses: [avant, apres]);
+      expect(compte.chiffreAffairesFcfa, 6000);
+      expect(compte.commissionsFcfa, 750);
+      expect(compte.gainsNetsFcfa, 5250);
     });
 
     test('ce que Sprint doit : part des courses moins les versements', () {
@@ -140,7 +191,7 @@ void main() {
           timestamp: DateTime.utc(2026, 9, 1),
         );
 
-    test('course terminée avant la gestion financière : même commission', () {
+    test('course terminée avant la gestion financière (sans commission figée) : le taux d\'alors, 15 %', () {
       final ligne = LigneCourse.depuisCourse(ancienne('WAVE'));
       expect(ligne.commissionFcfa, 375);
       expect(ligne.partChauffeurFcfa, 2125);
@@ -192,6 +243,26 @@ void main() {
       expect(LigneCourse.depuisCourse(terminee).remboursee, isTrue);
       expect(LigneCourse.depuisCourse(terminee).partChauffeurFcfa, 0);
       expect(LigneCourse.partChauffeurDe(terminee), 1955);
+    });
+
+    test('la part du chauffeur se lit sur la commission figée de la course, jamais recalculée au taux du jour', () {
+      CourseFirestore terminee(int commission) => CourseFirestore(
+            id: 'x',
+            clientId: 'awa',
+            chauffeurId: 'moussa',
+            adresseDepart: 'A',
+            adresseArrivee: 'B',
+            prixFcfa: 2300,
+            methodePaiement: 'WAVE',
+            type: 'COURSE',
+            statut: StatutCourse.terminee,
+            timestamp: DateTime.utc(2026, 10, 14),
+            commissionFcfa: commission,
+          );
+      expect(LigneCourse.partChauffeurDe(terminee(230)), 2070); // figée à 10 %
+      expect(LigneCourse.partChauffeurDe(terminee(345)), 1955); // figée à 15 %, avant le changement
+      expect(LigneCourse.depuisCourse(terminee(230)).pourcentageCommission, 10);
+      expect(LigneCourse.depuisCourse(terminee(345)).pourcentageCommission, 15);
     });
 
     test('temps en ligne lisible', () {
@@ -271,12 +342,12 @@ void main() {
   });
 
   group('Chauffeur : onglet Gains', () {
-    Future<void> afficher(WidgetTester tester, _FinanceFactice service) async {
+    Future<void> afficher(WidgetTester tester, _FinanceFactice service, {DateTime? maintenant}) async {
       tester.view.physicalSize = const Size(430, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(MaterialApp(
-        home: ConducteurGainsTab(service: service, chauffeurId: 'moussa', maintenant: _maintenant),
+        home: ConducteurGainsTab(service: service, chauffeurId: 'moussa', maintenant: maintenant ?? _maintenant),
       ));
       await tester.pumpAndSettle();
     }
@@ -296,6 +367,58 @@ void main() {
       expect(find.text('27/09 · Reçu de Sprint'), findsOneWidget);
       expect(find.textContaining('Vous devez'), findsNothing);
       expect(find.textContaining('spèces'), findsNothing);
+      // Les courses de la semaine datent d'avant le changement de taux : leur 15 % est écrit tel quel.
+      expect(find.text('Commission Sprint (15 %)'), findsOneWidget);
+      expect(find.text('Vos gains (85 %)'), findsOneWidget);
+      expect(
+        find.text('Votre part de vos courses payées en mobile money (le prix moins la commission de Sprint), '
+            'moins les versements déjà reçus.'),
+        findsOneWidget,
+      );
+    });
+
+    // Jeudi 22/10/2026, 15 h : la semaine commence le lundi 19, après le passage à 10 %.
+    final jeudi22 = DateTime.utc(2026, 10, 22, 15);
+    // Jeudi 15/10/2026, 15 h : la semaine commence le lundi 12, avant et après le passage à 10 %.
+    final jeudi15 = DateTime.utc(2026, 10, 15, 15);
+
+    testWidgets('courses au taux actuel : 10 % pour Sprint, 90 % pour le chauffeur, plus aucune trace de 15 %',
+        (tester) async {
+      final service = _FinanceFactice(courses: [
+        _ligne('n1', 'moussa', 3100, methode: 'WAVE', date: DateTime.utc(2026, 10, 19, 10), auTauxActuel: true), // 310
+        _ligne('n2', 'moussa', 2000, methode: 'WAVE', date: DateTime.utc(2026, 10, 22, 9), auTauxActuel: true), // 200
+      ])
+        ..reglements.clear();
+      await afficher(tester, service, maintenant: jeudi22);
+
+      expect(find.text('Commission Sprint (10 %)'), findsOneWidget);
+      expect(find.text('Vos gains (90 %)'), findsOneWidget);
+      expect(find.text(formaterFcfa(5100)), findsOneWidget); // payé par les clients (semaine)
+      expect(find.text('− ${formaterFcfa(510)}'), findsOneWidget); // commission de la semaine : 310 + 200
+      expect(find.text(formaterFcfa(4590)), findsNWidgets(2)); // gains de la semaine, et ce que Sprint doit
+      expect(find.text(formaterFcfa(1800)), findsOneWidget); // gains du jour : 2 000 - 200
+      expect(find.text('+${formaterFcfa(2790)}'), findsOneWidget); // part d'une course : 3 100 - 310
+      expect(find.textContaining('15 %'), findsNothing);
+      expect(find.textContaining('85 %'), findsNothing);
+    });
+
+    testWidgets('semaine à cheval sur le changement de taux : aucun pourcentage faux, chaque course garde sa part',
+        (tester) async {
+      final service = _FinanceFactice(courses: [
+        _ligne('a', 'moussa', 3000, methode: 'WAVE', date: DateTime.utc(2026, 10, 12, 10)), // 15 % : 450
+        _ligne('b', 'moussa', 2000, methode: 'WAVE', date: DateTime.utc(2026, 10, 15, 9), auTauxActuel: true), // 10 % : 200
+      ])
+        ..reglements.clear();
+      await afficher(tester, service, maintenant: jeudi15);
+
+      expect(find.text('Commission Sprint'), findsOneWidget);
+      expect(find.text('Vos gains'), findsNWidgets(2)); // du jour, et de la semaine
+      expect(find.textContaining('Commission Sprint ('), findsNothing);
+      expect(find.textContaining('Vos gains ('), findsNothing);
+      expect(find.text('− ${formaterFcfa(650)}'), findsOneWidget); // 450 + 200
+      expect(find.text(formaterFcfa(4350)), findsNWidgets(2)); // gains de la semaine, et ce que Sprint doit
+      expect(find.text('+${formaterFcfa(2550)}'), findsOneWidget); // la course de 15 % garde sa part de 85 %
+      expect(find.text('+${formaterFcfa(1800)}'), findsOneWidget); // celle de 10 % a sa part de 90 %
     });
 
     testWidgets('tout versé : aucune somme en attente, jamais de dette', (tester) async {
@@ -361,6 +484,10 @@ void main() {
       expect(find.text(formaterFcfa(2750)), findsOneWidget); // Moussa
       expect(find.textContaining('Dû par'), findsNothing);
       expect(find.textContaining('spèces'), findsNothing);
+      // Le texte dit le taux d'aujourd'hui, et que les courses déjà terminées gardent le leur.
+      expect(find.textContaining('Commission : 10 % de chaque course terminée'), findsOneWidget);
+      expect(find.textContaining('gardent leurs 15 %'), findsOneWidget);
+      expect(find.textContaining('85 %'), findsNothing);
 
       // Awa en tête (Sprint lui doit le plus).
       await tester.tap(find.widgetWithText(OutlinedButton, 'Verser').first);

@@ -292,13 +292,27 @@ abstract final class StatutCommande {
   static const expiree = 'expiree';
 }
 
-/// Commission de la plateforme sur chaque course terminée : 15 % du
-/// prix, arrondi à l'inférieur. Même formule que `firestore.rules`
-/// (`math.floor(prixFcfa * 15 / 100)`), qui la fait respecter.
+/// Commission de la plateforme sur chaque course terminée : 10 % du
+/// prix, arrondi à l'inférieur (décision du client, 13 octobre 2026 ; elle
+/// était de 15 % auparavant). Même formule que `firestore.rules`
+/// (`math.floor(prixFcfa * 10 / 100)`), qui la fait respecter : un test
+/// vérifie que les deux ont le même taux.
+///
+/// La commission est figée sur chaque course à son arrivée : une course
+/// terminée avant le changement garde la sienne (15 %). Le taux historique
+/// ne sert qu'aux courses encore plus anciennes, terminées avant que la
+/// commission ne soit figée, qui n'en portent aucune.
 abstract final class Commission {
-  static const pourcentage = 15;
+  static const pourcentage = 10;
+
+  /// Taux d'avant le 13 octobre 2026 (voir [historique]).
+  static const pourcentageHistorique = 15;
 
   static int de(int prixFcfa) => (prixFcfa * pourcentage) ~/ 100;
+
+  /// Commission d'une course sans commission figée (terminée avant la
+  /// gestion financière) : le taux qui s'appliquait alors.
+  static int historique(int prixFcfa) => (prixFcfa * pourcentageHistorique) ~/ 100;
 }
 
 /// Liaison chauffeur <-> client (`liaisons/{clientId}_{chauffeurId}`) :

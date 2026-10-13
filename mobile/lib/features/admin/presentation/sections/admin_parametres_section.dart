@@ -246,6 +246,11 @@ class _ReglesEnVigueur extends StatelessWidget {
             const Text('Commission et paiement', style: titre),
             ligne('Commission Sprint', '${Commission.pourcentage} % du prix'),
             ligne('Part du chauffeur', '${100 - Commission.pourcentage} % du prix'),
+            const Text(
+              'Les courses terminées avant le changement de taux gardent leur commission de '
+              '${Commission.pourcentageHistorique} %.',
+              style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
+            ),
             ligne('Moyens de paiement', 'Wave, solde Sprint (Orange Money bientôt)'),
             ligne('Encaissement', 'Mode test (aucun débit réel)'),
           ],

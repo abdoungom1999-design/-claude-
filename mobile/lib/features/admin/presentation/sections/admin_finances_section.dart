@@ -14,7 +14,7 @@ import '../../data/suivi_direct_service.dart';
 
 /// Page "Finances" de l'Admin. En Firebase réel (100 % mobile money :
 /// Sprint encaisse chaque course) : chiffre d'affaires, commissions, et
-/// ce que Sprint doit à chaque chauffeur (sa part de 85 %, moins les
+/// ce que Sprint doit à chaque chauffeur (sa part, le prix moins la commission, moins les
 /// versements déjà faits), avec saisie des versements. En mode démo : ancien formulaire de réglages,
 /// simulé ([AdminDemoData]).
 class AdminFinancesSection extends StatelessWidget {
@@ -143,9 +143,10 @@ class _VueFinances extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           'Commission : ${Commission.pourcentage} % de chaque course terminée, figée à la fin de la course '
-          '(imposée par les règles Firestore). ${compte.nombreCourses} courses terminées au total, toutes '
-          'payées en mobile money (Wave) ou avec le solde du portefeuille, et encaissées par Sprint, qui reverse ${100 - Commission.pourcentage} % '
-          'au chauffeur (paiements encore en mode test : aucun argent réellement encaissé).'
+          '(imposée par les règles Firestore) ; les courses terminées avant le changement de taux gardent leurs '
+          '${Commission.pourcentageHistorique} %. ${compte.nombreCourses} courses terminées au total, toutes '
+          'payées en mobile money (Wave) ou avec le solde du portefeuille, et encaissées par Sprint, qui reverse '
+          'au chauffeur le prix moins la commission (paiements encore en mode test : aucun argent réellement encaissé).'
           '${compte.nombreRemboursees == 0 ? '' : ' ${compte.nombreRemboursees} course(s) remboursée(s) au client, exclue(s) '
               'des comptes : part des chauffeurs retirée (${formaterFcfa(compte.partsRetireesFcfa)}).'}',
           style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),

@@ -238,9 +238,20 @@ depuis la Console.
 - `commandes` (demandes de paiement) : écrites par le serveur seul,
   lisibles par leur client et l'Admin. `config` (secrets du serveur) :
   fermée à l'app.
-- Finances : à la fin d'une course, la commission de la plateforme (15 %
-  du prix) est figée et vérifiée par les règles. Sprint encaisse chaque
-  course et doit au chauffeur sa part (85 %) ; les versements de Sprint
+- Finances : à la fin d'une course, la commission de la plateforme (10 %
+  du prix depuis le 13 octobre 2026, 15 % avant) est figée sur la course
+  et vérifiée par les règles : une course déjà terminée garde la sienne.
+  Sprint encaisse chaque course et doit au chauffeur le prix moins cette
+  commission (90 % aujourd'hui). Le taux est écrit à deux endroits qui
+  doivent rester identiques (un test le vérifie) : `Commission.pourcentage`
+  dans l'app et la formule de `firestore.rules`. Le serveur ne calcule
+  jamais le taux du jour, il lit la commission figée ; seules les très
+  vieilles courses, sans commission figée, utilisent l'ancien taux de 15 %
+  (`POURCENTAGE_COMMISSION_HISTORIQUE`, `functions/src/admin.ts`). Pour
+  changer le taux : publier l'app et les règles ensemble quand aucune
+  course n'est en cours, puis mettre à jour tous les téléphones des
+  chauffeurs, car une ancienne version de l'app enverrait l'ancien taux et
+  les règles refuseraient la fin de course. Les versements de Sprint
   au chauffeur (`reglements`) ne sont saisis que par l'Admin, dans ce
   seul sens. Une course remboursée au client (marquée `rembourseeLe` par
   le serveur, marque que ni le chauffeur ni le client ne peuvent effacer)
@@ -325,7 +336,8 @@ en `europe-west1` (même région que Firestore `eur3`) :
   remboursement intégral d'une course terminée ou annulée, avec un motif
   obligatoire. Refusé si la course est encore en cours ou déjà
   remboursée. Le client en est informé dans son ticket. Le chauffeur n'est
-  pas payé pour une course remboursée : sa part (85 %) sort de ce que
+  pas payé pour une course remboursée : sa part (le prix moins la
+  commission figée sur la course) sort de ce que
   Sprint lui doit (`partChauffeurRetireeFcfa` sur la course et dans le
   journal) ; si elle lui avait déjà été versée, elle est déduite de ses
   prochains gains.

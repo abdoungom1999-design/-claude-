@@ -81,23 +81,32 @@ async function informerTicket(db: Firestore, courseId: string, texte: string, ma
 export interface RemboursementAdmin {
   rembourse: boolean;
   montantFcfa: number;
-  /** Part du chauffeur (85 %) retirée de ce que Sprint lui doit. */
+  /** Part du chauffeur (le prix moins la commission) retirée de ce que Sprint lui doit. */
   partChauffeurRetireeFcfa: number;
 }
 
-/** Commission de la plateforme : 15 % du prix, arrondi à l'inférieur (comme l'app et les règles). */
-const POURCENTAGE_COMMISSION = 15;
+/**
+ * Taux de commission d'avant le 13 octobre 2026 (15 %, arrondi à l'inférieur),
+ * qui ne sert plus qu'aux courses terminées avant que la commission ne soit
+ * figée, donc sans commission enregistrée. Le taux d'aujourd'hui (10 %) est
+ * celui de l'app (`Commission.pourcentage`) et des règles Firestore, qui le
+ * font respecter et figent la commission sur chaque course à son arrivée : le
+ * serveur ne le calcule jamais, il lit la commission figée.
+ */
+export const POURCENTAGE_COMMISSION_HISTORIQUE = 15;
 
 /**
  * Part du chauffeur sur une course terminée : le prix moins la
- * commission figée à l'arrivée (même formule pour les courses plus
- * anciennes). Aucune part sur une course annulée.
+ * commission figée à l'arrivée (ou, pour une course plus ancienne qui n'en
+ * porte pas, celle du taux d'alors). Aucune part sur une course annulée.
  */
 function partChauffeur(course: DocumentSnapshot): number {
   if (course.get('statut') !== 'terminee' || typeof course.get('chauffeurId') !== 'string') return 0;
   const prix = course.get('prixFcfa') as number;
   const commission = course.get('commissionFcfa');
-  return prix - (typeof commission === 'number' ? commission : Math.floor((prix * POURCENTAGE_COMMISSION) / 100));
+  return (
+    prix - (typeof commission === 'number' ? commission : Math.floor((prix * POURCENTAGE_COMMISSION_HISTORIQUE) / 100))
+  );
 }
 
 /**
@@ -108,7 +117,7 @@ function partChauffeur(course: DocumentSnapshot): number {
  * l'Admin peut réessayer.
  *
  * Sur une course terminée, le chauffeur n'est pas payé pour une course
- * remboursée : sa part (85 %) sort de ce que Sprint lui doit (l'app
+ * remboursée : sa part (le prix moins la commission) sort de ce que Sprint lui doit (l'app
  * ignore dans les comptes toute course portant `rembourseeLe`). Si elle
  * lui a déjà été versée, elle est déduite de ses prochains gains.
  */

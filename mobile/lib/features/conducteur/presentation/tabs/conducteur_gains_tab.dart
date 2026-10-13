@@ -6,14 +6,13 @@ import '../../../../core/utils/format_fcfa.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/onyx_vert.dart';
 import '../../../../firebase_options.dart';
-import '../../../courses/data/course_service.dart';
 import '../../../finances/data/comptabilite.dart';
 import '../../../finances/data/finance_service.dart';
 import '../widgets/gains_barres_chart.dart';
 
 /// Onglet Gains du chauffeur. En Firebase réel : ce que Sprint lui doit
 /// (100 % mobile money : la plateforme encaisse chaque course et reverse
-/// au chauffeur sa part de 85 %, moins les versements déjà reçus), ses
+/// au chauffeur sa part, le prix moins la commission, moins les versements déjà reçus), ses
 /// gains du jour et de la semaine, ses courses et son temps en ligne. Le
 /// chauffeur ne doit jamais rien à Sprint. En mode démo : [DemoData].
 class ConducteurGainsTab extends StatelessWidget {
@@ -105,6 +104,7 @@ class _VueGains extends StatelessWidget {
     final debutSemaine = Periodes.debutSemaine(maintenant);
     final jour = compte.depuis(debutJour);
     final semaine = compte.depuis(debutSemaine);
+    final taux = semaine.pourcentageCommission;
     final joursSemaine = [for (var i = 0; i < 7; i++) debutSemaine.add(Duration(days: i))];
     final secondesJour = tempsParJour[Periodes.cleJour(debutJour)] ?? 0;
     final secondesSemaine = joursSemaine.fold(0, (total, j) => total + (tempsParJour[Periodes.cleJour(j)] ?? 0));
@@ -145,13 +145,15 @@ class _VueGains extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _LigneMontant(libelle: 'Payé par vos clients', montant: semaine.chiffreAffairesFcfa),
+              // Le taux n'est écrit que s'il est le même pour toutes les courses de la
+              // semaine (une semaine à cheval sur le passage de 15 % à 10 % n'en a pas).
               _LigneMontant(
-                libelle: 'Commission Sprint (${Commission.pourcentage} %)',
+                libelle: taux == null ? 'Commission Sprint' : 'Commission Sprint ($taux %)',
                 montant: -semaine.commissionsFcfa,
               ),
               const Divider(height: 20, color: AppColors.bord),
               _LigneMontant(
-                libelle: 'Vos gains (${100 - Commission.pourcentage} %)',
+                libelle: taux == null ? 'Vos gains' : 'Vos gains (${100 - taux} %)',
                 montant: semaine.gainsNetsFcfa,
                 fort: true,
               ),
@@ -253,8 +255,8 @@ class _CarteDu extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               enAttente
-                  ? 'Votre part (${100 - Commission.pourcentage} %) de vos courses payées en mobile '
-                      'money, moins les versements déjà reçus.'
+                  ? 'Votre part de vos courses payées en mobile money (le prix moins la '
+                      'commission de Sprint), moins les versements déjà reçus.'
                   : aDeduire
                       ? '${formaterFcfa(-soldeFcfa)} seront déduits de vos prochains gains : une course déjà '
                           'versée a été remboursée au client.'

@@ -26,8 +26,8 @@ class LigneCourse {
         courseId: course.id,
         chauffeurId: course.chauffeurId ?? '',
         prixFcfa: course.prixFcfa,
-        // Courses terminées avant la gestion financière : même formule.
-        commissionFcfa: course.commissionFcfa ?? Commission.de(course.prixFcfa),
+        // Courses terminées avant la gestion financière : le taux d'alors.
+        commissionFcfa: course.commissionFcfa ?? Commission.historique(course.prixFcfa),
         methodePaiement: course.methodePaiement,
         clientId: course.clientId,
         date: course.termineeLe ?? course.timestamp,
@@ -38,7 +38,7 @@ class LigneCourse {
   /// retirerait) : 0 si la course n'est pas terminée.
   static int partChauffeurDe(CourseFirestore course) =>
       course.statut == StatutCourse.terminee && course.chauffeurId != null
-          ? course.prixFcfa - (course.commissionFcfa ?? Commission.de(course.prixFcfa))
+          ? course.prixFcfa - (course.commissionFcfa ?? Commission.historique(course.prixFcfa))
           : 0;
 
   final String courseId;
@@ -59,6 +59,11 @@ class LigneCourse {
 
   /// Commission de Sprint effectivement gagnée (0 si remboursé).
   int get commissionGagneeFcfa => remboursee ? 0 : commissionFcfa;
+
+  /// Taux de commission de cette course, tel que figé à son arrivée (10 % ou
+  /// 15 % selon sa date), arrondi au pourcent.
+  int get pourcentageCommission =>
+      prixFcfa <= 0 ? Commission.pourcentage : (commissionFcfa * 100 / prixFcfa).round();
 
   /// Part du chauffeur qui lui a été retirée par le remboursement.
   int get partRetireeFcfa => remboursee ? prixFcfa - commissionFcfa : 0;
@@ -114,8 +119,20 @@ class Compte {
   /// Parts des chauffeurs retirées après remboursement des clients.
   int get partsRetireesFcfa => _somme(courses.map((c) => c.partRetireeFcfa));
 
-  /// Part des chauffeurs (85 %) : ce que Sprint leur doit sur ces courses.
+  /// Part des chauffeurs (le prix moins la commission) : ce que Sprint leur
+  /// doit sur ces courses.
   int get gainsNetsFcfa => chiffreAffairesFcfa - commissionsFcfa;
+
+  /// Taux de commission commun à toutes les courses payées de la période ;
+  /// `null` si elles n'ont pas toutes le même (période à cheval sur le
+  /// passage de 15 % à 10 %) : l'écran n'affiche alors aucun pourcentage plutôt
+  /// qu'un taux faux. Sans course payée : le taux actuel.
+  int? get pourcentageCommission {
+    final payees = courses.where((c) => !c.remboursee).toList();
+    if (payees.isEmpty) return Commission.pourcentage;
+    final premier = payees.first.pourcentageCommission;
+    return payees.every((c) => c.pourcentageCommission == premier) ? premier : null;
+  }
 
   /// Déjà versé par Sprint.
   int get versementsFcfa => _somme(reglements.map((r) => r.montantFcfa));

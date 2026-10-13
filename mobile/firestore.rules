@@ -277,15 +277,18 @@ service cloud.firestore {
             && resource.data.statut == 'acceptee'
             && request.resource.data.statut == 'en_cours'
             && champsModifies().hasOnly(['statut']))
-        // À l'arrivée, la commission de la plateforme (15 % du prix,
-        // arrondi à l'inférieur) est figée sur la course, avec l'heure de
-        // fin : le chauffeur ne peut pas la choisir.
+        // À l'arrivée, la commission de la plateforme (10 % du prix,
+        // arrondi à l'inférieur ; 15 % avant le changement de taux décidé par
+        // le client le 13 octobre 2026) est figée sur la course, avec l'heure
+        // de fin : le chauffeur ne peut pas la choisir. Une course déjà
+        // terminée garde la sienne. Même taux que `Commission.pourcentage`
+        // dans l'app (un test vérifie qu'ils restent identiques).
         || (connecte()
             && resource.data.chauffeurId == moi()
             && resource.data.statut == 'en_cours'
             && request.resource.data.statut == 'terminee'
             && request.resource.data.termineeLe == request.time
-            && request.resource.data.commissionFcfa == math.floor(resource.data.prixFcfa * 15 / 100)
+            && request.resource.data.commissionFcfa == math.floor(resource.data.prixFcfa * 10 / 100)
             && champsModifies().hasOnly(['statut', 'termineeLe', 'commissionFcfa']));
       // Annulations (client en attente, chauffeur avec un motif) :
       // uniquement par la Cloud Function "annulerCourse", qui rembourse le
@@ -427,9 +430,9 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------
     // Finances. La plateforme encaisse toutes les courses (Wave / Orange
-    // Money) et reverse au chauffeur sa part (85 %). Les versements sont
-    // saisis par l'Admin seul, visibles du chauffeur concerné ; un
-    // chauffeur ne doit jamais rien à la plateforme.
+    // Money) et reverse au chauffeur sa part (le prix moins la commission).
+    // Les versements sont saisis par l'Admin seul, visibles du chauffeur
+    // concerné ; un chauffeur ne doit jamais rien à la plateforme.
     // ---------------------------------------------------------------
     match /reglements/{reglementId} {
       allow read: if connecte() && (resource.data.chauffeurId == moi() || estAdmin());

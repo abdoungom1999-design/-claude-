@@ -487,7 +487,7 @@ class _DialogueRemboursement extends StatefulWidget {
 
   final int montantFcfa;
 
-  /// Part (85 %) que le chauffeur ne touchera pas (0 : course annulée).
+  /// Part (le prix moins la commission) que le chauffeur ne touchera pas (0 : course annulée).
   final int partChauffeurFcfa;
 
   @override
