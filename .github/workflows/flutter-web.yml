@@ -7,6 +7,16 @@ name: Build & déployer Sprint Web
 # l'app web à la racine et l'APK Android (/android/, /sprint.apk).
 # L'ancienne adresse GitHub Pages redirige vers le nouveau site. Rien
 # n'est déployé si un test échoue.
+#
+# Machines : Ubuntu 24.04 (« ubuntu-24.04 ») est figé exprès, sur décision du
+# client (14 octobre 2026) : GitHub fait passer « ubuntu-latest » à Ubuntu 26 à
+# partir du 19 octobre 2026, et la CI ne change pas de système sans essai.
+# Ne pas le remplacer par « ubuntu-latest » : un test de securite/ le vérifie.
+#
+# Essai sans publication : Actions > Build & déployer Sprint Web > Run workflow,
+# case « Essai sans publication » cochée. Le site, le serveur (tests et
+# émulateur), les règles et l'APK sont compilés et contrôlés comme d'habitude,
+# mais rien n'est déployé : les jobs firebase, hebergement et deploy sont sautés.
 on:
   push:
     branches:
@@ -21,6 +31,11 @@ on:
         description: "URL du backend à utiliser (laisser vide pour la valeur par défaut)"
         required: false
         default: ""
+      essai:
+        description: "Essai sans publication : tout est compilé et testé, rien n'est déployé (ni fonctions, ni règles, ni site, ni APK)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -33,12 +48,17 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+
+      # Visible sur la page du run (le dossier mobile/ existe une fois le code récupéré).
+      - name: Annonce de l'essai sans publication
+        if: ${{ format('{0}', inputs.essai) == 'true' }}
+        run: echo "::notice title=Essai sans publication::Tout est compilé et testé, mais RIEN n'est déployé (ni fonctions, ni règles, ni site, ni APK en ligne)."
 
       - uses: subosito/flutter-action@v2
         with:
@@ -98,7 +118,7 @@ jobs:
   # (Cloud Functions, dont émulateur Firestore) et règles de sécurité
   # Firestore.
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Ce job ne publie rien : lecture du code, et des runs passés pour
     # retrouver le dernier déploiement réussi (étape « Plage à contrôler »).
     permissions:
@@ -214,7 +234,10 @@ jobs:
   # étape 7) ; sans lui, l'étape est sautée avec un avertissement.
   firebase:
     needs: [build, backend]
-    runs-on: ubuntu-latest
+    # Sauté en essai sans publication : rien n'est déployé, et les jobs
+    # hebergement et deploy, qui exigent que firebase ait réussi, sont sautés avec lui.
+    if: ${{ format('{0}', inputs.essai) != 'true' }}
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: mobile
@@ -376,7 +399,7 @@ jobs:
   # https://sprint-vtc.web.app, publiée une fois le nouveau site en ligne.
   deploy:
     needs: [hebergement]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -395,8 +418,12 @@ jobs:
   #   Manager (ANDROID_SIGNATURE) : chaque APK s'installe par-dessus le
   #   précédent. Elle n'apparaît jamais dans le dépôt ni dans les journaux.
   android:
-    needs: [firebase]
-    runs-on: ubuntu-latest
+    needs: [build, backend, firebase]
+    # Compilé après le déploiement du backend. En essai sans publication, firebase
+    # est sauté exprès : l'APK est quand même compilé et contrôlé (c'est le job le
+    # plus sensible au système de la machine), mais pas publié (hebergement est sauté).
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.backend.result == 'success' && (needs.firebase.result == 'success' || (needs.firebase.result == 'skipped' && format('{0}', inputs.essai) == 'true')) }}
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: mobile
@@ -615,7 +642,7 @@ jobs:
   hebergement:
     needs: [build, firebase, android]
     if: ${{ !cancelled() && needs.build.result == 'success' && needs.firebase.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: mobile

@@ -486,6 +486,45 @@ Alternative sans GitHub (depuis un ordinateur, CLI Firebase 15 ou plus) :
 functions --project sprint-vtc && firebase deploy --only firestore:rules
 --project sprint-vtc`.
 
+### 7.1 ter Machines de la CI (Ubuntu 24.04) et essai sans publication
+
+**Ubuntu 24.04, figé.** Tous les flux (`.github/workflows/*.yml`) tournent
+sur `ubuntu-24.04`, pas sur `ubuntu-latest` : GitHub fait passer
+`ubuntu-latest` à Ubuntu 26 à partir du 19 octobre 2026, et le client a
+décidé (14 octobre 2026) que la CI ne change pas de système sans essai.
+Le test `securite/test/workflows.test.mjs` (lancé à chaque publication,
+parmi « les contrôles eux-mêmes ») échoue si un flux repasse sur
+`ubuntu-latest`. Ce que cela fige, et ce que cela ne fige pas :
+
+- Figé : le système d'exploitation de la machine (Ubuntu 24.04).
+- Pas figé : les outils préinstallés de l'image 24.04 (Java, Node, SDK
+  Android...), que GitHub met à jour environ chaque semaine, et Flutter,
+  qui suit la version `stable` la plus récente (`channel: stable` dans le
+  flux principal). Java (17 et 21) et Node (22) sont, eux, demandés par
+  version dans les flux.
+- Le jour où GitHub retirera l'image 24.04 (il l'annonce d'habitude
+  longtemps à l'avance, par des avertissements dans les runs), il faudra
+  choisir une nouvelle image après un essai sans publication.
+
+**Essai sans publication.** Onglet **Actions** > **Build & déployer Sprint
+Web** > **Run workflow** > cocher **Essai sans publication** > **Run
+workflow**. Le site, le serveur (tests et émulateur), les règles et l'APK
+sont compilés et contrôlés comme d'habitude, mais rien n'est déployé : les
+jobs `firebase` (fonctions, règles), `hebergement` (site, APK en ligne) et
+`deploy` (GitHub Pages) sont sautés. Une annonce « Essai sans publication »
+apparaît en haut de la page du run. À savoir :
+
+- L'essai consomme un numéro de run : l'APK de la publication suivante
+  porte donc le numéro suivant (par exemple : essai n° 107, puis
+  publication n° 108, APK 108).
+- L'APK compilé pendant l'essai n'est conservé que 3 jours, comme fichier du
+  run (il n'est pas publié) ; il est signé avec la même clé Sprint, lue
+  dans Secret Manager (rien n'y est écrit tant que la clé existe).
+- Sans la case cochée, **Run workflow** publie pour de vrai (comme avant).
+- Un essai réussi compte comme « dernier run réussi » pour le contrôle des
+  lignes ajoutées (étape « Plage à contrôler ») : ce contrôle a eu lieu
+  pendant l'essai sur tout ce qui avait été poussé jusque-là.
+
 ### Clé Google Maps Platform
 
 Places API (New) et Routes API utilisent la clé rangée dans Secret
