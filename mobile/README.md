@@ -133,6 +133,20 @@ des fonctions sont plus précis (bilan hebdomadaire des sauvegardes « non remis
 un appareil refuse une notification). Après la mise en ligne, rouvrir la PWA (iPhone) et réinstaller l'APK : une
 ancienne version de l'app chauffeur propose encore toutes les courses, quelle que soit leur distance.
 
+Mise en ligne du 14 octobre 2026 (run #106) : la commission de Sprint passe à 10 % de chaque course (le
+chauffeur garde 90 %), décision du client du 13 octobre pour attirer et fidéliser les motos « Jakarta » de
+province. Le taux est imposé par les règles Firestore (`firestore.rules`) et figé sur chaque course à son
+arrivée (`Commission.pourcentage`, `lib/features/courses/data/course_service.dart` ; un test vérifie que l'app
+et les règles ont le même taux) : une course terminée avant le changement garde sa commission de 15 %, donc
+l'historique, les remboursements et ce que Sprint doit aux chauffeurs ne changent pas. L'onglet Gains du
+chauffeur n'écrit un pourcentage que si toutes les courses de la semaine ont le même (`Compte.pourcentageCommission`) ;
+Admin > Finances et Paramètres disent 10 % / 90 % et que les courses d'avant gardent 15 %. Le serveur lit la
+commission figée et ne connaît que l'ancien taux, pour les très vieilles courses qui n'en portent aucune
+(`POURCENTAGE_COMMISSION_HISTORIQUE`, `functions/src/admin.ts`). Une ancienne version de l'app (APK 105, PWA en
+cache) envoie encore 15 % et les règles refusent la fin de course (le chauffeur voit « Mise à jour impossible.
+Vérifiez votre connexion. ») : après la mise en ligne, rouvrir la PWA (parfois deux fois) et réinstaller l'APK sur
+tous les téléphones de chauffeurs.
+
 ## Suivi des plantages et sauvegardes
 
 **Plantages** : les erreurs imprévues de l'APK Android partent vers Firebase Crashlytics
