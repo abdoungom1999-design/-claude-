@@ -13,6 +13,13 @@ name: Build & déployer Sprint Web
 # partir du 19 octobre 2026, et la CI ne change pas de système sans essai.
 # Ne pas le remplacer par « ubuntu-latest » : un test de securite/ le vérifie.
 #
+# Flutter : version exacte figée (flutter-version: 3.47.7, celle des
+# publications #106 et #107), sur décision du client (15 octobre 2026), pour
+# qu'une nouvelle version stable ne change pas la compilation toute seule. Pour
+# en changer : modifier les trois installations (jobs build et android ici, et
+# essai-android.yml) et la constante FLUTTER de securite/test/workflows.test.mjs,
+# puis lancer l'essai sans publication avant de publier.
+#
 # Essai sans publication : Actions > Build & déployer Sprint Web > Run workflow,
 # case « Essai sans publication » cochée. Le site, le serveur (tests et
 # émulateur), les règles et l'APK sont compilés et contrôlés comme d'habitude,
@@ -63,6 +70,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: "3.47.7"
           cache: true
 
       - run: flutter pub get
@@ -524,6 +532,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: "3.47.7"
           cache: true
 
       - if: steps.secret.outputs.present == 'true'

@@ -7,6 +7,9 @@ import { DOSSIER_SECURITE } from '../commun.mjs';
 // Les flux de la CI sont à la racine du dépôt, au-dessus de mobile/.
 const DOSSIER_FLUX = path.resolve(DOSSIER_SECURITE, '..', '..', '.github', 'workflows');
 const MACHINE = 'ubuntu-24.04';
+// Version de Flutter des publications #106 et #107, figée sur décision du client (15 octobre 2026).
+// Pour en changer : modifier les installations dans les flux, cette constante, puis lancer l'essai sans publication.
+const FLUTTER = '3.47.7';
 
 const lister = () => readdirSync(DOSSIER_FLUX).filter((nom) => nom.endsWith('.yml')).sort();
 const lire = (nom) => readFileSync(path.join(DOSSIER_FLUX, nom), 'utf8');
@@ -40,6 +43,25 @@ test('machines figées : chaque job de chaque flux tourne sur ubuntu-24.04, jama
       assert.equal(machine, MACHINE, `${nom} : « ${machine} » au lieu de « ${MACHINE} ». GitHub fait passer ubuntu-latest à Ubuntu 26 le 19 octobre 2026 : changer de système demande l'accord du client et un essai sans publication`);
     }
   }
+});
+
+test(`Flutter figé : chaque installation demande exactement la version ${FLUTTER}, jamais « la dernière stable » (décision du client, 15 octobre 2026)`, () => {
+  let installations = 0;
+  for (const nom of lister()) {
+    const lignes = lire(nom).split('\n');
+    lignes.forEach((ligne, i) => {
+      if (!ligne.includes('subosito/flutter-action')) return;
+      installations += 1;
+      // Paramètres de l'étape : les lignes suivantes, jusqu'à l'étape ou au job suivant.
+      let fin = i + 1;
+      while (fin < lignes.length && !/^ {6}- /.test(lignes[fin]) && !/^ {2}[A-Za-z0-9_-]+:\s*$/.test(lignes[fin])) fin += 1;
+      const parametres = lignes.slice(i + 1, fin).join('\n');
+      const ou = `${nom}, ligne ${i + 1}`;
+      assert.match(parametres, /^\s+channel: stable\s*$/m, `${ou} : canal « stable » attendu`);
+      assert.match(parametres, new RegExp(`^\\s+flutter-version: "${FLUTTER.replaceAll('.', '\\.')}"\\s*$`, 'm'), `${ou} : « flutter-version: "${FLUTTER}" » attendu (une version qui flotte change la compilation sans prévenir)`);
+    });
+  }
+  assert.ok(installations > 0, 'aucune installation de Flutter trouvée : le contrôle ne vérifierait rien');
 });
 
 test('essai sans publication : l\'option existe, firebase est sauté, et hebergement et deploy ne peuvent pas partir sans lui', () => {

@@ -486,22 +486,36 @@ Alternative sans GitHub (depuis un ordinateur, CLI Firebase 15 ou plus) :
 functions --project sprint-vtc && firebase deploy --only firestore:rules
 --project sprint-vtc`.
 
-### 7.1 ter Machines de la CI (Ubuntu 24.04) et essai sans publication
+### 7.1 ter Machines de la CI (Ubuntu 24.04), Flutter figé et essai sans publication
 
-**Ubuntu 24.04, figé.** Tous les flux (`.github/workflows/*.yml`) tournent
-sur `ubuntu-24.04`, pas sur `ubuntu-latest` : GitHub fait passer
-`ubuntu-latest` à Ubuntu 26 à partir du 19 octobre 2026, et le client a
-décidé (14 octobre 2026) que la CI ne change pas de système sans essai.
-Le test `securite/test/workflows.test.mjs` (lancé à chaque publication,
-parmi « les contrôles eux-mêmes ») échoue si un flux repasse sur
-`ubuntu-latest`. Ce que cela fige, et ce que cela ne fige pas :
+**Ubuntu 24.04 et Flutter 3.47.7, figés.** Tous les flux
+(`.github/workflows/*.yml`) tournent sur `ubuntu-24.04`, pas sur
+`ubuntu-latest` : GitHub fait passer `ubuntu-latest` à Ubuntu 26 à partir du
+19 octobre 2026, et le client a décidé (14 octobre 2026) que la CI ne change
+pas de système sans essai. Flutter est installé en version exacte
+(`flutter-version: "3.47.7"` avec `channel: stable`, aux trois endroits :
+jobs `build` et `android` de `flutter-web.yml`, et `essai-android.yml`),
+décision du client du 15 octobre 2026 : c'est la version qui a compilé le
+site et l'APK des publications #106 (et l'essai #107). Le test
+`securite/test/workflows.test.mjs` (lancé à chaque publication, parmi « les
+contrôles eux-mêmes ») échoue si un flux repasse sur `ubuntu-latest` ou si une
+installation de Flutter n'est plus à la version exacte. Ce que cela fige, et
+ce que cela ne fige pas :
 
-- Figé : le système d'exploitation de la machine (Ubuntu 24.04).
-- Pas figé : les outils préinstallés de l'image 24.04 (Java, Node, SDK
-  Android...), que GitHub met à jour environ chaque semaine, et Flutter,
-  qui suit la version `stable` la plus récente (`channel: stable` dans le
-  flux principal). Java (17 et 21) et Node (22) sont, eux, demandés par
-  version dans les flux.
+- Figé : le système d'exploitation de la machine (Ubuntu 24.04), et Flutter
+  (donc le Dart qu'il embarque). Gradle (9.3.1), le plugin Android (9.1.0),
+  Kotlin (2.4.0), les paquets Dart (`pubspec.lock`) et les paquets npm
+  (`package-lock.json`, `npm ci`) sont déjà verrouillés dans le dépôt.
+- Pas figé : les outils préinstallés de l'image 24.04 (SDK Android, Chrome,
+  git...), que GitHub met à jour environ chaque semaine ; Java (17 et 21) et
+  Node (22), demandés par version majeure donc à leur dernier correctif ; les
+  « actions » GitHub appelées par les flux (`actions/checkout@v4`,
+  `subosito/flutter-action@v2`...), dont l'éditeur peut corriger une version
+  majeure ; l'outil de déploiement `firebase-tools@15`, pris à sa dernière
+  version 15.x à chaque publication.
+- Pour changer de version de Flutter : modifier les trois installations et la
+  constante `FLUTTER` du test, lancer l'essai sans publication (ci-dessous),
+  puis publier.
 - Le jour où GitHub retirera l'image 24.04 (il l'annonce d'habitude
   longtemps à l'avance, par des avertissements dans les runs), il faudra
   choisir une nouvelle image après un essai sans publication.
