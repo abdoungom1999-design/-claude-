@@ -664,6 +664,17 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    fournisseur n'existe encore ; il faut le contrat marchand Sonatel et sa
    documentation. À sa réouverture : brancher son fournisseur, PUIS l'ajouter
    aux deux listes. Les anciennes courses et recharges Orange gardent leur libellé.
+   Où en est-on (28 octobre 2026) : code marchand obtenu, application créée par
+   le client sur le portail développeur d'Orange, identifiants de **test** (bac à
+   sable) générés. Noms des secrets, créés par le client lui-même dans Secret
+   Manager (projet `sprint-vtc`) ; les valeurs ne passent jamais par un message,
+   le dépôt ni la CI en clair :
+   - bac à sable : `ORANGE_MONEY_SANDBOX_CLIENT_ID`, `ORANGE_MONEY_SANDBOX_CLIENT_SECRET` ;
+   - production, plus tard, sous **d'autres noms** pour ne jamais mélanger les
+     deux : `ORANGE_MONEY_CLIENT_ID`, `ORANGE_MONEY_CLIENT_SECRET`.
+   Le code ne lira que les secrets de son environnement (test ou production). Le
+   code marchand et le numéro de caisse ne sont pas des secrets, mais ils ne vont
+   pas dans ce dépôt public.
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.
