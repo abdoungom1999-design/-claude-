@@ -674,7 +674,15 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      deux : `ORANGE_MONEY_CLIENT_ID`, `ORANGE_MONEY_CLIENT_SECRET`.
    Le code ne lira que les secrets de son environnement (test ou production). Le
    code marchand et le numéro de caisse ne sont pas des secrets, mais ils ne vont
-   pas dans ce dépôt public.
+   pas dans ce dépôt public. Le code secret du compte marchand (son code PIN) est
+   à changer dès réception ; s'il fallait un jour le donner à l'API, il irait lui
+   aussi dans Secret Manager.
+   Contrôle : flux manuel « Essai Orange Money (bac à sable) » (onglet Actions),
+   qui vérifie que les deux secrets de test existent, sont lisibles par la CI et
+   sont bien collés, sans jamais afficher leur valeur. L'appel au bac à sable
+   d'Orange y sera ajouté avec la documentation technique de l'API (portail
+   https://developer.orange-sonatel.com, API « Orange money distributeur » et
+   « Notification » choisies à la création de l'application).
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.

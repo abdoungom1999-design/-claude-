@@ -1,0 +1,82 @@
+name: Essai Orange Money (bac à sable)
+
+# Lancé à la main seulement (onglet Actions > Essai Orange Money (bac à sable)
+# > Run workflow). Vérifie que les identifiants de TEST d'Orange Money,
+# créés par le client dans Secret Manager (ORANGE_MONEY_SANDBOX_CLIENT_ID et
+# ORANGE_MONEY_SANDBOX_CLIENT_SECRET), sont lisibles par la CI et bien
+# collés (ni vides, ni espace, ni retour à la ligne, ni caractère invisible).
+# Leur valeur n'est jamais affichée : elle est masquée dans les journaux dès sa
+# lecture, et le fichier temporaire est effacé.
+#
+# Ne publie rien, et n'appelle pas encore Orange : l'appel au bac à sable
+# (jeton d'accès, paiement de test) sera ajouté ici quand la documentation
+# technique de l'API sera disponible. Voir mobile/FIREBASE_SETUP.md, section
+# « Passage à l'argent réel ».
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: essai-orange-money
+  cancel-in-progress: true
+
+jobs:
+  identifiants:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
+        env:
+          COMPTE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$COMPTE_SERVICE" ]; then
+            echo "::error title=Essai impossible::Secret FIREBASE_SERVICE_ACCOUNT absent."
+            exit 1
+          fi
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Identifiants de test d'Orange Money dans Secret Manager
+        run: |
+          dossier="$RUNNER_TEMP/orange"
+          mkdir -p "$dossier"
+          erreurs=0
+          for nom in ORANGE_MONEY_SANDBOX_CLIENT_ID ORANGE_MONEY_SANDBOX_CLIENT_SECRET; do
+            fichier="$dossier/$nom"
+            if ! gcloud secrets versions access latest --secret="$nom" --project=sprint-vtc \
+                   --out-file="$fichier" > /dev/null 2> "$dossier/erreur.txt"; then
+              raison=$(grep -o -m 1 -E 'NOT_FOUND|PERMISSION_DENIED|FAILED_PRECONDITION' "$dossier/erreur.txt" || true)
+              echo "::error title=$nom::Secret illisible par la CI (${raison:-erreur inconnue}) : nom exact ? version activée ?"
+              erreurs=$((erreurs + 1))
+              continue
+            fi
+            # Masquage d'abord, contrôle ensuite ; la valeur n'est jamais écrite dans le journal.
+            python3 - "$fichier" "$nom" <<'PY' || erreurs=$((erreurs + 1))
+          import sys
+          chemin, nom = sys.argv[1], sys.argv[2]
+          octets = open(chemin, 'rb').read()
+          texte = octets.decode('utf-8', errors='replace')
+          for morceau in {texte, texte.strip(), *texte.splitlines()}:
+              if morceau.strip():
+                  print('::add-mask::' + morceau.strip())
+          problemes = []
+          if not octets.strip():
+              problemes.append('vide')
+          else:
+              if octets != octets.strip():
+                  problemes.append('espace ou retour à la ligne au début ou à la fin')
+              coeur = octets.strip()
+              if any(o < 33 or o > 126 for o in coeur):
+                  problemes.append('espace, accent ou caractère invisible au milieu')
+          if problemes:
+              print(f'::error title={nom}::Présent mais à corriger : {", ".join(problemes)}.')
+              sys.exit(1)
+          print(f'::notice title={nom}::Présent, lisible par la CI, sans espace ni caractère invisible.')
+          PY
+          done
+          rm -rf "$dossier"
+          [ "$erreurs" -eq 0 ]

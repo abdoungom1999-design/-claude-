@@ -32,7 +32,7 @@ function besoins(texteJob) {
 
 test('la CI existe où on la cherche (sinon ces contrôles ne vérifieraient rien)', () => {
   assert.ok(existsSync(DOSSIER_FLUX), `${DOSSIER_FLUX} introuvable`);
-  assert.deepEqual(lister(), ['essai-android.yml', 'flutter-web.yml', 'restauration-essai.yml', 'sauvegardes.yml']);
+  assert.deepEqual(lister(), ['essai-android.yml', 'essai-orange-money.yml', 'flutter-web.yml', 'restauration-essai.yml', 'sauvegardes.yml']);
 });
 
 test('machines figées : chaque job de chaque flux tourne sur ubuntu-24.04, jamais sur ubuntu-latest (décision du client, 14 octobre 2026)', () => {
