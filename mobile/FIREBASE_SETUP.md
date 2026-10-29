@@ -719,7 +719,13 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      par Orange Money, lien de paiement, recherche, surveillance, notifications.
      Case `preparer_notifications` : secrets manquants créés et adresse
      `https://europe-west1-sprint-vtc.cloudfunctions.net/webhookOrangeMoney`
-     enregistrée chez Orange (bac à sable) avec sa clé.
+     enregistrée chez Orange (bac à sable) avec sa clé. Fait le 29 octobre
+     2026 avec l'accord du client (essais #6 et #7) : les deux secrets
+     existent, l'adresse est enregistrée et relue chez Orange (elle met
+     quelques secondes à apparaître, d'où une relecture avec délai). La
+     fonction n'existe en ligne qu'à partir de la publication suivante ;
+     tant qu'Orange Money est fermé, elle répond 503 (Orange réessaie plus
+     tard).
    - **Pour ouvrir** (avec le go du client) : flux d'essai vert avec
      `preparer_notifications` ; les deux interrupteurs à `true` dans le même
      commit ; textes de l'app (aide, conditions) validés par le client ;
