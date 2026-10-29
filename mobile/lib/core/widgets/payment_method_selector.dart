@@ -4,15 +4,23 @@
 /// `payment_method_sheet.dart` et `PaymentProcessingPage`.
 ///
 /// [orangeMoney] reste dans l'énumération pour l'historique (courses et
-/// recharges d'avant la fermeture, libellés), mais n'est plus proposé ni
-/// accepté par le serveur tant que son fournisseur réel (contrat Sonatel)
-/// n'est pas branché : voir [moyensMobileMoneyDisponibles].
+/// recharges, libellés). Son fournisseur réel est branché côté serveur, mais
+/// il n'est proposé ni accepté tant que [orangeMoneyOuvert] est faux : voir
+/// [moyensMobileMoneyDisponibles].
 enum PaymentMethod { wave, orangeMoney, portefeuille }
 
+/// Orange Money proposé aux clients. Ne passe à `true` qu'avec le go du
+/// client, en même temps que son jumeau du serveur (`ORANGE_MONEY_OUVERT`,
+/// `functions/src/methodes_paiement.ts`) : un test du serveur vérifie qu'ils
+/// sont d'accord.
+const bool orangeMoneyOuvert = false;
+
 /// Moyens de mobile money proposables aujourd'hui, dans l'ordre d'affichage.
-/// Le serveur applique la même liste (`functions/src/methodes_paiement.ts`) :
-/// pour rouvrir Orange Money, brancher son fournisseur, l'ajouter ici ET là-bas.
-const moyensMobileMoneyDisponibles = <PaymentMethod>[PaymentMethod.wave];
+/// Le serveur applique la même liste (`functions/src/methodes_paiement.ts`).
+const moyensMobileMoneyDisponibles = <PaymentMethod>[
+  PaymentMethod.wave,
+  if (orangeMoneyOuvert) PaymentMethod.orangeMoney,
+];
 
 extension PaymentMethodLabel on PaymentMethod {
   String get label {
@@ -25,6 +33,18 @@ extension PaymentMethodLabel on PaymentMethod {
         return 'Solde Sprint';
     }
   }
+}
+
+/// Ce que le client fait une fois la page de l'opérateur ouverte (sas de
+/// paiement et de recharge). Orange Money s'ouvre dans Max It ou Orange
+/// Money, où seul le client tape son code secret.
+extension PaymentMethodConsigne on PaymentMethod {
+  String get consignePaiement => switch (this) {
+        PaymentMethod.orangeMoney =>
+          'Validez le paiement dans Max It ou Orange Money avec votre code secret '
+              '(Sprint ne vous le demandera jamais)',
+        _ => "Payez sur la page $label qui vient de s'ouvrir",
+      };
 }
 
 /// Valeur attendue par le serveur (callables `creerPaiement` et `creerRecharge`).

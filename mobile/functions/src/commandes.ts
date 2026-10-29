@@ -108,10 +108,11 @@ export function validerTrajet(donnees: unknown): Trajet {
   return { type: d.type as TypeCourse, depart, arrivee, distanceKm };
 }
 
-export function validerDemande(donnees: unknown): Demande {
+/** [methodes] : moyens acceptés (ceux ouverts aux clients, sauf essai). */
+export function validerDemande(donnees: unknown, methodes: readonly Methode[] = METHODES_ACTIVES): Demande {
   const trajet = validerTrajet(donnees);
   const d = objet(donnees);
-  const methodePaiement = verifierMethode(d.methodePaiement, METHODES_ACTIVES, 'payer');
+  const methodePaiement = verifierMethode(d.methodePaiement, methodes, 'payer');
   const prixAttendu = d.prixAttendu;
   if (typeof prixAttendu !== 'number' || !Number.isInteger(prixAttendu) || prixAttendu <= 0) {
     throw invalide('Prix attendu invalide.');

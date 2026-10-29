@@ -115,6 +115,20 @@ export interface NotificationOrangeMoney {
   type: string;
 }
 
+/** Transaction telle qu'Orange l'a enregistrée (recherche) : c'est elle qui fait foi. */
+export interface TransactionOrangeMoney {
+  transactionId: string;
+  /** Notre référence (commande ou recharge). */
+  reference?: string;
+  statut?: StatutTransaction;
+  montantFcfa?: number;
+  devise?: string;
+  /** Code marchand payé. */
+  codeMarchand?: string;
+  /** `MERCHANT_PAYMENT`, `WEB_PAYMENT` ou `CASHIN`. */
+  type?: string;
+}
+
 export interface CarteSimDeTest {
   numero: string;
   codePin?: string;
@@ -149,6 +163,8 @@ export interface OptionsClientOrangeMoney {
 const CODE_MARCHAND = /^\d{6}$/;
 /** Identifiant de transaction Orange (ex. « MP220928.1029.C58502 »). */
 const ID_TRANSACTION = /^[A-Za-z0-9.]{1,40}$/;
+/** Nos références (commandes : 24 caractères hexadécimaux ; recharges : « rch_… ») ; 50 au plus chez Orange. */
+const REFERENCE = /^[A-Za-z0-9_-]{1,50}$/;
 
 const texte = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
 const nombre = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
@@ -314,6 +330,44 @@ export class ClientOrangeMoney {
     return statut;
   }
 
+  /**
+   * Transactions enregistrées chez Orange, par identifiant ou par notre
+   * référence. Sert à vérifier une notification (son contenu ne fait pas foi)
+   * et à rattraper un paiement dont la notification s'est perdue.
+   */
+  async rechercherTransactions(filtre: { transactionId?: string; reference?: string }): Promise<TransactionOrangeMoney[]> {
+    if (filtre.transactionId === undefined && filtre.reference === undefined) {
+      throw new ErreurOrangeMoney('Recherche de transaction sans critère.');
+    }
+    if (filtre.transactionId !== undefined && !ID_TRANSACTION.test(filtre.transactionId)) {
+      throw new ErreurOrangeMoney('Identifiant de transaction invalide.');
+    }
+    if (filtre.reference !== undefined && !REFERENCE.test(filtre.reference)) throw new ErreurOrangeMoney('Référence invalide.');
+    const requete = new URLSearchParams({ size: '20' });
+    if (filtre.transactionId !== undefined) requete.set('transactionId', filtre.transactionId);
+    if (filtre.reference !== undefined) requete.set('reference', filtre.reference);
+    const reponse = await this.appeler('GET', `/api/eWallet/v1/transactions?${requete}`);
+    if (!Array.isArray(reponse)) return [];
+    return reponse.flatMap((element) => {
+      const t = element as Record<string, unknown>;
+      const transactionId = texte(t.transactionId);
+      if (transactionId === undefined) return [];
+      const montant = (t.amount ?? {}) as Record<string, unknown>;
+      const partenaire = (t.partner ?? {}) as Record<string, unknown>;
+      return [
+        {
+          transactionId,
+          reference: texte(t.reference),
+          statut: STATUTS_TRANSACTION.find((s) => s === t.status),
+          montantFcfa: nombre(montant.value),
+          devise: texte(montant.unit),
+          codeMarchand: texte(partenaire.id),
+          type: texte(t.type),
+        },
+      ];
+    });
+  }
+
   /** Enregistre (durablement) l'adresse qui recevra les notifications de ce code marchand. */
   async enregistrerNotification({ codeMarchand, nomMarchand, url, cleApi }: {
     codeMarchand: string;
@@ -377,9 +431,10 @@ function egaux(a: string, b: string): boolean {
 /**
  * Lit une notification d'Orange après avoir vérifié qu'elle vient bien
  * d'Orange (« Authorization: Basic {cleApi} », la clé que nous avons
- * enregistrée). Elle ne fait PAS foi à elle seule : relire le statut avec
- * [ClientOrangeMoney.statutTransaction] avant de considérer le paiement
- * comme reçu. Lève [ErreurNotificationOrange].
+ * enregistrée). Elle ne fait PAS foi à elle seule : relire la transaction
+ * avec [ClientOrangeMoney.rechercherTransactions] avant de considérer le
+ * paiement comme reçu (voir `paiement_orange.ts`). Lève
+ * [ErreurNotificationOrange].
  */
 export function lireNotification(
   autorisation: string | undefined,

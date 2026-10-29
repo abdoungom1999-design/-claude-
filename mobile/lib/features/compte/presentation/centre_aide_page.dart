@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
 import '../../../core/widgets/onyx_vert.dart';
 import '../../support/presentation/contact_support.dart';
@@ -20,9 +21,15 @@ const _questions = [
   ),
   _Question(
     'Comment payer ma course ?',
-    'Deux moyens de paiement sont disponibles : Wave, ou le solde de votre '
-        'Portefeuille Santine, rechargeable avec Wave depuis l\'onglet Compte. '
-        'Orange Money arrivera bientôt.',
+    // Texte « ouvert » à faire valider par le client avant d'ouvrir Orange Money.
+    orangeMoneyOuvert
+        ? 'Trois moyens de paiement sont disponibles : Wave, Orange Money (dans Max It ou l\'app '
+            'Orange Money), ou le solde de votre Portefeuille Santine, rechargeable avec Wave ou '
+            'Orange Money depuis l\'onglet Compte. Une course payée par Orange Money puis annulée '
+            'vous est remboursée sur ce solde.'
+        : 'Deux moyens de paiement sont disponibles : Wave, ou le solde de votre '
+            'Portefeuille Santine, rechargeable avec Wave depuis l\'onglet Compte. '
+            'Orange Money arrivera bientôt.',
   ),
   _Question(
     'Comment annuler une course ?',

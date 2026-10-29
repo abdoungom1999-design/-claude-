@@ -50,7 +50,7 @@ const googleFactice = {
 } as unknown as ClientGoogle;
 
 const creerPaiement = (uid: string | undefined, donnees: unknown, quand = midi, google = googleFactice) =>
-  creerPaiementCore(db, calculDistance(db, google, () => quand), fournisseur, uid, donnees, quand);
+  creerPaiementCore(db, calculDistance(db, google, () => quand), () => fournisseur, uid, donnees, quand);
 
 /** Événement tel que le fournisseur le confirmerait pour cette commande. */
 async function evenement(commandeId: string, extra: Partial<EvenementPaiement> = {}): Promise<EvenementPaiement> {

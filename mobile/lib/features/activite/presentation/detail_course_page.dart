@@ -66,7 +66,9 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                 if (c.rembourseeLe != null) ...[
                   const SizedBox(height: 10),
                   Text(
-                    'Remboursée intégralement le ${_date(c.rembourseeLe!)}.',
+                    c.remboursementSurSolde
+                        ? 'Remboursée intégralement sur votre solde Sprint le ${_date(c.rembourseeLe!)}.'
+                        : 'Remboursée intégralement le ${_date(c.rembourseeLe!)}.',
                     style: const TextStyle(fontSize: 12.5, color: AppColors.texte, fontWeight: FontWeight.w700),
                   ),
                 ],

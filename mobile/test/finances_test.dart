@@ -279,6 +279,8 @@ void main() {
     });
 
     test('Orange Money reste connu (historique) mais n\'est pas proposé : seul Wave est ouvert', () {
+      // Branché côté serveur, mais fermé jusqu'au go du client (jumeau : ORANGE_MONEY_OUVERT du serveur).
+      expect(orangeMoneyOuvert, isFalse);
       expect(moyensMobileMoneyDisponibles, [PaymentMethod.wave]);
       expect(moyensMobileMoneyDisponibles, isNot(contains(PaymentMethod.orangeMoney)));
       expect(PaymentMethod.orangeMoney.label, 'Orange Money'); // libellé de l'historique conservé

@@ -3,7 +3,14 @@ import { FieldValue, Timestamp, type DocumentSnapshot, type Firestore } from 'fi
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { FournisseurPaiement } from './fournisseurs';
 import { rembourserCommande, STATUTS_COMMANDE } from './paiements';
-import { ecrireMouvement, refPortefeuille, SOLDE_MAX_FCFA, solde, TYPES_MOUVEMENT } from './portefeuille';
+import {
+  ecrireMouvement,
+  FOURNISSEURS_REMBOURSES_SUR_SOLDE,
+  refPortefeuille,
+  SOLDE_MAX_FCFA,
+  solde,
+  TYPES_MOUVEMENT,
+} from './portefeuille';
 
 /**
  * Actions de l'Admin qui touchent à l'argent ou aux comptes : passées
@@ -163,7 +170,8 @@ export async function rembourserCourseAdmin(
     await informerTicket(
       db,
       courseId,
-      commande.get('fournisseur') === 'portefeuille'
+      // Payée avec le solde ou par Orange Money : rendue sur le portefeuille Sprint.
+      FOURNISSEURS_REMBOURSES_SUR_SOLDE.includes(commande.get('fournisseur'))
         ? `Votre course a été remboursée intégralement (${montantFcfa} FCFA) sur votre portefeuille Sprint.`
         : `Votre course a été remboursée intégralement (${montantFcfa} FCFA) sur votre compte mobile money.`,
       maintenant,

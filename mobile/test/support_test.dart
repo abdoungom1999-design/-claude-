@@ -13,7 +13,14 @@ import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/support/data/support_service.dart';
 import 'package:sprint/features/support/presentation/signalement_page.dart';
 
-CourseFirestore _course(String id, String statut, {String type = 'PASSAGER', String? commandeId = 'k1', DateTime? rembourseeLe}) =>
+CourseFirestore _course(
+  String id,
+  String statut, {
+  String type = 'PASSAGER',
+  String? commandeId = 'k1',
+  DateTime? rembourseeLe,
+  String methodePaiement = 'WAVE',
+}) =>
     CourseFirestore(
       id: id,
       clientId: 'awa',
@@ -23,7 +30,7 @@ CourseFirestore _course(String id, String statut, {String type = 'PASSAGER', Str
       adresseDepart: 'Plateau',
       adresseArrivee: 'Almadies',
       prixFcfa: 2300,
-      methodePaiement: 'WAVE',
+      methodePaiement: methodePaiement,
       timestamp: DateTime(2026, 9, 28, 18, 30),
       commandeId: commandeId,
       rembourseeLe: rembourseeLe,
@@ -203,6 +210,31 @@ void main() {
       expect(find.text('Nouvelle réponse du support'), findsOneWidget);
     });
 
+    testWidgets('Détail : course remboursée, sur le solde Sprint si payée par Orange Money', (tester) async {
+      final le = DateTime(2026, 10, 29, 14, 5);
+      await tester.pumpWidget(MaterialApp(
+        home: DetailCoursePage(
+          course: _course('c1', StatutCourse.terminee, rembourseeLe: le, methodePaiement: 'ORANGE_MONEY'),
+          clientId: 'awa',
+          supportService: _SupportFactice(),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Remboursée intégralement sur votre solde Sprint le '), findsOneWidget);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DetailCoursePage(
+          key: const ValueKey('wave'),
+          course: _course('c1', StatutCourse.terminee, rembourseeLe: le),
+          clientId: 'awa',
+          supportService: _SupportFactice(),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Remboursée intégralement le '), findsOneWidget);
+      expect(find.textContaining('solde Sprint'), findsNothing);
+    });
+
     testWidgets('Signalement : motif et description obligatoires, puis ticket ouvert avec le premier message', (tester) async {
       final support = _SupportFactice();
       await tester.pumpWidget(MaterialApp(
@@ -312,6 +344,7 @@ void main() {
 
       await tester.tap(find.textContaining('Rembourser'));
       await tester.pumpAndSettle();
+      expect(find.textContaining('sur le compte mobile money du client'), findsOneWidget);
       // Course terminée : 2 300 moins la commission figée de 345 ne seront pas payés au chauffeur.
       expect(find.textContaining('sa part (${formaterFcfa(1955)}) est retirée'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Rembourser'));
@@ -333,6 +366,29 @@ void main() {
       await tester.tap(find.text('Marquer résolu'));
       await tester.pumpAndSettle();
       expect(support.appels, contains('statut:${StatutTicket.resolu}'));
+    });
+
+    testWidgets('Ticket : course payée par Orange Money ou avec le solde, remboursement annoncé sur le solde Sprint', (tester) async {
+      for (final methode in ['ORANGE_MONEY', 'PORTEFEUILLE']) {
+        await afficher(
+          tester,
+          AdminTicketPage(
+            key: ValueKey(methode),
+            courseId: 'c1',
+            adminId: 'chef',
+            supportService: _SupportFactice(ticket: _ticket()),
+            courseService: _CoursesFactices(course: _course('c1', StatutCourse.terminee, methodePaiement: methode)),
+            kycService: _KycFactice(),
+            chargerProfil: (uid) async => null,
+          ),
+        );
+        await tester.tap(find.textContaining('Rembourser'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Remboursement intégral sur le solde Sprint du client'), findsOneWidget, reason: methode);
+        expect(find.textContaining('compte mobile money'), findsNothing, reason: methode);
+        await tester.tap(find.text('Annuler'));
+        await tester.pumpAndSettle();
+      }
     });
 
     testWidgets('Ticket : course en cours ou déjà remboursée, pas de bouton de remboursement', (tester) async {

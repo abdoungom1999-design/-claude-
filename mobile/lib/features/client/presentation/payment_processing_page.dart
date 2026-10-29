@@ -16,9 +16,11 @@ import '../../../core/widgets/onyx_vert.dart';
 /// 1. le serveur recalcule le prix et renvoie un lien de paiement
 ///    ([CourseService.creerPaiement]) ;
 /// 2. le client paie sur la page de l'opérateur, ouverte dans un nouvel
-///    onglet (aujourd'hui le faux Wave : aucune somme débitée) ;
-/// 3. l'opérateur confirme le paiement au serveur (webhook signé), qui
-///    crée alors la course, ce qui réveille le radar des chauffeurs ;
+///    onglet (aujourd'hui le faux Wave : aucune somme débitée ; Orange Money
+///    ouvre Max It, sur le bac à sable d'Orange tant que c'est un essai) ;
+/// 3. l'opérateur confirme le paiement au serveur (webhook signé, ou
+///    notification d'Orange relue chez Orange), qui crée alors la course, ce
+///    qui réveille le radar des chauffeurs ;
 ///    l'app, qui suit la commande en temps réel
 ///    ([CourseService.streamCommande]), passe à [SuiviCoursePage].
 ///
@@ -181,25 +183,29 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
       child: SousPageOnyx(child: Scaffold(
         body: SafeArea(
           child: Center(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: switch (_etape) {
-                _EtapePaiement.preparation => _VueAttente(
-                    key: const ValueKey('preparation'),
-                    titre: widget.methode == PaymentMethod.portefeuille
-                        ? 'Paiement avec votre solde Sprint…'
-                        : 'Préparation de votre paiement $_operateur…',
-                  ),
-                _EtapePaiement.aPayer => _VueAPayer(
-                    key: ValueKey('aPayer-$_pageOuverte'),
-                    operateur: _operateur,
-                    prixFcfa: demande?.prixFcfa ?? widget.prixFcfa,
-                    pageOuverte: _pageOuverte,
-                    onPayer: _payer,
-                    onAnnuler: () => _abandonner("Paiement annulé. Aucune course n'a été créée."),
-                  ),
-                _EtapePaiement.confirme => const _VueConfirmee(),
-              },
+            // Défilable : texte agrandi ou petit écran, rien n'est jamais coupé.
+            child: SingleChildScrollView(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: switch (_etape) {
+                  _EtapePaiement.preparation => _VueAttente(
+                      key: const ValueKey('preparation'),
+                      titre: widget.methode == PaymentMethod.portefeuille
+                          ? 'Paiement avec votre solde Sprint…'
+                          : 'Préparation de votre paiement $_operateur…',
+                    ),
+                  _EtapePaiement.aPayer => _VueAPayer(
+                      key: ValueKey('aPayer-$_pageOuverte'),
+                      operateur: _operateur,
+                      consigne: widget.methode.consignePaiement,
+                      prixFcfa: demande?.prixFcfa ?? widget.prixFcfa,
+                      pageOuverte: _pageOuverte,
+                      onPayer: _payer,
+                      onAnnuler: () => _abandonner("Paiement annulé. Aucune course n'a été créée."),
+                    ),
+                  _EtapePaiement.confirme => const _VueConfirmee(),
+                },
+              ),
             ),
           ),
         ),
@@ -250,6 +256,7 @@ class _VueAPayer extends StatelessWidget {
   const _VueAPayer({
     super.key,
     required this.operateur,
+    required this.consigne,
     required this.prixFcfa,
     required this.pageOuverte,
     required this.onPayer,
@@ -257,6 +264,9 @@ class _VueAPayer extends StatelessWidget {
   });
 
   final String operateur;
+
+  /// Ce que le client fait sur la page de l'opérateur ([PaymentMethodConsigne]).
+  final String consigne;
   final int prixFcfa;
   final bool pageOuverte;
   final VoidCallback onPayer;
@@ -287,7 +297,7 @@ class _VueAPayer extends StatelessWidget {
             if (pageOuverte)
               _VueAttente(
                 titre: 'En attente de la confirmation de\nvotre paiement $operateur…',
-                sousTitre: 'Payez sur la page $operateur qui vient de s\'ouvrir, puis revenez ici : '
+                sousTitre: '$consigne, puis revenez ici : '
                     'votre course partira aux chauffeurs dès la confirmation.',
               )
             else ...[

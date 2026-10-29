@@ -119,6 +119,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
       builder: (_) => _DialogueRemboursement(
         montantFcfa: course.prixFcfa,
         partChauffeurFcfa: LigneCourse.partChauffeurDe(course),
+        surSolde: course.remboursementSurSolde,
       ),
     );
     if (motif == null) return;
@@ -483,9 +484,12 @@ class _PersonneState extends State<_Personne> {
 }
 
 class _DialogueRemboursement extends StatefulWidget {
-  const _DialogueRemboursement({required this.montantFcfa, required this.partChauffeurFcfa});
+  const _DialogueRemboursement({required this.montantFcfa, required this.partChauffeurFcfa, required this.surSolde});
 
   final int montantFcfa;
+
+  /// Course payée par Orange Money ou avec le solde : remboursée sur le solde Sprint du client.
+  final bool surSolde;
 
   /// Part (le prix moins la commission) que le chauffeur ne touchera pas (0 : course annulée).
   final int partChauffeurFcfa;
@@ -513,9 +517,12 @@ class _DialogueRemboursementState extends State<_DialogueRemboursement> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Remboursement intégral sur le compte mobile money du client, par le fournisseur de paiement. '
-              'Le client est prévenu dans le ticket.',
+            Text(
+              widget.surSolde
+                  ? 'Remboursement intégral sur le solde Sprint du client (course payée par Orange Money ou avec '
+                      'le solde). Le client est prévenu dans le ticket.'
+                  : 'Remboursement intégral sur le compte mobile money du client, par le fournisseur de paiement. '
+                      'Le client est prévenu dans le ticket.',
             ),
             if (widget.partChauffeurFcfa > 0) ...[
               const SizedBox(height: 10),

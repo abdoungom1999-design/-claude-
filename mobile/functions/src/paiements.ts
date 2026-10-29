@@ -4,12 +4,14 @@ import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { prixServeur, validerDemande, verifierClient, type Demande, type PrixServeur } from './commandes';
 import type { CalculDistance } from './distances';
-import type { EvenementPaiement, FournisseurPaiement } from './fournisseurs';
+import type { CreateurSession, EvenementPaiement, FournisseurDuMoyen, FournisseurPaiement, SessionPaiement } from './fournisseurs';
+import { METHODES_ACTIVES, type Methode } from './methodes_paiement';
 import { notifierAnnulation, notifierNouvelleCourse, type Messagerie } from './notifications';
 import { arrondirPosition } from './proximite';
 import {
   debiterPourCourse,
   FOURNISSEUR_PORTEFEUILLE,
+  FOURNISSEURS_REMBOURSES_SUR_SOLDE,
   lirePortefeuille,
   METHODE_PORTEFEUILLE,
   rembourserSurPortefeuille,
@@ -58,19 +60,24 @@ export interface PaiementCree {
   payeParSolde?: boolean;
 }
 
+/**
+ * [fournisseurs] : qui encaisse le moyen choisi (Wave, Orange Money).
+ * [methodes] : moyens acceptés (ceux ouverts aux clients, sauf essai).
+ */
 export async function creerPaiement(
   db: Firestore,
   calcul: CalculDistance,
-  fournisseur: FournisseurPaiement,
+  fournisseurs: FournisseurDuMoyen,
   uid: string | undefined,
   donnees: unknown,
   maintenant: Date,
   messagerie?: Messagerie,
+  methodes: readonly Methode[] = METHODES_ACTIVES,
 ): Promise<PaiementCree> {
   // Connexion vérifiée avant tout : un inconnu n'apprend rien de la
   // validation des demandes.
   const clientId = await verifierClient(db, uid);
-  const demande = validerDemande(donnees);
+  const demande = validerDemande(donnees, methodes);
   const { estimation, distance } = await prixServeur(calcul, demande, maintenant);
 
   if (demande.methodePaiement === METHODE_PORTEFEUILLE) {
@@ -78,8 +85,10 @@ export async function creerPaiement(
   }
 
   const ref = db.collection('commandes').doc(randomBytes(12).toString('hex'));
-  let session;
+  let fournisseur: CreateurSession;
+  let session: SessionPaiement;
   try {
+    fournisseur = fournisseurs(demande.methodePaiement);
     session = await fournisseur.creerSession(ref.id, estimation.prixFcfa);
   } catch (e) {
     logger.error('Session de paiement impossible', e);
@@ -105,6 +114,7 @@ export async function creerPaiement(
     lienPaiement: session.lienPaiement,
     creeLe: Timestamp.fromDate(maintenant),
     expireLe: Timestamp.fromDate(new Date(maintenant.getTime() + DUREE_PAIEMENT_MS)),
+    ...(session.relectureFinLe ? { relectureFinLe: Timestamp.fromDate(session.relectureFinLe) } : {}),
   });
   return { commandeId: ref.id, lienPaiement: session.lienPaiement, prixFcfa: estimation.prixFcfa };
 }
@@ -295,8 +305,9 @@ export async function rembourserCommande(
   const commande = await refCommande.get();
   if (!commande.exists) return false;
   if (commande.get('statut') === STATUTS_COMMANDE.remboursee) return true;
-  // Course payée avec le solde : l'argent retourne sur le portefeuille.
-  if (commande.get('fournisseur') === FOURNISSEUR_PORTEFEUILLE) {
+  // Course payée avec le solde, ou par Orange Money (pas de remboursement
+  // dans son API) : l'argent va sur le portefeuille Sprint du client.
+  if (FOURNISSEURS_REMBOURSES_SUR_SOLDE.includes(commande.get('fournisseur'))) {
     try {
       return await rembourserSurPortefeuille(db, refCommande, motif, maintenant);
     } catch (e) {

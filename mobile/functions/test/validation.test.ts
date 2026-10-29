@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { DISTANCE_MAX_KM, DISTANCE_TRAJET_MAX_KM, estimer, prixServeur, validerDemande } from '../src/commandes';
 import type { CalculDistance } from '../src/distances';
-import { METHODES_ACTIVES, METHODES_CONNUES, METHODES_RECHARGE, verifierMethode } from '../src/methodes_paiement';
+import {
+  METHODES_ACTIVES,
+  METHODES_CONNUES,
+  METHODES_RECHARGE,
+  ORANGE_MONEY_OUVERT,
+  verifierMethode,
+  type Methode,
+} from '../src/methodes_paiement';
 import { COEFFICIENT_DETOUR, distanceRouteEstimeeKm, type Point } from '../src/tarification';
 
 const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
@@ -101,7 +110,19 @@ test('commande : 100 % mobile money (ou solde Sprint), adresses obligatoires', (
   refuse(() => validerDemande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
 });
 
-test('commande : Orange Money fermé tant que son fournisseur réel n\'est pas branché', () => {
+test('Orange Money reste fermé aux clients jusqu\'au go du client, dans le serveur comme dans l\'app', () => {
+  assert.equal(ORANGE_MONEY_OUVERT, false, 'ouverture seulement après l\'essai complet du bac à sable validé avec le client');
+  // Jumeau dans l'app (choix du moyen de paiement), lu depuis functions/lib/test.
+  const app = readFileSync(resolve(__dirname, '..', '..', '..', 'lib', 'core', 'widgets', 'payment_method_selector.dart'), 'utf8');
+  const jumeau = app.match(/^const bool orangeMoneyOuvert = (true|false);$/m);
+  assert.ok(jumeau, 'orangeMoneyOuvert introuvable dans payment_method_selector.dart : le texte a-t-il changé de forme ?');
+  assert.equal(jumeau[1] === 'true', ORANGE_MONEY_OUVERT, 'l\'app proposerait un moyen que le serveur refuse (ou l\'inverse)');
+  // La publication lit cette ligne telle quelle (secrets à vérifier, réponse attendue du webhook).
+  const serveur = readFileSync(resolve(__dirname, '..', '..', 'src', 'methodes_paiement.ts'), 'utf8');
+  assert.match(serveur, new RegExp(`^export const ORANGE_MONEY_OUVERT: boolean = ${ORANGE_MONEY_OUVERT};$`, 'm'));
+});
+
+test('commande : Orange Money fermé tant que le client n\'a pas donné son go', () => {
   // Précondition non remplie (et non « argument invalide ») : le message dit quoi choisir.
   refuse(
     () => validerDemande(commande({ methodePaiement: 'ORANGE_MONEY' })),
@@ -116,6 +137,14 @@ test('commande : Orange Money fermé tant que son fournisseur réel n\'est pas b
   for (const valeur of ['orange_money', 'Orange Money', 'ORANGE_MONEY ', '', null, undefined, 7, ['ORANGE_MONEY']]) {
     refuse(() => validerDemande(commande({ methodePaiement: valeur })), 'invalid-argument');
   }
+});
+
+test('Orange Money ouvert (essais) : accepté pour une course comme pour une recharge, le solde jamais pour recharger', () => {
+  const ouvertes: Methode[] = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'];
+  assert.equal(validerDemande(commande({ methodePaiement: 'ORANGE_MONEY' }), ouvertes).methodePaiement, 'ORANGE_MONEY');
+  assert.equal(validerDemande(commande({ methodePaiement: 'WAVE' }), ouvertes).methodePaiement, 'WAVE');
+  assert.equal(verifierMethode('ORANGE_MONEY', ['WAVE', 'ORANGE_MONEY'], 'recharger'), 'ORANGE_MONEY');
+  refuse(() => verifierMethode('PORTEFEUILLE', ['WAVE', 'ORANGE_MONEY'], 'recharger'), 'invalid-argument', /Wave ou Orange Money/);
 });
 
 test('recharge : le mobile money actif est Wave seul', () => {

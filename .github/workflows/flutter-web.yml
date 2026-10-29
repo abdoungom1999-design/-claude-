@@ -301,6 +301,29 @@ jobs:
             exit 1
           fi
 
+      # Orange Money ouvert (ORANGE_MONEY_OUVERT, functions/src/methodes_paiement.ts) :
+      # ses secrets doivent exister AVANT le déploiement, sinon il échouerait.
+      # Ils sont créés par le flux « Essai Orange Money (bac à sable) », case
+      # « preparer_notifications ». Fermé : aucun secret Orange n'est demandé.
+      - name: Secrets d'Orange Money présents (si Orange Money est ouvert)
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          if ! grep -qE '^export const ORANGE_MONEY_OUVERT: boolean = true;$' functions/src/methodes_paiement.ts; then
+            echo "Orange Money fermé : aucun secret Orange requis."
+            exit 0
+          fi
+          manquants=""
+          for nom in ORANGE_MONEY_SANDBOX_CLIENT_ID ORANGE_MONEY_SANDBOX_CLIENT_SECRET \
+                     ORANGE_MONEY_CODE_MARCHAND ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION; do
+            etat=$(gcloud secrets versions describe latest --secret="$nom" --project=sprint-vtc --format='value(state)' 2>/dev/null || true)
+            [ "$etat" = ENABLED ] || manquants="$manquants $nom"
+          done
+          if [ -n "$manquants" ]; then
+            echo "::error title=Secrets Orange Money manquants::$manquants : lancer d'abord le flux « Essai Orange Money (bac à sable) » avec « preparer_notifications ». Rien n'a été déployé."
+            exit 1
+          fi
+          echo "Secrets d'Orange Money présents."
+
       # --force : accepte sans question la politique de nettoyage des
       # images de build (Artifact Registry) et supprime les fonctions
       # retirées du code (ex. l'ancienne "creerCourse").
@@ -308,17 +331,18 @@ jobs:
         if: steps.secret.outputs.present == 'true'
         run: npx --yes firebase-tools@15 deploy --only functions --project sprint-vtc --non-interactive --force
 
-      # Les fonctions sont appelées depuis le navigateur (et, pour le
-      # webhook et la page de paiement simulée, par l'opérateur et le
+      # Les fonctions sont appelées depuis le navigateur (et, pour les
+      # webhooks et la page de paiement simulée, par l'opérateur et le
       # client) : l'accès réseau doit être public (Cloud Run "allUsers").
       # La sécurité est dans chaque fonction : Firebase Auth pour les
-      # fonctions de l'app, signature pour le webhook. Réappliqué à chaque
+      # fonctions de l'app, signature pour le webhook de Wave, clé puis
+      # relecture chez Orange pour celui d'Orange Money. Réappliqué à chaque
       # déploiement, car une création interrompue peut l'avoir omis. La
       # surveillance (surveillercommandes) reste privée.
       - name: Autoriser l'appel des fonctions depuis l'app
         if: steps.secret.outputs.present == 'true'
         run: |
-          for service in estimerprix creerpaiement annulercourse webhookpaiement pagepaiementsimule \
+          for service in estimerprix creerpaiement annulercourse webhookpaiement webhookorangemoney pagepaiementsimule \
                          rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte \
                          chauffeursproches itinerairecourse notifiermessage notifieracceptation \
                          creerrecharge ajusterportefeuille migrerdocumentskyc \
@@ -354,6 +378,13 @@ jobs:
             -H 'Content-Type: application/json' -d '{"data":{}}')
           echo "webhookPaiement sans signature : HTTP $code"
           [ "$code" = 401 ] || { echo "::error::webhookPaiement devrait refuser un appel non signé (401)"; exit 1; }
+          # Orange Money : 503 tant qu'il est fermé (rien n'est lu), 401 sans la clé une fois ouvert.
+          attendu=503
+          grep -qE '^export const ORANGE_MONEY_OUVERT: boolean = true;$' functions/src/methodes_paiement.ts && attendu=401
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/webhookOrangeMoney" \
+            -H 'Content-Type: application/json' -d '{}')
+          echo "webhookOrangeMoney sans clé : HTTP $code (attendu : $attendu)"
+          [ "$code" = "$attendu" ] || { echo "::error::webhookOrangeMoney devrait répondre $attendu à un appel sans clé"; exit 1; }
           code=$(curl -s -o /dev/null -w '%{http_code}' "$base/pagePaiementSimule?session=invalide")
           echo "pagePaiementSimule lien invalide : HTTP $code"
           [ "$code" = 400 ] || { echo "::error::pagePaiementSimule ne répond pas correctement"; exit 1; }

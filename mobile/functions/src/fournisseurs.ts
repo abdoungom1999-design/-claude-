@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import type { Methode } from './methodes_paiement';
 
 /**
  * Fournisseurs de paiement mobile money. Le reste du serveur ne connaît
@@ -17,12 +18,26 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
  * du bac à sable.
  */
 
-export type NomFournisseur = 'simulation' | 'wave';
+export type NomFournisseur = 'simulation' | 'wave' | 'orange_money';
+
+/**
+ * Orange Money (Sonatel), voir `paiement_orange.ts` : il crée les demandes de
+ * paiement, mais n'a ni webhook signé à la façon de Wave (sa notification a son
+ * propre traitement) ni remboursement (un paiement Orange est rendu sur le
+ * solde Sprint, voir `portefeuille.ts`).
+ */
+export const FOURNISSEUR_ORANGE = 'orange_money';
 
 export interface SessionPaiement {
   sessionId: string;
   /** Lien à ouvrir par le client pour payer. */
   lienPaiement: string;
+  /**
+   * Fournisseur sans webhook signé (Orange Money) : jusqu'à cette date, la
+   * surveillance relit le paiement chez lui (notification perdue, paiement
+   * arrivé après l'expiration ou après un premier refus).
+   */
+  relectureFinLe?: Date;
 }
 
 export interface EvenementPaiement {
@@ -41,6 +56,12 @@ export interface FournisseurPaiement {
   lireWebhook(corpsBrut: Buffer, signature: string | undefined, maintenant: Date): EvenementPaiement;
   rembourser(sessionId: string, montantFcfa: number): Promise<void>;
 }
+
+/** Ce qu'il faut pour demander un paiement (commande ou recharge). */
+export type CreateurSession = Pick<FournisseurPaiement, 'nom' | 'creerSession'>;
+
+/** Fournisseur qui encaisse un moyen de paiement mobile money (Wave, Orange Money). */
+export type FournisseurDuMoyen = (methode: Methode) => CreateurSession;
 
 export class ErreurSignature extends Error {}
 export class ErreurFournisseur extends Error {}

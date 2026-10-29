@@ -53,10 +53,10 @@ let fournisseur: FournisseurSimule;
 const googleFactice = { itineraire: async () => ({ distanceKm: 10.2 }) } as unknown as ClientGoogle;
 
 const creerPaiement = (uid: string | undefined, donnees: unknown, quand = midi) =>
-  creerPaiementCore(db, calculDistance(db, googleFactice, () => quand), fournisseur, uid, donnees, quand);
+  creerPaiementCore(db, calculDistance(db, googleFactice, () => quand), () => fournisseur, uid, donnees, quand);
 
 const creerRecharge = (uid: string | undefined, donnees: unknown, quand = midi) =>
-  creerRechargeCore(db, fournisseur, uid, donnees, quand);
+  creerRechargeCore(db, () => fournisseur, uid, donnees, quand);
 
 async function code(promesse: Promise<unknown>): Promise<string> {
   try {
@@ -229,12 +229,19 @@ test('webhook : deux événements simultanés ne créditent qu\'une fois', async
   assert.equal((await mouvements('awa')).length, 1);
 });
 
-test('webhook : refus enregistré, jamais crédité ; un succès tardif ensuite est ignoré', async () => {
+test('webhook : refus enregistré, rien crédité ; un succès ensuite (nouvel essai) est crédité une seule fois', async () => {
   const { rechargeId } = await creerRecharge('awa', { montantFcfa: 5000, methodePaiement: 'WAVE' });
   assert.equal(await traiterEvenementRecharge(db, await evenementRecharge(rechargeId, { reussi: false }), midi), 'echec_enregistre');
   assert.equal((await db.doc(`recharges/${rechargeId}`).get()).get('statut'), 'echouee');
-  assert.equal(await traiterEvenementRecharge(db, await evenementRecharge(rechargeId), minutes(1)), 'deja_traite');
   assert.equal(await soldeDe('awa'), 0);
+  // Un refus rejoué ne change rien.
+  assert.equal(await traiterEvenementRecharge(db, await evenementRecharge(rechargeId, { reussi: false }), minutes(1)), 'deja_traite');
+  // L'argent finalement encaissé n'est jamais perdu : crédité, une fois.
+  assert.equal(await traiterEvenementRecharge(db, await evenementRecharge(rechargeId), minutes(2)), 'recharge_creditee');
+  assert.equal(await traiterEvenementRecharge(db, await evenementRecharge(rechargeId), minutes(3)), 'deja_traite');
+  assert.equal((await db.doc(`recharges/${rechargeId}`).get()).get('statut'), 'reussie');
+  assert.equal(await soldeDe('awa'), 5000);
+  await verifierLivre('awa');
 });
 
 test('webhook : montant ou devise différents de la demande = anomalie, rien crédité', async () => {

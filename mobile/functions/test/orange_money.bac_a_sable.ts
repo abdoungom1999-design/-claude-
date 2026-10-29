@@ -4,11 +4,13 @@
  * (`.github/workflows/essai-orange-money.yml`) ; ce n'est pas un test
  * automatique (`npm test` ne le lance pas).
  *
- * Lit ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET et, facultatif,
- * ORANGE_CODE_MARCHAND dans l'environnement. Rend une annotation GitHub par
- * étape. N'affiche jamais les identifiants, le jeton, les numéros et codes PIN
- * de test ni les liens de paiement complets : tout est masqué dans le journal
- * dès réception.
+ * Lit ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET et, facultatifs,
+ * ORANGE_CODE_MARCHAND, ORANGE_CLE_NOTIFICATION et ORANGE_URL_NOTIFICATION
+ * (ces deux derniers : adresse des notifications de Sprint à enregistrer chez
+ * Orange) dans l'environnement. Rend une annotation GitHub par étape.
+ * N'affiche jamais les identifiants, le jeton, les numéros et codes PIN de
+ * test, la clé des notifications ni les liens de paiement complets : tout est
+ * masqué dans le journal dès réception.
  */
 import { ClientOrangeMoney, ErreurOrangeMoney, URL_ORANGE_MONEY } from '../src/orange_money';
 
@@ -37,7 +39,9 @@ async function principal(): Promise<number> {
   const idClient = process.env.ORANGE_CLIENT_ID ?? '';
   const secretClient = process.env.ORANGE_CLIENT_SECRET ?? '';
   const codeMarchand = (process.env.ORANGE_CODE_MARCHAND ?? '').trim();
-  masquer(idClient, secretClient, codeMarchand);
+  const cleNotification = (process.env.ORANGE_CLE_NOTIFICATION ?? '').trim();
+  const urlNotification = (process.env.ORANGE_URL_NOTIFICATION ?? '').trim();
+  masquer(idClient, secretClient, codeMarchand, cleNotification);
 
   let om: ClientOrangeMoney;
   try {
@@ -107,13 +111,34 @@ async function principal(): Promise<number> {
     }
   }
 
-  // 5. Adresses de notification déjà enregistrées chez Orange (aucune n'est attendue aujourd'hui).
+  // 5. Adresse des notifications de Sprint : enregistrée si demandé (préparation), puis relue chez Orange.
+  if (cleNotification && urlNotification) {
+    if (!codeMarchand) {
+      echecs += 1;
+      annoncer('error', '5. Adresse des notifications', 'Code marchand nécessaire pour l\'enregistrer.');
+    } else {
+      try {
+        await om.enregistrerNotification({ codeMarchand, nomMarchand: 'Sprint', url: urlNotification, cleApi: cleNotification });
+        annoncer('notice', '5. Adresse des notifications', `Enregistrée chez Orange, avec sa clé : ${urlNotification}`);
+      } catch (e) {
+        echecs += 1;
+        annoncer('error', '5. Adresse des notifications', raison(e));
+      }
+    }
+  }
   try {
     const adresses = await om.notificationsEnregistrees();
-    annoncer('notice', '5. Adresses de notification', `${adresses.length} adresse(s) enregistrée(s) chez Orange.`);
+    const sprint = urlNotification ? adresses.some((a) => a.url === urlNotification) : undefined;
+    if (sprint === false) echecs += 1;
+    annoncer(
+      sprint === false ? 'error' : 'notice',
+      '6. Adresses de notification',
+      `${adresses.length} adresse(s) enregistrée(s) chez Orange` +
+        (sprint === undefined ? '.' : `, dont celle de Sprint : ${sprint ? 'oui' : 'NON'}.`),
+    );
   } catch (e) {
     echecs += 1;
-    annoncer('error', '5. Adresses de notification', raison(e));
+    annoncer('error', '6. Adresses de notification', raison(e));
   }
 
   return echecs === 0 ? 0 : 1;

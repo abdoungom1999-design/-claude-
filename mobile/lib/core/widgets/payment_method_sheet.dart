@@ -8,8 +8,8 @@ import 'payment_method_selector.dart';
 /// confirmation du prix et avant toute création de course (voir
 /// `PassagerPage` / `ColisPage`). Groupe Santine est passé au 100% mobile
 /// money : les opérateurs proposés sont [moyensMobileMoneyDisponibles]
-/// (Wave aujourd'hui ; Orange Money est fermé tant que son fournisseur réel
-/// n'est pas branché). Le choix referme la sheet puis ouvre le sas de
+/// (Wave aujourd'hui ; Orange Money, branché côté serveur, s'y ajoute quand
+/// [orangeMoneyOuvert] passe à vrai). Le choix referme la sheet puis ouvre le sas de
 /// paiement (`PaymentProcessingPage`), seul habilité à créer la course une
 /// fois le paiement confirmé.
 ///
@@ -147,7 +147,7 @@ class _BoutonPaiement extends StatelessWidget {
   });
 
   /// Bouton de paiement : vert plein à texte Onyx (l'action « Payer » de la
-  /// charte) ; l'opérateur fermé garde une surface sombre à texte vert.
+  /// charte) ; Orange Money, second choix, garde une surface sombre à texte vert.
   factory _BoutonPaiement.operateur(PaymentMethod methode) => switch (methode) {
         PaymentMethod.orangeMoney => _BoutonPaiement(
             methode: methode,

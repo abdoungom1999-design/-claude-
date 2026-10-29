@@ -108,6 +108,11 @@ class CourseFirestore {
   bool get estActive =>
       statut == StatutCourse.enAttente || statut == StatutCourse.acceptee || statut == StatutCourse.enCours;
 
+  /// Payée par Orange Money ou avec le solde : un remboursement revient sur
+  /// le solde Sprint du client, comme le fait le serveur
+  /// (`FOURNISSEURS_REMBOURSES_SUR_SOLDE`, functions/src/portefeuille.ts).
+  bool get remboursementSurSolde => methodePaiement == 'ORANGE_MONEY' || methodePaiement == 'PORTEFEUILLE';
+
   /// "Déjà payé par Wave" / "Déjà payé par Orange Money" : 100 % mobile
   /// money, le chauffeur n'encaisse jamais rien.
   String get libellePaiement => switch (methodePaiement) {

@@ -1,31 +1,45 @@
 name: Essai Orange Money (bac à sable)
 
 # Lancé à la main seulement (onglet Actions > Essai Orange Money (bac à sable)
-# > Run workflow). Données de TEST, aucun argent réel, rien n'est publié.
+# > Run workflow). Données de TEST, aucun argent réel, rien n'est publié :
+# l'app et le serveur en ligne ne changent pas.
 #
-# 1. Tests automatiques du client Orange Money (functions/src/orange_money.ts),
-#    avec un faux Orange.
+# 1. Tests automatiques du serveur, dont le paiement Orange Money avec un faux
+#    Orange, unitaires et sur l'émulateur Firestore.
 # 2. Identifiants de test lus dans Secret Manager (ORANGE_MONEY_SANDBOX_CLIENT_ID
 #    et ORANGE_MONEY_SANDBOX_CLIENT_SECRET, créés par le client) : présents et
 #    bien collés (ni vides, ni espace, ni retour à la ligne, ni caractère
-#    invisible).
-# 3. Appels RÉELS au bac à sable d'Orange (api.sandbox.orange-sonatel.com) :
+#    invisible). Code marchand : celui saisi au lancement, sinon celui de
+#    Secret Manager (ORANGE_MONEY_CODE_MARCHAND) s'il y est.
+# 3. Facultatif (case « preparer_notifications ») : création dans Secret
+#    Manager du code marchand et de la clé des notifications s'ils manquent
+#    (jamais remplacés en silence), puis enregistrement chez Orange de
+#    l'adresse des notifications de Sprint (fonction webhookOrangeMoney). Le
+#    serveur publié ne s'en sert qu'une fois Orange Money ouvert (go du client).
+# 4. Appels RÉELS au bac à sable d'Orange (api.sandbox.orange-sonatel.com) :
 #    jeton d'accès, numéros de test, clé publique, demande de paiement par QR
-#    code et liens Max It (si un code marchand est donné au lancement, 100 FCFA,
-#    jamais payée), adresses de notification enregistrées.
+#    code (100 FCFA, jamais payée), adresses de notification enregistrées.
+# 5. Parcours complet de Sprint contre le bac à sable RÉEL, sur l'émulateur
+#    Firestore (aucune donnée de production) : course et recharge payées par
+#    Orange Money, lien de paiement, recherche, surveillance, notifications.
 #
 # Rien de secret n'est affiché : identifiants, jeton, numéros et codes PIN de
-# test, code marchand et liens de paiement sont masqués dans le journal dès leur
-# lecture, et les fichiers temporaires sont effacés. Voir mobile/FIREBASE_SETUP.md,
-# section « Passage à l'argent réel ».
+# test, code marchand, clé des notifications et liens de paiement sont masqués
+# dans le journal dès leur lecture, et les fichiers temporaires sont effacés.
+# Voir mobile/FIREBASE_SETUP.md, section « Passage à l'argent réel ».
 on:
   workflow_dispatch:
     inputs:
       code_marchand:
-        description: "Code marchand Orange (6 chiffres) pour la demande de paiement de test ; vide : étape sautée. Masqué dans le journal."
+        description: "Code marchand Orange (6 chiffres) ; vide : celui de Secret Manager s'il y est. Masqué dans le journal."
         required: false
         default: ""
         type: string
+      preparer_notifications:
+        description: "Préparer les notifications : secrets manquants (code marchand, clé) dans Secret Manager et adresse de Sprint enregistrée chez Orange (bac à sable)."
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -37,7 +51,10 @@ concurrency:
 jobs:
   bac-a-sable:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
     steps:
       - uses: actions/checkout@v4
 
@@ -54,23 +71,34 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/functions/package-lock.json
+          cache-dependency-path: |
+            mobile/functions/package-lock.json
+            mobile/firestore_rules_test/package-lock.json
 
-      - name: Compilation du serveur
-        working-directory: mobile/functions
+      # L'émulateur Firestore est une application Java.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Installation (serveur et émulateur)
         run: |
-          npm ci
-          npm run build
+          npm ci --prefix functions
+          npm ci --prefix firestore_rules_test
 
-      - name: Tests automatiques du client Orange Money (faux Orange)
-        working-directory: mobile/functions
-        run: node --test lib/test/orange_money.test.js
+      - name: Tests automatiques du serveur (faux Orange, sans réseau)
+        run: npm test --prefix functions
+
+      - name: Tests sur l'émulateur Firestore (paiements, portefeuille, Orange Money)
+        run: npm run test:emulateur --prefix functions
 
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Identifiants de test d'Orange Money dans Secret Manager
+      # Fichiers lus par les étapes suivantes, dans $RUNNER_TEMP/orange (effacé
+      # à la fin, même en cas d'échec).
+      - name: Identifiants de test d'Orange Money et code marchand
         run: |
           dossier="$RUNNER_TEMP/orange"
           mkdir -p "$dossier"
@@ -108,24 +136,96 @@ jobs:
           print(f'::notice title={nom}::Présent, lisible par la CI, sans espace ni caractère invisible.')
           PY
           done
-          rm -rf "$dossier"
+          # Code marchand : lu dans l'événement (jamais dans le texte du flux ni
+          # dans ses variables affichées), sinon dans Secret Manager ; masqué avant tout usage.
+          code=$(jq -r '.inputs.code_marchand // empty' "$GITHUB_EVENT_PATH" | tr -d '[:space:]')
+          origine="saisi au lancement"
+          if [ -z "$code" ] && gcloud secrets versions access latest --secret=ORANGE_MONEY_CODE_MARCHAND \
+                 --project=sprint-vtc --out-file="$dossier/code_secret" > /dev/null 2>&1; then
+            code=$(tr -d '[:space:]' < "$dossier/code_secret")
+            origine="lu dans Secret Manager"
+          fi
+          if [ -n "$code" ]; then echo "::add-mask::$code"; fi
+          printf '%s' "$code" > "$dossier/CODE_MARCHAND"
+          if [ -z "$code" ]; then
+            echo "::warning title=Code marchand::Ni saisi au lancement, ni dans Secret Manager : demandes de paiement et parcours sautés."
+          elif ! echo "$code" | grep -qE '^[0-9]{6}$'; then
+            echo "::error title=Code marchand::Code marchand $origine : 6 chiffres attendus."
+            erreurs=$((erreurs + 1))
+          else
+            echo "::notice title=Code marchand::Code marchand $origine (6 chiffres)."
+          fi
           [ "$erreurs" -eq 0 ]
 
-      # Le code marchand est lu dans l'événement (jamais dans le texte du flux ni
-      # dans ses variables affichées) et masqué avant tout appel.
+      # Facultatif : prépare la réception des notifications d'Orange. Ne change
+      # rien à l'app publiée (Orange Money y reste fermé).
+      - name: Préparer les notifications (Secret Manager et adresse chez Orange)
+        if: ${{ inputs.preparer_notifications }}
+        run: |
+          dossier="$RUNNER_TEMP/orange"
+          code=$(cat "$dossier/CODE_MARCHAND")
+          if ! echo "$code" | grep -qE '^[0-9]{6}$'; then
+            echo "::error title=Préparation impossible::Code marchand (6 chiffres) nécessaire pour enregistrer les notifications."
+            exit 1
+          fi
+          # Code marchand : créé s'il manque ; jamais remplacé en silence.
+          if gcloud secrets describe ORANGE_MONEY_CODE_MARCHAND --project=sprint-vtc > /dev/null 2>&1; then
+            gcloud secrets versions access latest --secret=ORANGE_MONEY_CODE_MARCHAND --project=sprint-vtc \
+              --out-file="$dossier/code_actuel" > /dev/null
+            if [ "$(tr -d '[:space:]' < "$dossier/code_actuel")" != "$code" ]; then
+              echo "::error title=ORANGE_MONEY_CODE_MARCHAND::Déjà dans Secret Manager, avec une autre valeur que le code saisi : rien n'est remplacé."
+              exit 1
+            fi
+            echo "::notice title=ORANGE_MONEY_CODE_MARCHAND::Déjà dans Secret Manager, identique au code saisi."
+          else
+            gcloud secrets create ORANGE_MONEY_CODE_MARCHAND --project=sprint-vtc --replication-policy=automatic \
+              --data-file="$dossier/CODE_MARCHAND" > /dev/null
+            echo "::notice title=ORANGE_MONEY_CODE_MARCHAND::Créé dans Secret Manager."
+          fi
+          # Clé des notifications : 64 caractères aléatoires, créée une seule fois, jamais affichée.
+          if gcloud secrets describe ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION --project=sprint-vtc > /dev/null 2>&1; then
+            echo "::notice title=ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION::Déjà dans Secret Manager : réutilisée."
+          else
+            openssl rand -hex 32 | tr -d '\n' > "$dossier/cle_nouvelle"
+            echo "::add-mask::$(cat "$dossier/cle_nouvelle")"
+            gcloud secrets create ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION --project=sprint-vtc --replication-policy=automatic \
+              --data-file="$dossier/cle_nouvelle" > /dev/null
+            echo "::notice title=ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION::Créée dans Secret Manager (64 caractères aléatoires, jamais affichés)."
+          fi
+          gcloud secrets versions access latest --secret=ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION --project=sprint-vtc \
+            --out-file="$dossier/CLE_NOTIFICATION" > /dev/null
+          echo "::add-mask::$(cat "$dossier/CLE_NOTIFICATION")"
+
       - name: Bac à sable d'Orange Money (appels réels, données de test)
         run: |
           dossier="$RUNNER_TEMP/orange"
-          mkdir -p "$dossier"
-          for nom in ORANGE_MONEY_SANDBOX_CLIENT_ID ORANGE_MONEY_SANDBOX_CLIENT_SECRET; do
-            gcloud secrets versions access latest --secret="$nom" --project=sprint-vtc --out-file="$dossier/$nom" > /dev/null
-          done
-          code=$(jq -r '.inputs.code_marchand // empty' "$GITHUB_EVENT_PATH" | tr -d '[:space:]')
-          if [ -n "$code" ]; then echo "::add-mask::$code"; fi
-          resultat=0
+          cle=""
+          url=""
+          if [ -f "$dossier/CLE_NOTIFICATION" ]; then
+            cle=$(cat "$dossier/CLE_NOTIFICATION")
+            url="https://europe-west1-sprint-vtc.cloudfunctions.net/webhookOrangeMoney"
+          fi
           ORANGE_CLIENT_ID="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_ID")" \
           ORANGE_CLIENT_SECRET="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_SECRET")" \
-          ORANGE_CODE_MARCHAND="$code" \
-            node mobile/functions/lib/test/orange_money.bac_a_sable.js || resultat=$?
-          rm -rf "$dossier"
-          exit "$resultat"
+          ORANGE_CODE_MARCHAND="$(cat "$dossier/CODE_MARCHAND")" \
+          ORANGE_CLE_NOTIFICATION="$cle" \
+          ORANGE_URL_NOTIFICATION="$url" \
+            node functions/lib/test/orange_money.bac_a_sable.js
+
+      - name: Parcours complet de Sprint (émulateur Firestore + bac à sable réel)
+        run: |
+          dossier="$RUNNER_TEMP/orange"
+          if [ ! -s "$dossier/CODE_MARCHAND" ]; then
+            echo "::warning title=Parcours complet::Sans code marchand : parcours sauté."
+            exit 0
+          fi
+          cd functions
+          ORANGE_CLIENT_ID="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_ID")" \
+          ORANGE_CLIENT_SECRET="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_SECRET")" \
+          ORANGE_CODE_MARCHAND="$(cat "$dossier/CODE_MARCHAND")" \
+            ../firestore_rules_test/node_modules/.bin/firebase emulators:exec --only firestore --project demo-sprint \
+              "node lib/test/orange_money.parcours_bac_a_sable.js"
+
+      - name: Effacer les fichiers temporaires
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/orange"

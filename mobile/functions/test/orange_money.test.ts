@@ -264,6 +264,44 @@ test('numéros de test : bac à sable seulement, nombre demandé par type', asyn
   ]);
 });
 
+test('recherche de transactions : par identifiant ou par référence, champs utiles lus, critères contrôlés', async () => {
+  const { om, appels } = client([
+    jeton('A'),
+    json([
+      {
+        transactionId: 'MP220928.1029.C58502',
+        reference: 'a1b2c3d4e5f6a1b2c3d4e5f6',
+        status: 'SUCCESS',
+        type: 'MERCHANT_PAYMENT',
+        amount: { value: 1500, unit: 'XOF' },
+        partner: { idType: 'CODE', id: '123456' },
+        customer: { idType: 'MSISDN', id: '771234567', firstName: 'Awa', lastName: 'Diop' },
+      },
+      { reference: 'sans-identifiant', status: 'FAILED' },
+    ]),
+    json([]),
+  ]);
+  await assert.rejects(om.rechercherTransactions({}), /sans critère/);
+  await assert.rejects(om.rechercherTransactions({ reference: 'pas une référence !' }), /Référence invalide/);
+  await assert.rejects(om.rechercherTransactions({ transactionId: 'MP/../x' }), /Identifiant de transaction invalide/);
+  assert.equal(appels.length, 0);
+
+  assert.deepEqual(await om.rechercherTransactions({ transactionId: 'MP220928.1029.C58502' }), [
+    {
+      transactionId: 'MP220928.1029.C58502',
+      reference: 'a1b2c3d4e5f6a1b2c3d4e5f6',
+      statut: 'SUCCESS',
+      montantFcfa: 1500,
+      devise: 'XOF',
+      codeMarchand: '123456',
+      type: 'MERCHANT_PAYMENT',
+    },
+  ]);
+  assert.equal(appels[1].url, 'https://api.sandbox.orange-sonatel.com/api/eWallet/v1/transactions?size=20&transactionId=MP220928.1029.C58502');
+  assert.deepEqual(await om.rechercherTransactions({ reference: 'rch_a1b2c3' }), []);
+  assert.equal(appels[2].url, 'https://api.sandbox.orange-sonatel.com/api/eWallet/v1/transactions?size=20&reference=rch_a1b2c3');
+});
+
 test('clé publique RSA lue ; identifiants absents refusés dès la création du client', async () => {
   const { om } = client([jeton('A'), json({ key: 'MIIBIjANBg', keyId: '5f2b1c9a', keySize: 2048, keyType: 'RSA' })]);
   assert.deepEqual(await om.clePublique(), { cle: 'MIIBIjANBg', idCle: '5f2b1c9a', tailleBits: 2048 });

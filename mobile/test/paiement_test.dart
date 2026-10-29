@@ -140,6 +140,25 @@ void main() {
     expect(sas.liensOuverts, hasLength(2));
   });
 
+  testWidgets('Orange Money : paiement demandé pour Orange, validation dans Max It, code secret jamais dans Sprint', (tester) async {
+    final serveur = _ServeurFactice();
+    final sas = await _ouvrirSas(tester, serveur, methode: PaymentMethod.orangeMoney);
+
+    expect(serveur.methodeRecue, 'ORANGE_MONEY');
+    await tester.tap(find.text('Payer avec Orange Money · ${formaterFcfa(2100)}'));
+    await _attendre(tester);
+
+    expect(sas.liensOuverts, hasLength(1));
+    expect(find.text('En attente de la confirmation de\nvotre paiement Orange Money…'), findsOneWidget);
+    expect(
+      find.text(
+        'Validez le paiement dans Max It ou Orange Money avec votre code secret (Sprint ne vous le demandera '
+        'jamais), puis revenez ici : votre course partira aux chauffeurs dès la confirmation.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('tant que le serveur n\'a pas confirmé, aucune course n\'est suivie', (tester) async {
     final serveur = _ServeurFactice();
     await _ouvrirSas(tester, serveur);

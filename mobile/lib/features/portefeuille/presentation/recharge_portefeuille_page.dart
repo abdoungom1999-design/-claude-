@@ -14,9 +14,11 @@ import '../../../core/widgets/onyx_vert.dart';
 ///
 /// 1. le serveur vérifie la demande et renvoie un lien de paiement ;
 /// 2. le client paie sur la page de l'opérateur (aujourd'hui le faux Wave :
-///    aucune somme débitée), ouverte dans un nouvel onglet ;
-/// 3. l'opérateur confirme au serveur (webhook signé), qui crédite alors le
-///    solde ; l'app, qui suit la recharge en temps réel, l'affiche.
+///    aucune somme débitée ; Orange Money ouvre Max It, sur le bac à sable
+///    d'Orange tant que c'est un essai), ouverte dans un nouvel onglet ;
+/// 3. l'opérateur confirme au serveur (webhook signé, ou notification
+///    d'Orange relue chez Orange), qui crédite alors le solde ; l'app, qui
+///    suit la recharge en temps réel, l'affiche.
 ///
 /// L'app ne décide jamais qu'une recharge a réussi. La page se referme en
 /// renvoyant `true` (rechargé) ou le message d'échec à afficher.
@@ -155,23 +157,27 @@ class _RechargePortefeuillePageState extends State<RechargePortefeuillePage> {
         ),
         body: SafeArea(
           child: Center(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: switch (_etape) {
-                _Etape.preparation => _Attente(
-                    key: const ValueKey('preparation'),
-                    titre: 'Préparation de votre recharge $_operateur…',
-                  ),
-                _Etape.aPayer => _APayer(
-                    key: ValueKey('aPayer-$_pageOuverte'),
-                    operateur: _operateur,
-                    montantFcfa: _recharge?.montantFcfa ?? widget.montantFcfa,
-                    pageOuverte: _pageOuverte,
-                    onPayer: _payer,
-                    onAnnuler: () => _quitter("Recharge annulée. Votre solde n'a pas changé."),
-                  ),
-                _Etape.creditee => _Creditee(key: const ValueKey('creditee'), montantFcfa: widget.montantFcfa),
-              },
+            // Défilable : texte agrandi ou petit écran, rien n'est jamais coupé.
+            child: SingleChildScrollView(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: switch (_etape) {
+                  _Etape.preparation => _Attente(
+                      key: const ValueKey('preparation'),
+                      titre: 'Préparation de votre recharge $_operateur…',
+                    ),
+                  _Etape.aPayer => _APayer(
+                      key: ValueKey('aPayer-$_pageOuverte'),
+                      operateur: _operateur,
+                      consigne: widget.methode.consignePaiement,
+                      montantFcfa: _recharge?.montantFcfa ?? widget.montantFcfa,
+                      pageOuverte: _pageOuverte,
+                      onPayer: _payer,
+                      onAnnuler: () => _quitter("Recharge annulée. Votre solde n'a pas changé."),
+                    ),
+                  _Etape.creditee => _Creditee(key: const ValueKey('creditee'), montantFcfa: widget.montantFcfa),
+                },
+              ),
             ),
           ),
         ),
@@ -218,6 +224,7 @@ class _APayer extends StatelessWidget {
   const _APayer({
     super.key,
     required this.operateur,
+    required this.consigne,
     required this.montantFcfa,
     required this.pageOuverte,
     required this.onPayer,
@@ -225,6 +232,9 @@ class _APayer extends StatelessWidget {
   });
 
   final String operateur;
+
+  /// Ce que le client fait sur la page de l'opérateur ([PaymentMethodConsigne]).
+  final String consigne;
   final int montantFcfa;
   final bool pageOuverte;
   final VoidCallback onPayer;
@@ -242,7 +252,7 @@ class _APayer extends StatelessWidget {
             if (pageOuverte)
               _Attente(
                 titre: 'En attente de la confirmation de\nvotre paiement $operateur…',
-                sousTitre: 'Payez sur la page $operateur qui vient de s\'ouvrir, puis revenez ici : '
+                sousTitre: '$consigne, puis revenez ici : '
                     'votre solde sera crédité dès la confirmation.',
               )
             else ...[

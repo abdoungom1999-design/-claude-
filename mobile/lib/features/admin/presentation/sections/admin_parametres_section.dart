@@ -7,6 +7,7 @@ import '../../../../core/notifications/notifications_push.dart';
 import '../../../../core/suivi/suivi_plantages.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/payment_method_selector.dart';
 import '../../../../core/widgets/premium_dialog.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/utils/format_fcfa.dart';
@@ -251,7 +252,10 @@ class _ReglesEnVigueur extends StatelessWidget {
               '${Commission.pourcentageHistorique} %.',
               style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
             ),
-            ligne('Moyens de paiement', 'Wave, solde Sprint (Orange Money bientôt)'),
+            ligne(
+              'Moyens de paiement',
+              orangeMoneyOuvert ? 'Wave, Orange Money, solde Sprint' : 'Wave, solde Sprint (Orange Money bientôt)',
+            ),
             ligne('Encaissement', 'Mode test (aucun débit réel)'),
           ],
         ),

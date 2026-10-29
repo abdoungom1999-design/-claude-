@@ -223,7 +223,8 @@ depuis la Console.
   l'Admin. Seul le serveur les crée (étape 7), une fois le paiement
   confirmé par l'opérateur, avec le prix qu'il calcule lui-même.
   Paiement 100 % mobile money (Wave) ou avec le solde du portefeuille ;
-  Orange Money est **fermé** (voir « Passage à l'argent réel »).
+  Orange Money est branché mais **fermé** aux clients (voir « Passage à
+  l'argent réel »).
 - Annulations (client tant que la course est en attente, chauffeur avec
   un motif) : uniquement par la Cloud Function `annulerCourse`, qui
   rembourse le client ; jamais directement depuis l'app.
@@ -275,8 +276,9 @@ depuis la Console.
   "simulation"` sur la course). Pour passer au vrai Wave : ranger
   `WAVE_API_KEY` et `WAVE_WEBHOOK_SECRET` dans Secret Manager et brancher
   `FournisseurWave` (déjà écrit) dans `functions/src/index.ts`. Orange
-  Money est refusé par le serveur tant qu'il n'a pas son propre
-  fournisseur réel.
+  Money a son fournisseur réel (bac à sable d'Orange) mais reste refusé
+  par le serveur tant qu'il n'est pas ouvert (voir « Passage à l'argent
+  réel »).
 - Un numéro de téléphone n'est pas garanti unique : si quelqu'un
   revendique en premier le numéro d'un autre dans l'annuaire, ce dernier
   ne pourra se connecter que par email (aucun accès à son compte n'est
@@ -646,7 +648,7 @@ bouge** tant que le vrai Wave n'est pas branché (voir
   `ajusterPortefeuille`, solde entre 0 et 200 000 FCFA, journalisé dans
   `journal_admin`).
 
-#### Passage à l'argent réel (à faire, rien n'est branché)
+#### Passage à l'argent réel (à faire : vrai Wave à brancher, Orange Money branché mais fermé)
 
 1. Compte Wave Business (API Checkout) : `WAVE_API_KEY` (clé API) et
    `WAVE_WEBHOOK_SECRET` dans Secret Manager, puis brancher
@@ -657,51 +659,78 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    (signature `Wave-Signature` = HMAC-SHA256 de l'horodatage collé au
    corps brut, sans séparateur, plusieurs `v1` possibles) et sera à
    revalider avec le premier événement réel du bac à sable.
-2. Orange Money : **fermé côté serveur et côté app** (`functions/src/methodes_paiement.ts`,
-   `moyensMobileMoneyDisponibles` dans l'app) : le serveur refuse `ORANGE_MONEY`
-   (course et recharge) avec « Orange Money n'est pas encore disponible », car
-   il passerait par la simulation et rendrait les courses gratuites. Aucun
-   fournisseur n'existe encore ; il faut le contrat marchand Sonatel et sa
-   documentation. À sa réouverture : brancher son fournisseur, PUIS l'ajouter
-   aux deux listes. Les anciennes courses et recharges Orange gardent leur libellé.
-   Où en est-on (28 octobre 2026) : code marchand obtenu, application créée par
-   le client sur le portail développeur d'Orange, identifiants de **test** (bac à
-   sable) générés. Noms des secrets, créés par le client lui-même dans Secret
-   Manager (projet `sprint-vtc`) ; les valeurs ne passent jamais par un message,
-   le dépôt ni la CI en clair :
-   - bac à sable : `ORANGE_MONEY_SANDBOX_CLIENT_ID`, `ORANGE_MONEY_SANDBOX_CLIENT_SECRET` ;
-   - production, plus tard, sous **d'autres noms** pour ne jamais mélanger les
-     deux : `ORANGE_MONEY_CLIENT_ID`, `ORANGE_MONEY_CLIENT_SECRET`.
-   Le code ne lira que les secrets de son environnement (test ou production). Le
-   code marchand et le numéro de caisse ne sont pas des secrets, mais ils ne vont
-   pas dans ce dépôt public. Le code secret du compte marchand (son code PIN) est
-   à changer dès réception ; s'il fallait un jour le donner à l'API, il irait lui
-   aussi dans Secret Manager.
-   Contrôle : flux manuel « Essai Orange Money (bac à sable) » (onglet Actions),
-   qui vérifie que les deux secrets de test existent, sont lisibles par la CI et
-   sont bien collés, sans jamais afficher leur valeur. L'appel au bac à sable
-   d'Orange y sera ajouté avec la documentation technique de l'API (portail
-   https://developer.orange-sonatel.com, API « Orange money distributeur » et
-   « Notification » choisies à la création de l'application).
-   Spécification reçue (OpenAPI « Orange Money API » v1.1.0 du 22 octobre 2026,
-   gardée hors de ce dépôt) ; API « Qr Code - Om » ajoutée par le client
-   (« Payment - Om » n'est plus proposée). Ce qu'elle décrit : jeton OAuth 2.0
-   (`POST /oauth/v1/token`) ; paiement par QR code et liens Max It / Orange Money
-   (`POST /api/eWallet/v4/qrcode`), asynchrone ; notification envoyée à notre
-   adresse HTTPS avec « Authorization: Basic <clé> », clé que nous choisissons en
-   enregistrant l'adresse (`POST /api/notification/v1/merchantcallback`) ; statut
-   qui fait foi (`GET /api/eWallet/v1/transactions/{id}/status`) ; numéros de
-   test du bac à sable. Client écrit et testé avec un faux Orange :
-   `functions/src/orange_money.ts` (`test/orange_money.test.ts`), **pas encore
-   branché** aux paiements. Le flux d'essai l'utilise contre le vrai bac à sable
-   (`test/orange_money.bac_a_sable.ts`). À trancher avant de le brancher :
-   - l'en-tête `X-Sonatel-Signature` est annoncé mais son calcul n'est pas
-     documenté : on vérifie la clé, et on relit toujours le statut chez Orange
-     avant de valider un paiement ;
-   - l'API n'a pas de remboursement : soit un dépôt (« cash in ») depuis un
-     compte distributeur, avec son code PIN chiffré par la clé publique
-     d'Orange, soit un remboursement sur le solde Sprint (voir le point 3) ;
-   - la procédure du lien Max It (PDF d'Orange) n'est pas encore arrivée.
+2. Orange Money : **branché, mais fermé aux clients** jusqu'au go du client
+   (29 octobre 2026 : on ne publie rien sans avoir tout validé ensemble).
+   Un seul interrupteur, en deux exemplaires qui doivent rester d'accord (un
+   test le vérifie) : `ORANGE_MONEY_OUVERT` dans `functions/src/methodes_paiement.ts`
+   et `orangeMoneyOuvert` dans `lib/core/widgets/payment_method_selector.dart`.
+   Fermé, le serveur refuse `ORANGE_MONEY` (course et recharge) avec « Orange
+   Money n'est pas encore disponible », l'app ne le propose pas, et aucune
+   fonction ne déclare ni ne lit les secrets d'Orange : une publication ne peut
+   pas échouer à cause d'eux. Les anciennes courses et recharges Orange gardent
+   leur libellé.
+   - **Code** : client de l'API `functions/src/orange_money.ts` (spécification
+     OpenAPI « Orange Money API » v1.1.0 du 22 octobre 2026, gardée hors de ce
+     dépôt) ; branchement `functions/src/paiement_orange.ts` : Orange Money est
+     encaissé par Orange, jamais par le faux opérateur ; notifications reçues
+     par la fonction `webhookOrangeMoney` ; relecture par `surveillerCommandes`.
+   - **Paiement** : QR code à usage unique au nom de « Sprint », valable
+     18 minutes (la commande : 20), lien Max It ouvert par l'app (sinon lien
+     Orange Money, sinon lien court) ; session `om_<référence>`.
+   - **Sécurité** : une notification n'est acceptée qu'avec la clé enregistrée
+     chez Orange (`Authorization: Basic <clé>`, comparée en temps constant),
+     puis la transaction est **relue chez Orange** : seuls le statut, le
+     montant, la devise, la référence et le marchand payé renvoyés par Orange
+     comptent. Paiement à un autre code marchand (même avec notre référence) ou
+     dépôt « cash in » : jamais appliqué ; montant ou devise différents :
+     anomalie, visible de l'Admin. `X-Sonatel-Signature` n'est pas vérifié
+     (calcul non documenté, demandé à Orange par le client) : la relecture le
+     remplace.
+   - **Notification perdue** : pendant 1 heure après chaque demande
+     (`relectureFinLe`), la surveillance (toutes les 5 minutes) relit chez
+     Orange les demandes sans issue (en attente, expirées ou refusées), celles
+     en attente d'abord, 20 recherches au plus par passage, arrêt si Orange
+     demande de ralentir : une course payée est créée, un paiement tardif est
+     rendu sur le solde, une recharge est créditée. Un paiement réussi n'est
+     jamais perdu.
+   - **Remboursements** (décision du client, 29 octobre 2026) : sur le solde
+     Sprint, jamais chez Orange (son API n'en a pas) : course annulée ou sans
+     chauffeur, paiement arrivé après l'expiration ou après un premier refus,
+     remboursement par l'Admin (le message du ticket le dit). Une recharge
+     payée après un premier refus est créditée (vrai aussi pour Wave).
+   - **Secrets** (Secret Manager, projet `sprint-vtc`) ; les valeurs ne passent
+     jamais par un message, le dépôt ni le journal de la CI :
+     - `ORANGE_MONEY_SANDBOX_CLIENT_ID`, `ORANGE_MONEY_SANDBOX_CLIENT_SECRET` :
+       identifiants de test, créés par le client ;
+     - `ORANGE_MONEY_CODE_MARCHAND` et `ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION`
+       (64 caractères aléatoires, jamais affichés) : créés par le flux d'essai
+       (case `preparer_notifications`), jamais remplacés en silence ;
+     - production, plus tard, sous **d'autres noms** pour ne jamais mélanger
+       les deux : `ORANGE_MONEY_CLIENT_ID`, `ORANGE_MONEY_CLIENT_SECRET` (et une
+       autre clé de notification), avec l'adresse `URL_ORANGE_MONEY.production`
+       dans `functions/src/index.ts`.
+     Le code marchand et le numéro de caisse ne vont pas dans ce dépôt public ;
+     le code secret du compte marchand n'est jamais utilisé.
+   - **Essai** : flux manuel « Essai Orange Money (bac à sable) » (onglet
+     Actions) : tests (faux Orange, émulateur), secrets bien collés, appels
+     réels au bac à sable (`test/orange_money.bac_a_sable.ts`), puis **parcours
+     complet** de Sprint contre le vrai bac à sable, sur l'émulateur Firestore
+     (`test/orange_money.parcours_bac_a_sable.ts`) : course et recharge payées
+     par Orange Money, lien de paiement, recherche, surveillance, notifications.
+     Case `preparer_notifications` : secrets manquants créés et adresse
+     `https://europe-west1-sprint-vtc.cloudfunctions.net/webhookOrangeMoney`
+     enregistrée chez Orange (bac à sable) avec sa clé.
+   - **Pour ouvrir** (avec le go du client) : flux d'essai vert avec
+     `preparer_notifications` ; les deux interrupteurs à `true` dans le même
+     commit ; textes de l'app (aide, conditions) validés par le client ;
+     publication normale. Elle vérifie d'abord que les 4 secrets existent,
+     puis que `webhookOrangeMoney` répond 401 sans clé (fermé : 503).
+   - **À confirmer au premier vrai paiement du bac à sable** : comment payer
+     dans le bac à sable (procédure Max It redemandée à Orange) ; la façon dont
+     la recherche désigne le marchand payé (`partner.id` = code marchand, type
+     `CODE`, comme dans la notification : s'il s'agissait du numéro de
+     téléphone, les paiements seraient refusés, jamais acceptés à tort) ; le
+     refus d'un second paiement sur un QR « usage unique ».
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.
@@ -710,8 +739,8 @@ bouge** tant que le vrai Wave n'est pas branché (voir
 
 ```bash
 cd mobile/functions
-npm test                  # moteur de prix (dont parité avec l'app), validation, signatures
-npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille (émulateur Firestore)
+npm test                  # moteur de prix (dont parité avec l'app), validation, signatures, client et paiement Orange Money (faux Orange)
+npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille, Orange Money (émulateur Firestore, faux Orange)
 ```
 
 

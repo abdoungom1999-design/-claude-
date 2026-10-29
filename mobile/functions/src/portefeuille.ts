@@ -2,8 +2,14 @@ import { randomBytes } from 'node:crypto';
 import { Timestamp, type DocumentReference, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
-import type { EvenementPaiement, FournisseurPaiement } from './fournisseurs';
-import { METHODES_RECHARGE, verifierMethode } from './methodes_paiement';
+import {
+  FOURNISSEUR_ORANGE,
+  type CreateurSession,
+  type EvenementPaiement,
+  type FournisseurDuMoyen,
+  type SessionPaiement,
+} from './fournisseurs';
+import { METHODES_RECHARGE, verifierMethode, type Methode } from './methodes_paiement';
 
 /**
  * Portefeuille Sprint : crédit prépayé du client, utilisable uniquement
@@ -112,7 +118,10 @@ export interface RechargeCreee {
   montantFcfa: number;
 }
 
-export function validerRecharge(donnees: unknown): { montantFcfa: number; methodePaiement: string } {
+export function validerRecharge(
+  donnees: unknown,
+  methodes: readonly Methode[] = METHODES_RECHARGE,
+): { montantFcfa: number; methodePaiement: Methode } {
   const d = objet(donnees);
   const montant = d.montantFcfa;
   if (typeof montant !== 'number' || !Number.isInteger(montant)) {
@@ -124,15 +133,20 @@ export function validerRecharge(donnees: unknown): { montantFcfa: number; method
   if (montant > RECHARGE_MAX_FCFA) {
     throw new HttpsError('invalid-argument', `La recharge maximale est de ${RECHARGE_MAX_FCFA} FCFA.`);
   }
-  return { montantFcfa: montant, methodePaiement: verifierMethode(d.methodePaiement, METHODES_RECHARGE, 'recharger') };
+  return { montantFcfa: montant, methodePaiement: verifierMethode(d.methodePaiement, methodes, 'recharger') };
 }
 
+/**
+ * [fournisseurs] : qui encaisse le moyen choisi (Wave, Orange Money).
+ * [methodes] : moyens acceptés (ceux ouverts aux clients, sauf essai).
+ */
 export async function creerRecharge(
   db: Firestore,
-  fournisseur: FournisseurPaiement,
+  fournisseurs: FournisseurDuMoyen,
   uid: string | undefined,
   donnees: unknown,
   maintenant: Date,
+  methodes: readonly Methode[] = METHODES_RECHARGE,
 ): Promise<RechargeCreee> {
   if (!uid) throw new HttpsError('unauthenticated', 'Connectez-vous pour recharger votre portefeuille.');
   const profil = await db.collection('users').doc(uid).get();
@@ -144,7 +158,7 @@ export async function creerRecharge(
   if (statutCompte === 'suspendu' || statutCompte === 'banni') {
     throw new HttpsError('permission-denied', 'Votre compte ne permet pas de recharger le portefeuille.');
   }
-  const { montantFcfa, methodePaiement } = validerRecharge(donnees);
+  const { montantFcfa, methodePaiement } = validerRecharge(donnees, methodes);
 
   const soldeActuel = solde(await refPortefeuille(db, uid).get());
   if (soldeActuel + montantFcfa > SOLDE_MAX_FCFA) {
@@ -170,8 +184,10 @@ export async function creerRecharge(
   }
 
   const ref = db.collection('recharges').doc(`${PREFIXE_RECHARGE}${randomBytes(12).toString('hex')}`);
-  let session;
+  let fournisseur: CreateurSession;
+  let session: SessionPaiement;
   try {
+    fournisseur = fournisseurs(methodePaiement);
     session = await fournisseur.creerSession(ref.id, montantFcfa);
   } catch (e) {
     logger.error('Session de recharge impossible', e);
@@ -187,6 +203,7 @@ export async function creerRecharge(
     lienPaiement: session.lienPaiement,
     creeLe: Timestamp.fromDate(maintenant),
     expireLe: Timestamp.fromDate(new Date(maintenant.getTime() + DUREE_RECHARGE_MS)),
+    ...(session.relectureFinLe ? { relectureFinLe: Timestamp.fromDate(session.relectureFinLe) } : {}),
   });
   return { rechargeId: ref.id, lienPaiement: session.lienPaiement, montantFcfa };
 }
@@ -201,8 +218,10 @@ export type ResultatRecharge = 'recharge_creditee' | 'deja_traite' | 'echec_enre
  * Traite l'événement (déjà vérifié par signature) d'une recharge. Le
  * solde n'est crédité qu'ici, jamais sur la foi de l'app. Rejouer le même
  * événement ne crédite jamais deux fois : la recharge n'est créditée que
- * depuis "en_attente" ou "expiree" (paiement arrivé après l'expiration :
- * l'argent est bien encaissé, il est crédité).
+ * depuis "en_attente", "expiree" ou "echouee" (paiement arrivé après
+ * l'expiration, ou réussi après un premier refus, par exemple un nouvel
+ * essai sur le même QR code Orange Money : l'argent est bien encaissé, il
+ * est crédité).
  */
 export async function traiterEvenementRecharge(
   db: Firestore,
@@ -214,9 +233,8 @@ export async function traiterEvenementRecharge(
     const recharge = await tx.get(refRecharge);
     if (!recharge.exists || recharge.get('sessionPaiementId') !== evenement.sessionId) return 'inconnue';
     const statut = recharge.get('statut') as string;
-    if (statut !== STATUTS_RECHARGE.enAttente && !(evenement.reussi && statut === STATUTS_RECHARGE.expiree)) {
-      return 'deja_traite';
-    }
+    const rattrapable = statut === STATUTS_RECHARGE.expiree || statut === STATUTS_RECHARGE.echouee;
+    if (statut !== STATUTS_RECHARGE.enAttente && !(evenement.reussi && rattrapable)) return 'deja_traite';
 
     if (!evenement.reussi) {
       tx.update(refRecharge, { statut: STATUTS_RECHARGE.echouee, termineeLe: Timestamp.fromDate(maintenant) });
@@ -279,6 +297,14 @@ export const FOURNISSEUR_PORTEFEUILLE = 'portefeuille';
 export const METHODE_PORTEFEUILLE = 'PORTEFEUILLE';
 
 /**
+ * Commandes remboursées sur le solde Sprint plutôt que chez le fournisseur :
+ * celles payées avec le solde, et celles payées par Orange Money, dont l'API
+ * n'a pas de remboursement (décision du client, 29 octobre 2026 : plus sûr, et
+ * le client garde son crédit chez Sprint).
+ */
+export const FOURNISSEURS_REMBOURSES_SUR_SOLDE: readonly string[] = [FOURNISSEUR_PORTEFEUILLE, FOURNISSEUR_ORANGE];
+
+/**
  * Débite le solde de [prixFcfa] à l'intérieur de la transaction [tx] qui
  * crée aussi la course. Lève `solde-insuffisant` sans rien écrire si le
  * solde ne suffit pas (le client choisit alors un mode mobile money).
@@ -318,10 +344,11 @@ export const lirePortefeuille = (tx: Transaction, db: Firestore, uid: string) =>
 // ---------------------------------------------------------------------
 
 /**
- * Rend au portefeuille le prix d'une commande payée avec le solde. Jamais
- * bloqué par le plafond (un remboursement doit toujours aboutir) et
- * idempotent : le mouvement `remboursement_{commande}` n'existe qu'une
- * fois. Renvoie `false` si la commande n'a pas été payée par le solde.
+ * Rend au portefeuille le prix d'une commande payée avec le solde ou par
+ * Orange Money ([FOURNISSEURS_REMBOURSES_SUR_SOLDE]). Jamais bloqué par le
+ * plafond (un remboursement doit toujours aboutir) et idempotent : le
+ * mouvement `remboursement_{commande}` n'existe qu'une fois. Renvoie `false`
+ * si la commande ne se rembourse pas sur le solde.
  */
 export async function rembourserSurPortefeuille(
   db: Firestore,
@@ -331,7 +358,7 @@ export async function rembourserSurPortefeuille(
 ): Promise<boolean> {
   return db.runTransaction(async (tx) => {
     const commande = await tx.get(refCommande);
-    if (!commande.exists || commande.get('fournisseur') !== FOURNISSEUR_PORTEFEUILLE) return false;
+    if (!commande.exists || !FOURNISSEURS_REMBOURSES_SUR_SOLDE.includes(commande.get('fournisseur'))) return false;
     if (commande.get('statut') === 'remboursee') return true;
     const clientId = commande.get('clientId') as string;
     const prixFcfa = commande.get('prixFcfa') as number;
@@ -353,7 +380,12 @@ export async function rembourserSurPortefeuille(
         maintenant,
       );
     }
-    tx.update(refCommande, { statut: 'remboursee', motifRemboursement: motif, rembourseeLe: Timestamp.fromDate(maintenant) });
+    tx.update(refCommande, {
+      statut: 'remboursee',
+      motifRemboursement: motif,
+      rembourseSurSolde: true,
+      rembourseeLe: Timestamp.fromDate(maintenant),
+    });
     return true;
   });
 }

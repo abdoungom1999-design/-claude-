@@ -4,7 +4,7 @@ import { logger } from 'firebase-functions';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { defineSecret } from 'firebase-functions/params';
+import { defineSecret, type SecretParam } from 'firebase-functions/params';
 import { coordonneesAdresse as coordonneesCore, rechercherAdresses as rechercherCore } from './adresses';
 import {
   ajusterPortefeuille as ajusterCore,
@@ -21,8 +21,26 @@ import { migrerDocumentsKyc as migrerKycCore, StockageFirebase } from './kyc_sto
 import { itineraireCourse as itineraireCourseCore } from './itineraire';
 import { chauffeursProches as chauffeursProchesCore } from './proximite';
 import { calculDistance } from './distances';
-import { corpsWebhook, ErreurSignature, FournisseurSimule, signer, type FournisseurPaiement } from './fournisseurs';
+import {
+  corpsWebhook,
+  ErreurFournisseur,
+  ErreurSignature,
+  FournisseurSimule,
+  signer,
+  type FournisseurDuMoyen,
+  type FournisseurPaiement,
+} from './fournisseurs';
 import { ClientGoogle } from './google';
+import { ORANGE_MONEY_OUVERT } from './methodes_paiement';
+import { URL_ORANGE_MONEY } from './orange_money';
+import {
+  configurerOrange,
+  FournisseurOrangeMoney,
+  fournisseursDuMoyen,
+  rattraperOrange,
+  repondreNotificationOrange,
+  type ConfigOrange,
+} from './paiement_orange';
 import {
   annulerCourse as annulerCourseCore,
   creerPaiement as creerPaiementCore,
@@ -53,6 +71,50 @@ const messagerie = new MessagerieFcm();
 /** Clé Google Maps Platform (Places + Routes), dans Secret Manager. */
 const cleGoogle = defineSecret('GOOGLE_MAPS_API_KEY');
 const options = { secrets: [cleGoogle] };
+
+/**
+ * Orange Money, bac à sable (données de test) jusqu'au passage en production
+ * validé par le client. Secrets dans Secret Manager : identifiants de
+ * l'application Orange (créés par le client), code marchand et clé des
+ * notifications (créés par le flux « Essai Orange Money »). Déclarés et liés
+ * aux fonctions SEULEMENT quand Orange Money est ouvert : d'ici là, aucune
+ * publication ni aucun paiement Wave ne dépend d'eux.
+ */
+const secretsOrange = ORANGE_MONEY_OUVERT
+  ? {
+      idClient: defineSecret('ORANGE_MONEY_SANDBOX_CLIENT_ID'),
+      secretClient: defineSecret('ORANGE_MONEY_SANDBOX_CLIENT_SECRET'),
+      codeMarchand: defineSecret('ORANGE_MONEY_CODE_MARCHAND'),
+      cleNotification: defineSecret('ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION'),
+    }
+  : null;
+const secretsClientOrange = secretsOrange ? [secretsOrange.idClient, secretsOrange.secretClient, secretsOrange.codeMarchand] : [];
+const optionsPaiement = { secrets: [cleGoogle, ...secretsClientOrange] };
+
+/** Secrets d'une fonction qui ne lit que ceux d'Orange Money : aucune option tant qu'il est fermé. */
+const avecSecrets = (secrets: SecretParam[]) => (secrets.length > 0 ? { secrets } : {});
+
+let configOrange: ConfigOrange | null = null;
+
+/** Client Orange Money (un par instance : son jeton d'accès sert plusieurs fois) ; `null` si fermé ou incomplet. */
+function orange(): ConfigOrange | null {
+  if (secretsOrange === null) return null;
+  configOrange ??= configurerOrange(
+    {
+      idClient: secretsOrange.idClient.value(),
+      secretClient: secretsOrange.secretClient.value(),
+      codeMarchand: secretsOrange.codeMarchand.value(),
+    },
+    URL_ORANGE_MONEY.bacASable,
+  );
+  return configOrange;
+}
+
+function fournisseurOrange(): FournisseurOrangeMoney {
+  const config = orange();
+  if (config === null) throw new ErreurFournisseur('Orange Money n\'est pas configuré.');
+  return new FournisseurOrangeMoney(config);
+}
 
 function google(): ClientGoogle | null {
   const cle = cleGoogle.value().trim();
@@ -86,6 +148,11 @@ function fournisseur(): Promise<FournisseurPaiement> {
   return simulation;
 }
 
+/** Qui encaisse chaque moyen : Wave par [fournisseur], Orange Money par Orange. */
+async function fournisseurs(): Promise<FournisseurDuMoyen> {
+  return fournisseursDuMoyen(await fournisseur(), fournisseurOrange);
+}
+
 /** Prix d'un trajet, sur la distance par la route. */
 export const estimerPrix = onCall(options, (requete) =>
   estimer(distance(), requete.auth?.uid, requete.data, new Date()),
@@ -96,17 +163,17 @@ export const estimerPrix = onCall(options, (requete) =>
  * attente et lien de paiement. La course n'existera qu'une fois le
  * paiement confirmé par le fournisseur (webhookPaiement).
  */
-export const creerPaiement = onCall(options, async (requete) =>
-  creerPaiementCore(getFirestore(), distance(), await fournisseur(), requete.auth?.uid, requete.data, new Date(), messagerie),
+export const creerPaiement = onCall(optionsPaiement, async (requete) =>
+  creerPaiementCore(getFirestore(), distance(), await fournisseurs(), requete.auth?.uid, requete.data, new Date(), messagerie),
 );
 
 /**
- * Portefeuille : demande de recharge (Wave ; Orange Money fermé, voir
- * `methodes_paiement.ts`). Le solde n'est crédité que par le webhook signé
- * du fournisseur, jamais par l'app.
+ * Portefeuille : demande de recharge (Wave, et Orange Money une fois ouvert,
+ * voir `methodes_paiement.ts`). Le solde n'est crédité que sur la
+ * confirmation du fournisseur, jamais par l'app.
  */
-export const creerRecharge = onCall(async (requete) =>
-  creerRechargeCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date()),
+export const creerRecharge = onCall(avecSecrets(secretsClientOrange), async (requete) =>
+  creerRechargeCore(getFirestore(), await fournisseurs(), requete.auth?.uid, requete.data, new Date()),
 );
 
 /** Confirmation signée du fournisseur de paiement. */
@@ -140,6 +207,28 @@ export const webhookPaiement = onRequest(async (req, res) => {
     res.status(500).send('Erreur interne.');
   }
 });
+
+/**
+ * Notification d'Orange Money (adresse enregistrée chez Orange par le flux
+ * « Essai Orange Money ») : clé vérifiée, puis paiement RELU chez Orange
+ * avant d'être appliqué (voir `paiement_orange.ts`). Tant qu'Orange Money
+ * est fermé, répond 503 sans rien lire.
+ */
+export const webhookOrangeMoney = onRequest(
+  avecSecrets(secretsOrange ? [...secretsClientOrange, secretsOrange.cleNotification] : []),
+  async (req, res) => {
+    const reponse = await repondreNotificationOrange(
+      getFirestore(),
+      orange(),
+      secretsOrange?.cleNotification.value() ?? '',
+      { methode: req.method, autorisation: req.get('authorization'), corpsBrut: req.rawBody ?? Buffer.alloc(0) },
+      fournisseur,
+      new Date(),
+      messagerie,
+    );
+    res.status(reponse.statut).send(reponse.corps);
+  },
+);
 
 const MESSAGES_RESULTAT: Record<string, [string, string]> = {
   course_creee: ['Paiement accepté', 'Merci ! Retournez sur Sprint : votre demande est envoyée aux chauffeurs.'],
@@ -238,10 +327,19 @@ export const migrerDocumentsKyc = onCall(async (requete) =>
   migrerKycCore(getFirestore(), new StockageFirebase(), requete.auth?.uid, requete.data, new Date()),
 );
 
-/** Paiements jamais finalisés et courses restées sans chauffeur. */
+/**
+ * Paiements jamais finalisés et courses restées sans chauffeur. Les paiements
+ * Orange Money sans nouvelles sont d'abord relus chez Orange (notification
+ * perdue), avant toute expiration.
+ */
 export const surveillerCommandes = onSchedule(
-  { schedule: 'every 5 minutes', timeZone: 'Africa/Dakar', retryCount: 0 },
+  { schedule: 'every 5 minutes', timeZone: 'Africa/Dakar', retryCount: 0, ...avecSecrets(secretsClientOrange) },
   async () => {
+    const config = orange();
+    if (config !== null) {
+      const relus = await rattraperOrange(getFirestore(), config, await fournisseur(), new Date(), messagerie);
+      if (relus.appliquees || relus.erreurs || relus.reportees) logger.info('Rattrapage Orange Money', relus);
+    }
     const bilan = await surveiller(getFirestore(), await fournisseur(), new Date(), messagerie);
     const rechargesExpirees = await surveillerRecharges(getFirestore(), new Date());
     if (bilan.expirees || bilan.sansChauffeur || rechargesExpirees) {
