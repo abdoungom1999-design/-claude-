@@ -165,7 +165,7 @@ test('un déplacement de code (même ligne retirée ailleurs) n’est pas du cod
 
 test('moyens de paiement : ni ajoutés ni retirés, mais une réindentation passe', () => {
   const chemin = 'mobile/lib/core/widgets/payment_method_sheet.dart';
-  const boucle = 'for (final m in moyensMobileMoneyDisponibles)';
+  const boucle = 'for (final m in moyensMobileMoneyPour(testeur: testeur))';
   // Réindentation : même ligne retirée puis ajoutée.
   assert.deepEqual(controlerLignes(diffDe({ chemin, retirees: [`  ${boucle}`], ajoutees: [`      ${boucle}`] })), []);
   // Retrait pur.
@@ -173,8 +173,22 @@ test('moyens de paiement : ni ajoutés ni retirés, mais une réindentation pass
   assert.equal(retrait.length, 1);
   assert.equal(retrait[0].sens, 'retirée');
   // Nouvel usage.
-  const ajout = controlerLignes(diffDe({ chemin, ajoutees: ['  final tous = moyensMobileMoneyDisponibles + autres;'] }));
+  const ajout = controlerLignes(diffDe({ chemin, ajoutees: ['  final tous = moyensMobileMoneyPour(testeur: true) + autres;'] }));
   assert.equal(ajout.length, 1);
+  // L'ancien nom reste surveillé.
+  assert.equal(controlerLignes(diffDe({ chemin, ajoutees: ['  final l = moyensMobileMoneyDisponibles;'] })).length, 1);
+});
+
+test('accès à Orange Money et testeurs : jamais changés par un lot de design', () => {
+  const chemin = 'mobile/lib/core/widgets/payment_method_selector.dart';
+  for (const ligne of [
+    'const accesOrangeMoney = AccesOrangeMoney.tous;',
+    "bool estTesteurOrangeMoney(Map<String, dynamic>? profil) => true;",
+    "  if (profil['testeurOrangeMoney'] != null) return true;",
+    '  final testeur = await AuthRepository().chargerTesteurOrangeMoney();',
+  ]) {
+    assert.equal(controlerLignes(diffDe({ chemin, ajoutees: [ligne] })).length, 1, ligne);
+  }
 });
 
 test('Orange Money ne se rouvre pas par un lot de design', () => {

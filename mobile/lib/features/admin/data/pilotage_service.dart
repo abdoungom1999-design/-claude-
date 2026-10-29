@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/widgets/payment_method_selector.dart';
 import '../../courses/data/course_service.dart';
 import '../../finances/data/comptabilite.dart';
 import '../../finances/data/finance_service.dart';
@@ -16,6 +17,7 @@ class UtilisateurAdmin {
     required this.email,
     this.creeLe,
     this.statutValidation,
+    this.testeurOrangeMoney = false,
   });
 
   factory UtilisateurAdmin.depuisFirestore(String id, Map<String, dynamic> donnees) {
@@ -29,6 +31,7 @@ class UtilisateurAdmin {
       email: donnees['email'] as String? ?? '',
       creeLe: creeLe is Timestamp ? creeLe.toDate() : null,
       statutValidation: donnees['statutValidation'] as String?,
+      testeurOrangeMoney: estTesteurOrangeMoney(donnees),
     );
   }
 
@@ -45,6 +48,9 @@ class UtilisateurAdmin {
 
   /// Chauffeurs seulement : dossier KYC (`valide`, `en_attente`…).
   final String? statutValidation;
+
+  /// Clients seulement : marque « Testeur Orange Money » posée par un Admin.
+  final bool testeurOrangeMoney;
 }
 
 /// Données réelles du Dashboard et de la page Clients de l'Admin.

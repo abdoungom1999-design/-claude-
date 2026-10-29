@@ -9,7 +9,7 @@ import { rembourserCourseAdmin } from '../src/admin';
 import { calculDistance } from '../src/distances';
 import { ErreurFournisseur, FournisseurSimule, type FournisseurDuMoyen } from '../src/fournisseurs';
 import type { ClientGoogle } from '../src/google';
-import type { Methode } from '../src/methodes_paiement';
+import type { AccesOrangeMoney } from '../src/methodes_paiement';
 import { ClientOrangeMoney, URL_ORANGE_MONEY } from '../src/orange_money';
 import {
   appliquerTransactionOrange,
@@ -32,9 +32,6 @@ const minutes = (n: number) => new Date(midi.getTime() + n * 60 * 1000);
 const PRIX = 2300;
 const CLE = 'cle-de-notification-de-test-assez-longue-0123456789';
 
-/** Orange Money ouvert, comme il le sera après le go du client. */
-const OUVERTES: Methode[] = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'];
-const RECHARGE_OUVERTES: Methode[] = ['WAVE', 'ORANGE_MONEY'];
 
 const demande = (extra: Record<string, unknown> = {}) => ({
   type: 'PASSAGER',
@@ -58,11 +55,12 @@ let fournisseurs: (quand: Date) => FournisseurDuMoyen;
 
 const googleFactice = { itineraire: async () => ({ distanceKm: 10.2 }) } as unknown as ClientGoogle;
 
-const creerPaiement = (donnees: unknown = demande(), quand = midi, methodes: Methode[] = OUVERTES) =>
-  creerPaiementCore(db, calculDistance(db, googleFactice, () => quand), fournisseurs(quand), 'awa', donnees, quand, undefined, methodes);
+/** Par défaut, Orange Money ouvert à tous, comme il le sera après le go du client. */
+const creerPaiement = (donnees: unknown = demande(), quand = midi, acces: AccesOrangeMoney = 'tous', uid = 'awa') =>
+  creerPaiementCore(db, calculDistance(db, googleFactice, () => quand), fournisseurs(quand), uid, donnees, quand, undefined, acces);
 
-const creerRecharge = (montantFcfa: number, quand = midi) =>
-  creerRechargeCore(db, fournisseurs(quand), 'awa', { montantFcfa, methodePaiement: 'ORANGE_MONEY' }, quand, RECHARGE_OUVERTES);
+const creerRecharge = (montantFcfa: number, quand = midi, acces: AccesOrangeMoney = 'tous', uid = 'awa') =>
+  creerRechargeCore(db, fournisseurs(quand), uid, { montantFcfa, methodePaiement: 'ORANGE_MONEY' }, quand, acces);
 
 /** Notification d'Orange (POST, avec la clé enregistrée sauf mention contraire ; `null` : sans en-tête). */
 const notifier = (corpsBrut: Buffer, quand = midi, autorisation: string | null = `Basic ${CLE}`) =>
@@ -132,9 +130,16 @@ test('demande Orange Money : QR chez Orange, commande en attente avec le lien Ma
   assert.equal(await nombre('courses'), 0);
 });
 
-test('Orange Money fermé (réglage actuel) : refusé avant d\'appeler Orange', async () => {
-  const erreur = await refuse(creerPaiement(demande(), midi, ['WAVE', 'PORTEFEUILLE']), 'failed-precondition');
+test('Orange Money fermé (réglage actuel) : refusé avant d\'appeler Orange, même pour un testeur', async () => {
+  await db.doc('users/awa').update({ testeurOrangeMoney: true });
+  const erreur = await refuse(creerPaiement(demande(), midi, 'ferme'), 'failed-precondition');
   assert.match(erreur.message, /Orange Money n'est pas encore disponible/);
+  await refuse(creerRecharge(5000, midi, 'ferme'), 'failed-precondition');
+  // Sans réglage explicite : celui en service (fermé).
+  await refuse(
+    creerPaiementCore(db, calculDistance(db, googleFactice, () => midi), fournisseurs(midi), 'awa', demande(), midi),
+    'failed-precondition',
+  );
   await refuse(
     creerRechargeCore(db, fournisseurs(midi), 'awa', { montantFcfa: 5000, methodePaiement: 'ORANGE_MONEY' }, midi),
     'failed-precondition',
@@ -142,6 +147,30 @@ test('Orange Money fermé (réglage actuel) : refusé avant d\'appeler Orange', 
   assert.deepEqual(orange.requetes, []);
   assert.equal(await nombre('commandes'), 0);
   assert.equal(await nombre('recharges'), 0);
+});
+
+test('essai réservé aux testeurs : le testeur paie et recharge avec Orange Money, les autres clients sont refusés', async () => {
+  await db.doc('users/awa').update({ testeurOrangeMoney: true });
+  await db.doc('users/fatou').set({ role: 'client', nom: 'Fatou' });
+  await db.doc('users/khady').set({ role: 'client', nom: 'Khady', testeurOrangeMoney: 'oui' });
+
+  const paiement = await creerPaiement(demande(), midi, 'testeurs', 'awa');
+  assert.match(paiement.lienPaiement!, /^https:\/\/sugu\.orange-sonatel\.com\//);
+  assert.equal((await commande(paiement.commandeId)).fournisseur, 'orange_money');
+  const recharge = await creerRecharge(5000, midi, 'testeurs', 'awa');
+  assert.match(recharge.rechargeId, /^rch_/);
+  assert.equal(orange.qrCodes.length, 2);
+
+  // Client ordinaire, ou marque mal formée (seul `true` compte) : comme si Orange était fermé.
+  for (const uid of ['fatou', 'khady']) {
+    const erreur = await refuse(creerPaiement(demande(), midi, 'testeurs', uid), 'failed-precondition');
+    assert.match(erreur.message, /Orange Money n'est pas encore disponible : payez avec Wave ou votre solde Sprint/);
+    await refuse(creerRecharge(5000, midi, 'testeurs', uid), 'failed-precondition');
+  }
+  assert.equal(orange.qrCodes.length, 2, 'aucune demande chez Orange pour eux');
+  // Wave reste ouvert à tous.
+  const wave = await creerPaiement(demande({ methodePaiement: 'WAVE' }), midi, 'testeurs', 'fatou');
+  assert.equal((await commande(wave.commandeId)).fournisseur, 'simulation');
 });
 
 test('chaque moyen reste chez son fournisseur : Wave par Wave, Orange Money par Orange', async () => {

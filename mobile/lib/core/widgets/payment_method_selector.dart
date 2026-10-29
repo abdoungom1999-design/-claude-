@@ -5,22 +5,39 @@
 ///
 /// [orangeMoney] reste dans l'énumération pour l'historique (courses et
 /// recharges, libellés). Son fournisseur réel est branché côté serveur, mais
-/// il n'est proposé ni accepté tant que [orangeMoneyOuvert] est faux : voir
-/// [moyensMobileMoneyDisponibles].
+/// il n'est proposé que selon [accesOrangeMoney] : voir
+/// [moyensMobileMoneyPour].
 enum PaymentMethod { wave, orangeMoney, portefeuille }
 
-/// Orange Money proposé aux clients. Ne passe à `true` qu'avec le go du
-/// client, en même temps que son jumeau du serveur (`ORANGE_MONEY_OUVERT`,
+/// Qui peut payer avec Orange Money (décisions du client, 29 octobre 2026).
+enum AccesOrangeMoney {
+  /// Personne : ni proposé, ni accepté par le serveur.
+  ferme,
+
+  /// Seulement les comptes clients marqués « Testeur Orange Money » par un
+  /// Admin (essai réel de bout en bout) ; les autres clients ne voient rien.
+  testeurs,
+
+  /// Tous les clients (ouverture officielle).
+  tous,
+}
+
+/// Réglage en service. Ne change qu'avec le go du client, en même temps que
+/// son jumeau du serveur (`ACCES_ORANGE_MONEY`,
 /// `functions/src/methodes_paiement.ts`) : un test du serveur vérifie qu'ils
 /// sont d'accord.
-const bool orangeMoneyOuvert = false;
+const accesOrangeMoney = AccesOrangeMoney.ferme;
 
-/// Moyens de mobile money proposables aujourd'hui, dans l'ordre d'affichage.
-/// Le serveur applique la même liste (`functions/src/methodes_paiement.ts`).
-const moyensMobileMoneyDisponibles = <PaymentMethod>[
-  PaymentMethod.wave,
-  if (orangeMoneyOuvert) PaymentMethod.orangeMoney,
-];
+/// Le profil (`users/{uid}`) porte-t-il la marque « Testeur Orange Money »,
+/// posée par un Admin ? Seul `true` compte, comme pour le serveur.
+bool estTesteurOrangeMoney(Map<String, dynamic>? profil) => profil?['testeurOrangeMoney'] == true;
+
+/// Moyens de mobile money proposés à ce client, dans l'ordre d'affichage. Le
+/// serveur applique la même règle (`methodesPour`, functions/src/methodes_paiement.ts).
+List<PaymentMethod> moyensMobileMoneyPour({required bool testeur, AccesOrangeMoney acces = accesOrangeMoney}) => [
+      PaymentMethod.wave,
+      if (acces == AccesOrangeMoney.tous || (acces == AccesOrangeMoney.testeurs && testeur)) PaymentMethod.orangeMoney,
+    ];
 
 extension PaymentMethodLabel on PaymentMethod {
   String get label {

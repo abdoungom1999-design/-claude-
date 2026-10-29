@@ -4,13 +4,15 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/onyx_vert.dart';
 import '../../../core/utils/format_fcfa.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../portefeuille/data/portefeuille_service.dart';
 import '../../portefeuille/presentation/mouvements_portefeuille_page.dart';
 
 /// Portefeuille d'un client vu par l'Admin : solde, contrôle de cohérence
-/// (la somme du livre de comptes doit égaler le solde), historique complet
-/// et ajustement manuel motivé (journalisé côté serveur).
+/// (la somme du livre de comptes doit égaler le solde), marque « Testeur
+/// Orange Money », historique complet et ajustement manuel motivé (tous deux
+/// journalisés côté serveur).
 class AdminPortefeuillePage extends StatefulWidget {
   AdminPortefeuillePage({super.key, required this.clientId, required this.nomClient, PortefeuilleService? service})
       : service = service ?? PortefeuilleService();
@@ -28,9 +30,11 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
   late final Stream<Portefeuille> _portefeuille = widget.service.streamPortefeuille(widget.clientId).asBroadcastStream();
   late final Stream<List<MouvementPortefeuille>> _mouvements =
       widget.service.streamMouvements(widget.clientId).asBroadcastStream();
+  late final Stream<bool> _testeur = widget.service.streamTesteurOrangeMoney(widget.clientId);
   final _montant = TextEditingController();
   final _motif = TextEditingController();
   bool _envoi = false;
+  bool _envoiTesteur = false;
 
   @override
   void dispose() {
@@ -78,6 +82,51 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
       _message('Ajustement impossible. Vérifiez votre connexion.');
     } finally {
       if (mounted) setState(() => _envoi = false);
+    }
+  }
+
+  /// Effet de la marque selon le réglage en service ([accesOrangeMoney]).
+  static String get _effetTesteur => switch (accesOrangeMoney) {
+        AccesOrangeMoney.ferme =>
+          "Orange Money est fermé : cette marque ne prendra effet que pendant l'essai réservé aux testeurs. Journalisé.",
+        AccesOrangeMoney.testeurs =>
+          "Essai en cours : un testeur voit Orange Money et peut payer avec (bac à sable d'Orange, aucun argent réel). "
+              'Journalisé.',
+        AccesOrangeMoney.tous => "Orange Money est ouvert à tous les clients : cette marque n'a plus d'effet.",
+      };
+
+  Future<void> _definirTesteur(bool testeur) async {
+    if (testeur) {
+      final confirme = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Désigner un testeur Orange Money ?'),
+          content: Text(
+            "${widget.nomClient} pourra voir Orange Money et payer avec pendant l'essai réservé aux testeurs "
+            "(bac à sable d'Orange, aucun argent réel). Les autres clients ne voient rien.\n\n"
+            'Cette opération est journalisée.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Confirmer')),
+          ],
+        ),
+      );
+      if (confirme != true || !mounted) return;
+    }
+    setState(() => _envoiTesteur = true);
+    try {
+      await widget.service.definirTesteurOrangeMoney(clientId: widget.clientId, testeur: testeur);
+      if (!mounted) return;
+      _message(testeur
+          ? '${widget.nomClient} est désormais testeur Orange Money.'
+          : "${widget.nomClient} n'est plus testeur Orange Money.");
+    } on ApiException catch (e) {
+      _message(e.message);
+    } on Object {
+      _message('Réglage impossible. Vérifiez votre connexion.');
+    } finally {
+      if (mounted) setState(() => _envoiTesteur = false);
     }
   }
 
@@ -147,6 +196,33 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
                   ),
                 );
               },
+            ),
+          ),
+          const SizedBox(height: 16),
+          AppCard(
+            child: StreamBuilder<bool>(
+              stream: _testeur,
+              builder: (context, marque) => Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Testeur Orange Money', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 4),
+                        Text(_effetTesteur, style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Switch(
+                    key: const ValueKey('testeur-orange-money'),
+                    value: marque.data ?? false,
+                    activeThumbColor: AppColors.vert,
+                    onChanged: marque.hasData && !_envoiTesteur ? _definirTesteur : null,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),

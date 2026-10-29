@@ -133,7 +133,7 @@ async function principal(): Promise<number> {
         { ...trajet, adresseDepart: 'Plateau (essai)', adresseArrivee: 'Almadies (essai)', methodePaiement: 'ORANGE_MONEY', prixAttendu: prixFcfa },
         maintenant,
         undefined,
-        ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'],
+        'tous',
       );
       commandeId = r.commandeId;
       lien = r.lienPaiement ?? '';
@@ -153,10 +153,7 @@ async function principal(): Promise<number> {
     // 2. Recharge du portefeuille par Orange Money.
     let rechargeId = '';
     try {
-      const r = await creerRecharge(db, fournisseurs, 'client-essai', { montantFcfa: 500, methodePaiement: 'ORANGE_MONEY' }, maintenant, [
-        'WAVE',
-        'ORANGE_MONEY',
-      ]);
+      const r = await creerRecharge(db, fournisseurs, 'client-essai', { montantFcfa: 500, methodePaiement: 'ORANGE_MONEY' }, maintenant, 'tous');
       rechargeId = r.rechargeId;
       masquer(r.lienPaiement);
       annoncer('notice', '2. Recharge par Orange Money', `Demande de 500 FCFA acceptée par Orange (référence « rch_… »), recharge en attente.`);

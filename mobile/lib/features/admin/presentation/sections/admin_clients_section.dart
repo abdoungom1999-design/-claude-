@@ -171,6 +171,12 @@ class _ClientsReelsState extends State<_ClientsReels> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(client.nom, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        if (client.testeurOrangeMoney)
+                          const Text(
+                            'Testeur Orange Money',
+                            key: ValueKey('marque-testeur-orange-money'),
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.vert),
+                          ),
                         if (client.email.isNotEmpty)
                           Text(
                             client.email,

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
-import { rembourserCourseAdmin, sanctionnerCompte } from '../src/admin';
+import { definirTesteurOrangeMoney, rembourserCourseAdmin, sanctionnerCompte } from '../src/admin';
 import { FournisseurSimule } from '../src/fournisseurs';
 
 const maintenant = new Date(Date.UTC(2026, 8, 29, 12));
@@ -214,4 +214,37 @@ test('suspendre un client : compte bloqué, rien d\'autre à annuler', async () 
   const r = await sanctionnerCompte(db, fournisseur, 'chef', { uid: 'awa', statutCompte: 'suspendu', motif: 'Abus' }, maintenant);
   assert.deepEqual(r, { statutCompte: 'suspendu', coursesAnnulees: 0, remboursements: 0 });
   assert.equal((await db.doc('users/awa').get()).get('statutCompte'), 'suspendu');
+});
+
+// --- Testeurs d'Orange Money ----------------------------------------------
+
+test('testeur Orange Money : l\'Admin désigne puis retire un compte client, chaque fois journalisé', async () => {
+  assert.deepEqual(await definirTesteurOrangeMoney(db, 'chef', { clientId: 'awa', testeur: true }, maintenant), { testeurOrangeMoney: true });
+  assert.equal((await db.doc('users/awa').get()).get('testeurOrangeMoney'), true);
+  assert.deepEqual(await definirTesteurOrangeMoney(db, 'chef2', { clientId: 'awa', testeur: false }, maintenant), { testeurOrangeMoney: false });
+  assert.equal((await db.doc('users/awa').get()).get('testeurOrangeMoney'), undefined, 'marque retirée, profil propre');
+  assert.equal((await db.doc('users/awa').get()).get('role'), 'client', 'le reste du profil est intact');
+  const entrees = (await journal()).map(({ action, adminId, clientId, testeurOrangeMoney }) => ({ action, adminId, clientId, testeurOrangeMoney }));
+  assert.deepEqual(
+    entrees.sort((a, b) => Number(b.testeurOrangeMoney) - Number(a.testeurOrangeMoney)),
+    [
+      { action: 'testeur_orange_money', adminId: 'chef', clientId: 'awa', testeurOrangeMoney: true },
+      { action: 'testeur_orange_money', adminId: 'chef2', clientId: 'awa', testeurOrangeMoney: false },
+    ],
+  );
+});
+
+test('testeur Orange Money : réservé à l\'Admin, et seulement pour un compte client existant', async () => {
+  await refuse(definirTesteurOrangeMoney(db, undefined, { clientId: 'awa', testeur: true }, maintenant), 'unauthenticated');
+  await refuse(definirTesteurOrangeMoney(db, 'awa', { clientId: 'awa', testeur: true }, maintenant), 'permission-denied');
+  await refuse(definirTesteurOrangeMoney(db, 'moussa', { clientId: 'awa', testeur: true }, maintenant), 'permission-denied');
+  await refuse(definirTesteurOrangeMoney(db, 'chef', { clientId: 'moussa', testeur: true }, maintenant), 'failed-precondition');
+  await refuse(definirTesteurOrangeMoney(db, 'chef', { clientId: 'chef2', testeur: true }, maintenant), 'failed-precondition');
+  await refuse(definirTesteurOrangeMoney(db, 'chef', { clientId: 'inconnu', testeur: true }, maintenant), 'failed-precondition');
+  await refuse(definirTesteurOrangeMoney(db, 'chef', { clientId: 'awa', testeur: 'oui' }, maintenant), 'invalid-argument');
+  await refuse(definirTesteurOrangeMoney(db, 'chef', { clientId: '../awa', testeur: true }, maintenant), 'invalid-argument');
+  await refuse(definirTesteurOrangeMoney(db, 'chef', null, maintenant), 'invalid-argument');
+  assert.equal((await db.doc('users/awa').get()).get('testeurOrangeMoney'), undefined);
+  assert.equal((await db.doc('users/moussa').get()).get('testeurOrangeMoney'), undefined);
+  assert.deepEqual(await journal(), []);
 });

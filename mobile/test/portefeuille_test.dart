@@ -22,11 +22,18 @@ class _ServiceFactice extends PortefeuilleService {
     Portefeuille portefeuille = const Portefeuille(),
     List<MouvementPortefeuille> mouvements = const [],
     this.refusAjustement,
+    bool testeurOrangeMoney = false,
+    this.refusTesteur,
   })  : _portefeuille = portefeuille,
-        _mouvements = mouvements;
+        _mouvements = mouvements,
+        _testeur = testeurOrangeMoney;
 
   final Exception? refusRecharge;
   final Exception? refusAjustement;
+  final Exception? refusTesteur;
+  bool _testeur;
+  final _majTesteur = StreamController<bool>.broadcast();
+  final testeursDefinis = <(String, bool)>[];
   final Portefeuille _portefeuille;
   final List<MouvementPortefeuille> _mouvements;
 
@@ -59,6 +66,20 @@ class _ServiceFactice extends PortefeuilleService {
 
   @override
   Stream<List<MouvementPortefeuille>> streamMouvements(String uid) => Stream.value(_mouvements);
+
+  @override
+  Stream<bool> streamTesteurOrangeMoney(String clientId) async* {
+    yield _testeur;
+    yield* _majTesteur.stream;
+  }
+
+  @override
+  Future<void> definirTesteurOrangeMoney({required String clientId, required bool testeur}) async {
+    if (refusTesteur case final erreur?) throw erreur;
+    testeursDefinis.add((clientId, testeur));
+    _testeur = testeur;
+    _majTesteur.add(testeur);
+  }
 
   @override
   Future<int> ajuster({required String clientId, required int montantFcfa, required String motif}) async {
@@ -652,6 +673,8 @@ void main() {
       required int solde,
       required List<MouvementPortefeuille> mouvements,
       Exception? refus,
+      bool testeur = false,
+      Exception? refusTesteur,
     }) async {
       tester.view.physicalSize = const Size(900, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -660,9 +683,12 @@ void main() {
         portefeuille: Portefeuille(soldeFcfa: solde),
         mouvements: mouvements,
         refusAjustement: refus,
+        testeurOrangeMoney: testeur,
+        refusTesteur: refusTesteur,
       );
       await tester.pumpWidget(
-        MaterialApp(home: AdminPortefeuillePage(clientId: 'awa', nomClient: 'Awa Diop', service: service)),
+        // Clé propre à chaque ouverture : une page neuve, comme en navigation réelle.
+        MaterialApp(home: AdminPortefeuillePage(key: UniqueKey(), clientId: 'awa', nomClient: 'Awa Diop', service: service)),
       );
       await tester.pumpAndSettle();
       return service;
@@ -675,6 +701,57 @@ void main() {
     }
 
     final enregistrer = find.text('Enregistrer l\'ajustement');
+    final marqueTesteur = find.byKey(const ValueKey('testeur-orange-money'));
+    bool marquee(WidgetTester tester) => tester.widget<Switch>(marqueTesteur).value;
+
+    testWidgets('testeur Orange Money : désigné après confirmation, envoyé au serveur ; effet expliqué', (tester) async {
+      final service = await ouvrir(tester, solde: 0, mouvements: const []);
+      expect(marquee(tester), isFalse);
+      expect(find.textContaining('Orange Money est fermé : cette marque ne prendra effet'), findsOneWidget);
+
+      await tester.tap(marqueTesteur);
+      await tester.pumpAndSettle();
+      expect(find.text('Désigner un testeur Orange Money ?'), findsOneWidget);
+      expect(find.textContaining('Awa Diop pourra voir Orange Money'), findsOneWidget);
+      await tester.tap(find.text('Confirmer'));
+      await tester.pumpAndSettle();
+      expect(service.testeursDefinis, [('awa', true)]);
+      expect(find.text('Awa Diop est désormais testeur Orange Money.'), findsOneWidget);
+      expect(marquee(tester), isTrue);
+    });
+
+    testWidgets('testeur Orange Money : confirmation annulée, rien n\'est envoyé ; retrait sans confirmation', (tester) async {
+      final service = await ouvrir(tester, solde: 0, mouvements: const []);
+      await tester.tap(marqueTesteur);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+      expect(service.testeursDefinis, isEmpty);
+      expect(marquee(tester), isFalse);
+
+      final testeur = await ouvrir(tester, solde: 0, mouvements: const [], testeur: true);
+      expect(marquee(tester), isTrue);
+      await tester.tap(marqueTesteur);
+      await tester.pumpAndSettle();
+      expect(testeur.testeursDefinis, [('awa', false)]);
+      expect(find.text("Awa Diop n'est plus testeur Orange Money."), findsOneWidget);
+      expect(marquee(tester), isFalse);
+    });
+
+    testWidgets('testeur Orange Money : refus du serveur affiché, marque inchangée', (tester) async {
+      await ouvrir(
+        tester,
+        solde: 0,
+        mouvements: const [],
+        refusTesteur: ApiException('Seul un compte client peut tester Orange Money.'),
+      );
+      await tester.tap(marqueTesteur);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirmer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Seul un compte client peut tester Orange Money.'), findsOneWidget);
+      expect(marquee(tester), isFalse);
+    });
 
     testWidgets('solde et livre de comptes cohérent', (tester) async {
       await ouvrir(tester, solde: 2700, mouvements: [

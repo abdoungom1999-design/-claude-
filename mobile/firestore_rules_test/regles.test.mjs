@@ -134,6 +134,16 @@ describe('users (profil privé)', () => {
     await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { role: 'admin' }));
   });
 
+  test('se déclarer soi-même testeur Orange Money (inscription ou profil) : refusé', async () => {
+    await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { testeurOrangeMoney: true }));
+    await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { nom: 'Awa D.', testeurOrangeMoney: true }));
+    await assertFails(setDoc(doc(en('nouveau'), 'users', 'nouveau'), {
+      role: 'client', nom: 'Nouveau', email: 'nouveau@test.sn', testeurOrangeMoney: true,
+    }));
+    // La marque se pose par l'Admin (Cloud Function definirTesteurOrangeMoney, journalisée).
+    await assertSucceeds(updateDoc(doc(en('admin'), 'users', 'client'), { testeurOrangeMoney: true }));
+  });
+
   test('lire le profil privé d\'un autre utilisateur (pièces KYC) : refusé', async () => {
     await assertFails(getDoc(doc(en('client'), 'users', 'chauffeur')));
     await assertFails(getDoc(doc(anonyme(), 'users', 'chauffeur')));

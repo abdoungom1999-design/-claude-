@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/firebase/fonctions_cloud.dart';
+import '../../../core/widgets/payment_method_selector.dart';
 import '../../../firebase_options.dart';
 
 /// Portefeuille Sprint (crédit prépayé, non retirable, utilisable pour
@@ -183,6 +184,21 @@ class PortefeuilleService {
       if (!doc.exists || donnees == null) return null;
       return AvancementRecharge(statut: donnees['statut'] as String? ?? StatutRecharge.enAttente);
     });
+  }
+
+  /// Admin : le client porte-t-il la marque « Testeur Orange Money » ?
+  /// (profil `users/{uid}`, lisible par l'Admin seulement).
+  Stream<bool> streamTesteurOrangeMoney(String clientId) =>
+      _firestore.collection('users').doc(clientId).snapshots().map((doc) => estTesteurOrangeMoney(doc.data()));
+
+  /// Admin : désigne ou retire un testeur d'Orange Money (Cloud Function
+  /// `definirTesteurOrangeMoney`, journalisée ; compte client seulement).
+  Future<void> definirTesteurOrangeMoney({required String clientId, required bool testeur}) async {
+    try {
+      await FonctionsCloud.appeler('definirTesteurOrangeMoney', {'clientId': clientId, 'testeur': testeur});
+    } on FirebaseFunctionsException catch (e) {
+      throw FonctionsCloud.versApiException(e);
+    }
   }
 
   /// Admin : crédit ou débit manuel, motivé et journalisé (Cloud Function

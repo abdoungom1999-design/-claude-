@@ -6,10 +6,12 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { DISTANCE_MAX_KM, DISTANCE_TRAJET_MAX_KM, estimer, prixServeur, validerDemande } from '../src/commandes';
 import type { CalculDistance } from '../src/distances';
 import {
+  ACCES_ORANGE_MONEY,
   METHODES_ACTIVES,
   METHODES_CONNUES,
   METHODES_RECHARGE,
-  ORANGE_MONEY_OUVERT,
+  methodesPour,
+  methodesRechargePour,
   verifierMethode,
   type Methode,
 } from '../src/methodes_paiement';
@@ -110,16 +112,31 @@ test('commande : 100 % mobile money (ou solde Sprint), adresses obligatoires', (
   refuse(() => validerDemande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
 });
 
-test('Orange Money reste fermé aux clients jusqu\'au go du client, dans le serveur comme dans l\'app', () => {
-  assert.equal(ORANGE_MONEY_OUVERT, false, 'ouverture seulement après l\'essai complet du bac à sable validé avec le client');
+test('Orange Money reste fermé jusqu\'au go du client, dans le serveur comme dans l\'app', () => {
+  assert.equal(ACCES_ORANGE_MONEY, 'ferme', 'essai des testeurs, puis ouverture : seulement avec le go du client');
   // Jumeau dans l'app (choix du moyen de paiement), lu depuis functions/lib/test.
   const app = readFileSync(resolve(__dirname, '..', '..', '..', 'lib', 'core', 'widgets', 'payment_method_selector.dart'), 'utf8');
-  const jumeau = app.match(/^const bool orangeMoneyOuvert = (true|false);$/m);
-  assert.ok(jumeau, 'orangeMoneyOuvert introuvable dans payment_method_selector.dart : le texte a-t-il changé de forme ?');
-  assert.equal(jumeau[1] === 'true', ORANGE_MONEY_OUVERT, 'l\'app proposerait un moyen que le serveur refuse (ou l\'inverse)');
+  const jumeau = app.match(/^const accesOrangeMoney = AccesOrangeMoney\.(ferme|testeurs|tous);$/m);
+  assert.ok(jumeau, 'accesOrangeMoney introuvable dans payment_method_selector.dart : le texte a-t-il changé de forme ?');
+  assert.equal(jumeau[1], ACCES_ORANGE_MONEY, 'l\'app proposerait un moyen que le serveur refuse (ou l\'inverse)');
   // La publication lit cette ligne telle quelle (secrets à vérifier, réponse attendue du webhook).
   const serveur = readFileSync(resolve(__dirname, '..', '..', 'src', 'methodes_paiement.ts'), 'utf8');
-  assert.match(serveur, new RegExp(`^export const ORANGE_MONEY_OUVERT: boolean = ${ORANGE_MONEY_OUVERT};$`, 'm'));
+  assert.match(serveur, new RegExp(`^export const ACCES_ORANGE_MONEY: AccesOrangeMoney = '${ACCES_ORANGE_MONEY}';$`, 'm'));
+});
+
+test('accès à Orange Money : fermé pour tous, essai pour les seuls testeurs, puis ouvert à tous', () => {
+  const avecOrange: Methode[] = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'];
+  const sansOrange: Methode[] = ['WAVE', 'PORTEFEUILLE'];
+  assert.deepEqual(methodesPour(false, 'ferme'), sansOrange);
+  assert.deepEqual(methodesPour(true, 'ferme'), sansOrange, 'fermé : même un testeur est refusé');
+  assert.deepEqual(methodesPour(false, 'testeurs'), sansOrange, 'essai : invisible pour un client ordinaire');
+  assert.deepEqual(methodesPour(true, 'testeurs'), avecOrange);
+  assert.deepEqual(methodesPour(false, 'tous'), avecOrange);
+  assert.deepEqual(methodesRechargePour(true, 'testeurs'), ['WAVE', 'ORANGE_MONEY']);
+  assert.deepEqual(methodesRechargePour(false, 'testeurs'), ['WAVE']);
+  // Réglage en service : un client ordinaire ne voit pas Orange Money.
+  assert.deepEqual(METHODES_ACTIVES, methodesPour(false));
+  assert.deepEqual(METHODES_RECHARGE, methodesRechargePour(false));
 });
 
 test('commande : Orange Money fermé tant que le client n\'a pas donné son go', () => {

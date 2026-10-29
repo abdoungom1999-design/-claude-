@@ -6,6 +6,7 @@ import '../../../core/demo/demo_data.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/token_storage.dart';
 import '../../../core/notifications/notifications_push.dart';
+import '../../../core/widgets/payment_method_selector.dart';
 import '../../../firebase_options.dart';
 import 'connexion_telephone.dart';
 import 'role_du_compte.dart';
@@ -349,6 +350,19 @@ class AuthRepository {
     if (uid == null) return null;
     final doc = await _firestore.collection('users').doc(uid).get();
     return doc.data();
+  }
+
+  /// L'utilisateur connecté est-il marqué « Testeur Orange Money » par un
+  /// Admin ? Lu seulement pendant l'essai réservé aux testeurs (aucune
+  /// lecture sinon) ; `false` en mode démo, hors connexion ou si la lecture
+  /// échoue : Orange Money n'est alors simplement pas proposé.
+  Future<bool> chargerTesteurOrangeMoney() async {
+    if (accesOrangeMoney != AccesOrangeMoney.testeurs) return false;
+    try {
+      return estTesteurOrangeMoney(await chargerProfilUtilisateur().timeout(const Duration(seconds: 4)));
+    } on Object {
+      return false;
+    }
   }
 
   /// Met à jour le nom et le téléphone du profil Firestore de

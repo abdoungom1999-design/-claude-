@@ -5,28 +5,51 @@ import { HttpsError } from 'firebase-functions/v2/https';
  *
  * Orange Money est CONNU (l'historique des courses et des recharges peut
  * en contenir) et son fournisseur réel est branché (`paiement_orange.ts`,
- * jamais le faux opérateur), mais il reste REFUSÉ pour tout nouveau
- * paiement tant que [ORANGE_MONEY_OUVERT] est faux.
+ * jamais le faux opérateur), mais il n'est accepté que selon
+ * [ACCES_ORANGE_MONEY].
  */
 export const METHODES_CONNUES = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'] as const;
 export type Methode = (typeof METHODES_CONNUES)[number];
 
 /**
- * Orange Money ouvert aux clients. Ne passe à `true` qu'avec le go du client
- * (essai complet du bac à sable validé ensemble, identifiants de production
- * dans Secret Manager), en même temps que son jumeau dans l'app
- * (`orangeMoneyOuvert`, lib/core/widgets/payment_method_selector.dart) : un
- * test vérifie qu'ils sont d'accord.
+ * Qui peut payer avec Orange Money (décisions du client, 29 octobre 2026) :
+ * - `ferme` : personne ; aucun secret d'Orange n'est déclaré ni lu ;
+ * - `testeurs` : seulement les comptes clients marqués « Testeur Orange
+ *   Money » par un Admin (champ `testeurOrangeMoney` du profil, posé par
+ *   `definirTesteurOrangeMoney`), pour l'essai réel de bout en bout ; les
+ *   autres clients ne voient rien ;
+ * - `tous` : tous les clients (ouverture officielle).
  */
-export const ORANGE_MONEY_OUVERT: boolean = false;
+export type AccesOrangeMoney = 'ferme' | 'testeurs' | 'tous';
 
-/** Moyens acceptés aujourd'hui pour un nouveau paiement. */
-export const METHODES_ACTIVES: readonly Methode[] = ORANGE_MONEY_OUVERT
-  ? ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']
-  : ['WAVE', 'PORTEFEUILLE'];
+/**
+ * Réglage en service. Ne change qu'avec le go du client, en même temps que
+ * son jumeau dans l'app (`accesOrangeMoney`,
+ * lib/core/widgets/payment_method_selector.dart) : un test vérifie qu'ils
+ * sont d'accord, et la publication lit cette ligne telle quelle.
+ */
+export const ACCES_ORANGE_MONEY: AccesOrangeMoney = 'ferme';
 
-/** Moyens qui rechargent le portefeuille : le mobile money actif (jamais le solde lui-même). */
-export const METHODES_RECHARGE: readonly Methode[] = METHODES_ACTIVES.filter((m) => m !== 'PORTEFEUILLE');
+/** Orange Money accepté pour ce client ([testeur] : compte marqué par un Admin). */
+export function orangeMoneyPour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): boolean {
+  return acces === 'tous' || (acces === 'testeurs' && testeur);
+}
+
+/** Moyens acceptés pour un nouveau paiement de ce client. */
+export function methodesPour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): readonly Methode[] {
+  return orangeMoneyPour(testeur, acces) ? ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'] : ['WAVE', 'PORTEFEUILLE'];
+}
+
+/** Moyens qui rechargent le portefeuille de ce client : le mobile money accepté (jamais le solde lui-même). */
+export function methodesRechargePour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): readonly Methode[] {
+  return methodesPour(testeur, acces).filter((m) => m !== 'PORTEFEUILLE');
+}
+
+/** Moyens acceptés aujourd'hui pour un client ordinaire (pas testeur). */
+export const METHODES_ACTIVES: readonly Methode[] = methodesPour(false);
+
+/** Moyens qui rechargent le portefeuille d'un client ordinaire. */
+export const METHODES_RECHARGE: readonly Methode[] = methodesRechargePour(false);
 
 const LIBELLES: Record<Methode, string> = {
   WAVE: 'Wave',

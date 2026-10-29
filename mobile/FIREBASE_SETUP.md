@@ -661,14 +661,25 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    revalider avec le premier événement réel du bac à sable.
 2. Orange Money : **branché, mais fermé aux clients** jusqu'au go du client
    (29 octobre 2026 : on ne publie rien sans avoir tout validé ensemble).
-   Un seul interrupteur, en deux exemplaires qui doivent rester d'accord (un
-   test le vérifie) : `ORANGE_MONEY_OUVERT` dans `functions/src/methodes_paiement.ts`
-   et `orangeMoneyOuvert` dans `lib/core/widgets/payment_method_selector.dart`.
-   Fermé, le serveur refuse `ORANGE_MONEY` (course et recharge) avec « Orange
-   Money n'est pas encore disponible », l'app ne le propose pas, et aucune
-   fonction ne déclare ni ne lit les secrets d'Orange : une publication ne peut
-   pas échouer à cause d'eux. Les anciennes courses et recharges Orange gardent
-   leur libellé.
+   Un seul réglage à trois positions, en deux exemplaires qui doivent rester
+   d'accord (un test le vérifie) : `ACCES_ORANGE_MONEY` dans
+   `functions/src/methodes_paiement.ts` et `accesOrangeMoney` dans
+   `lib/core/widgets/payment_method_selector.dart` :
+   - `ferme` (aujourd'hui) : le serveur refuse `ORANGE_MONEY` (course et
+     recharge) avec « Orange Money n'est pas encore disponible », l'app ne le
+     propose pas, et aucune fonction ne déclare ni ne lit les secrets
+     d'Orange : une publication ne peut pas échouer à cause d'eux ;
+   - `testeurs` (essai réel de bout en bout, décision du client du
+     29 octobre 2026) : seuls les comptes **clients** marqués « Testeur Orange
+     Money » voient Orange Money et peuvent payer ou recharger avec ; pour tous
+     les autres, rien ne change. La marque (`testeurOrangeMoney: true` dans
+     `users/{uid}`) se pose dans l'espace Admin : Clients > recherche par nom
+     ou numéro de téléphone > icône Portefeuille > interrupteur « Testeur
+     Orange Money » (confirmation, fonction `definirTesteurOrangeMoney`,
+     journalisée dans `journal_admin`). Un client ne peut pas se la donner
+     lui-même (règles Firestore). La liste des clients l'affiche sous le nom ;
+   - `tous` : ouverture officielle à tous les clients.
+   Les anciennes courses et recharges Orange gardent leur libellé.
    - **Code** : client de l'API `functions/src/orange_money.ts` (spécification
      OpenAPI « Orange Money API » v1.1.0 du 22 octobre 2026, gardée hors de ce
      dépôt) ; branchement `functions/src/paiement_orange.ts` : Orange Money est
@@ -726,11 +737,13 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      fonction est en ligne depuis la publication 111 (29 octobre 2026) ;
      tant qu'Orange Money est fermé, elle répond 503 (Orange réessaie plus
      tard).
-   - **Pour ouvrir** (avec le go du client) : flux d'essai vert avec
-     `preparer_notifications` ; les deux interrupteurs à `true` dans le même
-     commit ; textes de l'app (aide, conditions) validés par le client ;
-     publication normale. Elle vérifie d'abord que les 4 secrets existent,
-     puis que `webhookOrangeMoney` répond 401 sans clé (fermé : 503).
+   - **Pour l'essai, puis pour ouvrir** (chaque fois avec le go du client) :
+     flux d'essai vert avec `preparer_notifications` ; les deux exemplaires du
+     réglage sur `testeurs` (puis `tous`) dans le même commit ; publication
+     normale. Elle vérifie d'abord que les 4 secrets existent, puis que
+     `webhookOrangeMoney` répond 401 sans clé (fermé : 503). Pour l'essai,
+     marquer ensuite le compte client de chaque testeur ; avant `tous`, faire
+     valider les textes de l'app (aide, conditions).
    - **À confirmer au premier vrai paiement du bac à sable** : comment payer
      dans le bac à sable (procédure Max It redemandée à Orange) ; la façon dont
      la recherche désigne le marchand payé (`partner.id` = code marchand, type

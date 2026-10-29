@@ -89,7 +89,14 @@ export const MOTIFS_SERVEUR = [
 
 /** Identifiants figés : un lot de design ne les ajoute ni ne les retire. */
 export const MOTIFS_FIGES = [
-  { nom: 'liste des moyens de paiement ouverts (moyensMobileMoneyDisponibles)', regex: /\bmoyensMobileMoneyDisponibles\b/ },
+  {
+    nom: 'liste des moyens de paiement proposés (moyensMobileMoneyPour)',
+    regex: /\bmoyensMobileMoneyPour\b|\bmoyensMobileMoneyDisponibles\b/,
+  },
+  {
+    nom: 'accès à Orange Money et ses testeurs (décisions du client)',
+    regex: /\b[Aa]ccesOrangeMoney\b|\btesteurOrangeMoney\b|\bestTesteurOrangeMoney\b|\bchargerTesteurOrangeMoney\b/,
+  },
   { nom: 'Orange Money (fermé par décision du client)', regex: /\bPaymentMethod\.orangeMoney\b|\borangeMoney\b|\bORANGE_MONEY\b/ },
 ];
 

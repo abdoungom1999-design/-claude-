@@ -301,14 +301,15 @@ jobs:
             exit 1
           fi
 
-      # Orange Money ouvert (ORANGE_MONEY_OUVERT, functions/src/methodes_paiement.ts) :
-      # ses secrets doivent exister AVANT le déploiement, sinon il échouerait.
-      # Ils sont créés par le flux « Essai Orange Money (bac à sable) », case
-      # « preparer_notifications ». Fermé : aucun secret Orange n'est demandé.
-      - name: Secrets d'Orange Money présents (si Orange Money est ouvert)
+      # Orange Money en essai (testeurs) ou ouvert (ACCES_ORANGE_MONEY,
+      # functions/src/methodes_paiement.ts) : ses secrets doivent exister AVANT
+      # le déploiement, sinon il échouerait. Ils sont créés par le flux « Essai
+      # Orange Money (bac à sable) », case « preparer_notifications ». Fermé :
+      # aucun secret Orange n'est demandé.
+      - name: Secrets d'Orange Money présents (si Orange Money n'est pas fermé)
         if: steps.secret.outputs.present == 'true'
         run: |
-          if ! grep -qE '^export const ORANGE_MONEY_OUVERT: boolean = true;$' functions/src/methodes_paiement.ts; then
+          if ! grep -qE "^export const ACCES_ORANGE_MONEY: AccesOrangeMoney = '(testeurs|tous)';$" functions/src/methodes_paiement.ts; then
             echo "Orange Money fermé : aucun secret Orange requis."
             exit 0
           fi
@@ -343,7 +344,7 @@ jobs:
         if: steps.secret.outputs.present == 'true'
         run: |
           for service in estimerprix creerpaiement annulercourse webhookpaiement webhookorangemoney pagepaiementsimule \
-                         rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte \
+                         rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte definirtesteurorangemoney \
                          chauffeursproches itinerairecourse notifiermessage notifieracceptation \
                          creerrecharge ajusterportefeuille migrerdocumentskyc \
                          connexiontelephone synchroniserannuaire; do
@@ -362,7 +363,7 @@ jobs:
         run: |
           base=https://europe-west1-sprint-vtc.cloudfunctions.net
           for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
-                          rembourserCourseAdmin sanctionnerCompte chauffeursProches itineraireCourse \
+                          rembourserCourseAdmin sanctionnerCompte definirTesteurOrangeMoney chauffeursProches itineraireCourse \
                           notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille \
                           migrerDocumentsKyc synchroniserAnnuaire; do
             reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
@@ -378,11 +379,11 @@ jobs:
             -H 'Content-Type: application/json' -d '{"data":{}}')
           echo "webhookPaiement sans signature : HTTP $code"
           [ "$code" = 401 ] || { echo "::error::webhookPaiement devrait refuser un appel non signé (401)"; exit 1; }
-          # Orange Money : 503 tant qu'il est fermé (rien n'est lu), 401 sans la clé une fois ouvert.
+          # Orange Money : 503 tant qu'il est fermé (rien n'est lu), 401 sans la clé en essai ou ouvert.
           # Fonction neuve à sa première publication : son accès public peut mettre
           # quelques secondes à s'appliquer (403 entre-temps), d'où quelques essais.
           attendu=503
-          grep -qE '^export const ORANGE_MONEY_OUVERT: boolean = true;$' functions/src/methodes_paiement.ts && attendu=401
+          grep -qE "^export const ACCES_ORANGE_MONEY: AccesOrangeMoney = '(testeurs|tous)';$" functions/src/methodes_paiement.ts && attendu=401
           for essai in 1 2 3 4 5 6; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/webhookOrangeMoney" \
               -H 'Content-Type: application/json' -d '{}')

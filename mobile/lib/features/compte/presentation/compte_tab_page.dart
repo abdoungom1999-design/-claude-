@@ -79,11 +79,16 @@ class _CompteTabPageState extends State<CompteTabPage> {
   /// confirmation de celui-ci (jamais sur la foi de l'app). Mode démo :
   /// crédit fictif immédiat.
   Future<void> _recharger(Portefeuille portefeuille) async {
+    final testeurOrangeMoney = _uid != null && await _authRepository.chargerTesteurOrangeMoney();
+    if (!mounted) return;
     final choix = await showModalBottomSheet<_ChoixRecharge>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _RechargeSheet(rechargePossibleFcfa: portefeuille.rechargePossibleFcfa),
+      builder: (_) => _RechargeSheet(
+        rechargePossibleFcfa: portefeuille.rechargePossibleFcfa,
+        moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney),
+      ),
     );
     if (choix == null || !mounted) return;
 
@@ -375,10 +380,13 @@ class _ChoixRecharge {
 }
 
 class _RechargeSheet extends StatefulWidget {
-  const _RechargeSheet({required this.rechargePossibleFcfa});
+  const _RechargeSheet({required this.rechargePossibleFcfa, required this.moyens});
 
   /// Ce qui peut encore être ajouté avant le plafond du solde.
   final int rechargePossibleFcfa;
+
+  /// Opérateurs de mobile money proposés à ce client ([moyensMobileMoneyPour]).
+  final List<PaymentMethod> moyens;
 
   @override
   State<_RechargeSheet> createState() => _RechargeSheetState();
@@ -502,7 +510,7 @@ class _RechargeSheetState extends State<_RechargeSheet> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
-                children: moyensMobileMoneyDisponibles.map((methode) {
+                children: widget.moyens.map((methode) {
                   final selectionne = methode == _methode;
                   return ChoiceChip(
                     key: ValueKey('operateur-${methode.apiValue}'),

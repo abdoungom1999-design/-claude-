@@ -355,3 +355,35 @@ export async function ajusterPortefeuille(
   });
   return { soldeFcfa };
 }
+
+// ---------------------------------------------------------------------
+// 6. Testeurs d'Orange Money (callable `definirTesteurOrangeMoney`)
+// ---------------------------------------------------------------------
+
+/**
+ * Désigne (ou retire) un testeur d'Orange Money : un compte CLIENT qui voit
+ * Orange Money et peut payer avec pendant l'essai réservé
+ * (`ACCES_ORANGE_MONEY = 'testeurs'`, voir `methodes_paiement.ts`), sans
+ * effet tant qu'Orange Money est fermé. Le client ne peut jamais se désigner
+ * lui-même (règles Firestore). Journalisé.
+ */
+export async function definirTesteurOrangeMoney(
+  db: Firestore,
+  uid: string | undefined,
+  donnees: unknown,
+  maintenant: Date,
+): Promise<{ testeurOrangeMoney: boolean }> {
+  const adminId = await verifierAdmin(db, uid);
+  const d = donneesObjet(donnees);
+  const clientId = identifiant(d.clientId, 'Client');
+  if (typeof d.testeur !== 'boolean') throw new HttpsError('invalid-argument', 'Indiquez si le compte est testeur.');
+  const testeur = d.testeur;
+  const ref = db.collection('users').doc(clientId);
+  const client = await ref.get();
+  if (!client.exists || client.get('role') !== 'client') {
+    throw new HttpsError('failed-precondition', 'Seul un compte client peut tester Orange Money.');
+  }
+  await ref.update({ testeurOrangeMoney: testeur ? true : FieldValue.delete() });
+  await journaliser(db, { action: 'testeur_orange_money', adminId, clientId, testeurOrangeMoney: testeur }, maintenant);
+  return { testeurOrangeMoney: testeur };
+}

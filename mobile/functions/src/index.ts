@@ -8,6 +8,7 @@ import { defineSecret, type SecretParam } from 'firebase-functions/params';
 import { coordonneesAdresse as coordonneesCore, rechercherAdresses as rechercherCore } from './adresses';
 import {
   ajusterPortefeuille as ajusterCore,
+  definirTesteurOrangeMoney as definirTesteurCore,
   rembourserCourseAdmin as rembourserCore,
   sanctionnerCompte as sanctionnerCore,
 } from './admin';
@@ -31,7 +32,7 @@ import {
   type FournisseurPaiement,
 } from './fournisseurs';
 import { ClientGoogle } from './google';
-import { ORANGE_MONEY_OUVERT } from './methodes_paiement';
+import { ACCES_ORANGE_MONEY } from './methodes_paiement';
 import { URL_ORANGE_MONEY } from './orange_money';
 import {
   configurerOrange,
@@ -77,10 +78,11 @@ const options = { secrets: [cleGoogle] };
  * validé par le client. Secrets dans Secret Manager : identifiants de
  * l'application Orange (créés par le client), code marchand et clé des
  * notifications (créés par le flux « Essai Orange Money »). Déclarés et liés
- * aux fonctions SEULEMENT quand Orange Money est ouvert : d'ici là, aucune
- * publication ni aucun paiement Wave ne dépend d'eux.
+ * aux fonctions SEULEMENT quand Orange Money n'est pas fermé (essai des
+ * testeurs ou ouverture) : d'ici là, aucune publication ni aucun paiement
+ * Wave ne dépend d'eux.
  */
-const secretsOrange = ORANGE_MONEY_OUVERT
+const secretsOrange = ACCES_ORANGE_MONEY !== 'ferme'
   ? {
       idClient: defineSecret('ORANGE_MONEY_SANDBOX_CLIENT_ID'),
       secretClient: defineSecret('ORANGE_MONEY_SANDBOX_CLIENT_SECRET'),
@@ -315,6 +317,11 @@ export const rembourserCourseAdmin = onCall(async (requete) =>
 /** Admin : crédit ou débit manuel du portefeuille d'un client (motivé, journalisé). */
 export const ajusterPortefeuille = onCall(async (requete) =>
   ajusterCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
+);
+
+/** Admin : désigne ou retire un testeur d'Orange Money (compte client, journalisé). */
+export const definirTesteurOrangeMoney = onCall((requete) =>
+  definirTesteurCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
 );
 
 /** Admin : suspension, bannissement ou réactivation d'un compte. */

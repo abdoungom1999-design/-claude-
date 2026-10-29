@@ -5,7 +5,7 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { prixServeur, validerDemande, verifierClient, type Demande, type PrixServeur } from './commandes';
 import type { CalculDistance } from './distances';
 import type { CreateurSession, EvenementPaiement, FournisseurDuMoyen, FournisseurPaiement, SessionPaiement } from './fournisseurs';
-import { METHODES_ACTIVES, type Methode } from './methodes_paiement';
+import { ACCES_ORANGE_MONEY, methodesPour, type AccesOrangeMoney } from './methodes_paiement';
 import { notifierAnnulation, notifierNouvelleCourse, type Messagerie } from './notifications';
 import { arrondirPosition } from './proximite';
 import {
@@ -62,7 +62,7 @@ export interface PaiementCree {
 
 /**
  * [fournisseurs] : qui encaisse le moyen choisi (Wave, Orange Money).
- * [methodes] : moyens acceptés (ceux ouverts aux clients, sauf essai).
+ * [acces] : qui peut payer avec Orange Money (le réglage en service, sauf essai).
  */
 export async function creerPaiement(
   db: Firestore,
@@ -72,12 +72,13 @@ export async function creerPaiement(
   donnees: unknown,
   maintenant: Date,
   messagerie?: Messagerie,
-  methodes: readonly Methode[] = METHODES_ACTIVES,
+  acces: AccesOrangeMoney = ACCES_ORANGE_MONEY,
 ): Promise<PaiementCree> {
   // Connexion vérifiée avant tout : un inconnu n'apprend rien de la
   // validation des demandes.
-  const clientId = await verifierClient(db, uid);
-  const demande = validerDemande(donnees, methodes);
+  const client = await verifierClient(db, uid);
+  const clientId = client.id;
+  const demande = validerDemande(donnees, methodesPour(client.testeurOrangeMoney, acces));
   const { estimation, distance } = await prixServeur(calcul, demande, maintenant);
 
   if (demande.methodePaiement === METHODE_PORTEFEUILLE) {

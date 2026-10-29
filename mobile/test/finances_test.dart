@@ -278,12 +278,53 @@ void main() {
       expect(PaymentMethod.values.map((m) => m.apiValue), ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']);
     });
 
-    test('Orange Money reste connu (historique) mais n\'est pas proposé : seul Wave est ouvert', () {
-      // Branché côté serveur, mais fermé jusqu'au go du client (jumeau : ORANGE_MONEY_OUVERT du serveur).
-      expect(orangeMoneyOuvert, isFalse);
-      expect(moyensMobileMoneyDisponibles, [PaymentMethod.wave]);
-      expect(moyensMobileMoneyDisponibles, isNot(contains(PaymentMethod.orangeMoney)));
+    test('Orange Money reste connu (historique) mais n\'est pas proposé : seul Wave est ouvert, même à un testeur', () {
+      // Branché côté serveur, mais fermé jusqu'au go du client (jumeau : ACCES_ORANGE_MONEY du serveur).
+      expect(accesOrangeMoney, AccesOrangeMoney.ferme);
+      expect(moyensMobileMoneyPour(testeur: false), [PaymentMethod.wave]);
+      expect(moyensMobileMoneyPour(testeur: true), [PaymentMethod.wave]);
       expect(PaymentMethod.orangeMoney.label, 'Orange Money'); // libellé de l'historique conservé
+    });
+
+    test('essai réservé aux testeurs, puis ouverture : mêmes règles que le serveur', () {
+      const avecOrange = [PaymentMethod.wave, PaymentMethod.orangeMoney];
+      expect(moyensMobileMoneyPour(testeur: true, acces: AccesOrangeMoney.testeurs), avecOrange);
+      expect(moyensMobileMoneyPour(testeur: false, acces: AccesOrangeMoney.testeurs), [PaymentMethod.wave]);
+      expect(moyensMobileMoneyPour(testeur: false, acces: AccesOrangeMoney.tous), avecOrange);
+      expect(moyensMobileMoneyPour(testeur: true, acces: AccesOrangeMoney.ferme), [PaymentMethod.wave]);
+      // Marque posée par un Admin : seul `true` compte.
+      expect(estTesteurOrangeMoney({'testeurOrangeMoney': true}), isTrue);
+      expect(estTesteurOrangeMoney({'testeurOrangeMoney': 'oui'}), isFalse);
+      expect(estTesteurOrangeMoney({'role': 'client'}), isFalse);
+      expect(estTesteurOrangeMoney(null), isFalse);
+    });
+
+    testWidgets('essai réservé : la sheet propose Orange Money au testeur, jamais aux autres clients', (tester) async {
+      Future<void> ouvrir({required bool testeur}) async {
+        await tester.pumpWidget(MaterialApp(
+          key: ValueKey(testeur),
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => afficherSelectionPaiementSheet(
+                context,
+                montantFcfa: 3000,
+                testeurOrangeMoney: testeur,
+                acces: AccesOrangeMoney.testeurs,
+              ),
+              child: const Text('Ouvrir'),
+            ),
+          ),
+        ));
+        await tester.tap(find.text('Ouvrir'));
+        await tester.pumpAndSettle();
+      }
+
+      await ouvrir(testeur: true);
+      expect(find.text('Payer avec Wave'), findsOneWidget);
+      expect(find.text('Payer avec Orange Money'), findsOneWidget);
+      await ouvrir(testeur: false);
+      expect(find.text('Payer avec Wave'), findsOneWidget);
+      expect(find.textContaining('Orange', findRichText: true), findsNothing);
     });
 
     testWidgets('la sheet ne propose que Wave : plus d\'Orange Money (course gratuite par la simulation)', (tester) async {

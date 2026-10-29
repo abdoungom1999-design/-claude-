@@ -22,7 +22,15 @@ LigneCourse _terminee(String client, String chauffeur, int prix, DateTime date) 
       date: date,
     );
 
-UtilisateurAdmin _compte(String id, String role, String nom, DateTime? creeLe, {String? kyc, String email = ''}) =>
+UtilisateurAdmin _compte(
+  String id,
+  String role,
+  String nom,
+  DateTime? creeLe, {
+  String? kyc,
+  String email = '',
+  bool testeurOrangeMoney = false,
+}) =>
     UtilisateurAdmin(
       id: id,
       role: role,
@@ -31,6 +39,7 @@ UtilisateurAdmin _compte(String id, String role, String nom, DateTime? creeLe, {
       email: email,
       creeLe: creeLe,
       statutValidation: kyc,
+      testeurOrangeMoney: testeurOrangeMoney,
     );
 
 CourseFirestore _course(String id, String client, String? chauffeur, String statut, int prix, DateTime quand) =>
@@ -76,7 +85,7 @@ class _PilotageFactice extends PilotageService {
   Stream<List<UtilisateurAdmin>> streamUtilisateurs(String role) => Stream.value(switch (role) {
         'client' => [
             _compte('c1', 'client', 'Fatou Sow', DateTime.utc(2026, 9, 10), email: 'fatou@exemple.sn'),
-            _compte('c2', 'client', 'Awa Diallo', DateTime.utc(2026, 9, 27, 8)),
+            _compte('c2', 'client', 'Awa Diallo', DateTime.utc(2026, 9, 27, 8), testeurOrangeMoney: true),
             _compte('c3', 'client', 'Modou Fall', null),
           ],
         _ => [
@@ -133,6 +142,12 @@ void main() {
     expect(find.text(formaterFcfa(17000)), findsOneWidget); // Fatou : 3 courses
     expect(find.text(formaterFcfa(2000)), findsOneWidget); // Awa Diallo : 1 course
     expect(find.text('10/09/2026'), findsOneWidget);
+    // Testeur Orange Money : étiquette sous le nom, pour ce seul client.
+    expect(find.byKey(const ValueKey('marque-testeur-orange-money')), findsOneWidget);
+    expect(
+      find.descendant(of: find.ancestor(of: find.text('Awa Diallo'), matching: find.byType(Column)).first, matching: find.text('Testeur Orange Money')),
+      findsOneWidget,
+    );
     // Les plus récents d'abord, comptes sans date à la fin.
     final y = [
       for (final nom in ['Awa Diallo', 'Fatou Sow', 'Modou Fall']) tester.getTopLeft(find.text(nom)).dy

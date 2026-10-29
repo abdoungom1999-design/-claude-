@@ -254,7 +254,11 @@ class _ReglesEnVigueur extends StatelessWidget {
             ),
             ligne(
               'Moyens de paiement',
-              orangeMoneyOuvert ? 'Wave, Orange Money, solde Sprint' : 'Wave, solde Sprint (Orange Money bientôt)',
+              switch (accesOrangeMoney) {
+                AccesOrangeMoney.ferme => 'Wave, solde Sprint (Orange Money bientôt)',
+                AccesOrangeMoney.testeurs => 'Wave, solde Sprint (Orange Money : essai réservé aux testeurs)',
+                AccesOrangeMoney.tous => 'Wave, Orange Money, solde Sprint',
+              },
             ),
             ligne('Encaissement', 'Mode test (aucun débit réel)'),
           ],

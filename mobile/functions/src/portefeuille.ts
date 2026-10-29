@@ -9,7 +9,14 @@ import {
   type FournisseurDuMoyen,
   type SessionPaiement,
 } from './fournisseurs';
-import { METHODES_RECHARGE, verifierMethode, type Methode } from './methodes_paiement';
+import {
+  ACCES_ORANGE_MONEY,
+  METHODES_RECHARGE,
+  methodesRechargePour,
+  verifierMethode,
+  type AccesOrangeMoney,
+  type Methode,
+} from './methodes_paiement';
 
 /**
  * Portefeuille Sprint : crédit prépayé du client, utilisable uniquement
@@ -138,7 +145,7 @@ export function validerRecharge(
 
 /**
  * [fournisseurs] : qui encaisse le moyen choisi (Wave, Orange Money).
- * [methodes] : moyens acceptés (ceux ouverts aux clients, sauf essai).
+ * [acces] : qui peut payer avec Orange Money (le réglage en service, sauf essai).
  */
 export async function creerRecharge(
   db: Firestore,
@@ -146,7 +153,7 @@ export async function creerRecharge(
   uid: string | undefined,
   donnees: unknown,
   maintenant: Date,
-  methodes: readonly Methode[] = METHODES_RECHARGE,
+  acces: AccesOrangeMoney = ACCES_ORANGE_MONEY,
 ): Promise<RechargeCreee> {
   if (!uid) throw new HttpsError('unauthenticated', 'Connectez-vous pour recharger votre portefeuille.');
   const profil = await db.collection('users').doc(uid).get();
@@ -158,7 +165,8 @@ export async function creerRecharge(
   if (statutCompte === 'suspendu' || statutCompte === 'banni') {
     throw new HttpsError('permission-denied', 'Votre compte ne permet pas de recharger le portefeuille.');
   }
-  const { montantFcfa, methodePaiement } = validerRecharge(donnees, methodes);
+  const testeur = profil.get('testeurOrangeMoney') === true;
+  const { montantFcfa, methodePaiement } = validerRecharge(donnees, methodesRechargePour(testeur, acces));
 
   const soldeActuel = solde(await refPortefeuille(db, uid).get());
   if (soldeActuel + montantFcfa > SOLDE_MAX_FCFA) {

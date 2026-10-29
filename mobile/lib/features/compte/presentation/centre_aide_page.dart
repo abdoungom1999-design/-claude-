@@ -21,8 +21,9 @@ const _questions = [
   ),
   _Question(
     'Comment payer ma course ?',
-    // Texte « ouvert » à faire valider par le client avant d'ouvrir Orange Money.
-    orangeMoneyOuvert
+    // Texte « ouvert » à faire valider par le client avant d'ouvrir Orange Money
+    // à tous (pendant l'essai, les testeurs savent déjà).
+    accesOrangeMoney == AccesOrangeMoney.tous
         ? 'Trois moyens de paiement sont disponibles : Wave, Orange Money (dans Max It ou l\'app '
             'Orange Money), ou le solde de votre Portefeuille Santine, rechargeable avec Wave ou '
             'Orange Money depuis l\'onglet Compte. Une course payée par Orange Money puis annulée '

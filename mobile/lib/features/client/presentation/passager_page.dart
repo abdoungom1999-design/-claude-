@@ -13,6 +13,7 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../firebase_options.dart';
 import '../../courses/data/course_service.dart';
 import '../../courses/data/depart_gps.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../portefeuille/data/portefeuille_service.dart';
 import '../../courses/data/courses_repository.dart';
 import '../../courses/data/estimation_course_controller.dart';
@@ -94,11 +95,13 @@ class _PassagerPageState extends State<PassagerPage> {
     if (!_estimation.peutCommander || estimation == null || depart == null || arrivee == null) return;
 
     final portefeuille = await PortefeuilleService().lirePourCommande();
+    final testeurOrangeMoney = await AuthRepository().chargerTesteurOrangeMoney();
     if (!mounted) return;
     final methode = await afficherSelectionPaiementSheet(
       context,
       montantFcfa: estimation.prixFcfa,
       portefeuille: portefeuille,
+      testeurOrangeMoney: testeurOrangeMoney,
     );
     if (methode == null || !mounted) return;
 

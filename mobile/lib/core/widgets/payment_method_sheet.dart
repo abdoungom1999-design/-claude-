@@ -7,9 +7,9 @@ import 'payment_method_selector.dart';
 /// Bottom sheet "Choisissez votre mode de paiement", affichée après la
 /// confirmation du prix et avant toute création de course (voir
 /// `PassagerPage` / `ColisPage`). Groupe Santine est passé au 100% mobile
-/// money : les opérateurs proposés sont [moyensMobileMoneyDisponibles]
-/// (Wave aujourd'hui ; Orange Money, branché côté serveur, s'y ajoute quand
-/// [orangeMoneyOuvert] passe à vrai). Le choix referme la sheet puis ouvre le sas de
+/// money : les opérateurs proposés sont [moyensMobileMoneyPour] ce client
+/// (Wave ; Orange Money selon [accesOrangeMoney] et, pendant l'essai, s'il
+/// est testeur). Le choix referme la sheet puis ouvre le sas de
 /// paiement (`PaymentProcessingPage`), seul habilité à créer la course une
 /// fois le paiement confirmé.
 ///
@@ -21,24 +21,36 @@ import 'payment_method_selector.dart';
 /// la course, « Payer avec mon solde » passe en premier (un seul appui) ;
 /// s'il ne la couvre pas, le client est prévenu et paie par mobile money
 /// pour le total.
+///
+/// [testeurOrangeMoney] : compte marqué « Testeur Orange Money » par un Admin
+/// (voir `AuthRepository.chargerTesteurOrangeMoney`).
 Future<PaymentMethod?> afficherSelectionPaiementSheet(
   BuildContext context, {
   int? montantFcfa,
   Portefeuille? portefeuille,
+  bool testeurOrangeMoney = false,
+  AccesOrangeMoney acces = accesOrangeMoney,
 }) {
   return showModalBottomSheet<PaymentMethod>(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (_) => _SelectionPaiementSheet(montantFcfa: montantFcfa, portefeuille: portefeuille),
+    builder: (_) => _SelectionPaiementSheet(
+      montantFcfa: montantFcfa,
+      portefeuille: portefeuille,
+      moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney, acces: acces),
+    ),
   );
 }
 
 class _SelectionPaiementSheet extends StatelessWidget {
-  const _SelectionPaiementSheet({required this.montantFcfa, this.portefeuille});
+  const _SelectionPaiementSheet({required this.montantFcfa, this.portefeuille, required this.moyens});
 
   final int? montantFcfa;
   final Portefeuille? portefeuille;
+
+  /// Opérateurs de mobile money proposés, dans l'ordre d'affichage.
+  final List<PaymentMethod> moyens;
 
   /// Solde à proposer : interrupteur actif et solde suffisant.
   int? get _soldeUtilisable {
@@ -116,9 +128,9 @@ class _SelectionPaiementSheet extends StatelessWidget {
             _AvertissementSolde(soldeFcfa: solde),
             const SizedBox(height: 14),
           ],
-          for (var i = 0; i < moyensMobileMoneyDisponibles.length; i++) ...[
+          for (var i = 0; i < moyens.length; i++) ...[
             if (i > 0) const SizedBox(height: 12),
-            _BoutonPaiement.operateur(moyensMobileMoneyDisponibles[i]),
+            _BoutonPaiement.operateur(moyens[i]),
           ],
           const SizedBox(height: 14),
           const Row(

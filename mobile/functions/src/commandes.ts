@@ -148,8 +148,14 @@ export async function estimer(
   return { ...estimerPrix(trajet.type, distance.distanceKm, maintenant, zone), sourceDistance: distance.source };
 }
 
+export interface ClientVerifie {
+  id: string;
+  /** Compte marqué « Testeur Orange Money » par un Admin (voir `methodes_paiement.ts`). */
+  testeurOrangeMoney: boolean;
+}
+
 /** Client connecté, avec un profil, ni suspendu ni banni. */
-export async function verifierClient(db: Firestore, uid: string | undefined): Promise<string> {
+export async function verifierClient(db: Firestore, uid: string | undefined): Promise<ClientVerifie> {
   if (!uid) throw new HttpsError('unauthenticated', 'Connectez-vous pour commander une course.');
   const profil = await db.collection('users').doc(uid).get();
   if (!profil.exists) throw new HttpsError('permission-denied', 'Profil introuvable.');
@@ -157,7 +163,7 @@ export async function verifierClient(db: Firestore, uid: string | undefined): Pr
   if (statutCompte === 'suspendu' || statutCompte === 'banni') {
     throw new HttpsError('permission-denied', 'Votre compte ne permet pas de commander une course.');
   }
-  return uid;
+  return { id: uid, testeurOrangeMoney: profil.get('testeurOrangeMoney') === true };
 }
 
 export interface PrixServeur {
