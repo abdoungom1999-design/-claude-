@@ -80,6 +80,44 @@ async function explorer(lien: string, agent: string): Promise<string> {
   return etapes.join(' → ');
 }
 
+/** Forme d'une réponse JSON : types, clés et tailles, jamais les valeurs. */
+function forme(valeur: unknown, profondeur = 0): string {
+  if (Array.isArray(valeur)) {
+    return `tableau[${valeur.length}]${valeur.length > 0 && profondeur < 3 ? ` de ${forme(valeur[0], profondeur + 1)}` : ''}`;
+  }
+  if (valeur !== null && typeof valeur === 'object') {
+    const objet = valeur as Record<string, unknown>;
+    return `{${Object.keys(objet)
+      .map((cle) => (profondeur < 3 ? `${cle}: ${forme(objet[cle], profondeur + 1)}` : cle))
+      .join(', ')}}`;
+  }
+  return valeur === null ? 'null' : typeof valeur;
+}
+
+/**
+ * Diagnostic : réponse BRUTE d'Orange à une lecture (statut et forme, et si
+ * l'adresse [cherchee], publique, y figure), pour comparer à la spécification.
+ */
+async function reponseBrute(om: ClientOrangeMoney, chemin: string, cherchee: string): Promise<string> {
+  const reponse = await fetch(`${URL_ORANGE_MONEY.bacASable}${chemin}`, {
+    headers: { Authorization: `Bearer ${await om.jeton()}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+    signal: AbortSignal.timeout(15000),
+  });
+  const texte = await reponse.text();
+  let corps: unknown;
+  try {
+    corps = JSON.parse(texte);
+  } catch {
+    corps = undefined;
+  }
+  return (
+    `HTTP ${reponse.status}, ${corps === undefined ? `texte de ${texte.length} caractère(s)` : forme(corps)}` +
+    `, adresse de Sprint présente : ${texte.includes(cherchee) ? 'oui' : 'non'}`
+  );
+}
+
+const pause = (ms: number) => new Promise((resoudre) => setTimeout(resoudre, ms));
+
 async function principal(): Promise<number> {
   const idClient = process.env.ORANGE_CLIENT_ID ?? '';
   const secretClient = process.env.ORANGE_CLIENT_SECRET ?? '';
@@ -183,9 +221,29 @@ async function principal(): Promise<number> {
     }
   }
   try {
-    const adresses = await om.notificationsEnregistrees();
-    const sprint = urlNotification ? adresses.some((a) => a.url === urlNotification) : undefined;
-    if (sprint === false) echecs += 1;
+    let adresses = await om.notificationsEnregistrees();
+    let sprint = urlNotification ? adresses.some((a) => a.url === urlNotification) : undefined;
+    // L'enregistrement peut mettre quelques secondes à apparaître : deux nouvelles lectures.
+    for (let essai = 0; sprint === false && essai < 2; essai++) {
+      await pause(5000);
+      adresses = await om.notificationsEnregistrees();
+      sprint = adresses.some((a) => a.url === urlNotification);
+    }
+    if (sprint === false) {
+      echecs += 1;
+      for (const chemin of [
+        '/api/notification/v1/merchantcallback',
+        `/api/notification/v1/merchantcallback?code=${encodeURIComponent(codeMarchand)}`,
+        `/api/notification/v1/merchantcallback?code=${encodeURIComponent(codeMarchand)}&page=0&size=20`,
+      ]) {
+        const titre = `6 bis. Réponse brute ${chemin.includes('page=') ? '(code, page 0)' : chemin.includes('code=') ? '(code)' : '(sans filtre)'}`;
+        try {
+          annoncer('notice', titre, await reponseBrute(om, chemin, urlNotification));
+        } catch (e) {
+          annoncer('warning', titre, raison(e));
+        }
+      }
+    }
     annoncer(
       sprint === false ? 'error' : 'notice',
       '6. Adresses de notification',
