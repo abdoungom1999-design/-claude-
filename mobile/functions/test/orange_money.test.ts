@@ -192,6 +192,11 @@ test('erreurs d\'Orange : statut, code et détail lisibles, jamais d\'identifian
   assert.ok(erreurJeton instanceof ErreurOrangeMoney);
   assert.match(erreurJeton.message, /401 \(code invalid_client\) : Bad client credentials/);
 
+  const media = client([jeton('A'), json({ title: 'Unsupported Media Type', status: '415', code: '68', detail: "Unsupported media type, it should be 'application/json'." }, 415)]);
+  const erreurMedia = await media.om.notificationsEnregistrees().catch((e: unknown) => e);
+  assert.ok(erreurMedia instanceof ErreurOrangeMoney);
+  assert.equal(erreurMedia.message, "Orange Money a répondu 415 (code 68) : Unsupported media type, it should be 'application/json'.", 'pas de double point');
+
   const quota = client([jeton('A'), json({ title: 'Too Many Requests', status: '429', code: '9' }, 429, 'application/problem+json')]);
   await assert.rejects(quota.om.clePublique(), (e: unknown) => e instanceof ErreurOrangeMoney && e.statutHttp === 429 && e.code === '9');
 
@@ -211,6 +216,8 @@ test('statut d\'une transaction : identifiant contrôlé et encodé, statut inco
   assert.equal(appels[1].url, 'https://api.sandbox.orange-sonatel.com/api/eWallet/v1/transactions/MP220928.1029.C58502/status');
   assert.equal(appels[1].init.method, 'GET');
   assert.equal(appels[1].init.body, undefined);
+  // Exigé par Orange même sans corps (sinon 415, code 68).
+  assert.equal(entete(appels[1], 'Content-Type'), 'application/json');
   await assert.rejects(om.statutTransaction('MP220928.1029.C58502'), /Statut de transaction inconnu/);
 });
 
@@ -233,6 +240,7 @@ test('adresse de notification : HTTPS et clé longue exigés, enregistrement con
     { codeMarchand: '123456', nom: 'Sprint', url: 'https://exemple.test/notification' },
   ]);
   assert.equal(appels[2].url, 'https://api.sandbox.orange-sonatel.com/api/notification/v1/merchantcallback?code=123456');
+  assert.equal(entete(appels[2], 'Content-Type'), 'application/json');
 });
 
 test('numéros de test : bac à sable seulement, nombre demandé par type', async () => {

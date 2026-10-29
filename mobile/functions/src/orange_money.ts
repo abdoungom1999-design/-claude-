@@ -170,7 +170,7 @@ export async function erreurDepuisReponse(reponse: Response): Promise<ErreurOran
   if (code !== undefined) message += ` (code ${code})`;
   if (detail !== undefined) message += ` : ${detail}`;
   if (violations.length > 0) message += ` [${violations.join(' ; ')}]`;
-  return new ErreurOrangeMoney(`${message}.`, reponse.status, code);
+  return new ErreurOrangeMoney(message.endsWith('.') ? message : `${message}.`, reponse.status, code);
 }
 
 export class ClientOrangeMoney {
@@ -233,12 +233,9 @@ export class ClientOrangeMoney {
     const jeton = await this.jeton();
     const reponse = await this.envoyer(chemin, {
       method: methode,
-      headers: {
-        Authorization: `Bearer ${jeton}`,
-        Accept: 'application/json',
-        ...(corps === undefined ? {} : { 'Content-Type': 'application/json' }),
-        ...entetes,
-      },
+      // Orange exige « Content-Type: application/json » même sans corps
+      // (une lecture sans lui est refusée : 415, code 68 ; essai du bac à sable, 29 octobre 2026).
+      headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json', 'Content-Type': 'application/json', ...entetes },
       body: corps === undefined ? undefined : JSON.stringify(corps),
     });
     if (reponse.status === 401 && !dejaReessaye) {
