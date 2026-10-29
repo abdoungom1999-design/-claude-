@@ -35,6 +35,51 @@ const hote = (lien: string) => {
   }
 };
 
+const NAVIGATEURS = {
+  ordinateur: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36',
+  Android: 'Mozilla/5.0 (Linux; Android 14; SM-A145F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36',
+};
+
+/**
+ * Ce que répond un lien de paiement à un navigateur : statut, redirections
+ * (hôte ou type d'adresse seulement) et début du texte de la page, où toute
+ * adresse est remplacée par son type (le lien de paiement n'est jamais
+ * affiché) et tout nombre de 6 chiffres ou plus masqué (code marchand,
+ * numéro de téléphone).
+ */
+async function explorer(lien: string, agent: string): Promise<string> {
+  const etapes: string[] = [];
+  let adresse = lien;
+  for (let saut = 0; saut < 5; saut++) {
+    const url = new URL(adresse);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      etapes.push(`ouvre une app (${url.protocol})`);
+      break;
+    }
+    const reponse = await fetch(url, { redirect: 'manual', headers: { 'User-Agent': agent }, signal: AbortSignal.timeout(15000) });
+    const cible = reponse.headers.get('location');
+    if (reponse.status >= 300 && reponse.status < 400 && cible) {
+      etapes.push(`HTTP ${reponse.status} (${url.host})`);
+      adresse = new URL(cible, url).toString();
+      masquer(adresse);
+      continue;
+    }
+    const type = (reponse.headers.get('content-type') ?? '?').split(';')[0];
+    const texte = (await reponse.text())
+      .slice(0, 20_000)
+      .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/([a-z][a-z0-9+.-]*):\/\/\S+/gi, '<lien $1>')
+      .replace(/\d{6,}/g, '<nombre>')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 160);
+    etapes.push(`HTTP ${reponse.status} (${url.host}, ${type})${texte ? ` « ${texte} »` : ''}`);
+    break;
+  }
+  return etapes.join(' → ');
+}
+
 async function principal(): Promise<number> {
   const idClient = process.env.ORANGE_CLIENT_ID ?? '';
   const secretClient = process.env.ORANGE_CLIENT_SECRET ?? '';
@@ -105,6 +150,17 @@ async function principal(): Promise<number> {
           `validité : ${qr.validiteSecondes ?? '?'} s`,
         ].join(' · '),
       );
+      // Ce que voit un client qui ouvre les liens (sans payer) : sur ordinateur et sur Android.
+      for (const [nom, lienQr] of [['Max It', qr.lienMaxIt], ['Orange Money', qr.lienOrangeMoney]] as const) {
+        if (!lienQr) continue;
+        for (const [appareil, agent] of Object.entries(NAVIGATEURS)) {
+          try {
+            annoncer('notice', `4 bis. Lien ${nom} (${appareil})`, await explorer(lienQr, agent));
+          } catch (e) {
+            annoncer('warning', `4 bis. Lien ${nom} (${appareil})`, `Injoignable depuis la CI : ${raison(e)}`);
+          }
+        }
+      }
     } catch (e) {
       echecs += 1;
       annoncer('error', '4. QR code de paiement', raison(e));
