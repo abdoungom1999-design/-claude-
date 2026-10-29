@@ -212,8 +212,14 @@ async function principal(): Promise<number> {
       annoncer('error', '5. Adresse des notifications', 'Code marchand nécessaire pour l\'enregistrer.');
     } else {
       try {
-        await om.enregistrerNotification({ codeMarchand, nomMarchand: 'Sprint', url: urlNotification, cleApi: cleNotification });
-        annoncer('notice', '5. Adresse des notifications', `Enregistrée chez Orange, avec sa clé : ${urlNotification}`);
+        // Orange ajoute une entrée à chaque enregistrement (rien ne se supprime) : pas de doublon.
+        const deja = (await om.notificationsEnregistrees()).filter((a) => a.url === urlNotification && a.codeMarchand === codeMarchand);
+        if (deja.length > 0) {
+          annoncer('notice', '5. Adresse des notifications', `Déjà enregistrée chez Orange (${deja.length} fois) : rien de nouveau.`);
+        } else {
+          await om.enregistrerNotification({ codeMarchand, nomMarchand: 'Sprint', url: urlNotification, cleApi: cleNotification });
+          annoncer('notice', '5. Adresse des notifications', `Enregistrée chez Orange, avec sa clé : ${urlNotification}`);
+        }
       } catch (e) {
         echecs += 1;
         annoncer('error', '5. Adresse des notifications', raison(e));
@@ -244,11 +250,16 @@ async function principal(): Promise<number> {
         }
       }
     }
+    // Adresses (publiques) et marchand concerné ; le code marchand lui-même n'est jamais affiché.
+    const detail = adresses
+      .map((a) => `${a.url} (${a.codeMarchand === codeMarchand ? 'code de Sprint' : 'autre code'}${a.nom ? `, « ${a.nom} »` : ''})`)
+      .join(' ; ');
     annoncer(
       sprint === false ? 'error' : 'notice',
       '6. Adresses de notification',
       `${adresses.length} adresse(s) enregistrée(s) chez Orange` +
-        (sprint === undefined ? '.' : `, dont celle de Sprint : ${sprint ? 'oui' : 'NON'}.`),
+        (sprint === undefined ? '' : `, dont celle de Sprint : ${sprint ? 'oui' : 'NON'}`) +
+        (detail ? ` : ${detail}.` : '.'),
     );
   } catch (e) {
     echecs += 1;
