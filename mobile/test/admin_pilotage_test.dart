@@ -167,7 +167,7 @@ void main() {
   testWidgets('Paramètres : règles réellement appliquées, exemples calculés', (tester) async {
     await _afficher(tester, const AdminParametresSection(demo: false));
     expect(find.text('Règles en vigueur'), findsOneWidget);
-    expect(find.text('Wave, solde Sprint (Orange Money bientôt)'), findsOneWidget);
+    expect(find.text('Wave, solde Sprint (Orange Money : essai réservé aux testeurs)'), findsOneWidget);
     expect(find.text('10 % du prix'), findsOneWidget); // commission de Sprint
     expect(find.text('90 % du prix'), findsOneWidget); // part du chauffeur
     expect(

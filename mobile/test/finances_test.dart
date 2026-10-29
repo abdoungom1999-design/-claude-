@@ -278,11 +278,11 @@ void main() {
       expect(PaymentMethod.values.map((m) => m.apiValue), ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']);
     });
 
-    test('Orange Money reste connu (historique) mais n\'est pas proposé : seul Wave est ouvert, même à un testeur', () {
-      // Branché côté serveur, mais fermé jusqu'au go du client (jumeau : ACCES_ORANGE_MONEY du serveur).
-      expect(accesOrangeMoney, AccesOrangeMoney.ferme);
+    test('essai réservé aux testeurs (go du client) : un client ordinaire ne voit que Wave, le testeur aussi Orange Money', () {
+      // Jumeau : ACCES_ORANGE_MONEY du serveur. Ouverture à tous : seulement avec un nouveau go du client.
+      expect(accesOrangeMoney, AccesOrangeMoney.testeurs);
       expect(moyensMobileMoneyPour(testeur: false), [PaymentMethod.wave]);
-      expect(moyensMobileMoneyPour(testeur: true), [PaymentMethod.wave]);
+      expect(moyensMobileMoneyPour(testeur: true), [PaymentMethod.wave, PaymentMethod.orangeMoney]);
       expect(PaymentMethod.orangeMoney.label, 'Orange Money'); // libellé de l'historique conservé
     });
 

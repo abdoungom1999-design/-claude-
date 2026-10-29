@@ -135,18 +135,25 @@ test('Orange Money fermé (réglage actuel) : refusé avant d\'appeler Orange, m
   const erreur = await refuse(creerPaiement(demande(), midi, 'ferme'), 'failed-precondition');
   assert.match(erreur.message, /Orange Money n'est pas encore disponible/);
   await refuse(creerRecharge(5000, midi, 'ferme'), 'failed-precondition');
-  // Sans réglage explicite : celui en service (fermé).
-  await refuse(
-    creerPaiementCore(db, calculDistance(db, googleFactice, () => midi), fournisseurs(midi), 'awa', demande(), midi),
-    'failed-precondition',
-  );
-  await refuse(
-    creerRechargeCore(db, fournisseurs(midi), 'awa', { montantFcfa: 5000, methodePaiement: 'ORANGE_MONEY' }, midi),
-    'failed-precondition',
-  );
   assert.deepEqual(orange.requetes, []);
   assert.equal(await nombre('commandes'), 0);
   assert.equal(await nombre('recharges'), 0);
+});
+
+test('réglage en service (essai réservé aux testeurs) : le testeur passe, un client ordinaire non', async () => {
+  await db.doc('users/fatou').set({ role: 'client', nom: 'Fatou' });
+  // Sans réglage explicite : celui en service.
+  const sansReglage = (uid: string) =>
+    creerPaiementCore(db, calculDistance(db, googleFactice, () => midi), fournisseurs(midi), uid, demande(), midi);
+  const rechargeSansReglage = (uid: string) =>
+    creerRechargeCore(db, fournisseurs(midi), uid, { montantFcfa: 5000, methodePaiement: 'ORANGE_MONEY' }, midi);
+  await refuse(sansReglage('awa'), 'failed-precondition');
+  await refuse(rechargeSansReglage('awa'), 'failed-precondition');
+  await db.doc('users/awa').update({ testeurOrangeMoney: true });
+  assert.equal((await commande((await sansReglage('awa')).commandeId)).fournisseur, 'orange_money');
+  assert.match((await rechargeSansReglage('awa')).rechargeId, /^rch_/);
+  await refuse(sansReglage('fatou'), 'failed-precondition');
+  await refuse(rechargeSansReglage('fatou'), 'failed-precondition');
 });
 
 test('essai réservé aux testeurs : le testeur paie et recharge avec Orange Money, les autres clients sont refusés', async () => {
@@ -454,5 +461,31 @@ test('rattrapage : les demandes en attente d\'abord, au plus [max] recherches, a
 test('transaction appliquée directement : sans référence, rien', async () => {
   const id = orange.payer(undefined, PRIX);
   const [t] = await config.client.rechercherTransactions({ transactionId: id });
-  assert.equal(await appliquerTransactionOrange(db, t, CODE_MARCHAND_TEST, simule, midi), 'non_confirmee');
+  assert.equal(await appliquerTransactionOrange(db, t, config, simule, midi), 'non_confirmee');
+});
+
+test('bac à sable : paiement encaissé par le code marchand de test d\'Orange (OFMS) accepté ; jamais en production', async () => {
+  // Production : un autre code marchand, même avec notre référence, n'est jamais appliqué.
+  const a = await creerPaiement();
+  orange.payer(a.commandeId, PRIX, { code: '999001' });
+  assert.equal((await rattraperOrange(db, config, simule, minutes(5))).appliquees, 0);
+  assert.equal((await commande(a.commandeId)).statut, 'en_attente_paiement');
+
+  // Bac à sable : Orange encaisse sur son code de test ; référence, montant et statut font foi.
+  config = { client: orange.client(URL_ORANGE_MONEY.bacASable), codeMarchand: CODE_MARCHAND_TEST };
+  assert.equal(config.client.estBacASable, true);
+  const b = await creerPaiement();
+  const id = orange.payer(b.commandeId, PRIX, { code: '999001' });
+  assert.equal((await notifier(orange.notification(id))).resultat, 'course_creee');
+  // Le rattrapage applique aussi celui de [a] (relu chez Orange, même code de test).
+  assert.equal((await rattraperOrange(db, config, simule, minutes(6))).appliquees, 1);
+  assert.equal((await commande(a.commandeId)).statut, 'payee');
+  // Les autres contrôles restent : montant faux = anomalie, dépôt (cash in) = rien.
+  const c = await creerPaiement();
+  assert.equal((await notifier(orange.notification(orange.payer(c.commandeId, 100, { code: '999001' })))).resultat, 'anomalie');
+  const d = await creerPaiement();
+  assert.equal(
+    (await notifier(orange.notification(orange.payer(d.commandeId, PRIX, { code: '999001', type: 'CASHIN' })))).resultat,
+    'non_confirmee',
+  );
 });

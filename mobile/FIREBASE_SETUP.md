@@ -223,8 +223,8 @@ depuis la Console.
   l'Admin. Seul le serveur les crée (étape 7), une fois le paiement
   confirmé par l'opérateur, avec le prix qu'il calcule lui-même.
   Paiement 100 % mobile money (Wave) ou avec le solde du portefeuille ;
-  Orange Money est branché mais **fermé** aux clients (voir « Passage à
-  l'argent réel »).
+  Orange Money est en **essai réservé aux testeurs** désignés par l'Admin,
+  invisible des autres clients (voir « Passage à l'argent réel »).
 - Annulations (client tant que la course est en attente, chauffeur avec
   un motif) : uniquement par la Cloud Function `annulerCourse`, qui
   rembourse le client ; jamais directement depuis l'app.
@@ -276,8 +276,8 @@ depuis la Console.
   "simulation"` sur la course). Pour passer au vrai Wave : ranger
   `WAVE_API_KEY` et `WAVE_WEBHOOK_SECRET` dans Secret Manager et brancher
   `FournisseurWave` (déjà écrit) dans `functions/src/index.ts`. Orange
-  Money a son fournisseur réel (bac à sable d'Orange) mais reste refusé
-  par le serveur tant qu'il n'est pas ouvert (voir « Passage à l'argent
+  Money a son fournisseur réel (bac à sable d'Orange) et n'est accepté
+  que pour les testeurs désignés par l'Admin (voir « Passage à l'argent
   réel »).
 - Un numéro de téléphone n'est pas garanti unique : si quelqu'un
   revendique en premier le numéro d'un autre dans l'annuaire, ce dernier
@@ -665,12 +665,12 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    d'accord (un test le vérifie) : `ACCES_ORANGE_MONEY` dans
    `functions/src/methodes_paiement.ts` et `accesOrangeMoney` dans
    `lib/core/widgets/payment_method_selector.dart` :
-   - `ferme` (aujourd'hui) : le serveur refuse `ORANGE_MONEY` (course et
+   - `ferme` : le serveur refuse `ORANGE_MONEY` (course et
      recharge) avec « Orange Money n'est pas encore disponible », l'app ne le
      propose pas, et aucune fonction ne déclare ni ne lit les secrets
      d'Orange : une publication ne peut pas échouer à cause d'eux ;
-   - `testeurs` (essai réel de bout en bout, décision du client du
-     29 octobre 2026) : seuls les comptes **clients** marqués « Testeur Orange
+   - `testeurs` (réglage en service depuis la publication 113 : essai réel
+     de bout en bout, décision du client du 29 octobre 2026) : seuls les comptes **clients** marqués « Testeur Orange
      Money » voient Orange Money et peuvent payer ou recharger avec ; pour tous
      les autres, rien ne change. La marque (`testeurOrangeMoney: true` dans
      `users/{uid}`) se pose dans l'espace Admin : Clients > recherche par nom
@@ -692,11 +692,15 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      chez Orange (`Authorization: Basic <clé>`, comparée en temps constant),
      puis la transaction est **relue chez Orange** : seuls le statut, le
      montant, la devise, la référence et le marchand payé renvoyés par Orange
-     comptent. Paiement à un autre code marchand (même avec notre référence) ou
-     dépôt « cash in » : jamais appliqué ; montant ou devise différents :
-     anomalie, visible de l'Admin. `X-Sonatel-Signature` n'est pas vérifié
-     (calcul non documenté, demandé à Orange par le client) : la relecture le
-     remplace.
+     comptent. Marchand payé (`paieSprint`) : en production, seul notre code
+     marchand compte (un paiement à un autre code, même avec notre référence,
+     n'est jamais appliqué) ; dans le bac à sable, Orange encaisse sur un code
+     marchand de test qui lui appartient (OFMS) et le code n'y est pas comparé
+     (réponse du support d'Orange, 29 octobre 2026 ; lié à l'adresse du bac à
+     sable, jamais à la production). Dépôt « cash in » : jamais appliqué ;
+     montant ou devise différents : anomalie, visible de l'Admin.
+     `X-Sonatel-Signature` n'est pas vérifié : « évolution à venir, ne pas en
+     tenir compte » (support d'Orange, 29 octobre 2026) ; la relecture suffit.
    - **Notification perdue** : pendant 1 heure après chaque demande
      (`relectureFinLe`), la surveillance (toutes les 5 minutes) relit chez
      Orange les demandes sans issue (en attente, expirées ou refusées), celles
@@ -749,11 +753,11 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      marquer ensuite le compte client de chaque testeur ; avant `tous`, faire
      valider les textes de l'app (aide, conditions).
    - **À confirmer au premier vrai paiement du bac à sable** : comment payer
-     dans le bac à sable (procédure Max It redemandée à Orange) ; la façon dont
-     la recherche désigne le marchand payé (`partner.id` = code marchand, type
-     `CODE`, comme dans la notification : s'il s'agissait du numéro de
-     téléphone, les paiements seraient refusés, jamais acceptés à tort) ; le
-     refus d'un second paiement sur un QR « usage unique ».
+     dans le bac à sable (le lien envoyé par Orange le 29 octobre 2026 est la
+     documentation générale de l'API, section « Errors », sans procédure Max
+     It) ; si la notification arrive bien sur notre adresse (sinon, la
+     surveillance retrouve le paiement en 5 minutes au plus) ; le refus d'un
+     second paiement sur un QR « usage unique ».
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.

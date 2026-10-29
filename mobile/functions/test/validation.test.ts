@@ -112,8 +112,8 @@ test('commande : 100 % mobile money (ou solde Sprint), adresses obligatoires', (
   refuse(() => validerDemande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
 });
 
-test('Orange Money reste fermé jusqu\'au go du client, dans le serveur comme dans l\'app', () => {
-  assert.equal(ACCES_ORANGE_MONEY, 'ferme', 'essai des testeurs, puis ouverture : seulement avec le go du client');
+test('Orange Money : essai réservé aux testeurs (go du client, 29 octobre 2026), dans le serveur comme dans l\'app', () => {
+  assert.equal(ACCES_ORANGE_MONEY, 'testeurs', 'ouverture à tous : seulement avec un nouveau go du client');
   // Jumeau dans l'app (choix du moyen de paiement), lu depuis functions/lib/test.
   const app = readFileSync(resolve(__dirname, '..', '..', '..', 'lib', 'core', 'widgets', 'payment_method_selector.dart'), 'utf8');
   const jumeau = app.match(/^const accesOrangeMoney = AccesOrangeMoney\.(ferme|testeurs|tous);$/m);

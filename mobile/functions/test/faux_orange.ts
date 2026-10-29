@@ -123,9 +123,14 @@ export class FauxOrange {
     return json({ title: 'Not Found' }, 404);
   }) as typeof fetch;
 
-  client(): ClientOrangeMoney {
+  /**
+   * Client branché sur ce faux Orange. Adresse de production par défaut : le
+   * marchand payé y est contrôlé strictement ; celle du bac à sable l'assouplit
+   * (voir `paieSprint`). Aucune requête ne quitte le test.
+   */
+  client(urlBase: string = URL_ORANGE_MONEY.production): ClientOrangeMoney {
     return new ClientOrangeMoney({
-      urlBase: URL_ORANGE_MONEY.bacASable,
+      urlBase,
       idClient: 'id-de-test',
       secretClient: 'secret-de-test',
       fetcher: this.fetcher,

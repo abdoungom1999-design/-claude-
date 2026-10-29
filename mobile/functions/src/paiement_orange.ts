@@ -44,9 +44,9 @@ import {
  *       paiement arrivé après l'expiration ou après un premier refus).
  *   remboursement ──> sur le solde Sprint (l'API d'Orange n'en a pas).
  *
- * L'en-tête `X-Sonatel-Signature` est annoncé par Orange mais son calcul
- * n'est pas documenté : il n'est pas vérifié, la relecture chez Orange le
- * remplace.
+ * L'en-tête `X-Sonatel-Signature` n'est pas vérifié : « évolution à venir,
+ * ne pas en tenir compte » (support d'Orange, 29 octobre 2026) ; la relecture
+ * chez Orange suffit.
  */
 
 export const PREFIXE_SESSION_ORANGE = 'om_';
@@ -151,24 +151,36 @@ export class FournisseurOrangeMoney implements CreateurSession {
 export type ResultatOrange = ResultatWebhook | ResultatRecharge | 'en_attente' | 'non_confirmee';
 
 /**
+ * La transaction paie-t-elle Sprint ? En production, seul NOTRE code marchand
+ * compte : un autre marchand peut porter notre référence. Dans le bac à
+ * sable, Orange encaisse les paiements sur un code marchand de test qui lui
+ * appartient (OFMS, support d'Orange, 29 octobre 2026) : le code n'y est pas
+ * comparé ; référence, montant, devise, type et statut relus chez Orange
+ * restent exigés, et aucun argent réel n'est en jeu.
+ */
+export function paieSprint(transaction: TransactionOrangeMoney, config: ConfigOrange): boolean {
+  return config.client.estBacASable || transaction.codeMarchand === config.codeMarchand;
+}
+
+/**
  * Applique une transaction LUE CHEZ ORANGE à la commande ou à la recharge
  * qu'elle paie (sa référence). Rien n'est fait pour une transaction sans
- * référence, qui ne paie pas NOTRE code marchand (même avec notre référence),
- * d'un autre type ou pas encore finie. Rejouer la même transaction ne crée
- * jamais une deuxième course ni ne crédite deux fois (traitement commun
- * idempotent) ; montant ou devise différents : anomalie.
+ * référence, qui ne paie pas Sprint ([paieSprint]), d'un autre type ou pas
+ * encore finie. Rejouer la même transaction ne crée jamais une deuxième
+ * course ni ne crédite deux fois (traitement commun idempotent) ; montant ou
+ * devise différents : anomalie.
  */
 export async function appliquerTransactionOrange(
   db: Firestore,
   transaction: TransactionOrangeMoney,
-  codeMarchand: string,
+  config: ConfigOrange,
   fournisseurRemboursement: FournisseurPaiement,
   maintenant: Date,
   messagerie?: Messagerie,
 ): Promise<ResultatOrange> {
   const reference = transaction.reference;
   if (!reference) return 'non_confirmee';
-  if (transaction.codeMarchand !== codeMarchand) {
+  if (!paieSprint(transaction, config)) {
     logger.error('Transaction Orange qui ne paie pas notre code marchand', {
       transactionId: transaction.transactionId,
       reference,
@@ -219,7 +231,7 @@ export async function traiterNotificationOrange(
     });
     return 'non_confirmee';
   }
-  return appliquerTransactionOrange(db, transaction, config.codeMarchand, fournisseurRemboursement, maintenant, messagerie);
+  return appliquerTransactionOrange(db, transaction, config, fournisseurRemboursement, maintenant, messagerie);
 }
 
 /**
@@ -322,12 +334,10 @@ export async function rattraperOrange(
     bilan.verifiees++;
     try {
       const transactions = await config.client.rechercherTransactions({ reference: doc.id });
-      // Un paiement réussi à NOTRE code marchand (un autre marchand peut porter notre référence).
-      const reussie = transactions.find(
-        (t) => t.reference === doc.id && t.statut === 'SUCCESS' && t.codeMarchand === config.codeMarchand,
-      );
+      // Un paiement réussi qui paie Sprint (un autre marchand peut porter notre référence).
+      const reussie = transactions.find((t) => t.reference === doc.id && t.statut === 'SUCCESS' && paieSprint(t, config));
       if (reussie === undefined) continue;
-      const resultat = await appliquerTransactionOrange(db, reussie, config.codeMarchand, fournisseurRemboursement, maintenant, messagerie);
+      const resultat = await appliquerTransactionOrange(db, reussie, config, fournisseurRemboursement, maintenant, messagerie);
       if (resultat === 'course_creee' || resultat === 'recharge_creditee' || resultat === 'rembourse') bilan.appliquees++;
     } catch (e) {
       bilan.erreurs++;

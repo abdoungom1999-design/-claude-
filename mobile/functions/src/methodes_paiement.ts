@@ -28,7 +28,7 @@ export type AccesOrangeMoney = 'ferme' | 'testeurs' | 'tous';
  * lib/core/widgets/payment_method_selector.dart) : un test vérifie qu'ils
  * sont d'accord, et la publication lit cette ligne telle quelle.
  */
-export const ACCES_ORANGE_MONEY: AccesOrangeMoney = 'ferme';
+export const ACCES_ORANGE_MONEY: AccesOrangeMoney = 'testeurs';
 
 /** Orange Money accepté pour ce client ([testeur] : compte marqué par un Admin). */
 export function orangeMoneyPour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): boolean {

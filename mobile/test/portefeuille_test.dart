@@ -707,7 +707,7 @@ void main() {
     testWidgets('testeur Orange Money : désigné après confirmation, envoyé au serveur ; effet expliqué', (tester) async {
       final service = await ouvrir(tester, solde: 0, mouvements: const []);
       expect(marquee(tester), isFalse);
-      expect(find.textContaining('Orange Money est fermé : cette marque ne prendra effet'), findsOneWidget);
+      expect(find.textContaining('Essai en cours : un testeur voit Orange Money et peut payer avec'), findsOneWidget);
 
       await tester.tap(marqueTesteur);
       await tester.pumpAndSettle();

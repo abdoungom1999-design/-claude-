@@ -175,12 +175,21 @@ class _ReglesEnVigueur extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Une valeur longue passe à la ligne au lieu de déborder.
     Widget ligne(String libelle, String valeur) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 7),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: Text(libelle, style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret))),
-              Text(valeur, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  valeur,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
             ],
           ),
         );
