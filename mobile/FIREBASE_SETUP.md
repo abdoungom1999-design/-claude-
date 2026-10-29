@@ -733,7 +733,11 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      enregistrée chez Orange (bac à sable) avec sa clé. Fait le 29 octobre
      2026 avec l'accord du client (essais #6 et #7) : les deux secrets
      existent, l'adresse est enregistrée et relue chez Orange (elle met
-     quelques secondes à apparaître, d'où une relecture avec délai). La
+     quelques secondes à apparaître, d'où une relecture avec délai). Elle y
+     figure deux fois : Orange ajoute une entrée à chaque enregistrement et
+     son API ne permet pas d'en supprimer ; sans effet, une notification
+     reçue deux fois n'est traitée qu'une fois, et le flux n'enregistre plus
+     une adresse déjà présente. La
      fonction est en ligne depuis la publication 111 (29 octobre 2026) ;
      tant qu'Orange Money est fermé, elle répond 503 (Orange réessaie plus
      tard).
