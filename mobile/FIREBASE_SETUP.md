@@ -752,6 +752,12 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      `webhookOrangeMoney` répond 401 sans clé (fermé : 503). Pour l'essai,
      marquer ensuite le compte client de chaque testeur ; avant `tous`, faire
      valider les textes de l'app (aide, conditions).
+   - **Essai du client sur la publication 113 (29 octobre 2026)** : bouton
+     Orange Money visible pour le seul testeur, demande de paiement créée chez
+     Orange depuis l'app, lien qui ouvre Max It ; blocage à la connexion de
+     Max It (application grand public non reliée au bac à sable, numéro
+     français) : question posée à Orange. La commande de test expire seule
+     (aucun argent n'a bougé).
    - **À confirmer au premier vrai paiement du bac à sable** : comment payer
      dans le bac à sable (le lien envoyé par Orange le 29 octobre 2026 est la
      documentation générale de l'API, section « Errors », sans procédure Max
