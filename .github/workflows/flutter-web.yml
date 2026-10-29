@@ -379,10 +379,17 @@ jobs:
           echo "webhookPaiement sans signature : HTTP $code"
           [ "$code" = 401 ] || { echo "::error::webhookPaiement devrait refuser un appel non signé (401)"; exit 1; }
           # Orange Money : 503 tant qu'il est fermé (rien n'est lu), 401 sans la clé une fois ouvert.
+          # Fonction neuve à sa première publication : son accès public peut mettre
+          # quelques secondes à s'appliquer (403 entre-temps), d'où quelques essais.
           attendu=503
           grep -qE '^export const ORANGE_MONEY_OUVERT: boolean = true;$' functions/src/methodes_paiement.ts && attendu=401
-          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/webhookOrangeMoney" \
-            -H 'Content-Type: application/json' -d '{}')
+          for essai in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/webhookOrangeMoney" \
+              -H 'Content-Type: application/json' -d '{}')
+            [ "$code" = "$attendu" ] && break
+            echo "webhookOrangeMoney : HTTP $code, nouvel essai dans 10 s ($essai/6)"
+            sleep 10
+          done
           echo "webhookOrangeMoney sans clé : HTTP $code (attendu : $attendu)"
           [ "$code" = "$attendu" ] || { echo "::error::webhookOrangeMoney devrait répondre $attendu à un appel sans clé"; exit 1; }
           code=$(curl -s -o /dev/null -w '%{http_code}' "$base/pagePaiementSimule?session=invalide")
