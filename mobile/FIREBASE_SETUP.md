@@ -683,6 +683,25 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    d'Orange y sera ajouté avec la documentation technique de l'API (portail
    https://developer.orange-sonatel.com, API « Orange money distributeur » et
    « Notification » choisies à la création de l'application).
+   Spécification reçue (OpenAPI « Orange Money API » v1.1.0 du 22 octobre 2026,
+   gardée hors de ce dépôt) ; API « Qr Code - Om » ajoutée par le client
+   (« Payment - Om » n'est plus proposée). Ce qu'elle décrit : jeton OAuth 2.0
+   (`POST /oauth/v1/token`) ; paiement par QR code et liens Max It / Orange Money
+   (`POST /api/eWallet/v4/qrcode`), asynchrone ; notification envoyée à notre
+   adresse HTTPS avec « Authorization: Basic <clé> », clé que nous choisissons en
+   enregistrant l'adresse (`POST /api/notification/v1/merchantcallback`) ; statut
+   qui fait foi (`GET /api/eWallet/v1/transactions/{id}/status`) ; numéros de
+   test du bac à sable. Client écrit et testé avec un faux Orange :
+   `functions/src/orange_money.ts` (`test/orange_money.test.ts`), **pas encore
+   branché** aux paiements. Le flux d'essai l'utilise contre le vrai bac à sable
+   (`test/orange_money.bac_a_sable.ts`). À trancher avant de le brancher :
+   - l'en-tête `X-Sonatel-Signature` est annoncé mais son calcul n'est pas
+     documenté : on vérifie la clé, et on relit toujours le statut chez Orange
+     avant de valider un paiement ;
+   - l'API n'a pas de remboursement : soit un dépôt (« cash in ») depuis un
+     compte distributeur, avec son code PIN chiffré par la clé publique
+     d'Orange, soit un remboursement sur le solde Sprint (voir le point 3) ;
+   - la procédure du lien Max It (PDF d'Orange) n'est pas encore arrivée.
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.

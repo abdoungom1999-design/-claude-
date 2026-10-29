@@ -1,19 +1,31 @@
 name: Essai Orange Money (bac à sable)
 
 # Lancé à la main seulement (onglet Actions > Essai Orange Money (bac à sable)
-# > Run workflow). Vérifie que les identifiants de TEST d'Orange Money,
-# créés par le client dans Secret Manager (ORANGE_MONEY_SANDBOX_CLIENT_ID et
-# ORANGE_MONEY_SANDBOX_CLIENT_SECRET), sont lisibles par la CI et bien
-# collés (ni vides, ni espace, ni retour à la ligne, ni caractère invisible).
-# Leur valeur n'est jamais affichée : elle est masquée dans les journaux dès sa
-# lecture, et le fichier temporaire est effacé.
+# > Run workflow). Données de TEST, aucun argent réel, rien n'est publié.
 #
-# Ne publie rien, et n'appelle pas encore Orange : l'appel au bac à sable
-# (jeton d'accès, paiement de test) sera ajouté ici quand la documentation
-# technique de l'API sera disponible. Voir mobile/FIREBASE_SETUP.md, section
-# « Passage à l'argent réel ».
+# 1. Tests automatiques du client Orange Money (functions/src/orange_money.ts),
+#    avec un faux Orange.
+# 2. Identifiants de test lus dans Secret Manager (ORANGE_MONEY_SANDBOX_CLIENT_ID
+#    et ORANGE_MONEY_SANDBOX_CLIENT_SECRET, créés par le client) : présents et
+#    bien collés (ni vides, ni espace, ni retour à la ligne, ni caractère
+#    invisible).
+# 3. Appels RÉELS au bac à sable d'Orange (api.sandbox.orange-sonatel.com) :
+#    jeton d'accès, numéros de test, clé publique, demande de paiement par QR
+#    code et liens Max It (si un code marchand est donné au lancement, 100 FCFA,
+#    jamais payée), adresses de notification enregistrées.
+#
+# Rien de secret n'est affiché : identifiants, jeton, numéros et codes PIN de
+# test, code marchand et liens de paiement sont masqués dans le journal dès leur
+# lecture, et les fichiers temporaires sont effacés. Voir mobile/FIREBASE_SETUP.md,
+# section « Passage à l'argent réel ».
 on:
   workflow_dispatch:
+    inputs:
+      code_marchand:
+        description: "Code marchand Orange (6 chiffres) pour la demande de paiement de test ; vide : étape sautée. Masqué dans le journal."
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -23,10 +35,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  identifiants:
+  bac-a-sable:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
+
       - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
         env:
           COMPTE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -35,6 +49,22 @@ jobs:
             echo "::error title=Essai impossible::Secret FIREBASE_SERVICE_ACCOUNT absent."
             exit 1
           fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/functions/package-lock.json
+
+      - name: Compilation du serveur
+        working-directory: mobile/functions
+        run: |
+          npm ci
+          npm run build
+
+      - name: Tests automatiques du client Orange Money (faux Orange)
+        working-directory: mobile/functions
+        run: node --test lib/test/orange_money.test.js
 
       - uses: google-github-actions/auth@v2
         with:
@@ -80,3 +110,22 @@ jobs:
           done
           rm -rf "$dossier"
           [ "$erreurs" -eq 0 ]
+
+      # Le code marchand est lu dans l'événement (jamais dans le texte du flux ni
+      # dans ses variables affichées) et masqué avant tout appel.
+      - name: Bac à sable d'Orange Money (appels réels, données de test)
+        run: |
+          dossier="$RUNNER_TEMP/orange"
+          mkdir -p "$dossier"
+          for nom in ORANGE_MONEY_SANDBOX_CLIENT_ID ORANGE_MONEY_SANDBOX_CLIENT_SECRET; do
+            gcloud secrets versions access latest --secret="$nom" --project=sprint-vtc --out-file="$dossier/$nom" > /dev/null
+          done
+          code=$(jq -r '.inputs.code_marchand // empty' "$GITHUB_EVENT_PATH" | tr -d '[:space:]')
+          if [ -n "$code" ]; then echo "::add-mask::$code"; fi
+          resultat=0
+          ORANGE_CLIENT_ID="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_ID")" \
+          ORANGE_CLIENT_SECRET="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_SECRET")" \
+          ORANGE_CODE_MARCHAND="$code" \
+            node mobile/functions/lib/test/orange_money.bac_a_sable.js || resultat=$?
+          rm -rf "$dossier"
+          exit "$resultat"
