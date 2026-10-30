@@ -97,6 +97,10 @@ export const MOTIFS_FIGES = [
     nom: 'accès à Orange Money et ses testeurs (décisions du client)',
     regex: /\b[Aa]ccesOrangeMoney\b|\btesteurOrangeMoney\b|\bestTesteurOrangeMoney\b|\bchargerTesteurOrangeMoney\b/,
   },
+  {
+    nom: "environnement d'Orange Money et mention de l'argent réel (décisions du client)",
+    regex: /\b[Ee]nvironnementOrangeMoney\b|\bargentReel\b|\bmentionPaiement\b/,
+  },
   { nom: 'Orange Money (fermé par décision du client)', regex: /\bPaymentMethod\.orangeMoney\b|\borangeMoney\b|\bORANGE_MONEY\b/ },
 ];
 

@@ -30,6 +30,26 @@ export type AccesOrangeMoney = 'ferme' | 'testeurs' | 'tous';
  */
 export const ACCES_ORANGE_MONEY: AccesOrangeMoney = 'testeurs';
 
+/**
+ * Où Orange Money encaisse :
+ * - `bacASable` : api.sandbox.orange-sonatel.com, données de test, aucun
+ *   argent réel (et aucun moyen d'y payer depuis Max It : support d'Orange,
+ *   30 octobre 2026) ;
+ * - `production` : api.orange-sonatel.com, argent réel, versé sur le compte
+ *   marchand de Groupe Santine.
+ * Chaque environnement a ses propres identifiants et sa propre clé de
+ * notification (`SECRETS_ORANGE_MONEY`, paiement_orange.ts).
+ */
+export type EnvironnementOrangeMoney = 'bacASable' | 'production';
+
+/**
+ * Réglage en service. Ne change qu'avec le go du client, en même temps que
+ * son jumeau dans l'app (`environnementOrangeMoney`, même fichier que
+ * `accesOrangeMoney`) : un test vérifie qu'ils sont d'accord, et la
+ * publication lit cette ligne telle quelle (secrets à vérifier).
+ */
+export const ENVIRONNEMENT_ORANGE_MONEY: EnvironnementOrangeMoney = 'bacASable';
+
 /** Orange Money accepté pour ce client ([testeur] : compte marqué par un Admin). */
 export function orangeMoneyPour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): boolean {
   return acces === 'tous' || (acces === 'testeurs' && testeur);

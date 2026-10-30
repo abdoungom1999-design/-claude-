@@ -85,13 +85,19 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
     }
   }
 
+  /// Ce que coûte un paiement Orange Money du testeur ([environnementOrangeMoney]).
+  static String get _argentOrange => switch (environnementOrangeMoney) {
+        EnvironnementOrangeMoney.bacASable => "bac à sable d'Orange, aucun argent réel",
+        EnvironnementOrangeMoney.production =>
+          'argent réel, débité de son compte Orange Money et versé sur le compte marchand de Groupe Santine',
+      };
+
   /// Effet de la marque selon le réglage en service ([accesOrangeMoney]).
   static String get _effetTesteur => switch (accesOrangeMoney) {
         AccesOrangeMoney.ferme =>
           "Orange Money est fermé : cette marque ne prendra effet que pendant l'essai réservé aux testeurs. Journalisé.",
         AccesOrangeMoney.testeurs =>
-          "Essai en cours : un testeur voit Orange Money et peut payer avec (bac à sable d'Orange, aucun argent réel). "
-              'Journalisé.',
+          'Essai en cours : un testeur voit Orange Money et peut payer avec ($_argentOrange). Journalisé.',
         AccesOrangeMoney.tous => "Orange Money est ouvert à tous les clients : cette marque n'a plus d'effet.",
       };
 
@@ -103,7 +109,7 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
           title: const Text('Désigner un testeur Orange Money ?'),
           content: Text(
             "${widget.nomClient} pourra voir Orange Money et payer avec pendant l'essai réservé aux testeurs "
-            "(bac à sable d'Orange, aucun argent réel). Les autres clients ne voient rien.\n\n"
+            '($_argentOrange). Les autres clients ne voient rien.\n\n'
             'Cette opération est journalisée.',
           ),
           actions: [

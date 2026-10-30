@@ -191,6 +191,22 @@ test('accès à Orange Money et testeurs : jamais changés par un lot de design'
   }
 });
 
+test('environnement d\'Orange Money et mention « argent réel » : jamais changés par un lot de design', () => {
+  const chemin = 'mobile/lib/core/widgets/payment_method_sheet.dart';
+  for (const ligne of [
+    'const environnementOrangeMoney = EnvironnementOrangeMoney.production;',
+    '        PaymentMethod.wave || PaymentMethod.portefeuille => argentReel(),',
+    "                  'Paiement sécurisé', // au lieu de mentionPaiement(moyens)",
+    '                  mentionPaiement(const [], environnement: environnement),',
+  ]) {
+    assert.equal(controlerLignes(diffDe({ chemin, ajoutees: [ligne] })).length, 1, ligne);
+  }
+  // Retirer la mention est aussi refusé ; la réindenter passe.
+  const mention = 'mentionPaiement(moyens, environnement: environnement),';
+  assert.equal(controlerLignes(diffDe({ chemin, retirees: [`    ${mention}`] }))[0]?.sens, 'retirée');
+  assert.deepEqual(controlerLignes(diffDe({ chemin, retirees: [`    ${mention}`], ajoutees: [`        ${mention}`] })), []);
+});
+
 test('Orange Money ne se rouvre pas par un lot de design', () => {
   const chemin = 'mobile/lib/core/widgets/payment_method_selector.dart';
   for (const ligne of ['  _Choix(PaymentMethod.orangeMoney),', '  case PaymentMethod.orangeMoney:', "  'ORANGE_MONEY',"]) {

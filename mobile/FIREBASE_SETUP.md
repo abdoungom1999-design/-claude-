@@ -648,7 +648,7 @@ bouge** tant que le vrai Wave n'est pas branché (voir
   `ajusterPortefeuille`, solde entre 0 et 200 000 FCFA, journalisé dans
   `journal_admin`).
 
-#### Passage à l'argent réel (à faire : vrai Wave à brancher, Orange Money branché mais fermé)
+#### Passage à l'argent réel (à faire : vrai Wave à brancher ; Orange Money en essai réservé aux testeurs, production préparée)
 
 1. Compte Wave Business (API Checkout) : `WAVE_API_KEY` (clé API) et
    `WAVE_WEBHOOK_SECRET` dans Secret Manager, puis brancher
@@ -659,12 +659,25 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    (signature `Wave-Signature` = HMAC-SHA256 de l'horodatage collé au
    corps brut, sans séparateur, plusieurs `v1` possibles) et sera à
    revalider avec le premier événement réel du bac à sable.
-2. Orange Money : **branché, mais fermé aux clients** jusqu'au go du client
-   (29 octobre 2026 : on ne publie rien sans avoir tout validé ensemble).
-   Un seul réglage à trois positions, en deux exemplaires qui doivent rester
-   d'accord (un test le vérifie) : `ACCES_ORANGE_MONEY` dans
-   `functions/src/methodes_paiement.ts` et `accesOrangeMoney` dans
-   `lib/core/widgets/payment_method_selector.dart` :
+2. Orange Money : **branché, ouvert aux seuls testeurs**, chaque étape avec
+   le go du client (29 octobre 2026 : on ne publie rien sans avoir tout
+   validé ensemble). Deux réglages, chacun en deux exemplaires qui doivent
+   rester d'accord (un test le vérifie) : dans
+   `functions/src/methodes_paiement.ts` et dans
+   `lib/core/widgets/payment_method_selector.dart`.
+
+   **Environnement** (`ENVIRONNEMENT_ORANGE_MONEY` / `environnementOrangeMoney`) :
+   - `bacASable` (réglage en service) : api.sandbox.orange-sonatel.com,
+     données de test, aucun argent réel ;
+   - `production` : api.orange-sonatel.com, argent réel, versé sur le compte
+     marchand de Groupe Santine. Le serveur lit alors les secrets de
+     production (voir **Secrets**), le contrôle du marchand payé devient
+     strict, et l'app dit « Orange Money : argent réel · Wave : mode test,
+     aucun débit réel » sous les moyens proposés (un client qui ne voit que
+     Wave garde « mode test, aucun débit réel »), comme dans l'espace Admin
+     (Paramètres, Finances, désignation d'un testeur).
+
+   **Accès** (`ACCES_ORANGE_MONEY` / `accesOrangeMoney`), trois positions :
    - `ferme` : le serveur refuse `ORANGE_MONEY` (course et
      recharge) avec « Orange Money n'est pas encore disponible », l'app ne le
      propose pas, et aucune fonction ne déclare ni ne lit les secrets
@@ -720,21 +733,36 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      - `ORANGE_MONEY_CODE_MARCHAND` et `ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION`
        (64 caractères aléatoires, jamais affichés) : créés par le flux d'essai
        (case `preparer_notifications`), jamais remplacés en silence ;
-     - production, plus tard, sous **d'autres noms** pour ne jamais mélanger
-       les deux : `ORANGE_MONEY_CLIENT_ID`, `ORANGE_MONEY_CLIENT_SECRET` (et une
-       autre clé de notification), avec l'adresse `URL_ORANGE_MONEY.production`
-       dans `functions/src/index.ts`.
-     Le code marchand et le numéro de caisse ne vont pas dans ce dépôt public ;
-     le code secret du compte marchand n'est jamais utilisé.
-   - **Essai** : flux manuel « Essai Orange Money (bac à sable) » (onglet
-     Actions) : tests (faux Orange, émulateur), secrets bien collés, appels
-     réels au bac à sable (`test/orange_money.bac_a_sable.ts`), puis **parcours
-     complet** de Sprint contre le vrai bac à sable, sur l'émulateur Firestore
-     (`test/orange_money.parcours_bac_a_sable.ts`) : course et recharge payées
-     par Orange Money, lien de paiement, recherche, surveillance, notifications.
-     Case `preparer_notifications` : secrets manquants créés et adresse
+     - production, sous **d'autres noms** pour ne jamais mélanger les deux :
+       `ORANGE_MONEY_CLIENT_ID` et `ORANGE_MONEY_CLIENT_SECRET` (« Clé API de
+       production » du portail d'Orange, Clé ID et Clé secret, visibles une
+       fois l'application passée en production et validée par Orange ; créés
+       par le client) et `ORANGE_MONEY_CLE_NOTIFICATION` (créée par le flux
+       d'essai en production, jamais la clé du bac à sable) ; le code marchand
+       (`ORANGE_MONEY_CODE_MARCHAND`) est commun : celui de Groupe Santine.
+     Noms par environnement : `SECRETS_ORANGE_MONEY`
+     (`functions/src/paiement_orange.ts`), repris tels quels par la
+     publication et le flux d'essai (un test le vérifie). Le code marchand et
+     le numéro de caisse ne vont pas dans ce dépôt public ; le numéro de
+     caisse ne sert pas à l'API (paiement par QR code : code marchand
+     seulement) ; le code secret du compte marchand n'est jamais utilisé.
+   - **Essai** : flux manuel « Essai Orange Money » (onglet Actions), dans
+     l'environnement choisi au lancement (`environnement` : `bac_a_sable` ou
+     `production`) : tests (faux Orange, émulateur), secrets de cet
+     environnement bien collés, appels réels à Orange
+     (`test/orange_money.essai_reel.ts`), puis **parcours complet** de Sprint
+     contre le vrai Orange, sur l'émulateur Firestore
+     (`test/orange_money.parcours_reel.ts`) : course et recharge payées par
+     Orange Money, lien de paiement, recherche, surveillance, notifications.
+     En production, l'essai **ne paie rien** : jeton, demandes de paiement
+     réelles que personne ne paie (100 FCFA, une course, une recharge de
+     500 FCFA ; elles expirent seules), lectures ; ni numéros de test, ni clé
+     publique, ni pages des liens (bac à sable seulement).
+     Case `preparer_notifications` : secrets manquants de cet environnement
+     créés et adresse
      `https://europe-west1-sprint-vtc.cloudfunctions.net/webhookOrangeMoney`
-     enregistrée chez Orange (bac à sable) avec sa clé. Fait le 29 octobre
+     enregistrée chez Orange (dans cet environnement) avec sa clé. Bac à
+     sable : fait le 29 octobre
      2026 avec l'accord du client (essais #6 et #7) : les deux secrets
      existent, l'adresse est enregistrée et relue chez Orange (elle met
      quelques secondes à apparaître, d'où une relecture avec délai). Elle y
@@ -746,9 +774,10 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      tant qu'Orange Money est fermé, elle répond 503 (Orange réessaie plus
      tard).
    - **Pour l'essai, puis pour ouvrir** (chaque fois avec le go du client) :
-     flux d'essai vert avec `preparer_notifications` ; les deux exemplaires du
-     réglage sur `testeurs` (puis `tous`) dans le même commit ; publication
-     normale. Elle vérifie d'abord que les 4 secrets existent, puis que
+     flux d'essai vert avec `preparer_notifications`, dans l'environnement
+     visé ; les deux exemplaires du réglage changé (accès, environnement)
+     dans le même commit ; publication normale. Elle vérifie d'abord que les
+     4 secrets de l'environnement en service existent, puis que
      `webhookOrangeMoney` répond 401 sans clé (fermé : 503). Pour l'essai,
      marquer ensuite le compte client de chaque testeur ; avant `tous`, faire
      valider les textes de l'app (aide, conditions).
@@ -758,12 +787,36 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      Max It (application grand public non reliée au bac à sable, numéro
      français) : question posée à Orange. La commande de test expire seule
      (aucun argent n'a bougé).
-   - **À confirmer au premier vrai paiement du bac à sable** : comment payer
-     dans le bac à sable (le lien envoyé par Orange le 29 octobre 2026 est la
-     documentation générale de l'API, section « Errors », sans procédure Max
-     It) ; si la notification arrive bien sur notre adresse (sinon, la
-     surveillance retrouve le paiement en 5 minutes au plus) ; le refus d'un
-     second paiement sur un QR « usage unique ».
+   - **Réponse d'Orange (30 octobre 2026)** : le bac à sable ne se paie pas,
+     même avec un numéro de test (on va jusqu'à l'ouverture de Max It) ; un
+     vrai paiement demande la production et un téléphone (lien sur
+     smartphone, ou QR code scanné). L'étape du bac à sable est terminée.
+   - **Premier paiement réel (production, testeurs seulement)**, chaque étape
+     avec le go du client :
+     1. le client obtient la « Clé API de production » sur le portail (procédure
+        « Passage en production » d'Orange : documents de l'entreprise, puis
+        validation par Orange) et crée lui-même `ORANGE_MONEY_CLIENT_ID` et
+        `ORANGE_MONEY_CLIENT_SECRET` dans Secret Manager ; il vérifie que le
+        Mercode de production est celui de `ORANGE_MONEY_CODE_MARCHAND`
+        (sinon, nouvelle version de ce secret, par lui) ;
+     2. flux « Essai Orange Money » en `production` : jeton et demande de
+        paiement acceptés (rien n'est payé) ; puis, avec son go, la case
+        `preparer_notifications` (clé de production créée, adresse enregistrée
+        chez Orange) ;
+     3. publication : `ENVIRONNEMENT_ORANGE_MONEY` et `environnementOrangeMoney`
+        sur `production`, accès inchangé (`testeurs`) ; Wave reste simulé ;
+     4. un testeur au Sénégal (compte Orange Money et Max It sur son
+        téléphone, compte client Sprint marqué « Testeur Orange Money »)
+        recharge **500 FCFA** (la plus petite recharge acceptée) par Orange
+        Money : Max It s'ouvre, il valide avec son code secret, son solde
+        Sprint est crédité (aussitôt par la notification, en 5 minutes au plus
+        par la surveillance), et le compte marchand de Groupe Santine reçoit
+        les 500 FCFA. Contrôles : livre du portefeuille (Admin), relevé du
+        compte marchand, journaux de `webhookOrangeMoney` ;
+     5. à confirmer à ce premier paiement : notification reçue sur notre
+        adresse, forme réelle de la transaction relue (code marchand, montant,
+        référence), refus d'un second paiement sur un QR « usage unique ».
+     Avant d'ouvrir à tous : point 3 ci-dessous.
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.

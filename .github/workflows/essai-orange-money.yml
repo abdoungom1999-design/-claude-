@@ -1,27 +1,36 @@
-name: Essai Orange Money (bac à sable)
+name: Essai Orange Money
 
-# Lancé à la main seulement (onglet Actions > Essai Orange Money (bac à sable)
-# > Run workflow). Données de TEST, aucun argent réel, rien n'est publié :
-# l'app et le serveur en ligne ne changent pas.
+# Lancé à la main seulement (onglet Actions > Essai Orange Money > Run
+# workflow), dans l'environnement d'Orange choisi au lancement :
+# - bac_a_sable : api.sandbox.orange-sonatel.com, données de TEST ;
+# - production : api.orange-sonatel.com, identifiants de PRODUCTION. L'essai
+#   n'y paie RIEN : les demandes de paiement qu'il crée ne sont payées par
+#   personne et expirent seules ; aucun argent ne bouge.
+# Rien n'est publié : l'app et le serveur en ligne ne changent pas.
 #
 # 1. Tests automatiques du serveur, dont le paiement Orange Money avec un faux
 #    Orange, unitaires et sur l'émulateur Firestore.
-# 2. Identifiants de test lus dans Secret Manager (ORANGE_MONEY_SANDBOX_CLIENT_ID
-#    et ORANGE_MONEY_SANDBOX_CLIENT_SECRET, créés par le client) : présents et
-#    bien collés (ni vides, ni espace, ni retour à la ligne, ni caractère
-#    invisible). Code marchand : celui saisi au lancement, sinon celui de
-#    Secret Manager (ORANGE_MONEY_CODE_MARCHAND) s'il y est.
+# 2. Identifiants de l'environnement lus dans Secret Manager, créés par le
+#    client (bac à sable : ORANGE_MONEY_SANDBOX_CLIENT_ID et
+#    ORANGE_MONEY_SANDBOX_CLIENT_SECRET ; production : ORANGE_MONEY_CLIENT_ID
+#    et ORANGE_MONEY_CLIENT_SECRET) : présents et bien collés (ni vides, ni
+#    espace, ni retour à la ligne, ni caractère invisible). Code marchand,
+#    commun aux deux : celui saisi au lancement, sinon celui de Secret Manager
+#    (ORANGE_MONEY_CODE_MARCHAND) s'il y est.
 # 3. Facultatif (case « preparer_notifications ») : création dans Secret
-#    Manager du code marchand et de la clé des notifications s'ils manquent
-#    (jamais remplacés en silence), puis enregistrement chez Orange de
-#    l'adresse des notifications de Sprint (fonction webhookOrangeMoney). Le
-#    serveur publié ne s'en sert qu'une fois Orange Money ouvert (go du client).
-# 4. Appels RÉELS au bac à sable d'Orange (api.sandbox.orange-sonatel.com) :
-#    jeton d'accès, numéros de test, clé publique, demande de paiement par QR
-#    code (100 FCFA, jamais payée), adresses de notification enregistrées.
-# 5. Parcours complet de Sprint contre le bac à sable RÉEL, sur l'émulateur
+#    Manager du code marchand et de la clé des notifications de
+#    l'environnement s'ils manquent (jamais remplacés en silence), puis
+#    enregistrement chez Orange (dans cet environnement) de l'adresse des
+#    notifications de Sprint (fonction webhookOrangeMoney). Le serveur publié
+#    ne s'en sert qu'une fois Orange Money ouvert dans cet environnement (go
+#    du client).
+# 4. Appels RÉELS à Orange : jeton d'accès, demande de paiement par QR code
+#    (100 FCFA, jamais payée), adresses de notification enregistrées ; bac à
+#    sable seulement : numéros de test, clé publique, pages des liens.
+# 5. Parcours complet de Sprint contre le VRAI Orange, sur l'émulateur
 #    Firestore (aucune donnée de production) : course et recharge payées par
-#    Orange Money, lien de paiement, recherche, surveillance, notifications.
+#    Orange Money (demandes jamais payées), lien de paiement, recherche,
+#    surveillance, notifications.
 #
 # Rien de secret n'est affiché : identifiants, jeton, numéros et codes PIN de
 # test, code marchand, clé des notifications et liens de paiement sont masqués
@@ -30,13 +39,21 @@ name: Essai Orange Money (bac à sable)
 on:
   workflow_dispatch:
     inputs:
+      environnement:
+        description: "Environnement d'Orange : bac_a_sable (données de test) ou production (identifiants de production ; l'essai ne paie rien)."
+        required: true
+        default: bac_a_sable
+        type: choice
+        options:
+          - bac_a_sable
+          - production
       code_marchand:
         description: "Code marchand Orange (6 chiffres) ; vide : celui de Secret Manager s'il y est. Masqué dans le journal."
         required: false
         default: ""
         type: string
       preparer_notifications:
-        description: "Préparer les notifications : secrets manquants (code marchand, clé) dans Secret Manager et adresse de Sprint enregistrée chez Orange (bac à sable)."
+        description: "Préparer les notifications de l'environnement choisi : secrets manquants (code marchand, clé) dans Secret Manager et adresse de Sprint enregistrée chez Orange."
         required: false
         default: false
         type: boolean
@@ -49,7 +66,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  bac-a-sable:
+  essai:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -57,6 +74,37 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+
+      # Noms des secrets de l'environnement choisi (SECRETS_ORANGE_MONEY,
+      # functions/src/paiement_orange.ts ; un test vérifie qu'ils sont ici).
+      - name: Environnement d'Orange Money
+        env:
+          ENVIRONNEMENT: ${{ inputs.environnement }}
+        run: |
+          case "$ENVIRONNEMENT" in
+            bac_a_sable)
+              {
+                echo "ORANGE_ENVIRONNEMENT=bacASable"
+                echo "SECRET_ID_CLIENT=ORANGE_MONEY_SANDBOX_CLIENT_ID"
+                echo "SECRET_SECRET_CLIENT=ORANGE_MONEY_SANDBOX_CLIENT_SECRET"
+                echo "SECRET_CLE_NOTIFICATION=ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION"
+              } >> "$GITHUB_ENV"
+              echo "::notice title=Environnement::Bac à sable d'Orange : données de test, aucun argent réel."
+              ;;
+            production)
+              {
+                echo "ORANGE_ENVIRONNEMENT=production"
+                echo "SECRET_ID_CLIENT=ORANGE_MONEY_CLIENT_ID"
+                echo "SECRET_SECRET_CLIENT=ORANGE_MONEY_CLIENT_SECRET"
+                echo "SECRET_CLE_NOTIFICATION=ORANGE_MONEY_CLE_NOTIFICATION"
+              } >> "$GITHUB_ENV"
+              echo "::notice title=Environnement::PRODUCTION d'Orange : identifiants réels ; l'essai ne paie rien (demandes jamais payées, qui expirent seules)."
+              ;;
+            *)
+              echo "::error title=Environnement::Environnement inconnu : bac_a_sable ou production."
+              exit 1
+              ;;
+          esac
 
       - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
         env:
@@ -98,13 +146,14 @@ jobs:
 
       # Fichiers lus par les étapes suivantes, dans $RUNNER_TEMP/orange (effacé
       # à la fin, même en cas d'échec).
-      - name: Identifiants de test d'Orange Money et code marchand
+      - name: Identifiants d'Orange Money (environnement choisi) et code marchand
         run: |
           dossier="$RUNNER_TEMP/orange"
           mkdir -p "$dossier"
           erreurs=0
-          for nom in ORANGE_MONEY_SANDBOX_CLIENT_ID ORANGE_MONEY_SANDBOX_CLIENT_SECRET; do
-            fichier="$dossier/$nom"
+          for paire in "$SECRET_ID_CLIENT:ID_CLIENT" "$SECRET_SECRET_CLIENT:SECRET_CLIENT"; do
+            nom="${paire%%:*}"
+            fichier="$dossier/${paire##*:}"
             if ! gcloud secrets versions access latest --secret="$nom" --project=sprint-vtc \
                    --out-file="$fichier" > /dev/null 2> "$dossier/erreur.txt"; then
               raison=$(grep -o -m 1 -E 'NOT_FOUND|PERMISSION_DENIED|FAILED_PRECONDITION' "$dossier/erreur.txt" || true)
@@ -157,8 +206,10 @@ jobs:
           fi
           [ "$erreurs" -eq 0 ]
 
-      # Facultatif : prépare la réception des notifications d'Orange. Ne change
-      # rien à l'app publiée (Orange Money y reste fermé).
+      # Facultatif : prépare la réception des notifications d'Orange dans
+      # l'environnement choisi. Ne change rien à l'app publiée : le serveur ne
+      # s'en sert qu'une fois cet environnement mis en service par une
+      # publication (go du client).
       - name: Préparer les notifications (Secret Manager et adresse chez Orange)
         if: ${{ inputs.preparer_notifications }}
         run: |
@@ -182,21 +233,22 @@ jobs:
               --data-file="$dossier/CODE_MARCHAND" > /dev/null
             echo "::notice title=ORANGE_MONEY_CODE_MARCHAND::Créé dans Secret Manager."
           fi
-          # Clé des notifications : 64 caractères aléatoires, créée une seule fois, jamais affichée.
-          if gcloud secrets describe ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION --project=sprint-vtc > /dev/null 2>&1; then
-            echo "::notice title=ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION::Déjà dans Secret Manager : réutilisée."
+          # Clé des notifications de l'environnement : 64 caractères aléatoires,
+          # créée une seule fois, jamais affichée, jamais partagée entre les deux.
+          if gcloud secrets describe "$SECRET_CLE_NOTIFICATION" --project=sprint-vtc > /dev/null 2>&1; then
+            echo "::notice title=$SECRET_CLE_NOTIFICATION::Déjà dans Secret Manager : réutilisée."
           else
             openssl rand -hex 32 | tr -d '\n' > "$dossier/cle_nouvelle"
             echo "::add-mask::$(cat "$dossier/cle_nouvelle")"
-            gcloud secrets create ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION --project=sprint-vtc --replication-policy=automatic \
+            gcloud secrets create "$SECRET_CLE_NOTIFICATION" --project=sprint-vtc --replication-policy=automatic \
               --data-file="$dossier/cle_nouvelle" > /dev/null
-            echo "::notice title=ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION::Créée dans Secret Manager (64 caractères aléatoires, jamais affichés)."
+            echo "::notice title=$SECRET_CLE_NOTIFICATION::Créée dans Secret Manager (64 caractères aléatoires, jamais affichés)."
           fi
-          gcloud secrets versions access latest --secret=ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION --project=sprint-vtc \
+          gcloud secrets versions access latest --secret="$SECRET_CLE_NOTIFICATION" --project=sprint-vtc \
             --out-file="$dossier/CLE_NOTIFICATION" > /dev/null
           echo "::add-mask::$(cat "$dossier/CLE_NOTIFICATION")"
 
-      - name: Bac à sable d'Orange Money (appels réels, données de test)
+      - name: Appels réels à Orange Money (environnement choisi, rien n'est payé)
         run: |
           dossier="$RUNNER_TEMP/orange"
           cle=""
@@ -205,14 +257,14 @@ jobs:
             cle=$(cat "$dossier/CLE_NOTIFICATION")
             url="https://europe-west1-sprint-vtc.cloudfunctions.net/webhookOrangeMoney"
           fi
-          ORANGE_CLIENT_ID="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_ID")" \
-          ORANGE_CLIENT_SECRET="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_SECRET")" \
+          ORANGE_CLIENT_ID="$(cat "$dossier/ID_CLIENT")" \
+          ORANGE_CLIENT_SECRET="$(cat "$dossier/SECRET_CLIENT")" \
           ORANGE_CODE_MARCHAND="$(cat "$dossier/CODE_MARCHAND")" \
           ORANGE_CLE_NOTIFICATION="$cle" \
           ORANGE_URL_NOTIFICATION="$url" \
-            node functions/lib/test/orange_money.bac_a_sable.js
+            node functions/lib/test/orange_money.essai_reel.js
 
-      - name: Parcours complet de Sprint (émulateur Firestore + bac à sable réel)
+      - name: Parcours complet de Sprint (émulateur Firestore + vrai Orange, rien n'est payé)
         run: |
           dossier="$RUNNER_TEMP/orange"
           if [ ! -s "$dossier/CODE_MARCHAND" ]; then
@@ -220,11 +272,11 @@ jobs:
             exit 0
           fi
           cd functions
-          ORANGE_CLIENT_ID="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_ID")" \
-          ORANGE_CLIENT_SECRET="$(cat "$dossier/ORANGE_MONEY_SANDBOX_CLIENT_SECRET")" \
+          ORANGE_CLIENT_ID="$(cat "$dossier/ID_CLIENT")" \
+          ORANGE_CLIENT_SECRET="$(cat "$dossier/SECRET_CLIENT")" \
           ORANGE_CODE_MARCHAND="$(cat "$dossier/CODE_MARCHAND")" \
             ../firestore_rules_test/node_modules/.bin/firebase emulators:exec --only firestore --project demo-sprint \
-              "node lib/test/orange_money.parcours_bac_a_sable.js"
+              "node lib/test/orange_money.parcours_reel.js"
 
       - name: Effacer les fichiers temporaires
         if: always()

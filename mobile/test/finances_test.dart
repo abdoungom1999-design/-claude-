@@ -327,6 +327,61 @@ void main() {
       expect(find.textContaining('Orange', findRichText: true), findsNothing);
     });
 
+    test('environnement d\'Orange Money : bac à sable jusqu\'au go du client ; seul Orange Money en production débite vraiment', () {
+      // Jumeau : ENVIRONNEMENT_ORANGE_MONEY du serveur. Production : seulement avec le go du client.
+      expect(environnementOrangeMoney, EnvironnementOrangeMoney.bacASable);
+      expect(PaymentMethod.orangeMoney.argentReel(), isFalse);
+      expect(PaymentMethod.orangeMoney.argentReel(environnement: EnvironnementOrangeMoney.production), isTrue);
+      for (final environnement in EnvironnementOrangeMoney.values) {
+        // Wave passe encore par le faux opérateur du serveur.
+        expect(PaymentMethod.wave.argentReel(environnement: environnement), isFalse);
+        expect(PaymentMethod.portefeuille.argentReel(environnement: environnement), isFalse);
+      }
+      const avecOrange = [PaymentMethod.wave, PaymentMethod.orangeMoney];
+      const essai = 'Paiement sécurisé — mode test, aucun débit réel';
+      expect(mentionPaiement(avecOrange, environnement: EnvironnementOrangeMoney.bacASable), essai);
+      expect(mentionPaiement([PaymentMethod.wave], environnement: EnvironnementOrangeMoney.production), essai);
+      expect(
+        mentionPaiement(avecOrange, environnement: EnvironnementOrangeMoney.production),
+        'Paiement sécurisé — Orange Money : argent réel · Wave : mode test, aucun débit réel',
+      );
+      expect(mentionPaiement([PaymentMethod.orangeMoney], environnement: EnvironnementOrangeMoney.production), 'Paiement sécurisé');
+    });
+
+    testWidgets('production : la sheet du testeur dit qu\'Orange Money est de l\'argent réel, sans débordement sur petit écran',
+        (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      Future<void> ouvrir({required bool testeur}) async {
+        await tester.pumpWidget(MaterialApp(
+          key: ValueKey(testeur),
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => afficherSelectionPaiementSheet(
+                context,
+                montantFcfa: 3000,
+                testeurOrangeMoney: testeur,
+                acces: AccesOrangeMoney.testeurs,
+                environnement: EnvironnementOrangeMoney.production,
+              ),
+              child: const Text('Ouvrir'),
+            ),
+          ),
+        ));
+        await tester.tap(find.text('Ouvrir'));
+        await tester.pumpAndSettle();
+      }
+
+      await ouvrir(testeur: true);
+      expect(find.text('Paiement sécurisé — Orange Money : argent réel · Wave : mode test, aucun débit réel'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      // Un client ordinaire ne voit que Wave, encore en mode test.
+      await ouvrir(testeur: false);
+      expect(find.text('Paiement sécurisé — mode test, aucun débit réel'), findsOneWidget);
+      expect(find.textContaining('Orange', findRichText: true), findsNothing);
+    });
+
     testWidgets('la sheet ne propose que Wave : plus d\'Orange Money (course gratuite par la simulation)', (tester) async {
       PaymentMethod? choix;
       await tester.pumpWidget(MaterialApp(

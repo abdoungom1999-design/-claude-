@@ -14,8 +14,9 @@ import '../../../core/widgets/onyx_vert.dart';
 ///
 /// 1. le serveur vérifie la demande et renvoie un lien de paiement ;
 /// 2. le client paie sur la page de l'opérateur (aujourd'hui le faux Wave :
-///    aucune somme débitée ; Orange Money ouvre Max It, sur le bac à sable
-///    d'Orange tant que c'est un essai), ouverte dans un nouvel onglet ;
+///    aucune somme débitée ; Orange Money ouvre Max It, dans le bac à sable
+///    d'Orange ou en production selon `environnementOrangeMoney`), ouverte
+///    dans un nouvel onglet ;
 /// 3. l'opérateur confirme au serveur (webhook signé, ou notification
 ///    d'Orange relue chez Orange), qui crédite alors le solde ; l'app, qui
 ///    suit la recharge en temps réel, l'affiche.

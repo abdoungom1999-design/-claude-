@@ -23,13 +23,15 @@ import 'payment_method_selector.dart';
 /// pour le total.
 ///
 /// [testeurOrangeMoney] : compte marqué « Testeur Orange Money » par un Admin
-/// (voir `AuthRepository.chargerTesteurOrangeMoney`).
+/// (voir `AuthRepository.chargerTesteurOrangeMoney`). La mention du bas dit
+/// quels moyens débitent vraiment ([mentionPaiement], selon [environnement]).
 Future<PaymentMethod?> afficherSelectionPaiementSheet(
   BuildContext context, {
   int? montantFcfa,
   Portefeuille? portefeuille,
   bool testeurOrangeMoney = false,
   AccesOrangeMoney acces = accesOrangeMoney,
+  EnvironnementOrangeMoney environnement = environnementOrangeMoney,
 }) {
   return showModalBottomSheet<PaymentMethod>(
     context: context,
@@ -39,18 +41,26 @@ Future<PaymentMethod?> afficherSelectionPaiementSheet(
       montantFcfa: montantFcfa,
       portefeuille: portefeuille,
       moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney, acces: acces),
+      environnement: environnement,
     ),
   );
 }
 
 class _SelectionPaiementSheet extends StatelessWidget {
-  const _SelectionPaiementSheet({required this.montantFcfa, this.portefeuille, required this.moyens});
+  const _SelectionPaiementSheet({
+    required this.montantFcfa,
+    this.portefeuille,
+    required this.moyens,
+    required this.environnement,
+  });
 
   final int? montantFcfa;
   final Portefeuille? portefeuille;
 
   /// Opérateurs de mobile money proposés, dans l'ordre d'affichage.
   final List<PaymentMethod> moyens;
+
+  final EnvironnementOrangeMoney environnement;
 
   /// Solde à proposer : interrupteur actif et solde suffisant.
   int? get _soldeUtilisable {
@@ -104,10 +114,11 @@ class _SelectionPaiementSheet extends StatelessWidget {
                 color: AppColors.carteHaute,
                 borderRadius: BorderRadius.circular(14),
               ),
+              // Petit écran ou texte agrandi : le libellé passe à la ligne, le montant reste entier.
               child: Row(
                 children: [
-                  const Text('Montant à payer', style: TextStyle(color: AppColors.texteDiscret)),
-                  const Spacer(),
+                  const Expanded(child: Text('Montant à payer', style: TextStyle(color: AppColors.texteDiscret))),
+                  const SizedBox(width: 12),
                   Text(
                     formaterFcfa(montantFcfa!),
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.texte),
@@ -133,14 +144,17 @@ class _SelectionPaiementSheet extends StatelessWidget {
             _BoutonPaiement.operateur(moyens[i]),
           ],
           const SizedBox(height: 14),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.texteDiscret),
-              SizedBox(width: 6),
-              Text(
-                'Paiement sécurisé — mode test, aucun débit réel',
-                style: TextStyle(fontSize: 12, color: AppColors.texteDiscret),
+              const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.texteDiscret),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  mentionPaiement(moyens, environnement: environnement),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
+                ),
               ),
             ],
           ),

@@ -302,28 +302,41 @@ jobs:
           fi
 
       # Orange Money en essai (testeurs) ou ouvert (ACCES_ORANGE_MONEY,
-      # functions/src/methodes_paiement.ts) : ses secrets doivent exister AVANT
-      # le déploiement, sinon il échouerait. Ils sont créés par le flux « Essai
-      # Orange Money (bac à sable) », case « preparer_notifications ». Fermé :
-      # aucun secret Orange n'est demandé.
+      # functions/src/methodes_paiement.ts) : les secrets de l'environnement
+      # en service (ENVIRONNEMENT_ORANGE_MONEY, même fichier ; noms :
+      # SECRETS_ORANGE_MONEY, functions/src/paiement_orange.ts) doivent exister
+      # AVANT le déploiement, sinon il échouerait. Identifiants créés par le
+      # client ; code marchand et clé des notifications par le flux « Essai
+      # Orange Money » (même environnement), case « preparer_notifications ».
+      # Fermé : aucun secret Orange n'est demandé.
       - name: Secrets d'Orange Money présents (si Orange Money n'est pas fermé)
         if: steps.secret.outputs.present == 'true'
         run: |
-          if ! grep -qE "^export const ACCES_ORANGE_MONEY: AccesOrangeMoney = '(testeurs|tous)';$" functions/src/methodes_paiement.ts; then
+          reglages=functions/src/methodes_paiement.ts
+          if ! grep -qE "^export const ACCES_ORANGE_MONEY: AccesOrangeMoney = '(testeurs|tous)';$" "$reglages"; then
             echo "Orange Money fermé : aucun secret Orange requis."
             exit 0
           fi
+          if grep -qxF "export const ENVIRONNEMENT_ORANGE_MONEY: EnvironnementOrangeMoney = 'production';" "$reglages"; then
+            environnement=production
+            noms="ORANGE_MONEY_CLIENT_ID ORANGE_MONEY_CLIENT_SECRET ORANGE_MONEY_CODE_MARCHAND ORANGE_MONEY_CLE_NOTIFICATION"
+          elif grep -qxF "export const ENVIRONNEMENT_ORANGE_MONEY: EnvironnementOrangeMoney = 'bacASable';" "$reglages"; then
+            environnement=bac_a_sable
+            noms="ORANGE_MONEY_SANDBOX_CLIENT_ID ORANGE_MONEY_SANDBOX_CLIENT_SECRET ORANGE_MONEY_CODE_MARCHAND ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION"
+          else
+            echo "::error title=Environnement d'Orange Money illisible::Ligne ENVIRONNEMENT_ORANGE_MONEY introuvable dans $reglages. Rien n'a été déployé."
+            exit 1
+          fi
           manquants=""
-          for nom in ORANGE_MONEY_SANDBOX_CLIENT_ID ORANGE_MONEY_SANDBOX_CLIENT_SECRET \
-                     ORANGE_MONEY_CODE_MARCHAND ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION; do
+          for nom in $noms; do
             etat=$(gcloud secrets versions describe latest --secret="$nom" --project=sprint-vtc --format='value(state)' 2>/dev/null || true)
             [ "$etat" = ENABLED ] || manquants="$manquants $nom"
           done
           if [ -n "$manquants" ]; then
-            echo "::error title=Secrets Orange Money manquants::$manquants : lancer d'abord le flux « Essai Orange Money (bac à sable) » avec « preparer_notifications ». Rien n'a été déployé."
+            echo "::error title=Secrets Orange Money manquants ($environnement)::$manquants : identifiants à créer par le client, puis flux « Essai Orange Money » ($environnement) avec « preparer_notifications ». Rien n'a été déployé."
             exit 1
           fi
-          echo "Secrets d'Orange Money présents."
+          echo "Secrets d'Orange Money présents ($environnement)."
 
       # --force : accepte sans question la politique de nettoyage des
       # images de build (Artifact Registry) et supprime les fonctions

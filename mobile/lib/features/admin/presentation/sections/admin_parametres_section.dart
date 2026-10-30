@@ -269,7 +269,13 @@ class _ReglesEnVigueur extends StatelessWidget {
                 AccesOrangeMoney.tous => 'Wave, Orange Money, solde Sprint',
               },
             ),
-            ligne('Encaissement', 'Mode test (aucun débit réel)'),
+            ligne(
+              'Encaissement',
+              switch (environnementOrangeMoney) {
+                EnvironnementOrangeMoney.bacASable => 'Mode test (aucun débit réel)',
+                EnvironnementOrangeMoney.production => 'Orange Money : argent réel · Wave : mode test (aucun débit réel)',
+              },
+            ),
           ],
         ),
       ),

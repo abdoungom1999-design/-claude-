@@ -28,6 +28,21 @@ enum AccesOrangeMoney {
 /// sont d'accord.
 const accesOrangeMoney = AccesOrangeMoney.testeurs;
 
+/// Où Orange Money encaisse (décision du client).
+enum EnvironnementOrangeMoney {
+  /// Bac à sable d'Orange : données de test, aucun argent réel.
+  bacASable,
+
+  /// Production : argent réel, versé sur le compte marchand de Groupe Santine.
+  production,
+}
+
+/// Réglage en service. Ne change qu'avec le go du client, en même temps que
+/// son jumeau du serveur (`ENVIRONNEMENT_ORANGE_MONEY`,
+/// `functions/src/methodes_paiement.ts`) : un test du serveur vérifie qu'ils
+/// sont d'accord.
+const environnementOrangeMoney = EnvironnementOrangeMoney.bacASable;
+
 /// Le profil (`users/{uid}`) porte-t-il la marque « Testeur Orange Money »,
 /// posée par un Admin ? Seul `true` compte, comme pour le serveur.
 bool estTesteurOrangeMoney(Map<String, dynamic>? profil) => profil?['testeurOrangeMoney'] == true;
@@ -38,6 +53,24 @@ List<PaymentMethod> moyensMobileMoneyPour({required bool testeur, AccesOrangeMon
       PaymentMethod.wave,
       if (acces == AccesOrangeMoney.tous || (acces == AccesOrangeMoney.testeurs && testeur)) PaymentMethod.orangeMoney,
     ];
+
+/// Ce moyen débite-t-il vraiment le client ? Wave passe encore par le faux
+/// opérateur du serveur (aucune somme débitée) ; Orange Money, en production.
+extension PaymentMethodArgentReel on PaymentMethod {
+  bool argentReel({EnvironnementOrangeMoney environnement = environnementOrangeMoney}) => switch (this) {
+        PaymentMethod.orangeMoney => environnement == EnvironnementOrangeMoney.production,
+        PaymentMethod.wave || PaymentMethod.portefeuille => false,
+      };
+}
+
+/// Mention sous les [moyens] proposés : lesquels débitent vraiment le client.
+String mentionPaiement(List<PaymentMethod> moyens, {EnvironnementOrangeMoney environnement = environnementOrangeMoney}) {
+  final reels = [for (final m in moyens) if (m.argentReel(environnement: environnement)) m.label];
+  final simules = [for (final m in moyens) if (!m.argentReel(environnement: environnement)) m.label];
+  if (reels.isEmpty) return 'Paiement sécurisé — mode test, aucun débit réel';
+  if (simules.isEmpty) return 'Paiement sécurisé';
+  return 'Paiement sécurisé — ${reels.join(', ')} : argent réel · ${simules.join(', ')} : mode test, aucun débit réel';
+}
 
 extension PaymentMethodLabel on PaymentMethod {
   String get label {

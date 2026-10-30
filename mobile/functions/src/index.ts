@@ -32,7 +32,7 @@ import {
   type FournisseurPaiement,
 } from './fournisseurs';
 import { ClientGoogle } from './google';
-import { ACCES_ORANGE_MONEY } from './methodes_paiement';
+import { ACCES_ORANGE_MONEY, ENVIRONNEMENT_ORANGE_MONEY } from './methodes_paiement';
 import { URL_ORANGE_MONEY } from './orange_money';
 import {
   configurerOrange,
@@ -40,6 +40,7 @@ import {
   fournisseursDuMoyen,
   rattraperOrange,
   repondreNotificationOrange,
+  SECRETS_ORANGE_MONEY,
   type ConfigOrange,
 } from './paiement_orange';
 import {
@@ -74,20 +75,22 @@ const cleGoogle = defineSecret('GOOGLE_MAPS_API_KEY');
 const options = { secrets: [cleGoogle] };
 
 /**
- * Orange Money, bac à sable (données de test) jusqu'au passage en production
- * validé par le client. Secrets dans Secret Manager : identifiants de
- * l'application Orange (créés par le client), code marchand et clé des
- * notifications (créés par le flux « Essai Orange Money »). Déclarés et liés
- * aux fonctions SEULEMENT quand Orange Money n'est pas fermé (essai des
- * testeurs ou ouverture) : d'ici là, aucune publication ni aucun paiement
- * Wave ne dépend d'eux.
+ * Orange Money, dans l'environnement en service (ENVIRONNEMENT_ORANGE_MONEY :
+ * bac à sable, puis production avec le go du client). Secrets dans Secret
+ * Manager, sous les noms de cet environnement (SECRETS_ORANGE_MONEY) :
+ * identifiants de l'application Orange (créés par le client), code marchand
+ * et clé des notifications (créés par le flux « Essai Orange Money »).
+ * Déclarés et liés aux fonctions SEULEMENT quand Orange Money n'est pas fermé
+ * (essai des testeurs ou ouverture) : d'ici là, aucune publication ni aucun
+ * paiement Wave ne dépend d'eux.
  */
+const nomsSecretsOrange = SECRETS_ORANGE_MONEY[ENVIRONNEMENT_ORANGE_MONEY];
 const secretsOrange = ACCES_ORANGE_MONEY !== 'ferme'
   ? {
-      idClient: defineSecret('ORANGE_MONEY_SANDBOX_CLIENT_ID'),
-      secretClient: defineSecret('ORANGE_MONEY_SANDBOX_CLIENT_SECRET'),
-      codeMarchand: defineSecret('ORANGE_MONEY_CODE_MARCHAND'),
-      cleNotification: defineSecret('ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION'),
+      idClient: defineSecret(nomsSecretsOrange.idClient),
+      secretClient: defineSecret(nomsSecretsOrange.secretClient),
+      codeMarchand: defineSecret(nomsSecretsOrange.codeMarchand),
+      cleNotification: defineSecret(nomsSecretsOrange.cleNotification),
     }
   : null;
 const secretsClientOrange = secretsOrange ? [secretsOrange.idClient, secretsOrange.secretClient, secretsOrange.codeMarchand] : [];
@@ -107,7 +110,7 @@ function orange(): ConfigOrange | null {
       secretClient: secretsOrange.secretClient.value(),
       codeMarchand: secretsOrange.codeMarchand.value(),
     },
-    URL_ORANGE_MONEY.bacASable,
+    URL_ORANGE_MONEY[ENVIRONNEMENT_ORANGE_MONEY],
   );
   return configOrange;
 }

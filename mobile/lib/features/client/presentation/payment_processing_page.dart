@@ -17,7 +17,8 @@ import '../../../core/widgets/onyx_vert.dart';
 ///    ([CourseService.creerPaiement]) ;
 /// 2. le client paie sur la page de l'opérateur, ouverte dans un nouvel
 ///    onglet (aujourd'hui le faux Wave : aucune somme débitée ; Orange Money
-///    ouvre Max It, sur le bac à sable d'Orange tant que c'est un essai) ;
+///    ouvre Max It, dans le bac à sable d'Orange ou en production selon
+///    `environnementOrangeMoney`) ;
 /// 3. l'opérateur confirme le paiement au serveur (webhook signé, ou
 ///    notification d'Orange relue chez Orange), qui crée alors la course, ce
 ///    qui réveille le radar des chauffeurs ;

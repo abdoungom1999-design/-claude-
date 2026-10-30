@@ -1,13 +1,15 @@
 /**
- * Essai du PARCOURS COMPLET de Sprint contre le bac à sable RÉEL d'Orange
- * Money (données de test, aucun argent réel), sur l'émulateur Firestore :
- * aucune donnée de production, rien de publié. Lancé par le flux « Essai
- * Orange Money (bac à sable) » via `firebase emulators:exec` ; ce n'est pas
- * un test automatique (`npm test` ne le lance pas).
+ * Essai du PARCOURS COMPLET de Sprint contre le VRAI Orange Money, sur
+ * l'émulateur Firestore : aucune donnée de production, rien de publié. Lancé
+ * par le flux « Essai Orange Money » via `firebase emulators:exec` ; ce n'est
+ * pas un test automatique (`npm test` ne le lance pas). Environnement choisi
+ * au lancement (ORANGE_ENVIRONNEMENT) : `bacASable` (données de test) ou
+ * `production` (les demandes y sont réelles, mais personne ne les paie : elles
+ * expirent seules, aucun argent ne bouge).
  *
- * Lit ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET et ORANGE_CODE_MARCHAND dans
- * l'environnement. Orange Money est ouvert pour l'essai seulement (le
- * serveur publié le refuse toujours). Étapes :
+ * Lit ORANGE_ENVIRONNEMENT, ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET et
+ * ORANGE_CODE_MARCHAND dans l'environnement. Orange Money est ouvert à tous
+ * pour l'essai seulement (l'émulateur, jamais le serveur publié). Étapes :
  *
  *   1. une course payée par Orange Money : demande de paiement chez Orange
  *      avec la vraie référence de la commande, commande en attente ;
@@ -31,7 +33,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { estimer } from '../src/commandes';
 import { calculDistance } from '../src/distances';
 import { FournisseurSimule } from '../src/fournisseurs';
-import { ErreurOrangeMoney } from '../src/orange_money';
+import type { EnvironnementOrangeMoney } from '../src/methodes_paiement';
+import { ErreurOrangeMoney, URL_ORANGE_MONEY } from '../src/orange_money';
 import {
   configurerOrange,
   FournisseurOrangeMoney,
@@ -90,6 +93,7 @@ async function explorerLien(lien: string): Promise<string> {
 }
 
 async function principal(): Promise<number> {
+  const lu = process.env.ORANGE_ENVIRONNEMENT;
   const idClient = process.env.ORANGE_CLIENT_ID ?? '';
   const secretClient = process.env.ORANGE_CLIENT_SECRET ?? '';
   const codeMarchand = (process.env.ORANGE_CODE_MARCHAND ?? '').trim();
@@ -98,11 +102,23 @@ async function principal(): Promise<number> {
     annoncer('error', 'Parcours', 'À lancer sur l\'émulateur Firestore (firebase emulators:exec) : jamais sur la vraie base.');
     return 1;
   }
-  const config = configurerOrange({ idClient, secretClient, codeMarchand });
-  if (config === null) {
-    annoncer('error', 'Parcours', 'Identifiants de test ou code marchand (6 chiffres) manquants : parcours impossible.');
+  if (lu !== 'bacASable' && lu !== 'production') {
+    annoncer('error', 'Parcours', 'ORANGE_ENVIRONNEMENT : « bacASable » ou « production » attendu.');
     return 1;
   }
+  const environnement: EnvironnementOrangeMoney = lu;
+  const config = configurerOrange({ idClient, secretClient, codeMarchand }, URL_ORANGE_MONEY[environnement]);
+  if (config === null) {
+    annoncer('error', 'Parcours', 'Identifiants ou code marchand (6 chiffres) manquants : parcours impossible.');
+    return 1;
+  }
+  annoncer(
+    'notice',
+    'Parcours',
+    environnement === 'production'
+      ? 'Production d\'Orange : demandes réelles que personne ne paie (elles expirent seules), sur l\'émulateur Firestore.'
+      : 'Bac à sable d\'Orange : données de test, sur l\'émulateur Firestore.',
+  );
 
   const app = initializeApp({ projectId: 'demo-sprint' });
   const db = getFirestore(app);

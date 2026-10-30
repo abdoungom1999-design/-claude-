@@ -7,6 +7,7 @@ import { DISTANCE_MAX_KM, DISTANCE_TRAJET_MAX_KM, estimer, prixServeur, validerD
 import type { CalculDistance } from '../src/distances';
 import {
   ACCES_ORANGE_MONEY,
+  ENVIRONNEMENT_ORANGE_MONEY,
   METHODES_ACTIVES,
   METHODES_CONNUES,
   METHODES_RECHARGE,
@@ -15,6 +16,7 @@ import {
   verifierMethode,
   type Methode,
 } from '../src/methodes_paiement';
+import { SECRETS_ORANGE_MONEY } from '../src/paiement_orange';
 import { COEFFICIENT_DETOUR, distanceRouteEstimeeKm, type Point } from '../src/tarification';
 
 const PLATEAU = { latitude: 14.6928, longitude: -17.4467 };
@@ -122,6 +124,43 @@ test('Orange Money : essai réservé aux testeurs (go du client, 29 octobre 2026
   // La publication lit cette ligne telle quelle (secrets à vérifier, réponse attendue du webhook).
   const serveur = readFileSync(resolve(__dirname, '..', '..', 'src', 'methodes_paiement.ts'), 'utf8');
   assert.match(serveur, new RegExp(`^export const ACCES_ORANGE_MONEY: AccesOrangeMoney = '${ACCES_ORANGE_MONEY}';$`, 'm'));
+});
+
+test('Orange Money : bac à sable jusqu\'au go du client pour la production, dans le serveur comme dans l\'app', () => {
+  assert.equal(ENVIRONNEMENT_ORANGE_MONEY, 'bacASable', 'production (argent réel) : seulement avec le go du client');
+  // Jumeau dans l'app (textes « mode test » ou « argent réel »), lu depuis functions/lib/test.
+  const app = readFileSync(resolve(__dirname, '..', '..', '..', 'lib', 'core', 'widgets', 'payment_method_selector.dart'), 'utf8');
+  const jumeau = app.match(/^const environnementOrangeMoney = EnvironnementOrangeMoney\.(bacASable|production);$/m);
+  assert.ok(jumeau, 'environnementOrangeMoney introuvable dans payment_method_selector.dart : le texte a-t-il changé de forme ?');
+  assert.equal(jumeau[1], ENVIRONNEMENT_ORANGE_MONEY, 'l\'app dirait « aucun débit réel » pour un vrai paiement (ou l\'inverse)');
+  // La publication lit cette ligne telle quelle (secrets de l'environnement à vérifier).
+  const serveur = readFileSync(resolve(__dirname, '..', '..', 'src', 'methodes_paiement.ts'), 'utf8');
+  assert.match(
+    serveur,
+    new RegExp(`^export const ENVIRONNEMENT_ORANGE_MONEY: EnvironnementOrangeMoney = '${ENVIRONNEMENT_ORANGE_MONEY}';$`, 'm'),
+  );
+});
+
+test('secrets d\'Orange Money : jamais mélangés entre bac à sable et production, mêmes noms pour le serveur, la publication et l\'essai', () => {
+  const { bacASable, production } = SECRETS_ORANGE_MONEY;
+  assert.equal(bacASable.codeMarchand, production.codeMarchand, 'un seul code marchand : celui de Groupe Santine');
+  for (const cle of ['idClient', 'secretClient', 'cleNotification'] as const) {
+    assert.notEqual(bacASable[cle], production[cle], `${cle} : un secret par environnement`);
+    assert.doesNotMatch(production[cle], /SANDBOX/, `${cle} de production`);
+  }
+  const flux = (nom: string) => readFileSync(resolve(__dirname, '..', '..', '..', '..', '.github', 'workflows', nom), 'utf8');
+  const publication = flux('flutter-web.yml');
+  const essai = flux('essai-orange-money.yml');
+  for (const [environnement, noms] of Object.entries(SECRETS_ORANGE_MONEY)) {
+    // Publication : les 4 noms vérifiés, sur la ligne de cet environnement.
+    const attendus = [noms.idClient, noms.secretClient, noms.codeMarchand, noms.cleNotification].join(' ');
+    assert.ok(publication.includes(`noms="${attendus}"`), `publication (${environnement}) : noms="${attendus}" attendu`);
+    // Essai : identifiants et clé de cet environnement ; code marchand commun.
+    for (const nom of [noms.idClient, noms.secretClient, noms.cleNotification]) {
+      assert.match(essai, new RegExp(`^ +echo "SECRET_[A-Z_]+=${nom}"$`, 'm'), `essai (${environnement}) : ${nom}`);
+    }
+    assert.ok(essai.includes(`--secret=${noms.codeMarchand} `), `essai : ${noms.codeMarchand}`);
+  }
 });
 
 test('accès à Orange Money : fermé pour tous, essai pour les seuls testeurs, puis ouvert à tous', () => {

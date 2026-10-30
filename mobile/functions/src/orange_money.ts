@@ -5,10 +5,10 @@ import { createHash, timingSafeEqual } from 'node:crypto';
  * https://developer.orange-sonatel.com, spécification OpenAPI « Orange Money
  * API » v1.1.0 du 22 octobre 2026, transmise par le client).
  *
- * PAS ENCORE BRANCHÉ aux paiements : Orange Money reste fermé
- * (`methodes_paiement.ts`). Ce module sert à l'essai manuel du bac à sable
- * (`test/orange_money.bac_a_sable.ts`, flux « Essai Orange Money (bac à
- * sable) ») et sera la base du fournisseur Orange Money.
+ * Branché aux paiements par `paiement_orange.ts`, ouvert selon
+ * `methodes_paiement.ts` (qui y a accès, et dans quel environnement). Sert
+ * aussi aux essais réels du flux « Essai Orange Money »
+ * (`test/orange_money.essai_reel.ts`, `test/orange_money.parcours_reel.ts`).
  *
  * - Jeton OAuth 2.0 (« client credentials ») : `POST /oauth/v1/token`, en
  *   formulaire. Gardé jusqu'à une minute avant son expiration, renouvelé une

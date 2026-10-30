@@ -3,6 +3,7 @@ import '../../../../core/demo/admin_demo_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/format_fcfa.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/payment_method_selector.dart';
 import '../../../../core/widgets/premium_dialog.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/stat_tile.dart';
@@ -145,8 +146,13 @@ class _VueFinances extends StatelessWidget {
           'Commission : ${Commission.pourcentage} % de chaque course terminée, figée à la fin de la course '
           '(imposée par les règles Firestore) ; les courses terminées avant le changement de taux gardent leurs '
           '${Commission.pourcentageHistorique} %. ${compte.nombreCourses} courses terminées au total, toutes '
-          'payées en mobile money (Wave) ou avec le solde du portefeuille, et encaissées par Sprint, qui reverse '
-          'au chauffeur le prix moins la commission (paiements encore en mode test : aucun argent réellement encaissé).'
+          'payées en mobile money (${accesOrangeMoney == AccesOrangeMoney.ferme ? 'Wave' : 'Wave ou Orange Money'}) '
+          'ou avec le solde du portefeuille, et encaissées par Sprint, qui reverse au chauffeur le prix moins la '
+          'commission (${switch (environnementOrangeMoney) {
+            EnvironnementOrangeMoney.bacASable => 'paiements encore en mode test : aucun argent réellement encaissé',
+            EnvironnementOrangeMoney.production =>
+              'Orange Money encaisse de l\'argent réel ; Wave est encore en mode test, sans argent réel',
+          }}).'
           '${compte.nombreRemboursees == 0 ? '' : ' ${compte.nombreRemboursees} course(s) remboursée(s) au client, exclue(s) '
               'des comptes : part des chauffeurs retirée (${formaterFcfa(compte.partsRetireesFcfa)}).'}',
           style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),

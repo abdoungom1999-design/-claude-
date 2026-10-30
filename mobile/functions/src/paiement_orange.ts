@@ -9,6 +9,7 @@ import {
   type FournisseurPaiement,
   type SessionPaiement,
 } from './fournisseurs';
+import type { EnvironnementOrangeMoney } from './methodes_paiement';
 import type { Messagerie } from './notifications';
 import {
   ClientOrangeMoney,
@@ -87,6 +88,28 @@ export interface ConfigOrange {
   /** Code marchand à 6 chiffres (Secret Manager : hors du dépôt public). */
   codeMarchand: string;
 }
+
+/**
+ * Noms des secrets d'Orange Money dans Secret Manager, par environnement :
+ * identifiants et clé des notifications jamais mélangés entre le bac à sable
+ * et la production ; le code marchand, celui de Groupe Santine, est commun.
+ * Repris tels quels par la publication et le flux d'essai (un test le
+ * vérifie).
+ */
+export const SECRETS_ORANGE_MONEY = {
+  bacASable: {
+    idClient: 'ORANGE_MONEY_SANDBOX_CLIENT_ID',
+    secretClient: 'ORANGE_MONEY_SANDBOX_CLIENT_SECRET',
+    codeMarchand: 'ORANGE_MONEY_CODE_MARCHAND',
+    cleNotification: 'ORANGE_MONEY_SANDBOX_CLE_NOTIFICATION',
+  },
+  production: {
+    idClient: 'ORANGE_MONEY_CLIENT_ID',
+    secretClient: 'ORANGE_MONEY_CLIENT_SECRET',
+    codeMarchand: 'ORANGE_MONEY_CODE_MARCHAND',
+    cleNotification: 'ORANGE_MONEY_CLE_NOTIFICATION',
+  },
+} as const satisfies Record<EnvironnementOrangeMoney, Record<'idClient' | 'secretClient' | 'codeMarchand' | 'cleNotification', string>>;
 
 /**
  * Configuration à partir des valeurs lues dans Secret Manager ; `null` s'il en

@@ -1,17 +1,23 @@
 /**
- * Essai RÉEL contre le bac à sable d'Orange Money (données de test, aucun
- * argent réel), lancé par le flux « Essai Orange Money (bac à sable) »
+ * Essai RÉEL contre Orange Money, lancé par le flux « Essai Orange Money »
  * (`.github/workflows/essai-orange-money.yml`) ; ce n'est pas un test
- * automatique (`npm test` ne le lance pas).
+ * automatique (`npm test` ne le lance pas). Environnement choisi au
+ * lancement (ORANGE_ENVIRONNEMENT) :
+ * - `bacASable` : données de test, aucun argent réel ;
+ * - `production` : identifiants de production. L'essai n'y paie RIEN : jeton,
+ *   une demande de paiement de 100 FCFA que personne ne paie (elle expire
+ *   seule au bout de 5 minutes) et lectures ; ni numéros de test ni clé
+ *   publique (bac à sable seulement).
  *
- * Lit ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET et, facultatifs,
- * ORANGE_CODE_MARCHAND, ORANGE_CLE_NOTIFICATION et ORANGE_URL_NOTIFICATION
- * (ces deux derniers : adresse des notifications de Sprint à enregistrer chez
- * Orange) dans l'environnement. Rend une annotation GitHub par étape.
- * N'affiche jamais les identifiants, le jeton, les numéros et codes PIN de
- * test, la clé des notifications ni les liens de paiement complets : tout est
- * masqué dans le journal dès réception.
+ * Lit ORANGE_ENVIRONNEMENT, ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET et,
+ * facultatifs, ORANGE_CODE_MARCHAND, ORANGE_CLE_NOTIFICATION et
+ * ORANGE_URL_NOTIFICATION (ces deux derniers : adresse des notifications de
+ * Sprint à enregistrer chez Orange) dans l'environnement. Rend une annotation
+ * GitHub par étape. N'affiche jamais les identifiants, le jeton, les numéros
+ * et codes PIN de test, la clé des notifications ni les liens de paiement
+ * complets : tout est masqué dans le journal dès réception.
  */
+import type { EnvironnementOrangeMoney } from '../src/methodes_paiement';
 import { ClientOrangeMoney, ErreurOrangeMoney, URL_ORANGE_MONEY } from '../src/orange_money';
 
 type Niveau = 'notice' | 'warning' | 'error';
@@ -98,8 +104,8 @@ function forme(valeur: unknown, profondeur = 0): string {
  * Diagnostic : réponse BRUTE d'Orange à une lecture (statut et forme, et si
  * l'adresse [cherchee], publique, y figure), pour comparer à la spécification.
  */
-async function reponseBrute(om: ClientOrangeMoney, chemin: string, cherchee: string): Promise<string> {
-  const reponse = await fetch(`${URL_ORANGE_MONEY.bacASable}${chemin}`, {
+async function reponseBrute(om: ClientOrangeMoney, urlBase: string, chemin: string, cherchee: string): Promise<string> {
+  const reponse = await fetch(`${urlBase}${chemin}`, {
     headers: { Authorization: `Bearer ${await om.jeton()}`, 'Content-Type': 'application/json', Accept: 'application/json' },
     signal: AbortSignal.timeout(15000),
   });
@@ -119,52 +125,66 @@ async function reponseBrute(om: ClientOrangeMoney, chemin: string, cherchee: str
 const pause = (ms: number) => new Promise((resoudre) => setTimeout(resoudre, ms));
 
 async function principal(): Promise<number> {
+  const lu = process.env.ORANGE_ENVIRONNEMENT;
   const idClient = process.env.ORANGE_CLIENT_ID ?? '';
   const secretClient = process.env.ORANGE_CLIENT_SECRET ?? '';
   const codeMarchand = (process.env.ORANGE_CODE_MARCHAND ?? '').trim();
   const cleNotification = (process.env.ORANGE_CLE_NOTIFICATION ?? '').trim();
   const urlNotification = (process.env.ORANGE_URL_NOTIFICATION ?? '').trim();
   masquer(idClient, secretClient, codeMarchand, cleNotification);
+  if (lu !== 'bacASable' && lu !== 'production') {
+    annoncer('error', '0. Environnement', 'ORANGE_ENVIRONNEMENT : « bacASable » ou « production » attendu.');
+    return 1;
+  }
+  const environnement: EnvironnementOrangeMoney = lu;
+  const production = environnement === 'production';
+  const urlBase = URL_ORANGE_MONEY[environnement];
 
   let om: ClientOrangeMoney;
   try {
-    om = new ClientOrangeMoney({ urlBase: URL_ORANGE_MONEY.bacASable, idClient, secretClient });
+    om = new ClientOrangeMoney({ urlBase, idClient, secretClient });
   } catch (e) {
     annoncer('error', '0. Identifiants', raison(e));
     return 1;
   }
   let echecs = 0;
 
-  // 1. Jeton d'accès : la preuve que les identifiants de test sont acceptés par Orange.
+  // 1. Jeton d'accès : la preuve que les identifiants de cet environnement sont acceptés par Orange.
   try {
     masquer(await om.jeton());
-    annoncer('notice', '1. Jeton d\'accès', 'Orange accepte les identifiants de test : jeton obtenu.');
+    annoncer(
+      'notice',
+      '1. Jeton d\'accès',
+      `Orange accepte les identifiants ${production ? 'de PRODUCTION' : 'de test'} (${new URL(urlBase).host}) : jeton obtenu.`,
+    );
   } catch (e) {
     annoncer('error', '1. Jeton d\'accès', raison(e));
     return 1; // sans jeton, aucune autre étape ne peut réussir
   }
 
-  // 2. Numéros de test du bac à sable (un client, un marchand).
-  try {
-    const cartes = await om.cartesSimDeTest({ clients: 1, marchands: 1 });
-    for (const carte of cartes) masquer(carte.numero, carte.codePin);
-    const types = cartes.map((c) => c.type ?? '?').join(', ') || 'aucun';
-    annoncer('notice', '2. Numéros de test', `${cartes.length} numéro(s) de test attribué(s) (${types}), avec leur code PIN de test.`);
-  } catch (e) {
-    echecs += 1;
-    annoncer('error', '2. Numéros de test', raison(e));
+  if (!production) {
+    // 2. Numéros de test du bac à sable (un client, un marchand).
+    try {
+      const cartes = await om.cartesSimDeTest({ clients: 1, marchands: 1 });
+      for (const carte of cartes) masquer(carte.numero, carte.codePin);
+      const types = cartes.map((c) => c.type ?? '?').join(', ') || 'aucun';
+      annoncer('notice', '2. Numéros de test', `${cartes.length} numéro(s) de test attribué(s) (${types}), avec leur code PIN de test.`);
+    } catch (e) {
+      echecs += 1;
+      annoncer('error', '2. Numéros de test', raison(e));
+    }
+
+    // 3. Clé publique (chiffrement des codes PIN, utile pour les dépôts d'argent).
+    try {
+      const cle = await om.clePublique();
+      annoncer('notice', '3. Clé publique', `Clé RSA de ${cle.tailleBits || '?'} bits reçue.`);
+    } catch (e) {
+      echecs += 1;
+      annoncer('error', '3. Clé publique', raison(e));
+    }
   }
 
-  // 3. Clé publique (chiffrement des codes PIN, utile pour les dépôts d'argent).
-  try {
-    const cle = await om.clePublique();
-    annoncer('notice', '3. Clé publique', `Clé RSA de ${cle.tailleBits || '?'} bits reçue.`);
-  } catch (e) {
-    echecs += 1;
-    annoncer('error', '3. Clé publique', raison(e));
-  }
-
-  // 4. Demande de paiement de test : QR code et liens (100 FCFA, valable 5 minutes, jamais payée).
+  // 4. Demande de paiement : QR code et liens (100 FCFA, valable 5 minutes, à usage unique, jamais payée).
   if (!codeMarchand) {
     annoncer('warning', '4. QR code de paiement', 'Aucun code marchand fourni au lancement : étape sautée.');
   } else {
@@ -175,6 +195,7 @@ async function principal(): Promise<number> {
         montantFcfa: 100,
         reference: `essai-sprint-${Date.now()}`,
         validiteSecondes: 300,
+        usageUnique: true,
       });
       masquer(qr.lienMaxIt, qr.lienOrangeMoney, qr.lienCourt, qr.qrId);
       annoncer(
@@ -186,11 +207,11 @@ async function principal(): Promise<number> {
           `lien court : ${qr.lienCourt ? 'oui' : 'non'}`,
           `image : ${qr.imageBase64 ? `oui (${Math.round((qr.imageBase64.length * 3) / 4 / 1024)} Ko)` : 'non'}`,
           `validité : ${qr.validiteSecondes ?? '?'} s`,
-        ].join(' · '),
+        ].join(' · ') + (production ? ' · demande réelle de 100 FCFA que personne ne paie : elle expire seule.' : ''),
       );
-      // Ce que voit un client qui ouvre les liens (sans payer) : sur ordinateur et sur Android.
+      // Ce que voit un client qui ouvre les liens (sans payer) : sur ordinateur et sur Android (bac à sable).
       for (const [nom, lienQr] of [['Max It', qr.lienMaxIt], ['Orange Money', qr.lienOrangeMoney]] as const) {
-        if (!lienQr) continue;
+        if (!lienQr || production) continue;
         for (const [appareil, agent] of Object.entries(NAVIGATEURS)) {
           try {
             annoncer('notice', `4 bis. Lien ${nom} (${appareil})`, await explorer(lienQr, agent));
@@ -244,7 +265,7 @@ async function principal(): Promise<number> {
       ]) {
         const titre = `6 bis. Réponse brute ${chemin.includes('page=') ? '(code, page 0)' : chemin.includes('code=') ? '(code)' : '(sans filtre)'}`;
         try {
-          annoncer('notice', titre, await reponseBrute(om, chemin, urlNotification));
+          annoncer('notice', titre, await reponseBrute(om, urlBase, chemin, urlNotification));
         } catch (e) {
           annoncer('warning', titre, raison(e));
         }
