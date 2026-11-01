@@ -126,6 +126,65 @@ async function reponseBrute(om: ClientOrangeMoney, urlBase: string, chemin: stri
 
 const pause = (ms: number) => new Promise((resoudre) => setTimeout(resoudre, ms));
 
+/** Forme d'un identifiant, sans sa valeur : longueur et sorte de caractères. */
+function formeCle(valeur: string): string {
+  const sorte = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valeur)
+    ? 'format UUID'
+    : /^[0-9a-f]+$/i.test(valeur)
+      ? 'hexadécimal'
+      : /^[A-Za-z0-9]+$/.test(valeur)
+        ? 'lettres et chiffres'
+        : /^[A-Za-z0-9+/=_-]+$/.test(valeur)
+          ? 'lettres, chiffres et + / = _ -'
+          : 'autres caractères';
+  return valeur ? `${valeur.length} caractères, ${sorte}` : 'vide';
+}
+
+/**
+ * Diagnostic d'un refus de jeton : réponse BRUTE d'Orange (statut, en-têtes
+ * utiles, champs du corps), les identifiants remplacés par « <identifiant> »
+ * et tout nombre de 6 chiffres ou plus masqué ; un jeton accordé n'est
+ * jamais affiché.
+ */
+async function diagnosticJeton(urlBase: string, init: RequestInit, identifiants: string[]): Promise<string> {
+  const reponse = await fetch(`${urlBase}/oauth/v1/token`, { ...init, signal: AbortSignal.timeout(15000) });
+  const brut = await reponse.text();
+  let corps: unknown;
+  try {
+    corps = JSON.parse(brut);
+  } catch {
+    corps = undefined;
+  }
+  if (reponse.ok) {
+    const jeton = (corps as Record<string, unknown> | undefined)?.access_token;
+    if (typeof jeton === 'string') masquer(jeton);
+    return `HTTP ${reponse.status} : jeton accordé de cette façon.`;
+  }
+  const propre = (texte: string) => {
+    let r = texte;
+    for (const v of identifiants) if (v) r = r.split(v).join('<identifiant>');
+    return r.replace(/\d{6,}/g, '<nombre>').replace(/\s+/g, ' ').trim().slice(0, 200);
+  };
+  const champs =
+    corps !== null && typeof corps === 'object' && !Array.isArray(corps)
+      ? Object.entries(corps as Record<string, unknown>)
+          .filter(([, v]) => typeof v === 'string' || typeof v === 'number')
+          .map(([cle, v]) => `${cle} = « ${propre(String(v))} »`)
+          .join(', ')
+      : '';
+  const authentifier = reponse.headers.get('www-authenticate');
+  return [
+    `HTTP ${reponse.status}`,
+    `type ${(reponse.headers.get('content-type') ?? '?').split(';')[0]}`,
+    authentifier ? `WWW-Authenticate « ${propre(authentifier)} »` : '',
+    corps === undefined
+      ? `corps : ${brut.length} caractère(s)${brut ? ` « ${propre(brut.replace(/<[^>]+>/g, ' '))} »` : ''}`
+      : `corps : ${forme(corps)}${champs ? ` ; ${champs}` : ''}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 async function principal(): Promise<number> {
   const lu = process.env.ORANGE_ENVIRONNEMENT;
   const idClient = process.env.ORANGE_CLIENT_ID ?? '';
@@ -162,6 +221,53 @@ async function principal(): Promise<number> {
     );
   } catch (e) {
     annoncer('error', '1. Jeton d\'accès', raison(e));
+    // Diagnostic, sans aucune valeur : forme des identifiants (comparée au bac à sable en production),
+    // puis réponse brute d'Orange, identifiants dans le formulaire puis dans l'en-tête « Basic ».
+    const idBac = process.env.ORANGE_CLIENT_ID_BAC ?? '';
+    const secretBac = process.env.ORANGE_CLIENT_SECRET_BAC ?? '';
+    masquer(idBac, secretBac);
+    const [fId, fSecret, fIdBac, fSecretBac] = [idClient, secretClient, idBac, secretBac].map(formeCle);
+    annoncer(
+      'notice',
+      '1 bis. Forme des identifiants',
+      `Clé ID : ${fId} · Clé secrète : ${fSecret}` +
+        (idClient === secretClient ? ' · Clé ID et Clé secrète IDENTIQUES' : '') +
+        (production && idBac && secretBac
+          ? ` · bac à sable : Clé ID ${fIdBac}, Clé secrète ${fSecretBac}` +
+            ` · copiées du bac à sable : Clé ID ${idClient === idBac ? 'OUI' : 'non'}, Clé secrète ${secretClient === secretBac ? 'OUI' : 'non'}` +
+            ` · formes croisées (Clé ID et Clé secrète inversées ?) : ${fIdBac !== fSecretBac && fId === fSecretBac && fSecret === fIdBac ? 'OUI, probablement' : 'non'}`
+          : ''),
+    );
+    const variantes: Array<[string, RequestInit]> = [
+      [
+        'identifiants dans le formulaire',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+          body: new URLSearchParams({ client_id: idClient, client_secret: secretClient, grant_type: 'client_credentials' }).toString(),
+        },
+      ],
+      [
+        'identifiants dans l\'en-tête Basic',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json',
+            Authorization: `Basic ${Buffer.from(`${idClient}:${secretClient}`).toString('base64')}`,
+          },
+          body: new URLSearchParams({ grant_type: 'client_credentials' }).toString(),
+        },
+      ],
+    ];
+    masquer(Buffer.from(`${idClient}:${secretClient}`).toString('base64'));
+    for (const [nom, init] of variantes) {
+      try {
+        annoncer('notice', `1 ter. Jeton, ${nom}`, await diagnosticJeton(urlBase, init, [idClient, secretClient]));
+      } catch (erreur) {
+        annoncer('warning', `1 ter. Jeton, ${nom}`, raison(erreur));
+      }
+    }
     return 1; // sans jeton, aucune autre étape ne peut réussir
   }
 

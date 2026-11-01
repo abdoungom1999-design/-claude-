@@ -307,6 +307,22 @@ jobs:
           fi
           # Paiement à relire : lu dans l'événement, jamais interprété par le shell.
           suivi=$(jq -r '.inputs.transaction_a_suivre // empty' "$GITHUB_EVENT_PATH" | tr -d '[:space:]')
+          # Production : identifiants du bac à sable lus pour comparaison seulement
+          # (jeton refusé : clés copiées du bac à sable ? inversées ?), masqués, jamais affichés.
+          bac_id=""
+          bac_secret=""
+          if [ "$ORANGE_ENVIRONNEMENT" = production ] \
+             && gcloud secrets versions access latest --secret=ORANGE_MONEY_SANDBOX_CLIENT_ID --project=sprint-vtc \
+                  --out-file="$dossier/bac_id" > /dev/null 2>&1 \
+             && gcloud secrets versions access latest --secret=ORANGE_MONEY_SANDBOX_CLIENT_SECRET --project=sprint-vtc \
+                  --out-file="$dossier/bac_secret" > /dev/null 2>&1; then
+            bac_id=$(cat "$dossier/bac_id")
+            bac_secret=$(cat "$dossier/bac_secret")
+            echo "::add-mask::$bac_id"
+            echo "::add-mask::$bac_secret"
+          fi
+          ORANGE_CLIENT_ID_BAC="$bac_id" \
+          ORANGE_CLIENT_SECRET_BAC="$bac_secret" \
           ORANGE_TRANSACTION_A_SUIVRE="$suivi" \
           ORANGE_CLIENT_ID="$(cat "$dossier/ID_CLIENT")" \
           ORANGE_CLIENT_SECRET="$(cat "$dossier/SECRET_CLIENT")" \
