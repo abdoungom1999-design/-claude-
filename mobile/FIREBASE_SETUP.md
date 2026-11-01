@@ -802,7 +802,17 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      2. flux « Essai Orange Money » en `production` : jeton et demande de
         paiement acceptés (rien n'est payé) ; puis, avec son go, la case
         `preparer_notifications` (clé de production créée, adresse enregistrée
-        chez Orange) ;
+        chez Orange). **État au 1er novembre 2026** (go du client pour
+        l'essai, la préparation et la publication 114) : essais #11 à #13,
+        clés introuvables (enregistrées ailleurs ; le diagnostic liste les
+        secrets d'Orange du projet, noms et dates seulement), puis créées au
+        bon endroit ; essais #14 à #16, clés bien collées, au format attendu,
+        distinctes de celles du bac à sable, mais jeton refusé par la
+        passerelle d'Orange en production, quelle que soit la façon de les
+        présenter (formulaire ou en-tête Basic) : HTTP 401, « Invalid ApiKey
+        for given resource » (`oauth.v2.InvalidApiKeyForGivenResource`) : clé
+        connue, mais application de production pas encore autorisée sur l'API
+        Orange Money. À faire activer par Orange ; rien n'est publié d'ici là ;
      3. publication : `ENVIRONNEMENT_ORANGE_MONEY` et `environnementOrangeMoney`
         sur `production`, accès inchangé (`testeurs`) ; Wave reste simulé ;
      4. un testeur au Sénégal (compte Orange Money et Max It sur son
