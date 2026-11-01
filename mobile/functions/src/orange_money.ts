@@ -125,6 +125,8 @@ export interface TransactionOrangeMoney {
   devise?: string;
   /** Code marchand payé. */
   codeMarchand?: string;
+  /** Nature de l'identifiant du marchand payé (`CODE` attendu pour un paiement marchand). */
+  typePartenaire?: string;
   /** `MERCHANT_PAYMENT`, `WEB_PAYMENT` ou `CASHIN`. */
   type?: string;
 }
@@ -362,6 +364,7 @@ export class ClientOrangeMoney {
           montantFcfa: nombre(montant.value),
           devise: texte(montant.unit),
           codeMarchand: texte(partenaire.id),
+          typePartenaire: texte(partenaire.idType),
           type: texte(t.type),
         },
       ];

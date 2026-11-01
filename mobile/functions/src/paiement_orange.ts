@@ -204,9 +204,12 @@ export async function appliquerTransactionOrange(
   const reference = transaction.reference;
   if (!reference) return 'non_confirmee';
   if (!paieSprint(transaction, config)) {
+    // Le code lui-même n'est jamais journalisé : sa nature suffit au diagnostic.
     logger.error('Transaction Orange qui ne paie pas notre code marchand', {
       transactionId: transaction.transactionId,
       reference,
+      typePartenaire: transaction.typePartenaire ?? 'absent',
+      codePresent: transaction.codeMarchand !== undefined,
     });
     return 'non_confirmee';
   }

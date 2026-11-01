@@ -12,7 +12,9 @@
  * Lit ORANGE_ENVIRONNEMENT, ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET et,
  * facultatifs, ORANGE_CODE_MARCHAND, ORANGE_CLE_NOTIFICATION et
  * ORANGE_URL_NOTIFICATION (ces deux derniers : adresse des notifications de
- * Sprint à enregistrer chez Orange) dans l'environnement. Rend une annotation
+ * Sprint à enregistrer chez Orange) et ORANGE_TRANSACTION_A_SUIVRE (un
+ * paiement réel à relire, lecture seule : la demande de 100 FCFA est alors
+ * sautée) dans l'environnement. Rend une annotation
  * GitHub par étape. N'affiche jamais les identifiants, le jeton, les numéros
  * et codes PIN de test, la clé des notifications ni les liens de paiement
  * complets : tout est masqué dans le journal dès réception.
@@ -131,6 +133,7 @@ async function principal(): Promise<number> {
   const codeMarchand = (process.env.ORANGE_CODE_MARCHAND ?? '').trim();
   const cleNotification = (process.env.ORANGE_CLE_NOTIFICATION ?? '').trim();
   const urlNotification = (process.env.ORANGE_URL_NOTIFICATION ?? '').trim();
+  const aSuivre = (process.env.ORANGE_TRANSACTION_A_SUIVRE ?? '').trim();
   masquer(idClient, secretClient, codeMarchand, cleNotification);
   if (lu !== 'bacASable' && lu !== 'production') {
     annoncer('error', '0. Environnement', 'ORANGE_ENVIRONNEMENT : « bacASable » ou « production » attendu.');
@@ -185,7 +188,9 @@ async function principal(): Promise<number> {
   }
 
   // 4. Demande de paiement : QR code et liens (100 FCFA, valable 5 minutes, à usage unique, jamais payée).
-  if (!codeMarchand) {
+  if (aSuivre) {
+    annoncer('notice', '4. QR code de paiement', 'Suivi d\'un paiement : aucune nouvelle demande.');
+  } else if (!codeMarchand) {
     annoncer('warning', '4. QR code de paiement', 'Aucun code marchand fourni au lancement : étape sautée.');
   } else {
     try {
@@ -285,6 +290,37 @@ async function principal(): Promise<number> {
   } catch (e) {
     echecs += 1;
     annoncer('error', '6. Adresses de notification', raison(e));
+  }
+
+  // 7. Suivi d'un paiement réel, lu chez Orange (lecture seule : rien n'est appliqué). Jamais le
+  // client payeur (son numéro), ni le code marchand, ni la référence complète.
+  if (aSuivre) {
+    try {
+      const trouvees = await om.rechercherTransactions({ transactionId: aSuivre });
+      if (trouvees.length === 0) {
+        echecs += 1;
+        annoncer('error', '7. Suivi du paiement', 'Orange ne connaît aucune transaction avec cet identifiant dans cet environnement.');
+      }
+      for (const t of trouvees) {
+        masquer(t.reference);
+        const marchand = t.codeMarchand === undefined ? 'sans code' : t.codeMarchand === codeMarchand ? 'code de Sprint' : 'AUTRE code';
+        const reference = !t.reference ? 'absente' : t.reference.startsWith('rch_') ? 'recharge Sprint (rch_…)' : 'présente (course ?)';
+        annoncer(
+          'notice',
+          '7. Suivi du paiement',
+          [
+            `statut : ${t.statut ?? 'absent'}`,
+            `montant : ${t.montantFcfa ?? '?'} ${t.devise ?? ''}`.trim(),
+            `type : ${t.type ?? 'absent'}`,
+            `marchand payé : ${t.typePartenaire ?? 'nature absente'}, ${marchand}`,
+            `référence : ${reference}`,
+          ].join(' · '),
+        );
+      }
+    } catch (e) {
+      echecs += 1;
+      annoncer('error', '7. Suivi du paiement', raison(e));
+    }
   }
 
   return echecs === 0 ? 0 : 1;

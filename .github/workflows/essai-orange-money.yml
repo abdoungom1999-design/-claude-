@@ -27,6 +27,9 @@ name: Essai Orange Money
 # 4. Appels RÉELS à Orange : jeton d'accès, demande de paiement par QR code
 #    (100 FCFA, jamais payée), adresses de notification enregistrées ; bac à
 #    sable seulement : numéros de test, clé publique, pages des liens.
+#    Facultatif (« transaction_a_suivre ») : relecture chez Orange d'un
+#    paiement réel (statut, montant, marchand payé), en lecture seule ; la
+#    demande de 100 FCFA et le parcours sont alors sautés.
 # 5. Parcours complet de Sprint contre le VRAI Orange, sur l'émulateur
 #    Firestore (aucune donnée de production) : course et recharge payées par
 #    Orange Money (demandes jamais payées), lien de paiement, recherche,
@@ -49,6 +52,11 @@ on:
           - production
       code_marchand:
         description: "Code marchand Orange (6 chiffres) ; vide : celui de Secret Manager s'il y est. Masqué dans le journal."
+        required: false
+        default: ""
+        type: string
+      transaction_a_suivre:
+        description: "Facultatif : identifiant Orange d'un paiement réel à relire (SMS de confirmation d'Orange). Lecture seule : rien n'est payé ni appliqué."
         required: false
         default: ""
         type: string
@@ -185,6 +193,42 @@ jobs:
           print(f'::notice title={nom}::Présent, lisible par la CI, sans espace ni caractère invisible.')
           PY
           done
+          # Identifiant introuvable : diagnostic sur les NOMS et les dates seulement,
+          # jamais les valeurs. Un nom sans « ORANGE » n'est jamais affiché (une clé
+          # collée par erreur dans le champ « Nom » finirait dans ce journal public) :
+          # seuls ceux créés ces 3 derniers jours sont comptés.
+          if [ "$erreurs" -gt 0 ]; then
+            gcloud secrets list --project=sprint-vtc --format='value(name,createTime)' > "$dossier/secrets.txt" 2> /dev/null || true
+            python3 - "$dossier/secrets.txt" <<'PY'
+          import re, subprocess, sys
+          from datetime import datetime, timedelta, timezone
+          lignes = [l.split('\t') for l in open(sys.argv[1], encoding='utf-8').read().splitlines() if l.strip()]
+          orange, autres_recents = [], 0
+          limite = datetime.now(timezone.utc) - timedelta(days=3)
+          for champs in lignes:
+              nom = champs[0].rsplit('/', 1)[-1]
+              cree = champs[1] if len(champs) > 1 else ''
+              if not re.fullmatch(r'[A-Za-z0-9_-]*[Oo][Rr][Aa][Nn][Gg][Ee][A-Za-z0-9_-]*', nom):
+                  try:
+                      if datetime.fromisoformat(cree.replace('Z', '+00:00')) >= limite:
+                          autres_recents += 1
+                  except ValueError:
+                      pass
+                  continue
+              versions = subprocess.run(
+                  ['gcloud', 'secrets', 'versions', 'list', nom, '--project=sprint-vtc', '--format=value(name,state,createTime)'],
+                  capture_output=True, text=True).stdout.splitlines()
+              versions = [v.split('\t') for v in versions if v.strip()]
+              derniere = max(versions, key=lambda v: v[2] if len(v) > 2 else '', default=None)
+              detail = 'aucune version' if derniere is None else (
+                  f'{len(versions)} version(s), dernière n° {derniere[0].rsplit("/", 1)[-1]} '
+                  f'({derniere[1].lower() if len(derniere) > 1 else "?"}, {derniere[2][:16].replace("T", " ") if len(derniere) > 2 else "?"} UTC)')
+              orange.append(f'{nom} : {detail}')
+          print('::notice title=Secrets d\'Orange dans le projet sprint-vtc::' + (' ; '.join(orange) or 'aucun') + '.')
+          if autres_recents:
+              print(f'::notice title=Autres secrets récents::{autres_recents} secret(s) créé(s) ces 3 derniers jours sans « ORANGE » dans le nom (noms non affichés).')
+          PY
+          fi
           # Code marchand : lu dans l'événement (jamais dans le texte du flux ni
           # dans ses variables affichées), sinon dans Secret Manager ; masqué avant tout usage.
           code=$(jq -r '.inputs.code_marchand // empty' "$GITHUB_EVENT_PATH" | tr -d '[:space:]')
@@ -257,6 +301,9 @@ jobs:
             cle=$(cat "$dossier/CLE_NOTIFICATION")
             url="https://europe-west1-sprint-vtc.cloudfunctions.net/webhookOrangeMoney"
           fi
+          # Paiement à relire : lu dans l'événement, jamais interprété par le shell.
+          suivi=$(jq -r '.inputs.transaction_a_suivre // empty' "$GITHUB_EVENT_PATH" | tr -d '[:space:]')
+          ORANGE_TRANSACTION_A_SUIVRE="$suivi" \
           ORANGE_CLIENT_ID="$(cat "$dossier/ID_CLIENT")" \
           ORANGE_CLIENT_SECRET="$(cat "$dossier/SECRET_CLIENT")" \
           ORANGE_CODE_MARCHAND="$(cat "$dossier/CODE_MARCHAND")" \
@@ -269,6 +316,10 @@ jobs:
           dossier="$RUNNER_TEMP/orange"
           if [ ! -s "$dossier/CODE_MARCHAND" ]; then
             echo "::warning title=Parcours complet::Sans code marchand : parcours sauté."
+            exit 0
+          fi
+          if [ -n "$(jq -r '.inputs.transaction_a_suivre // empty' "$GITHUB_EVENT_PATH")" ]; then
+            echo "::notice title=Parcours complet::Suivi d'un paiement : parcours sauté."
             exit 0
           fi
           cd functions

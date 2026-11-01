@@ -294,6 +294,7 @@ test('recherche de transactions : par identifiant ou par référence, champs uti
       montantFcfa: 1500,
       devise: 'XOF',
       codeMarchand: '123456',
+      typePartenaire: 'CODE',
       type: 'MERCHANT_PAYMENT',
     },
   ]);
