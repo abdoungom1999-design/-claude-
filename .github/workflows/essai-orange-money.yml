@@ -199,21 +199,25 @@ jobs:
           # seuls ceux créés ces 3 derniers jours sont comptés.
           if [ "$erreurs" -gt 0 ]; then
             gcloud secrets list --project=sprint-vtc --format='value(name,createTime)' > "$dossier/secrets.txt" 2> /dev/null || true
-            python3 - "$dossier/secrets.txt" <<'PY'
+            python3 - "$dossier/secrets.txt" <<'PY' || echo "::warning title=Diagnostic::Liste des secrets illisible (diagnostic seulement)."
           import re, subprocess, sys
           from datetime import datetime, timedelta, timezone
+          def date(texte):
+              # gcloud écrit les dates avec ou sans fuseau : sans fuseau, c'est de l'UTC.
+              try:
+                  d = datetime.fromisoformat(texte.strip().replace('Z', '+00:00'))
+              except ValueError:
+                  return None
+              return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
           lignes = [l.split('\t') for l in open(sys.argv[1], encoding='utf-8').read().splitlines() if l.strip()]
           orange, autres_recents = [], 0
           limite = datetime.now(timezone.utc) - timedelta(days=3)
           for champs in lignes:
               nom = champs[0].rsplit('/', 1)[-1]
-              cree = champs[1] if len(champs) > 1 else ''
+              cree = date(champs[1]) if len(champs) > 1 else None
               if not re.fullmatch(r'[A-Za-z0-9_-]*[Oo][Rr][Aa][Nn][Gg][Ee][A-Za-z0-9_-]*', nom):
-                  try:
-                      if datetime.fromisoformat(cree.replace('Z', '+00:00')) >= limite:
-                          autres_recents += 1
-                  except ValueError:
-                      pass
+                  if cree is not None and cree >= limite:
+                      autres_recents += 1
                   continue
               versions = subprocess.run(
                   ['gcloud', 'secrets', 'versions', 'list', nom, '--project=sprint-vtc', '--format=value(name,state,createTime)'],
