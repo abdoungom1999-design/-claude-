@@ -140,6 +140,15 @@ function formeCle(valeur: string): string {
   return valeur ? `${valeur.length} caractères, ${sorte}` : 'vide';
 }
 
+/** Champs texte ou nombre d'une réponse JSON, à toute profondeur (chemins « a.b.c »). */
+function champsTexte(valeur: unknown, prefixe = '', profondeur = 0): Array<[string, string]> {
+  if (valeur === null || typeof valeur !== 'object' || profondeur > 4) return [];
+  return Object.entries(valeur as Record<string, unknown>).flatMap(([cle, v]): Array<[string, string]> => {
+    const chemin = prefixe ? `${prefixe}.${cle}` : cle;
+    return typeof v === 'string' || typeof v === 'number' ? [[chemin, String(v)]] : champsTexte(v, chemin, profondeur + 1);
+  });
+}
+
 /**
  * Diagnostic d'un refus de jeton : réponse BRUTE d'Orange (statut, en-têtes
  * utiles, champs du corps), les identifiants remplacés par « <identifiant> »
@@ -165,13 +174,10 @@ async function diagnosticJeton(urlBase: string, init: RequestInit, identifiants:
     for (const v of identifiants) if (v) r = r.split(v).join('<identifiant>');
     return r.replace(/\d{6,}/g, '<nombre>').replace(/\s+/g, ' ').trim().slice(0, 200);
   };
-  const champs =
-    corps !== null && typeof corps === 'object' && !Array.isArray(corps)
-      ? Object.entries(corps as Record<string, unknown>)
-          .filter(([, v]) => typeof v === 'string' || typeof v === 'number')
-          .map(([cle, v]) => `${cle} = « ${propre(String(v))} »`)
-          .join(', ')
-      : '';
+  // Chemins pointés plutôt que des accolades (le journal de GitHub masque « { » et « } »).
+  const champs = champsTexte(corps)
+    .map(([chemin, v]) => `${chemin} = « ${propre(v)} »`)
+    .join(', ');
   const authentifier = reponse.headers.get('www-authenticate');
   return [
     `HTTP ${reponse.status}`,
@@ -179,7 +185,7 @@ async function diagnosticJeton(urlBase: string, init: RequestInit, identifiants:
     authentifier ? `WWW-Authenticate « ${propre(authentifier)} »` : '',
     corps === undefined
       ? `corps : ${brut.length} caractère(s)${brut ? ` « ${propre(brut.replace(/<[^>]+>/g, ' '))} »` : ''}`
-      : `corps : ${forme(corps)}${champs ? ` ; ${champs}` : ''}`,
+      : `corps : ${champs || forme(corps)}`,
   ]
     .filter(Boolean)
     .join(' · ');
