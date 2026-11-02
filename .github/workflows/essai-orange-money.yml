@@ -331,6 +331,46 @@ jobs:
           ORANGE_URL_NOTIFICATION="$url" \
             node functions/lib/test/orange_money.essai_reel.js
 
+      # Suivi d'un paiement (production) : journaux du serveur (notifications
+      # d'Orange, surveillance) des dernières 24 heures, en lecture seule. Seuls
+      # l'heure, le service, le statut HTTP, la durée et NOS messages (résultat,
+      # raison d'un refus, bilan de la surveillance) sont affichés : jamais
+      # d'adresse IP, d'en-tête, de référence complète ni de donnée personnelle.
+      - name: Journaux du serveur (suivi d'un paiement, lecture seule)
+        if: ${{ inputs.transaction_a_suivre != '' && inputs.environnement == 'production' }}
+        run: |
+          dossier="$RUNNER_TEMP/orange"
+          filtre='resource.type="cloud_run_revision" AND (resource.labels.service_name="webhookorangemoney" OR resource.labels.service_name="surveillercommandes")'
+          if ! gcloud logging read "$filtre" --project=sprint-vtc --freshness=1d --limit=400 --order=asc --format=json \
+                 > "$dossier/journaux.json" 2> "$dossier/erreur_journaux.txt"; then
+            raison=$(grep -o -m 1 -E 'PERMISSION_DENIED|NOT_FOUND|INVALID_ARGUMENT' "$dossier/erreur_journaux.txt" || true)
+            echo "::warning title=Journaux du serveur::Lecture impossible (${raison:-erreur inconnue}) : rôle « Lecteur de journaux » (roles/logging.viewer) manquant pour le compte de la CI ?"
+            exit 0
+          fi
+          python3 - "$dossier/journaux.json" <<'PY'
+          import json, sys
+          entrees = json.load(open(sys.argv[1], encoding='utf-8'))
+          SURS = ['resultat', 'raison', 'appliquees', 'verifiees', 'erreurs', 'reportees', 'expirees', 'sansChauffeur',
+                  'rechargesExpirees', 'typePartenaire', 'codePresent']
+          lignes = []
+          for e in entrees:
+              heure = e.get('timestamp', '')[:23].replace('T', ' ')
+              service = e.get('resource', {}).get('labels', {}).get('service_name', '?')
+              requete = e.get('httpRequest')
+              if requete:
+                  lignes.append(f"{heure} {service} : requête {requete.get('requestMethod', '?')}, HTTP {requete.get('status', '?')}, {requete.get('latency', '?')}")
+                  continue
+              charge = e.get('jsonPayload') or {}
+              message = charge.get('message') or (e.get('textPayload') or '')[:160]
+              if not message:
+                  continue
+              details = ', '.join(f'{c} = {charge[c]}' for c in SURS if c in charge)
+              lignes.append(f"{heure} {service} [{e.get('severity', '?')}] {message}{f' ({details})' if details else ''}")
+          print(f'::notice title=Journaux du serveur::{len(lignes)} entrée(s) sur 24 heures (détail ci-dessous dans le journal).')
+          for ligne in lignes[-150:]:
+              print('JOURNAL ' + ligne)
+          PY
+
       - name: Parcours complet de Sprint (émulateur Firestore + vrai Orange, rien n'est payé)
         run: |
           dossier="$RUNNER_TEMP/orange"
