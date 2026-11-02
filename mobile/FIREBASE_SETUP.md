@@ -72,7 +72,8 @@ suivante ; la migration des pièces déjà envoyées en Base64 se lance ensuite
 depuis Admin > Paramètres (voir plus bas).
 
 Les documents chauffeur (permis, carte grise, assurance moto — clé
-historique `attestationVtc` —, photo de profil) partent dans Firebase Storage
+historique `attestationVtc`, libellé « Attestation VTC » jusqu'à la
+publication 118 —, photo de profil) partent dans Firebase Storage
 (`kyc_documents/{uid}/{document}.jpg`), et seule leur URL est gardée
 dans Firestore. **Tant que Storage n'est pas activé, l'app retombe
 automatiquement sur le stockage Base64 dans Firestore** (plafond 700 Ko
@@ -160,7 +161,8 @@ depuis la Console.
   dossier "en attente", sans jamais pouvoir le passer à "validé".
   `statutValidation` (validé / rejeté), `statutCompte`, `estValide` et
   `role` ne sont modifiables que par l'Admin.
-- Chauffeur (compte 100 % moto, demande du client du 2 novembre 2026) :
+- Chauffeur (compte 100 % moto, demande du client du 2 novembre 2026, en
+  service depuis la publication 118, go du client du même jour) :
   vrai prénom et nom (`prenom`, `nomDeFamille`, et `nom` = « Prénom Nom »),
   moto (`moto` : `marque`, `modele`, `couleur` ; `vehiculeId` = « Marque
   Modèle Couleur ») et plaque. Le chauffeur les modifie lui-même (onglet
