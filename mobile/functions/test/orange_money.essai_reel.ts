@@ -158,7 +158,20 @@ function formeReference(ref: string): string {
 }
 
 /** Champs d'un document Sprint affichables sans rien révéler de la personne (ni identifiant, ni adresse, ni nom). */
-const CHAMPS_SURS = ['statut', 'type', 'methodePaiement', 'fournisseur', 'prixFcfa', 'montantFcfa', 'motifRemboursement', 'motifAnnulation', 'creeLe', 'payeLe', 'termineeLe', 'expireLe'];
+const CHAMPS_SURS = [
+  'statut', 'type', 'methodePaiement', 'fournisseur', 'prixFcfa', 'montantFcfa', 'motifRemboursement', 'motifAnnulation',
+  'annuleePar', 'creeLe', 'payeeLe', 'timestamp', 'annuleeLe', 'termineeLe', 'expireLe',
+];
+
+/** Champs sûrs d'un document, en texte (dates en UTC). */
+function champsSurs(doc: FirebaseFirestore.DocumentSnapshot): string {
+  const champs = CHAMPS_SURS.flatMap((champ) => {
+    const v = doc.get(champ) as unknown;
+    if (v === undefined || v === null) return [];
+    return [`${champ} ${v instanceof Timestamp ? v.toDate().toISOString().slice(0, 19).replace('T', ' ') + ' UTC' : String(v)}`];
+  });
+  return champs.join(', ') || 'document sans champ affichable';
+}
 
 /**
  * Production, suivi d'un paiement : ce que la VRAIE base de Sprint a fait de cette référence (lecture
@@ -176,12 +189,21 @@ async function documentsSprint(reference: string): Promise<string[]> {
         lignes.push(`${nom} : aucun document`);
         continue;
       }
-      const champs = CHAMPS_SURS.flatMap((champ) => {
-        const v = doc.get(champ) as unknown;
-        if (v === undefined || v === null) return [];
-        return [`${champ} ${v instanceof Timestamp ? v.toDate().toISOString().slice(0, 19).replace('T', ' ') + ' UTC' : String(v)}`];
-      });
-      lignes.push(`${nom} : ${champs.join(', ') || 'document sans champ affichable'}`);
+      lignes.push(`${nom} : ${champsSurs(doc)}`);
+      if (nom !== 'commandes') continue;
+      // La course créée par ce paiement (son propre identifiant), et un éventuel remboursement sur le solde.
+      const courseId = doc.get('courseId') as string | undefined;
+      if (courseId) {
+        const course = await db.doc(`courses/${courseId}`).get();
+        lignes.push(
+          `course créée par ce paiement : ${course.exists ? `${champsSurs(course)}, chauffeur attribué : ${course.get('chauffeurId') ? 'oui' : 'non'}` : 'introuvable'}`,
+        );
+      }
+      const clientId = doc.get('clientId') as string | undefined;
+      if (clientId) {
+        const rendu = await db.doc(`portefeuilles/${clientId}/mouvements/remboursement_${reference}`).get();
+        lignes.push(`remboursement sur le solde Sprint : ${rendu.exists ? champsSurs(rendu) : 'aucun'}`);
+      }
     }
     return lignes;
   } finally {
