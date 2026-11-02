@@ -4,16 +4,24 @@ import '../../../core/firebase/fonctions_cloud.dart';
 
 /// Retrait du solde Sprint vers Orange Money ou Wave (lot B) : le client le
 /// demande, le montant est réservé aussitôt sur son solde, un Admin fait le
-/// transfert puis le marque « versé », ou le refuse (montant rendu). Voir
-/// `functions/src/retraits.ts`.
+/// transfert sous 48 h, frais de l'opérateur déduits, puis le marque
+/// « versé », ou le refuse (montant rendu). Seul l'argent réellement payé se
+/// retire (pas l'argent de test du faux Wave). Voir `functions/src/retraits.ts`.
 ///
-/// Réglage en service. Ne change qu'avec le go du client, en même temps que
-/// son jumeau du serveur (`RETRAITS_OUVERTS`) : un test du serveur vérifie
-/// qu'ils sont d'accord. Fermé : rien n'apparaît au client.
-const retraitsOuverts = false;
+/// Réglage en service : ouvert (go du client du 2 novembre 2026). Ne change
+/// qu'avec le go du client, en même temps que son jumeau du serveur
+/// (`RETRAITS_OUVERTS`) : un test du serveur vérifie qu'ils sont d'accord.
+/// Fermé : rien n'apparaît au client.
+const retraitsOuverts = true;
 
 /// Montant minimal d'un retrait (`RETRAIT_MIN_FCFA` du serveur).
 const retraitMinFcfa = 500;
+
+/// Plafond par client et par jour (`RETRAIT_MAX_JOUR_FCFA` du serveur).
+const retraitMaxJourFcfa = 50000;
+
+/// Délai annoncé pour l'envoi (`DELAI_VERSEMENT_HEURES` du serveur).
+const delaiVersementHeures = 48;
 
 enum MoyenRetrait {
   orangeMoney('ORANGE_MONEY', 'Orange Money'),
@@ -43,6 +51,7 @@ class Retrait {
     this.nomClient = 'Client',
     this.numeroDuCompte = false,
     this.creeLe,
+    this.aVerserAvant,
   });
 
   final String id;
@@ -61,11 +70,15 @@ class Retrait {
   final bool numeroDuCompte;
   final DateTime? creeLe;
 
+  /// Échéance annoncée au client (demande + 48 h).
+  final DateTime? aVerserAvant;
+
   /// « 77 123 45 67 ».
   String get numeroLisible => formaterNumero(numero);
 
   static Retrait depuisDocument(String id, Map<String, dynamic> donnees) {
     final creeLe = donnees['creeLe'];
+    final aVerserAvant = donnees['aVerserAvant'];
     return Retrait(
       id: id,
       clientId: donnees['clientId'] as String? ?? '',
@@ -75,6 +88,43 @@ class Retrait {
       nomClient: donnees['nomClient'] as String? ?? 'Client',
       numeroDuCompte: donnees['numeroDuCompte'] == true,
       creeLe: creeLe is Timestamp ? creeLe.toDate() : null,
+      aVerserAvant: aVerserAvant is Timestamp ? aVerserAvant.toDate() : null,
+    );
+  }
+}
+
+/// Ce que le client peut retirer maintenant (callable `infosRetrait`).
+class InfosRetrait {
+  const InfosRetrait({
+    required this.soldeFcfa,
+    required this.retirableFcfa,
+    required this.resteDuJourFcfa,
+    required this.enCours,
+    required this.maximumFcfa,
+  });
+
+  final int soldeFcfa;
+
+  /// Argent réellement payé du solde (pas l'argent de test), au plus le solde.
+  final int retirableFcfa;
+
+  /// Ce qui reste du plafond du jour.
+  final int resteDuJourFcfa;
+
+  /// Un retrait attend déjà son envoi.
+  final bool enCours;
+
+  /// Ce qui peut être demandé maintenant (0 : rien).
+  final int maximumFcfa;
+
+  static InfosRetrait depuis(Map<String, dynamic> donnees) {
+    int entier(String cle) => (donnees[cle] as num?)?.toInt() ?? 0;
+    return InfosRetrait(
+      soldeFcfa: entier('soldeFcfa'),
+      retirableFcfa: entier('retirableFcfa'),
+      resteDuJourFcfa: entier('resteDuJourFcfa'),
+      enCours: donnees['enCours'] == true,
+      maximumFcfa: entier('maximumFcfa'),
     );
   }
 }
@@ -105,6 +155,15 @@ class RetraitService {
 
   final FirebaseFirestore? _firestoreInjecte;
   FirebaseFirestore get _firestore => _firestoreInjecte ?? FirebaseFirestore.instance;
+
+  /// Ce qui peut être retiré maintenant. Erreurs du serveur : [ApiException].
+  Future<InfosRetrait> infos() async {
+    try {
+      return InfosRetrait.depuis(await FonctionsCloud.appeler('infosRetrait', {}));
+    } on FirebaseFunctionsException catch (e) {
+      throw FonctionsCloud.versApiException(e);
+    }
+  }
 
   /// Demande de retrait ; rend le nouveau solde. Erreurs du serveur : [ApiException].
   Future<int> demander({required int montantFcfa, required MoyenRetrait moyen, required String numero}) async {
@@ -137,12 +196,21 @@ class RetraitService {
         return retraits;
       });
 
-  /// Admin : retrait versé ([reference] du transfert, facultative) ou refusé ([motif] obligatoire).
-  Future<void> traiter({required String retraitId, required bool verse, String reference = '', String motif = ''}) async {
+  /// Admin : retrait versé ([fraisFcfa] de l'opérateur, déduits du montant
+  /// envoyé ; [reference] du transfert, facultative) ou refusé ([motif]
+  /// obligatoire).
+  Future<void> traiter({
+    required String retraitId,
+    required bool verse,
+    int fraisFcfa = 0,
+    String reference = '',
+    String motif = '',
+  }) async {
     try {
       await FonctionsCloud.appeler('traiterRetrait', {
         'retraitId': retraitId,
         'decision': verse ? 'verse' : 'refuse',
+        if (verse) 'fraisFcfa': fraisFcfa,
         if (reference.trim().isNotEmpty) 'reference': reference.trim(),
         if (motif.trim().isNotEmpty) 'motif': motif.trim(),
       });

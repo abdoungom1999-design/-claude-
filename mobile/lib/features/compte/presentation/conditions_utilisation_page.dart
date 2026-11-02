@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/legal_page.dart';
+import '../../portefeuille/data/retraits.dart';
 
 class ConditionsUtilisationPage extends StatelessWidget {
   const ConditionsUtilisationPage({super.key});
@@ -9,7 +10,7 @@ class ConditionsUtilisationPage extends StatelessWidget {
     return const LegalPage(
       titre: 'Conditions d\'utilisation',
       icon: Icons.description_outlined,
-      derniereMiseAJour: '12 octobre 2026',
+      derniereMiseAJour: retraitsOuverts ? '2 novembre 2026' : '12 octobre 2026',
       intro:
           'Les présentes Conditions Générales d\'Utilisation (« CGU ») régissent '
           'l\'accès et l\'utilisation de l\'application Sprint, éditée par Groupe '
@@ -71,6 +72,18 @@ class ConditionsUtilisationPage extends StatelessWidget {
               'nos partenaires Wave et Orange Money ; Groupe Santine ne '
               'conserve à aucun moment les identifiants de paiement du Client.',
         ),
+        if (retraitsOuverts)
+          SectionJuridique(
+            'Portefeuille Sprint et retraits',
+            'Le solde du Portefeuille Sprint sert à payer des courses. Le Client peut en demander le retrait '
+                'vers son compte Orange Money ou Wave depuis l\'onglet Compte : 500\u00A0FCFA au moins et 50\u202F000\u00A0FCFA '
+                'au plus par jour. Le montant est retiré du solde dès la demande ; Groupe Santine l\'envoie sous '
+                '$delaiVersementHeures heures, déduction faite des frais de transfert de l\'opérateur, à la charge '
+                'du Client. Seules les sommes réellement payées par le Client (paiements remboursés, recharges) '
+                'peuvent être retirées ; les crédits promotionnels ou de test ne le sont pas. Groupe Santine peut '
+                'refuser un retrait par décision motivée (numéro invalide, suspicion de fraude) : le montant revient '
+                'alors sur le solde.',
+          ),
         SectionJuridique(
           'Annulation',
           'Le Client peut annuler une course avant la prise en charge. Des '

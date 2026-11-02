@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
 import '../../../core/widgets/onyx_vert.dart';
+import '../../portefeuille/data/retraits.dart';
 import '../../support/presentation/contact_support.dart';
 
 class _Question {
@@ -32,6 +33,14 @@ const _questions = [
             'Portefeuille Santine, rechargeable avec Wave depuis l\'onglet Compte. '
             'Orange Money arrivera bientôt.',
   ),
+  if (retraitsOuverts)
+    _Question(
+      'Puis-je retirer mon solde ?',
+      'Oui, depuis l\'onglet Compte, bouton « Retirer » : de 500\u00A0FCFA à 50\u202F000\u00A0FCFA par jour, vers votre '
+          'compte Orange Money ou Wave. Le montant est retiré de votre solde dès la demande et Sprint vous '
+          'l\'envoie sous $delaiVersementHeures h, frais de transfert de l\'opérateur déduits. Seul l\'argent '
+          'réellement payé (Orange Money) peut être retiré : l\'argent de test sert uniquement à payer des courses.',
+    ),
   _Question(
     'Comment annuler une course ?',
     'Vous pouvez annuler une course tant que le Conducteur n\'a pas encore '

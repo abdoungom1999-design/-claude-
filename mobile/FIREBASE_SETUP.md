@@ -602,9 +602,9 @@ relancer le déploiement (onglet Actions > Run workflow).
 
 ### 7.1 bis Portefeuille Sprint (mode test : faux Wave)
 
-Crédit prépayé du client, **non retirable** (retrait vers Orange Money ou
-Wave préparé mais fermé : voir 7.1 quater), utilisable uniquement pour
-payer des courses. Tout passe par le serveur (`functions/src/portefeuille.ts`)
+Crédit prépayé du client, utilisable pour payer des courses, et retirable
+vers Orange Money ou Wave depuis la publication 117 (argent réellement payé
+seulement : voir 7.1 quater). Tout passe par le serveur (`functions/src/portefeuille.ts`)
 et fonctionne aujourd'hui contre le faux Wave : **aucune somme réelle ne
 bouge** tant que le vrai Wave n'est pas branché (voir
 « Passage à l'argent réel » plus bas).
@@ -920,73 +920,95 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.
 
-### 7.1 quater Retrait du solde (lot B : préparé, FERMÉ)
+### 7.1 quater Retrait du solde (lot B : OUVERT depuis la publication 117)
 
-Préparé le 2 novembre 2026 (go du client : « prépare le Lot B ») ; **fermé**
-tant que le client n'a pas donné son go pour l'ouvrir.
+Préparé le 2 novembre 2026, puis **ouvert** le même jour (go du client,
+publication 117), avec ses décisions : frais de transfert **payés par le
+client** (déduits du montant envoyé), envoi **sous 48 h**, plafond de
+**50 000 FCFA par jour et par client**, rien de plus à prévoir côté BCEAO
+pour le moment.
 
 - **Principe** : le client demande que son solde lui soit envoyé sur Orange
   Money ou Wave ; le montant est retiré du solde **aussitôt** (mouvement
-  `retrait`, débit : jamais dépensé deux fois) ; un Admin l'envoie depuis le
-  compte de Groupe Santine, puis le marque **versé** (référence du
-  transfert, facultative) ; ou il le **refuse** (motif obligatoire, envoyé au
-  client) et le montant revient sur le solde (mouvement `retrait_rendu`).
-  Journal Admin (`retrait_verse`, `retrait_refuse`) ; notification aux
-  Admins à chaque demande, au client à chaque traitement. Aucun virement
-  automatique : l'API d'Orange Money n'en a pas pour le compte marchand
-  (seul le dépôt « cash in », avec le code secret d'un distributeur, jamais
-  utilisé).
-- **Réglage** : `RETRAITS_OUVERTS = false` (`functions/src/retraits.ts`) et
-  son jumeau `retraitsOuverts = false`
-  (`lib/features/portefeuille/data/retraits.dart`), vérifiés ensemble par
-  `functions/test/retraits.test.ts`. Fermé : `demanderRetrait` refuse avant
-  toute lecture (`failed-precondition`, raison `retraits_fermes`) ; l'app
-  n'affiche rien (ni bouton « Retirer », ni bandeau, ni lecture) et le texte
-  de la recharge reste « non retirable ». Côté Admin, la carte « Retraits de
-  solde à verser » (Finances) n'apparaît que si des retraits attendent.
+  `retrait`, débit : jamais dépensé deux fois) ; un Admin l'envoie sous
+  48 h depuis le compte de Groupe Santine, **moins les frais de
+  l'opérateur**, puis le marque **versé** ; ou il le **refuse** (motif
+  obligatoire, envoyé au client) et le montant revient sur le solde
+  (mouvement `retrait_rendu`). Journal Admin (`retrait_verse` avec frais et
+  montant envoyé, `retrait_refuse`) ; notification aux Admins à chaque
+  demande, au client à chaque traitement (montant envoyé et frais). Aucun
+  virement automatique : l'API d'Orange Money n'en a pas pour le compte
+  marchand (seul le dépôt « cash in », avec le code secret d'un
+  distributeur, jamais utilisé).
+- **Seul l'argent réellement payé se retire** (garde-fou ajouté à
+  l'ouverture : Wave est encore simulé, une recharge Wave ne crée que de
+  l'argent de test). `montantRetirable` (`functions/src/retraits.ts`) relit
+  le livre du client dans la transaction de la demande : recharges et
+  remboursements payés réellement (Orange Money en production, depuis
+  `DEBUT_ARGENT_REEL_ORANGE` = 2 novembre 2026 9 h 43, déploiement de la
+  publication 114 ; vrai Wave quand il sera branché), moins les courses
+  payées avec le solde (comptées d'abord sur l'argent réel, par prudence),
+  les retraits et les ajustements négatifs ; un remboursement de course payée
+  avec le solde annule son débit ; un ajustement positif de l'Admin (geste
+  commercial) ne se retire pas ; jamais plus que le solde. Faux Wave
+  (`simulation`) et bac à sable d'Orange Money : jamais retirables. Quand le
+  vrai Wave sera branché, tout l'argent sera réel et le solde entier
+  retirable (hors gestes commerciaux).
+- **Réglages** (`functions/src/retraits.ts`, jumeaux dans
+  `lib/features/portefeuille/data/retraits.dart`, vérifiés par
+  `functions/test/retraits.test.ts`) : `RETRAITS_OUVERTS = true`,
+  `RETRAIT_MIN_FCFA = 500`, `RETRAIT_MAX_JOUR_FCFA = 50_000` (jour de Dakar,
+  minuit à minuit ; retraits refusés exclus ; champ `jour` de chaque demande,
+  requête d'égalité seulement : aucun index composite),
+  `DELAI_VERSEMENT_HEURES = 48` (champ `aVerserAvant`). Frais au versement :
+  au plus 10 % du montant (100 FCFA au moins), toujours moins que le montant
+  (`fraisMaxFcfa` : une faute de frappe ne doit pas être payée par le client).
+- **Fonctions** : `infosRetrait` (client, lecture seule : solde, retirable,
+  reste du plafond du jour, retrait en cours, maximum), `demanderRetrait`
+  (client), `traiterRetrait` (Admin ; versé : `fraisFcfa` obligatoire, 0 s'il
+  n'y en a pas, `montantVerseFcfa` enregistré).
 - **Données** : `retraits/{rtr_<24 hexadécimaux>}` : `clientId`,
   `nomClient`, `numeroDuCompte` (le numéro de réception est-il celui du
   compte ?), `montantFcfa`, `moyen` (`ORANGE_MONEY` ou `WAVE`), `numero`
   (9 chiffres), `statut` (`demande` puis `verse` ou `refuse`, une seule
-  fois), `creeLe`, `traiteLe`, `traitePar`, `referenceVersement` ou
-  `motifRefus`. Lecture : le client (les siens) et l'Admin ; aucune
-  écriture depuis l'app (règles Firestore).
+  fois), `jour`, `creeLe`, `aVerserAvant`, `traiteLe`, `traitePar`,
+  `fraisFcfa`, `montantVerseFcfa`, `referenceVersement` ou `motifRefus`.
+  Lecture : le client (les siens) et l'Admin ; aucune écriture depuis l'app
+  (règles Firestore).
 - **Contrôles du serveur** : compte client (ni chauffeur, ni Admin), ni
-  suspendu ni banni ; montant entier, 500 FCFA au moins, au plus le solde ;
-  numéro mobile sénégalais (70, 75, 76, 77 ou 78 ; « +221 », « 00221 »,
-  espaces, points et tirets acceptés) ; une seule demande en attente par
-  client, dans une transaction (deux demandes simultanées ne dépensent
-  jamais deux fois le solde) ; traitement par un Admin seulement, une seule
-  fois. Un numéro de réception différent de celui du compte est signalé à
-  l'Admin (compte peut-être utilisé par quelqu'un d'autre : vérifier avant
-  de verser).
+  suspendu ni banni ; montant entier, de 500 à 50 000 FCFA, au plus le
+  solde, l'argent réel et le reste du plafond du jour ; numéro mobile
+  sénégalais (70, 75, 76, 77 ou 78 ; « +221 », « 00221 », espaces, points et
+  tirets acceptés) ; une seule demande en attente par client, dans une
+  transaction (deux demandes simultanées ne dépensent jamais deux fois le
+  solde) ; traitement par un Admin seulement, une seule fois. Un numéro de
+  réception différent de celui du compte est signalé à l'Admin (compte
+  peut-être utilisé par quelqu'un d'autre : vérifier avant de verser).
+- **App** : bouton « Retirer » à côté de « Recharger » ; la feuille demande
+  d'abord au serveur ce qui peut être retiré et le propose (sinon elle dit
+  pourquoi : argent de test, plafond du jour atteint, solde insuffisant,
+  retrait déjà en cours) ; 48 h et frais annoncés ; bandeau du retrait en
+  cours. Centre d'aide (« Puis-je retirer mon solde ? ») et conditions
+  d'utilisation (« Portefeuille Sprint et retraits », mise à jour du
+  2 novembre 2026) à jour.
 - **Procédure Admin** : Espace Admin › Finances › « Retraits de solde à
-  verser » (les plus anciens d'abord ; numéro sélectionnable pour le
-  copier) : vérifier, envoyer depuis le compte Orange Money ou Wave de
-  Groupe Santine, puis « Marquer versé » ; ou « Refuser » avec le motif.
-- **Pour ouvrir** (go du client) : passer les deux réglages à `true` dans le
-  même commit, mettre à jour le test qui les veut fermés (avec la date du
-  go), adapter les textes d'aide et les conditions (le solde devient
-  retirable), puis publier.
-- **À décider avant d'ouvrir** : frais du transfert (payés par Sprint, ou
-  déduits du montant ; aujourd'hui le client reçoit le montant entier) ;
-  délai annoncé (aucun n'est promis : « après vérification ») ; plafonds
-  éventuels par jour ou par mois ; cadre réglementaire du solde (point 3
-  ci-dessus).
-- **Refermer après ouverture** : les demandes déjà faites restent à traiter
-  par l'Admin (la carte reste visible tant qu'il y en a) ; le client voit le
-  débit dans ses mouvements et est prévenu au traitement.
-- **Tant que c'est fermé**, une publication emporte ce code sans rien
-  changer pour les clients : deux fonctions de plus (`demanderRetrait`, qui
-  refuse, et `traiterRetrait`, Admin seulement), une règle de lecture, une
-  carte Admin invisible sans retrait en attente.
+  verser » (les plus anciens d'abord ; échéance « à envoyer avant le … »,
+  « En retard » au-delà de 48 h ; numéro sélectionnable pour le copier) :
+  vérifier, saisir les frais affichés par l'opérateur (le montant à envoyer
+  s'affiche), envoyer depuis le compte Orange Money ou Wave de Groupe
+  Santine, puis « Confirmer le versement » (référence facultative) ; ou
+  « Refuser » avec le motif.
+- **Refermer** (go du client) : les deux réglages à `false` dans le même
+  commit, le test des jumeaux mis à jour, publier ; les demandes déjà faites
+  restent à traiter par l'Admin (la carte reste visible tant qu'il y en a) ;
+  le client voit le débit dans ses mouvements et est prévenu au traitement.
 
 ### 7.2 Tests
 
 ```bash
 cd mobile/functions
-npm test                  # moteur de prix (dont parité avec l'app), validation, signatures, client et paiement Orange Money (faux Orange), retraits (réglages jumeaux, numéro)
-npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille, Orange Money, retraits du solde (émulateur Firestore, faux Orange)
+npm test                  # moteur de prix (dont parité avec l'app), validation, signatures, client et paiement Orange Money (faux Orange), retraits (réglages jumeaux, numéro, argent réel, frais, jour)
+npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille, Orange Money, retraits du solde (argent réel, plafond du jour, frais) (émulateur Firestore, faux Orange)
 ```
 
 

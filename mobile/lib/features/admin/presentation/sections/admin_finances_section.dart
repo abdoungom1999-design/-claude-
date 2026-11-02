@@ -76,7 +76,7 @@ class _FinancesReellesState extends State<_FinancesReelles> {
       children: [
         // Indépendant du reste : une erreur de lecture des retraits ne
         // masque jamais les comptes des chauffeurs (et inversement).
-        _RetraitsATraiter(service: widget.retraits),
+        _RetraitsATraiter(service: widget.retraits, maintenant: widget.maintenant),
         _comptes(),
       ],
     );
@@ -381,14 +381,18 @@ class _DialogVersementState extends State<_DialogVersement> {
 }
 
 /// Retraits de solde demandés par les clients (lot B), les plus anciens
-/// d'abord : l'Admin envoie le montant depuis le compte Orange Money ou Wave
-/// de Groupe Santine, puis le marque « versé » ; ou il le refuse (motif
-/// envoyé au client) et le montant revient sur le solde du client. Rien
-/// n'apparaît tant qu'aucun retrait n'attend (retraits fermés).
+/// d'abord : l'Admin envoie le montant sous 48 h depuis le compte Orange Money
+/// ou Wave de Groupe Santine, frais de l'opérateur déduits (payés par le
+/// client), puis le marque « versé » ; ou il le refuse (motif envoyé au
+/// client) et le montant revient sur le solde du client. Rien n'apparaît tant
+/// qu'aucun retrait n'attend.
 class _RetraitsATraiter extends StatefulWidget {
-  const _RetraitsATraiter({required this.service});
+  const _RetraitsATraiter({required this.service, this.maintenant});
 
   final RetraitService service;
+
+  /// Injectable pour les tests (retards) ; sinon l'heure courante.
+  final DateTime? maintenant;
 
   @override
   State<_RetraitsATraiter> createState() => _RetraitsATraiterState();
@@ -462,9 +466,10 @@ class _RetraitsATraiterState extends State<_RetraitsATraiter> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Le montant est déjà retiré du solde du client. Envoyez-le depuis le compte Orange Money ou Wave '
-                  'de Groupe Santine, puis marquez-le « versé » : le client est prévenu. Refusé : le montant revient '
-                  'sur son solde, avec votre motif.',
+                  'Le montant est déjà retiré du solde du client. Envoyez-le sous $delaiVersementHeures h depuis le '
+                  'compte Orange Money ou Wave de Groupe Santine, frais de transfert déduits (payés par le client), '
+                  'puis marquez-le « versé » : le client est prévenu. Refusé : le montant revient sur son solde, avec '
+                  'votre motif.',
                   style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
                 ),
                 const SizedBox(height: 10),
@@ -475,6 +480,7 @@ class _RetraitsATraiterState extends State<_RetraitsATraiter> {
                     if (i > 0) const Divider(color: AppColors.bord),
                     _LigneRetrait(
                       retrait: retrait,
+                      maintenant: widget.maintenant ?? DateTime.now(),
                       onVerse: () => _traiter(retrait, verse: true),
                       onRefuse: () => _traiter(retrait, verse: false),
                     ),
@@ -489,9 +495,10 @@ class _RetraitsATraiterState extends State<_RetraitsATraiter> {
 }
 
 class _LigneRetrait extends StatelessWidget {
-  const _LigneRetrait({required this.retrait, required this.onVerse, required this.onRefuse});
+  const _LigneRetrait({required this.retrait, required this.maintenant, required this.onVerse, required this.onRefuse});
 
   final Retrait retrait;
+  final DateTime maintenant;
   final VoidCallback onVerse;
   final VoidCallback onRefuse;
 
@@ -530,6 +537,28 @@ class _LigneRetrait extends StatelessWidget {
             '${creeLe == null ? '' : ' · demandé le ${_date(creeLe)}'}',
             style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret),
           ),
+          if (retrait.aVerserAvant case final echeance?) ...[
+            const SizedBox(height: 4),
+            if (maintenant.isAfter(echeance))
+              Row(
+                key: const ValueKey('retrait-en-retard'),
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 16, color: AppColors.danger),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'En retard : promis au client avant le ${_date(echeance)}',
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.danger, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Text(
+                'À envoyer avant le ${_date(echeance)}',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texte, fontWeight: FontWeight.w600),
+              ),
+          ],
           if (!retrait.numeroDuCompte) ...[
             const SizedBox(height: 6),
             const Row(
@@ -566,8 +595,10 @@ class _LigneRetrait extends StatelessWidget {
   }
 }
 
-/// Confirmation d'un retrait versé (référence du transfert, facultative) ou
-/// refusé (motif obligatoire, envoyé au client). Le serveur vérifie tout.
+/// Confirmation d'un retrait versé (frais de transfert de l'opérateur,
+/// déduits du montant envoyé et payés par le client ; référence du transfert,
+/// facultative) ou refusé (motif obligatoire, envoyé au client). Le serveur
+/// vérifie tout.
 class _DialogRetrait extends StatefulWidget {
   const _DialogRetrait({required this.service, required this.retrait, required this.verse});
 
@@ -581,13 +612,24 @@ class _DialogRetrait extends StatefulWidget {
 
 class _DialogRetraitState extends State<_DialogRetrait> {
   final _texte = TextEditingController();
+  final _frais = TextEditingController();
   bool _envoi = false;
   String? _erreur;
 
   @override
   void dispose() {
     _texte.dispose();
+    _frais.dispose();
     super.dispose();
+  }
+
+  int? get _fraisSaisis => int.tryParse(_frais.text.replaceAll(RegExp(r'[\s  ]'), ''));
+
+  /// Même règle que le serveur (`fraisMaxFcfa`) : 10 % au plus, 100 FCFA au moins, moins que le montant.
+  int get _fraisMax {
+    final montant = widget.retrait.montantFcfa;
+    final max = montant ~/ 10 > 100 ? montant ~/ 10 : 100;
+    return max < montant - 1 ? max : montant - 1;
   }
 
   Future<void> _confirmer() async {
@@ -595,6 +637,17 @@ class _DialogRetraitState extends State<_DialogRetrait> {
     if (!widget.verse && texte.isEmpty) {
       setState(() => _erreur = 'Indiquez le motif du refus : il est envoyé au client.');
       return;
+    }
+    final frais = _fraisSaisis;
+    if (widget.verse) {
+      if (frais == null || frais < 0) {
+        setState(() => _erreur = 'Indiquez les frais de transfert (0 s\'il n\'y en a pas).');
+        return;
+      }
+      if (frais > _fraisMax) {
+        setState(() => _erreur = 'Frais trop élevés : ${formaterFcfa(_fraisMax)} au plus. Vérifiez la saisie.');
+        return;
+      }
     }
     setState(() {
       _envoi = true;
@@ -604,6 +657,7 @@ class _DialogRetraitState extends State<_DialogRetrait> {
       await widget.service.traiter(
         retraitId: widget.retrait.id,
         verse: widget.verse,
+        fraisFcfa: widget.verse ? frais! : 0,
         reference: widget.verse ? texte : '',
         motif: widget.verse ? '' : texte,
       );
@@ -629,40 +683,67 @@ class _DialogRetraitState extends State<_DialogRetrait> {
   Widget build(BuildContext context) {
     final r = widget.retrait;
     final moyen = r.moyen?.label ?? 'mobile money';
+    final frais = _fraisSaisis;
     return AlertDialog(
       title: Text(widget.verse ? 'Retrait versé à ${r.nomClient}' : 'Refuser le retrait de ${r.nomClient}'),
       content: SizedBox(
         width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.verse
-                  ? 'Confirmez que vous avez envoyé ${formaterFcfa(r.montantFcfa)} sur le ${r.numeroLisible} ($moyen). '
-                      'Le client sera prévenu.'
-                  : '${formaterFcfa(r.montantFcfa)} reviendront sur le solde Sprint du client, qui recevra votre motif.',
-              style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              key: const ValueKey('texte-traitement-retrait'),
-              controller: _texte,
-              enabled: !_envoi,
-              maxLength: widget.verse ? 100 : 300,
-              maxLines: widget.verse ? 1 : 3,
-              minLines: 1,
-              decoration: InputDecoration(
-                labelText: widget.verse ? 'Référence du transfert (facultatif)' : 'Motif du refus',
-                hintText: widget.verse ? 'Ex. : MP261102.1200.A00001' : 'Ex. : numéro injoignable',
-                border: const OutlineInputBorder(),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.verse
+                    ? '${formaterFcfa(r.montantFcfa)} retirés par le client. Les frais de transfert de l\'opérateur '
+                        'sont à sa charge : envoyez le montant moins ces frais sur le ${r.numeroLisible} ($moyen), '
+                        'puis confirmez. Le client sera prévenu.'
+                    : '${formaterFcfa(r.montantFcfa)} reviendront sur le solde Sprint du client, qui recevra votre motif.',
+                style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
               ),
-            ),
-            if (_erreur case final erreur?) ...[
-              const SizedBox(height: 6),
-              Text(erreur, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
+              const SizedBox(height: 14),
+              if (widget.verse) ...[
+                TextField(
+                  key: const ValueKey('frais-retrait'),
+                  controller: _frais,
+                  enabled: !_envoi,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setState(() => _erreur = null),
+                  decoration: const InputDecoration(
+                    labelText: 'Frais de transfert (FCFA)',
+                    helperText: 'Ceux affichés par l\'opérateur pour cet envoi ; 0 s\'il n\'y en a pas.',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (frais != null && frais >= 0 && frais <= _fraisMax) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Montant à envoyer : ${formaterFcfa(r.montantFcfa - frais)}',
+                    key: const ValueKey('montant-a-envoyer'),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.texte),
+                  ),
+                ],
+                const SizedBox(height: 14),
+              ],
+              TextField(
+                key: const ValueKey('texte-traitement-retrait'),
+                controller: _texte,
+                enabled: !_envoi,
+                maxLength: widget.verse ? 100 : 300,
+                maxLines: widget.verse ? 1 : 3,
+                minLines: 1,
+                decoration: InputDecoration(
+                  labelText: widget.verse ? 'Référence du transfert (facultatif)' : 'Motif du refus',
+                  hintText: widget.verse ? 'Ex. : MP261102.1200.A00001' : 'Ex. : numéro injoignable',
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              if (_erreur case final erreur?) ...[
+                const SizedBox(height: 6),
+                Text(erreur, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       actions: [

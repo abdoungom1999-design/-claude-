@@ -7,8 +7,8 @@ import '../../../core/firebase/fonctions_cloud.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../firebase_options.dart';
 
-/// Portefeuille Sprint (crédit prépayé, non retirable tant que les retraits
-/// sont fermés, voir `retraits.dart` ; utilisable pour payer des courses). Mêmes limites que `functions/src/portefeuille.ts`,
+/// Portefeuille Sprint (crédit prépayé, utilisable pour payer des courses ;
+/// l'argent réellement payé est retirable, voir `retraits.dart`). Mêmes limites que `functions/src/portefeuille.ts`,
 /// qui les fait respecter : ce ne sont ici que des garde-fous d'affichage.
 abstract final class LimitesPortefeuille {
   static const rechargeMinFcfa = 500;

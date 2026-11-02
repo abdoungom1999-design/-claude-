@@ -95,14 +95,20 @@ class _CompteTabPageState extends State<CompteTabPage> {
     final uid = _uid;
     if (uid != null) _fluxPortefeuille = _portefeuille.streamPortefeuille(uid);
     if (uid != null && widget.retraitsDisponibles) {
-      _suiviRetrait = _retraits.streamRetraitEnCours(uid).listen(
-            (retrait) {
-              if (mounted) setState(() => _retraitEnCours = retrait);
-            },
-            // Lecture impossible : pas de bandeau ; le serveur refuse de
-            // toute façon une seconde demande.
-            onError: (Object _) {},
-          );
+      try {
+        _suiviRetrait = _retraits.streamRetraitEnCours(uid).listen(
+              (retrait) {
+                if (mounted) setState(() => _retraitEnCours = retrait);
+              },
+              // Lecture impossible : pas de bandeau ; le serveur refuse de
+              // toute façon une seconde demande.
+              onError: (Object _) {},
+            );
+      } on Object {
+        // Suivi impossible à ouvrir : pas de bouton « Retirer », l'onglet
+        // reste utilisable.
+        _suiviRetrait = null;
+      }
     }
   }
 
@@ -130,6 +136,7 @@ class _CompteTabPageState extends State<CompteTabPage> {
       builder: (_) => _RechargeSheet(
         rechargePossibleFcfa: portefeuille.rechargePossibleFcfa,
         moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney),
+        retraitPossible: _suiviRetrait != null,
       ),
     );
     if (choix == null || !mounted) return;
@@ -185,10 +192,12 @@ class _CompteTabPageState extends State<CompteTabPage> {
     }
   }
 
-  /// Retrait du solde vers Orange Money ou Wave : le serveur réserve le
-  /// montant aussitôt (débité du solde), un Admin Sprint l'envoie puis le
-  /// marque versé, ou le refuse et le montant revient sur le solde.
-  Future<void> _retirer(Portefeuille portefeuille) async {
+  /// Retrait du solde vers Orange Money ou Wave : la feuille demande d'abord
+  /// au serveur ce qui peut être retiré (argent réellement payé, plafond du
+  /// jour) ; le serveur réserve ensuite le montant (débité du solde), un Admin
+  /// Sprint l'envoie sous 48 h, frais de l'opérateur déduits, ou le refuse et
+  /// le montant revient sur le solde.
+  Future<void> _retirer() async {
     if (_retraitEnCours case final enCours?) {
       await PremiumDialog.afficher(
         context,
@@ -198,22 +207,12 @@ class _CompteTabPageState extends State<CompteTabPage> {
       );
       return;
     }
-    if (portefeuille.soldeFcfa < retraitMinFcfa) {
-      await PremiumDialog.afficher(
-        context,
-        icon: Icons.account_balance_wallet_outlined,
-        titre: 'Solde insuffisant',
-        message: 'Le retrait minimal est de ${formaterFcfa(retraitMinFcfa)}. '
-            'Votre solde : ${formaterFcfa(portefeuille.soldeFcfa)}.',
-      );
-      return;
-    }
     final demande = await showModalBottomSheet<_RetraitDemande>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _RetraitSheet(
-        soldeFcfa: portefeuille.soldeFcfa,
+        charger: _retraits.infos,
         numeroPropose: numeroSenegal(_profilConnu?['telephone'] as String? ?? '') ?? '',
         envoyer: (montantFcfa, moyen, numero) =>
             _retraits.demander(montantFcfa: montantFcfa, moyen: moyen, numero: numero),
@@ -224,23 +223,23 @@ class _CompteTabPageState extends State<CompteTabPage> {
       context,
       icon: Icons.check_circle_outline_rounded,
       titre: 'Demande de retrait envoyée',
-      message: '${formaterFcfa(demande.montantFcfa)} ont été retirés de votre solde. Sprint vous les envoie sur '
-          'votre compte ${demande.moyen.label} (${formaterNumero(demande.numero)}) après vérification. '
-          'Vous serez prévenu dès le versement.',
+      message: '${formaterFcfa(demande.montantFcfa)} ont été retirés de votre solde. Sprint vous les envoie sous '
+          '$delaiVersementHeures h sur votre compte ${demande.moyen.label} (${formaterNumero(demande.numero)}), '
+          'frais de transfert de l\'opérateur déduits. Vous serez prévenu dès l\'envoi.',
       succes: true,
     );
   }
 
   static String _resumeRetrait(Retrait retrait) =>
       '${formaterFcfa(retrait.montantFcfa)} vers ${retrait.moyen?.label ?? 'votre mobile money'} '
-      '(${retrait.numeroLisible}) : Sprint vous les envoie après vérification.';
+      '(${retrait.numeroLisible}), envoyés sous $delaiVersementHeures h, frais de transfert déduits.';
 
   Widget _carteWallet(Portefeuille portefeuille) => WalletCard(
         soldeFcfa: portefeuille.soldeFcfa,
         payerAvecSolde: portefeuille.payerAvecSolde,
         onTogglePaiement: _definirPreference,
         onRecharger: () => _recharger(portefeuille),
-        onRetirer: _suiviRetrait == null ? null : () => _retirer(portefeuille),
+        onRetirer: _suiviRetrait == null ? null : _retirer,
       );
 
   Future<void> _seDeconnecter() async {
@@ -478,13 +477,16 @@ class _ChoixRecharge {
 }
 
 class _RechargeSheet extends StatefulWidget {
-  const _RechargeSheet({required this.rechargePossibleFcfa, required this.moyens});
+  const _RechargeSheet({required this.rechargePossibleFcfa, required this.moyens, required this.retraitPossible});
 
   /// Ce qui peut encore être ajouté avant le plafond du solde.
   final int rechargePossibleFcfa;
 
   /// Opérateurs de mobile money proposés à ce client ([moyensMobileMoneyPour]).
   final List<PaymentMethod> moyens;
+
+  /// Retraits ouverts pour ce compte (bouton « Retirer » affiché).
+  final bool retraitPossible;
 
   @override
   State<_RechargeSheet> createState() => _RechargeSheetState();
@@ -554,11 +556,12 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.texte),
               ),
               const SizedBox(height: 6),
-              const Text(
-                retraitsOuverts
-                    ? 'Le solde sert à payer vos courses. Vous pouvez aussi le retirer vers Orange Money ou Wave.'
+              Text(
+                widget.retraitPossible
+                    ? 'Le solde sert à payer vos courses. Il peut aussi être retiré (bouton « Retirer »), '
+                        'hors argent de test.'
                     : 'Le solde sert uniquement à payer vos courses. Il n\'est pas retirable.',
-                style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               const SizedBox(height: 18),
               Wrap(
@@ -657,13 +660,16 @@ class _RetraitDemande {
   final String numero;
 }
 
-/// Retrait du solde : montant (tout le solde proposé), moyen et numéro de
-/// réception (celui du compte proposé). La demande part d'ici : une erreur
-/// du serveur s'affiche dans la feuille, pour corriger sans tout ressaisir.
+/// Retrait du solde. La feuille demande d'abord au serveur ce qui peut être
+/// retiré maintenant ([InfosRetrait] : argent réellement payé, plafond du
+/// jour), puis propose ce maximum, Orange Money ou Wave, et le numéro du
+/// compte. La demande part d'ici : une erreur du serveur s'affiche dans la
+/// feuille, pour corriger sans tout ressaisir.
 class _RetraitSheet extends StatefulWidget {
-  const _RetraitSheet({required this.soldeFcfa, required this.numeroPropose, required this.envoyer});
+  const _RetraitSheet({required this.charger, required this.numeroPropose, required this.envoyer});
 
-  final int soldeFcfa;
+  /// Ce qui peut être retiré ; erreurs : [ApiException].
+  final Future<InfosRetrait> Function() charger;
 
   /// Numéro du compte s'il est valide, vide sinon.
   final String numeroPropose;
@@ -676,11 +682,19 @@ class _RetraitSheet extends StatefulWidget {
 }
 
 class _RetraitSheetState extends State<_RetraitSheet> {
-  late final _montant = TextEditingController(text: '${widget.soldeFcfa}');
+  InfosRetrait? _infos;
+  String? _erreurChargement;
+  final _montant = TextEditingController();
   late final _numero = TextEditingController(text: formaterNumero(widget.numeroPropose));
   MoyenRetrait _moyen = MoyenRetrait.orangeMoney;
   bool _envoi = false;
   String? _erreurServeur;
+
+  @override
+  void initState() {
+    super.initState();
+    _charger();
+  }
 
   @override
   void dispose() {
@@ -689,19 +703,67 @@ class _RetraitSheetState extends State<_RetraitSheet> {
     super.dispose();
   }
 
+  Future<void> _charger() async {
+    if (_infos != null || _erreurChargement != null) {
+      setState(() {
+        _infos = null;
+        _erreurChargement = null;
+      });
+    }
+    try {
+      final infos = await widget.charger();
+      if (!mounted) return;
+      setState(() {
+        _infos = infos;
+        _montant.text = '${infos.maximumFcfa}';
+      });
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _erreurChargement = e.message);
+    } on Object {
+      if (mounted) setState(() => _erreurChargement = 'Vérification impossible. Vérifiez votre connexion et réessayez.');
+    }
+  }
+
   int? get _montantSaisi => int.tryParse(_montant.text.replaceAll(RegExp(r'[\s  ]'), ''));
 
-  String? get _erreurMontant {
+  String? _erreurMontant(InfosRetrait infos) {
     final montant = _montantSaisi;
     if (montant == null) return 'Saisissez un montant.';
     if (montant < retraitMinFcfa) return 'Retrait minimal : ${formaterFcfa(retraitMinFcfa)}.';
-    if (montant > widget.soldeFcfa) return 'Votre solde est de ${formaterFcfa(widget.soldeFcfa)}.';
+    if (montant > infos.maximumFcfa) return 'Vous pouvez retirer au plus ${formaterFcfa(infos.maximumFcfa)} maintenant.';
     return null;
   }
 
   String? get _erreurNumero => numeroSenegal(_numero.text) == null
       ? 'Numéro invalide : 9 chiffres, commençant par 70, 75, 76, 77 ou 78.'
       : null;
+
+  /// Pourquoi rien ne peut être retiré maintenant (maximum sous le minimum).
+  static (String, String) _indisponible(InfosRetrait infos) {
+    if (infos.enCours) {
+      return (
+        'Retrait déjà en cours',
+        'Vous pourrez faire une nouvelle demande une fois la précédente traitée.',
+      );
+    }
+    if (infos.soldeFcfa < retraitMinFcfa) {
+      return (
+        'Solde insuffisant',
+        'Le retrait minimal est de ${formaterFcfa(retraitMinFcfa)}. Votre solde : ${formaterFcfa(infos.soldeFcfa)}.',
+      );
+    }
+    if (infos.resteDuJourFcfa < retraitMinFcfa) {
+      return (
+        'Plafond du jour atteint',
+        'Les retraits sont limités à ${formaterFcfa(retraitMaxJourFcfa)} par jour. Réessayez demain.',
+      );
+    }
+    return (
+      'Rien à retirer pour l\'instant',
+      'Seul l\'argent réellement payé (Orange Money) peut être retiré. Votre solde vient de recharges en mode '
+          'test : il sert à payer vos courses.',
+    );
+  }
 
   Future<void> _confirmer() async {
     final montant = _montantSaisi;
@@ -751,12 +813,120 @@ class _RetraitSheetState extends State<_RetraitSheet> {
         child: Text(texte, key: ValueKey(cle), style: const TextStyle(fontSize: 12.5, color: AppColors.danger)),
       );
 
-  @override
-  Widget build(BuildContext context) {
-    final erreurMontant = _erreurMontant;
+  static const _discret = TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4);
+
+  List<Widget> _contenu(BuildContext context) {
+    final infos = _infos;
+    if (_erreurChargement case final erreur?) {
+      return [
+        Text(erreur, key: const ValueKey('erreur-chargement-retrait'), style: const TextStyle(color: AppColors.danger)),
+        const SizedBox(height: 22),
+        PrimaryButton(label: 'Réessayer', onPressed: _charger),
+      ];
+    }
+    if (infos == null) {
+      return const [
+        SizedBox(height: 12),
+        Center(child: CircularProgressIndicator(color: AppColors.vert)),
+        SizedBox(height: 14),
+        Text('Vérification de ce que vous pouvez retirer…', textAlign: TextAlign.center, style: _discret),
+        SizedBox(height: 12),
+      ];
+    }
+    if (infos.maximumFcfa < retraitMinFcfa) {
+      final (titre, texte) = _indisponible(infos);
+      return [
+        Text(titre, key: const ValueKey('retrait-indisponible'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.texte)),
+        const SizedBox(height: 6),
+        Text(texte, style: _discret),
+        const SizedBox(height: 22),
+        PrimaryButton(label: 'Compris', onPressed: () => Navigator.of(context).pop()),
+      ];
+    }
+    final erreurMontant = _erreurMontant(infos);
     final erreurNumero = _erreurNumero;
     final montant = _montantSaisi;
     final pret = erreurMontant == null && erreurNumero == null;
+    return [
+      Text(
+        'Vous pouvez retirer jusqu\'à ${formaterFcfa(infos.maximumFcfa)} maintenant'
+        '${infos.retirableFcfa < infos.soldeFcfa ? ' (le reste de votre solde est de l\'argent de test, qui sert à payer vos courses)' : ''}'
+        '${infos.resteDuJourFcfa < retraitMaxJourFcfa ? ' ; plafond du jour : encore ${formaterFcfa(infos.resteDuJourFcfa)}' : ''}.',
+        key: const ValueKey('retirable'),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.texte, height: 1.4),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        'Le montant est retiré de votre solde dès la demande. Sprint vous l\'envoie sous $delaiVersementHeures h, '
+        'frais de transfert de l\'opérateur déduits. En cas de refus, il revient sur votre solde. Plafond : '
+        '${formaterFcfa(retraitMaxJourFcfa)} par jour.',
+        style: _discret,
+      ),
+      const SizedBox(height: 18),
+      TextField(
+        key: const ValueKey('montant-retrait'),
+        controller: _montant,
+        enabled: !_envoi,
+        keyboardType: TextInputType.number,
+        onChanged: (_) => setState(() => _erreurServeur = null),
+        decoration: _decoration('Montant à retirer (FCFA)'),
+      ),
+      if (erreurMontant != null) _erreur(erreurMontant, 'erreur-montant-retrait'),
+      const SizedBox(height: 18),
+      const Text('Recevoir sur', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texte)),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 10,
+        children: MoyenRetrait.values.map((moyen) {
+          final selectionne = moyen == _moyen;
+          return ChoiceChip(
+            key: ValueKey('moyen-retrait-${moyen.apiValue}'),
+            label: Text(moyen.label),
+            selected: selectionne,
+            onSelected: _envoi ? null : (_) => setState(() => _moyen = moyen),
+            selectedColor: AppColors.vert,
+            showCheckmark: false,
+            side: BorderSide(color: selectionne ? AppColors.vert : AppColors.bord),
+            labelStyle: TextStyle(
+              color: selectionne ? AppColors.onyx : AppColors.texte,
+              fontWeight: FontWeight.w700,
+            ),
+            backgroundColor: AppColors.carteHaute,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        key: const ValueKey('numero-retrait'),
+        controller: _numero,
+        enabled: !_envoi,
+        keyboardType: TextInputType.phone,
+        onChanged: (_) => setState(() => _erreurServeur = null),
+        decoration: _decoration('Numéro ${_moyen.label}', aide: 'Le numéro qui recevra l\'argent.'),
+      ),
+      if (erreurNumero != null && _numero.text.trim().isNotEmpty) _erreur(erreurNumero, 'erreur-numero-retrait'),
+      if (pret && montant != null) ...[
+        const SizedBox(height: 14),
+        Text(
+          'Vous recevrez ${formaterFcfa(montant)} sur le ${formaterNumero(numeroSenegal(_numero.text)!)} '
+          '(${_moyen.label}), moins les frais de transfert.',
+          key: const ValueKey('resume-retrait'),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.texte, height: 1.4),
+        ),
+      ],
+      if (_erreurServeur case final erreur?) _erreur(erreur, 'erreur-serveur-retrait'),
+      const SizedBox(height: 22),
+      PrimaryButton(
+        label: 'Confirmer le retrait',
+        isLoading: _envoi,
+        onPressed: pret && !_envoi ? _confirmer : null,
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
@@ -783,72 +953,8 @@ class _RetraitSheetState extends State<_RetraitSheet> {
                 'Retirer mon solde',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.texte),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Solde disponible : ${formaterFcfa(widget.soldeFcfa)}. Le montant est retiré de votre solde dès la '
-                'demande ; Sprint vous l\'envoie après vérification. En cas de refus, il revient sur votre solde.',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                key: const ValueKey('montant-retrait'),
-                controller: _montant,
-                enabled: !_envoi,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() => _erreurServeur = null),
-                decoration: _decoration('Montant à retirer (FCFA)'),
-              ),
-              if (erreurMontant != null) _erreur(erreurMontant, 'erreur-montant-retrait'),
-              const SizedBox(height: 18),
-              const Text('Recevoir sur', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texte)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 10,
-                children: MoyenRetrait.values.map((moyen) {
-                  final selectionne = moyen == _moyen;
-                  return ChoiceChip(
-                    key: ValueKey('moyen-retrait-${moyen.apiValue}'),
-                    label: Text(moyen.label),
-                    selected: selectionne,
-                    onSelected: _envoi ? null : (_) => setState(() => _moyen = moyen),
-                    selectedColor: AppColors.vert,
-                    showCheckmark: false,
-                    side: BorderSide(color: selectionne ? AppColors.vert : AppColors.bord),
-                    labelStyle: TextStyle(
-                      color: selectionne ? AppColors.onyx : AppColors.texte,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    backgroundColor: AppColors.carteHaute,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                key: const ValueKey('numero-retrait'),
-                controller: _numero,
-                enabled: !_envoi,
-                keyboardType: TextInputType.phone,
-                onChanged: (_) => setState(() => _erreurServeur = null),
-                decoration: _decoration('Numéro ${_moyen.label}', aide: 'Le numéro qui recevra l\'argent.'),
-              ),
-              if (erreurNumero != null && _numero.text.trim().isNotEmpty) _erreur(erreurNumero, 'erreur-numero-retrait'),
-              if (pret && montant != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  'Vous recevrez ${formaterFcfa(montant)} sur le ${formaterNumero(numeroSenegal(_numero.text)!)} '
-                  '(${_moyen.label}).',
-                  key: const ValueKey('resume-retrait'),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.texte, height: 1.4),
-                ),
-              ],
-              if (_erreurServeur case final erreur?) _erreur(erreur, 'erreur-serveur-retrait'),
-              const SizedBox(height: 22),
-              PrimaryButton(
-                label: 'Confirmer le retrait',
-                isLoading: _envoi,
-                onPressed: pret && !_envoi ? _confirmer : null,
-              ),
+              const SizedBox(height: 10),
+              ..._contenu(context),
             ],
           ),
         ),

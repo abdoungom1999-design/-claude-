@@ -55,7 +55,11 @@ import {
   surveillerRecharges,
   traiterEvenementRecharge,
 } from './portefeuille';
-import { demanderRetrait as demanderRetraitCore, traiterRetrait as traiterRetraitCore } from './retraits';
+import {
+  demanderRetrait as demanderRetraitCore,
+  infosRetrait as infosRetraitCore,
+  traiterRetrait as traiterRetraitCore,
+} from './retraits';
 import {
   MessagerieFcm,
   notifierAcceptation as notifierAcceptationCore,
@@ -335,15 +339,19 @@ export const ajusterPortefeuille = onCall(async (requete) =>
   ajusterCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
 );
 
+/** Client : ce qui peut être retiré maintenant (argent réel, plafond du jour, retrait en cours). Lecture seule. */
+export const infosRetrait = onCall((requete) => infosRetraitCore(getFirestore(), requete.auth?.uid, new Date()));
+
 /**
- * Client : demande que son solde lui soit renvoyé sur Orange Money ou Wave
- * (montant réservé aussitôt). Refusée tant que RETRAITS_OUVERTS est faux.
+ * Client : demande que son solde lui soit envoyé sur Orange Money ou Wave
+ * (montant réservé aussitôt, envoi sous 48 h, frais de transfert déduits).
+ * Refusée si RETRAITS_OUVERTS est faux.
  */
 export const demanderRetrait = onCall((requete) =>
   demanderRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie),
 );
 
-/** Admin : retrait versé (référence du transfert) ou refusé (motif, montant rendu sur le solde). Journalisé. */
+/** Admin : retrait versé (frais déduits, référence du transfert) ou refusé (motif, montant rendu sur le solde). Journalisé. */
 export const traiterRetrait = onCall((requete) =>
   traiterRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie),
 );
