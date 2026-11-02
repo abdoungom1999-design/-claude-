@@ -340,8 +340,11 @@ jobs:
         if: ${{ inputs.transaction_a_suivre != '' && inputs.environnement == 'production' }}
         run: |
           dossier="$RUNNER_TEMP/orange"
-          filtre='resource.type="cloud_run_revision" AND (resource.labels.service_name="webhookorangemoney" OR resource.labels.service_name="surveillercommandes")'
-          if ! gcloud logging read "$filtre" --project=sprint-vtc --freshness=1d --limit=400 --order=asc --format=json \
+          # Fenêtre datée explicite (« --freshness » est ignoré en ordre chronologique) ; de la
+          # surveillance, seuls ses messages (pas ses 288 déclenchements quotidiens).
+          depuis=$(date -u -d '-24 hours' +%Y-%m-%dT%H:%M:%SZ)
+          filtre="resource.type=\"cloud_run_revision\" AND timestamp>=\"$depuis\" AND (resource.labels.service_name=\"webhookorangemoney\" OR (resource.labels.service_name=\"surveillercommandes\" AND NOT httpRequest:*))"
+          if ! gcloud logging read "$filtre" --project=sprint-vtc --limit=400 --order=asc --format=json \
                  > "$dossier/journaux.json" 2> "$dossier/erreur_journaux.txt"; then
             raison=$(grep -o -m 1 -E 'PERMISSION_DENIED|NOT_FOUND|INVALID_ARGUMENT' "$dossier/erreur_journaux.txt" || true)
             echo "::warning title=Journaux du serveur::Lecture impossible (${raison:-erreur inconnue}) : rôle « Lecteur de journaux » (roles/logging.viewer) manquant pour le compte de la CI ?"
