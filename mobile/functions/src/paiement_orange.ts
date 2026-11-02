@@ -40,7 +40,7 @@ import {
  *       transaction est RELUE chez Orange (son contenu seul ne fait jamais
  *       foi : montant, référence, marchand payé et statut viennent d'Orange)
  *       ──> course créée ou recharge créditée, par le traitement commun.
- *   surveillance (toutes les 5 minutes) ──> pendant 1 heure, les demandes
+ *   surveillance (chaque minute) ──> pendant 1 heure, les demandes
  *       Orange sans issue sont relues chez Orange (notification perdue,
  *       paiement arrivé après l'expiration ou après un premier refus).
  *   remboursement ──> sur le solde Sprint (l'API d'Orange n'en a pas).
@@ -67,6 +67,36 @@ export const FENETRE_RELECTURE_MS = 60 * 60 * 1000;
 
 /** Recherches chez Orange au plus par passage de la surveillance (bac à sable : 60 requêtes par minute). */
 export const RELECTURES_MAX = 20;
+
+/**
+ * Âge maximal d'une demande relue à CHAQUE passage de la surveillance (toutes
+ * les minutes) ; plus anciennes, elles ne le sont qu'aux passages complets
+ * (toutes les 5 minutes), pour ménager les quotas d'Orange.
+ */
+export const RELECTURE_RAPIDE_MS = 5 * 60 * 1000;
+
+/**
+ * Attentes entre les relectures d'une transaction notifiée mais pas encore
+ * finie chez Orange (10 secondes en tout). Orange notifie AVANT de finaliser :
+ * le 2 novembre 2026, notification à 10:05:19, transaction finalisée à
+ * 10:05:22.5, notre relecture de 10:05:22.4 ne la trouvait pas encore.
+ */
+export const RELECTURES_NOTIFICATION_MS: readonly number[] = [1000, 2000, 3000, 4000];
+
+/** Relecture d'une transaction notifiée : attentes (ms) et façon d'attendre (remplaçable dans les tests). */
+export interface RelectureNotification {
+  delais?: readonly number[];
+  attendre?: (ms: number) => Promise<void>;
+}
+
+const attendre = (ms: number) => new Promise<void>((resoudre) => setTimeout(resoudre, ms));
+
+/**
+ * Notification arrivée avant qu'Orange montre la transaction finie, même
+ * après les relectures : répondre 5xx, pour qu'Orange la renvoie plus tard
+ * (la surveillance reste le filet de sécurité).
+ */
+export class ErreurNotificationPrematuree extends Error {}
 
 /** Documents lus au plus par collection et par passage (ceux de la dernière heure). */
 const LECTURES_MAX = 500;
@@ -145,13 +175,21 @@ export function fournisseursDuMoyen(wave: CreateurSession, orange: () => Createu
 export class FournisseurOrangeMoney implements CreateurSession {
   readonly nom = FOURNISSEUR_ORANGE;
 
+  /**
+   * [urlRetour] : page de Sprint où Max It ramène le client après le paiement
+   * (« ?ref=<référence>&etat=ok » ou « &etat=annule ») ; sans elle, Orange
+   * affiche sa page par défaut.
+   */
   constructor(
     private readonly config: ConfigOrange,
     private readonly horloge: () => Date = () => new Date(),
+    private readonly urlRetour?: string,
   ) {}
 
   async creerSession(reference: string, montantFcfa: number): Promise<SessionPaiement> {
     const debut = this.horloge();
+    const retour = (etat: 'ok' | 'annule') =>
+      this.urlRetour === undefined ? undefined : `${this.urlRetour}?${new URLSearchParams({ ref: reference, etat })}`;
     const qr = await this.config.client.genererQrCode({
       codeMarchand: this.config.codeMarchand,
       nomMarchand: NOM_MARCHAND_ORANGE,
@@ -159,6 +197,8 @@ export class FournisseurOrangeMoney implements CreateurSession {
       reference,
       validiteSecondes: VALIDITE_ORANGE_SECONDES,
       usageUnique: true,
+      urlSucces: retour('ok'),
+      urlAnnulation: retour('annule'),
     });
     // Max It d'abord (l'app d'Orange la plus répandue), puis Orange Money, puis la page de paiement.
     const lienPaiement = qr.lienMaxIt ?? qr.lienOrangeMoney ?? qr.lienCourt;
@@ -243,13 +283,26 @@ export async function traiterNotificationOrange(
   fournisseurRemboursement: FournisseurPaiement,
   maintenant: Date,
   messagerie?: Messagerie,
+  relecture: RelectureNotification = {},
 ): Promise<ResultatOrange> {
   const notification = lireNotification(autorisation, corpsBrut, cleNotification);
-  const transactions = await config.client.rechercherTransactions({ transactionId: notification.transactionId });
-  const transaction = transactions.find((t) => t.transactionId === notification.transactionId);
+  const delais = relecture.delais ?? RELECTURES_NOTIFICATION_MS;
+  // Orange notifie avant de finaliser : relire jusqu'à voir la transaction finie.
+  let transaction: TransactionOrangeMoney | undefined;
+  for (let essai = 0; ; essai++) {
+    const transactions = await config.client.rechercherTransactions({ transactionId: notification.transactionId });
+    transaction = transactions.find((t) => t.transactionId === notification.transactionId);
+    const finie = transaction?.statut !== undefined && !STATUTS_EN_COURS.includes(transaction.statut);
+    if (finie || essai >= delais.length) break;
+    await (relecture.attendre ?? attendre)(delais[essai]);
+  }
   if (transaction === undefined) {
     logger.warn('Notification Orange : transaction introuvable chez Orange', { transactionId: notification.transactionId });
-    return 'non_confirmee';
+    throw new ErreurNotificationPrematuree('Transaction pas encore visible chez Orange.');
+  }
+  if (transaction.statut === undefined || STATUTS_EN_COURS.includes(transaction.statut)) {
+    logger.warn('Notification Orange : transaction pas encore finie chez Orange', { transactionId: notification.transactionId });
+    throw new ErreurNotificationPrematuree('Transaction pas encore finie chez Orange.');
   }
   if (notification.reference !== undefined && transaction.reference !== notification.reference) {
     logger.error('Notification Orange : référence différente de celle enregistrée chez Orange', {
@@ -264,9 +317,10 @@ export async function traiterNotificationOrange(
  * Réponse HTTP à une notification d'Orange. Orange relivre sur un 5xx (avec
  * des délais croissants) et abandonne sur un 4xx : 405 hors POST, 401 pour une
  * notification non authentifiée, 503 si Orange Money n'est pas configuré, 500
- * si Orange ou la base sont momentanément injoignables, 202 (corps vide, comme
- * le recommande Orange) dans tous les autres cas, la surveillance rattrapant
- * un paiement encore en cours.
+ * si Orange ou la base sont momentanément injoignables ou si la transaction
+ * n'est toujours pas finie chez Orange après les relectures (Orange la
+ * renverra), 202 (corps vide, comme le recommande Orange) dans tous les autres
+ * cas.
  */
 export async function repondreNotificationOrange(
   db: Firestore,
@@ -276,6 +330,7 @@ export async function repondreNotificationOrange(
   fournisseurRemboursement: () => Promise<FournisseurPaiement>,
   maintenant: Date,
   messagerie?: Messagerie,
+  relecture: RelectureNotification = {},
 ): Promise<{ statut: number; corps: string; resultat?: ResultatOrange }> {
   if (requete.methode !== 'POST') return { statut: 405, corps: 'POST uniquement.' };
   if (config === null || !cleNotification.trim()) {
@@ -292,6 +347,7 @@ export async function repondreNotificationOrange(
       await fournisseurRemboursement(),
       maintenant,
       messagerie,
+      relecture,
     );
     logger.info('Notification Orange', { resultat });
     return { statut: 202, corps: '', resultat };
@@ -299,6 +355,10 @@ export async function repondreNotificationOrange(
     if (e instanceof ErreurNotificationOrange) {
       logger.warn('Notification Orange refusée', { raison: e.message });
       return { statut: 401, corps: 'Notification refusée.' };
+    }
+    if (e instanceof ErreurNotificationPrematuree) {
+      logger.warn('Notification Orange en avance sur Orange : à renvoyer', { raison: e.message });
+      return { statut: 500, corps: 'Transaction pas encore finie : renvoyez la notification.' };
     }
     logger.error('Notification Orange en erreur', e);
     return { statut: 500, corps: 'Erreur interne.' };
@@ -324,6 +384,8 @@ export interface BilanRattrapage {
  * laissés à la notification et à l'expiration normale (le client a pu
  * réessayer). Celles encore en attente passent en premier ; au plus [max]
  * recherches par passage, et aucune de plus si Orange demande de ralentir.
+ * [recentesSeulement] (passages intermédiaires, chaque minute) : seulement
+ * les demandes de moins de RELECTURE_RAPIDE_MS.
  */
 export async function rattraperOrange(
   db: Firestore,
@@ -332,6 +394,7 @@ export async function rattraperOrange(
   maintenant: Date,
   messagerie?: Messagerie,
   max = RELECTURES_MAX,
+  { recentesSeulement = false }: { recentesSeulement?: boolean } = {},
 ): Promise<BilanRattrapage> {
   const bilan: BilanRattrapage = { verifiees: 0, appliquees: 0, erreurs: 0, reportees: 0 };
   const lire = (collection: 'commandes' | 'recharges') =>
@@ -346,10 +409,13 @@ export async function rattraperOrange(
     doc.get('fournisseur') === FOURNISSEUR_ORANGE && statuts.includes(doc.get('statut'));
   const enAttente = (doc: QueryDocumentSnapshot) =>
     doc.get('statut') === STATUTS_COMMANDE.enAttente || doc.get('statut') === STATUTS_RECHARGE.enAttente;
+  // Demande récente : moins de RELECTURE_RAPIDE_MS (sa fenêtre de relecture d'une heure vient de s'ouvrir).
+  const recente = (doc: QueryDocumentSnapshot) =>
+    (doc.get('relectureFinLe') as Timestamp).toMillis() - maintenant.getTime() > FENETRE_RELECTURE_MS - RELECTURE_RAPIDE_MS;
   const aRelire = [
     ...commandes.docs.filter(sansIssue(A_RELIRE.commandes)),
     ...recharges.docs.filter(sansIssue(A_RELIRE.recharges)),
-  ].sort(
+  ].filter((doc) => !recentesSeulement || recente(doc)).sort(
     (a, b) =>
       Number(!enAttente(a)) - Number(!enAttente(b)) ||
       (a.get('relectureFinLe') as Timestamp).toMillis() - (b.get('relectureFinLe') as Timestamp).toMillis(),

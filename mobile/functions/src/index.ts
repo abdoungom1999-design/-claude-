@@ -55,7 +55,12 @@ import {
   surveillerRecharges,
   traiterEvenementRecharge,
 } from './portefeuille';
-import { MessagerieFcm, notifierAcceptation as notifierAcceptationCore, notifierMessage as notifierMessageCore } from './notifications';
+import {
+  MessagerieFcm,
+  notifierAcceptation as notifierAcceptationCore,
+  notifierMessage as notifierMessageCore,
+  SITE,
+} from './notifications';
 import { AccesGoogleReel, prevenirAdmins, verifierSauvegardes as verifierSauvegardesCore } from './sauvegardes';
 import { pageMessage, pagePaiement, secretSimulation } from './simulation';
 
@@ -115,10 +120,17 @@ function orange(): ConfigOrange | null {
   return configOrange;
 }
 
+/**
+ * Page de l'app où Max It ramène le client après un paiement Orange Money :
+ * l'APK s'y ouvre directement (lien d'application Android vérifié par
+ * /.well-known/assetlinks.json), le site l'affiche sinon.
+ */
+const URL_RETOUR_PAIEMENT = `${SITE}/paiement/retour`;
+
 function fournisseurOrange(): FournisseurOrangeMoney {
   const config = orange();
   if (config === null) throw new ErreurFournisseur('Orange Money n\'est pas configuré.');
-  return new FournisseurOrangeMoney(config);
+  return new FournisseurOrangeMoney(config, undefined, URL_RETOUR_PAIEMENT);
 }
 
 function google(): ClientGoogle | null {
@@ -338,16 +350,20 @@ export const migrerDocumentsKyc = onCall(async (requete) =>
 );
 
 /**
- * Paiements jamais finalisés et courses restées sans chauffeur. Les paiements
- * Orange Money sans nouvelles sont d'abord relus chez Orange (notification
- * perdue), avant toute expiration.
+ * Paiements jamais finalisés et courses restées sans chauffeur, chaque minute.
+ * Les paiements Orange Money sans nouvelles sont d'abord relus chez Orange
+ * (notification perdue ou en avance) : les demandes de moins de 5 minutes à
+ * chaque passage, toutes les autres une minute sur cinq (quotas d'Orange).
  */
 export const surveillerCommandes = onSchedule(
-  { schedule: 'every 5 minutes', timeZone: 'Africa/Dakar', retryCount: 0, ...avecSecrets(secretsClientOrange) },
+  { schedule: 'every 1 minutes', timeZone: 'Africa/Dakar', retryCount: 0, ...avecSecrets(secretsClientOrange) },
   async () => {
     const config = orange();
     if (config !== null) {
-      const relus = await rattraperOrange(getFirestore(), config, await fournisseur(), new Date(), messagerie);
+      const maintenant = new Date();
+      const relus = await rattraperOrange(getFirestore(), config, await fournisseur(), maintenant, messagerie, undefined, {
+        recentesSeulement: maintenant.getUTCMinutes() % 5 !== 0,
+      });
       if (relus.appliquees || relus.erreurs || relus.reportees) logger.info('Rattrapage Orange Money', relus);
     }
     const bilan = await surveiller(getFirestore(), await fournisseur(), new Date(), messagerie);

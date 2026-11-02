@@ -45,6 +45,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Retour de Max It après un paiement Orange Money : lien
+                 d'application vérifié (https://sprint-vtc.web.app/.well-known/assetlinks.json,
+                 empreinte du certificat Sprint), ouvert directement dans Sprint
+                 et remis au routage (page de retour de paiement). Aucune autre
+                 adresse n'est captée. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="sprint-vtc.web.app" android:pathPrefix="/paiement/retour"/>
+            </intent-filter>
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="true"/>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

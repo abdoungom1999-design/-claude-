@@ -21,6 +21,9 @@ export interface QrDemande {
   name: string;
   validity: number;
   isSingleUse: unknown;
+  /** Adresses de retour, seulement si la demande en donne. */
+  callbackSuccessUrl?: string;
+  callbackCancelUrl?: string;
 }
 
 export class FauxOrange {
@@ -30,6 +33,10 @@ export class FauxOrange {
   readonly requetes: string[] = [];
   /** Réponse forcée pour les prochaines recherches (panne, quota dépassé...). */
   panneRecherche?: number;
+  /** Transactions encore invisibles à la recherche : nombre de recherches à laisser passer (notification en avance). */
+  readonly invisiblePour = new Map<string, number>();
+  /** Recherches reçues, par identifiant de transaction demandé. */
+  readonly recherches: string[] = [];
   private suivant = 1;
 
   /** Le client paie (ou échoue à payer) la demande [reference] ; renvoie l'identifiant Orange. */
@@ -90,6 +97,8 @@ export class FauxOrange {
         name: string;
         validity: number;
         restrictions?: { isSingleUse?: unknown };
+        callbackSuccessUrl?: string;
+        callbackCancelUrl?: string;
       };
       this.qrCodes.push({
         reference: c.reference,
@@ -98,6 +107,8 @@ export class FauxOrange {
         name: c.name,
         validity: c.validity,
         isSingleUse: c.restrictions?.isSingleUse,
+        ...(c.callbackSuccessUrl ? { callbackSuccessUrl: c.callbackSuccessUrl } : {}),
+        ...(c.callbackCancelUrl ? { callbackCancelUrl: c.callbackCancelUrl } : {}),
       });
       return json({
         qrId: `qr${this.qrCodes.length}`,
@@ -114,9 +125,15 @@ export class FauxOrange {
       if (this.panneRecherche !== undefined) return json({ title: 'Panne', detail: 'Panne simulée' }, this.panneRecherche);
       const id = url.searchParams.get('transactionId');
       const reference = url.searchParams.get('reference');
+      if (id !== null) this.recherches.push(id);
+      const visible = (t: FausseTransaction) => {
+        const restantes = this.invisiblePour.get(t.transactionId) ?? 0;
+        if (restantes > 0) this.invisiblePour.set(t.transactionId, restantes - 1);
+        return restantes === 0;
+      };
       return json(
         this.transactions.filter(
-          (t) => (id === null || t.transactionId === id) && (reference === null || t.reference === reference),
+          (t) => (id === null || t.transactionId === id) && (reference === null || t.reference === reference) && visible(t),
         ),
       );
     }

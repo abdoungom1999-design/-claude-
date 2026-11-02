@@ -10,6 +10,7 @@ import {
   FENETRE_RELECTURE_MS,
   FournisseurOrangeMoney,
   fournisseursDuMoyen,
+  RELECTURES_NOTIFICATION_MS,
   repondreNotificationOrange,
   VALIDITE_ORANGE_SECONDES,
 } from '../src/paiement_orange';
@@ -67,6 +68,18 @@ test('demande de paiement : QR à usage unique au nom de Sprint, valable 18 minu
   assert.equal(FENETRE_RELECTURE_MS, 60 * 60 * 1000);
 });
 
+test('demande de paiement : Max It ramène le client sur la page de retour de Sprint (paiement réussi ou annulé)', async () => {
+  const orange = new FauxOrange();
+  const fournisseur = new FournisseurOrangeMoney(
+    { client: orange.client(), codeMarchand: CODE_MARCHAND_TEST },
+    () => midi,
+    'https://sprint.example/paiement/retour',
+  );
+  await fournisseur.creerSession('rch_a1b2c3', 500);
+  assert.equal(orange.qrCodes[0].callbackSuccessUrl, 'https://sprint.example/paiement/retour?ref=rch_a1b2c3&etat=ok');
+  assert.equal(orange.qrCodes[0].callbackCancelUrl, 'https://sprint.example/paiement/retour?ref=rch_a1b2c3&etat=annule');
+});
+
 test('demande de paiement : sans lien Max It, lien Orange Money puis lien court ; sans aucun lien, erreur', async () => {
   const reponses = [
     { deepLinks: { OM: 'https://sugu.orange-sonatel.com/om' }, shortLink: 'https://sugu.orange-sonatel.com/court' },
@@ -115,6 +128,31 @@ test('notification sans la bonne clé : 401 (Orange abandonne), Orange n\'est m�
     assert.equal(r.corps, 'Notification refusée.');
   }
   assert.deepEqual(orange.requetes, []);
+});
+
+test('notification en avance sur Orange (transaction invisible ou pas finie) : relue 5 fois en 10 s, puis 500 pour qu\'Orange la renvoie', async () => {
+  assert.deepEqual(RELECTURES_NOTIFICATION_MS, [1000, 2000, 3000, 4000]);
+  for (const cas of ['invisible', 'pas finie'] as const) {
+    const orange = new FauxOrange();
+    const config = { client: orange.client(), codeMarchand: CODE_MARCHAND_TEST };
+    const id = orange.payer('a1b2c3', 2300, { statut: 'PENDING' });
+    if (cas === 'invisible') orange.invisiblePour.set(id, 100);
+    const attentes: number[] = [];
+    const r = await repondreNotificationOrange(
+      sansBase,
+      config,
+      CLE,
+      { methode: 'POST', autorisation: `Basic ${CLE}`, corpsBrut: orange.notification(id, { status: 'SUCCESS' }) },
+      sansRemboursement,
+      midi,
+      undefined,
+      { attendre: async (ms) => void attentes.push(ms) },
+    );
+    assert.equal(r.statut, 500, cas);
+    assert.equal(r.resultat, undefined, `${cas} : rien d'appliqué`);
+    assert.deepEqual(attentes, [1000, 2000, 3000, 4000], cas);
+    assert.deepEqual(orange.recherches, [id, id, id, id, id], `${cas} : 5 relectures`);
+  }
 });
 
 test('notification authentifiée mais Orange injoignable : 500, pour qu\'Orange la renvoie plus tard', async () => {

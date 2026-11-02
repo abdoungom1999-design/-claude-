@@ -642,6 +642,14 @@ jobs:
             exit 1
           fi
           echo "Empreinte SHA-1 présentée à Google : conforme."
+          # Lien d'application Android (retour de paiement dans l'APK) : le fichier
+          # publié sous /.well-known/assetlinks.json doit porter l'empreinte SHA-256
+          # du certificat, sinon Android ouvre le site au lieu de l'app.
+          if ! tr -d ':' < hebergement/assetlinks.json | tr 'A-F' 'a-f' | grep -q "$attendu"; then
+            echo "::error::hebergement/assetlinks.json ne porte pas l'empreinte SHA-256 du certificat de l'APK ($attendu)"
+            exit 1
+          fi
+          echo "Lien d'application Android (assetlinks.json) : empreinte conforme."
           ls -lh "$apk"
 
       # Aucun secret dans l'APK. BLOQUANT (depuis la validation du client, après
@@ -846,5 +854,19 @@ jobs:
             echo "::warning title=En-têtes de sécurité::Absents du site en ligne :$manquants"
           else
             echo "En-têtes de sécurité : présents sur $adresse/."
+          fi
+          # Lien d'application Android (retour de paiement dans l'APK) : servi en
+          # JSON, sans redirection, avec le paquet Sprint (exigences d'Android).
+          for essai in 1 2 3 4; do
+            code=$(curl -s -o "$RUNNER_TEMP/assetlinks.json" -w '%{http_code} %{content_type}' "$adresse/.well-known/assetlinks.json")
+            if echo "$code" | grep -q '^200 application/json' && jq -e '.[0].target.package_name == "sn.groupesantine.sprint"' "$RUNNER_TEMP/assetlinks.json" > /dev/null 2>&1; then
+              break
+            fi
+            sleep 10
+          done
+          if echo "$code" | grep -q '^200 application/json' && jq -e '.[0].target.package_name == "sn.groupesantine.sprint"' "$RUNNER_TEMP/assetlinks.json" > /dev/null 2>&1; then
+            echo "Lien d'application Android : $adresse/.well-known/assetlinks.json servi ($code)."
+          else
+            echo "::warning title=Lien d'application Android::$adresse/.well-known/assetlinks.json : $code ; l'APK ne s'ouvrira pas seul au retour de Max It (le site s'affichera)."
           fi
           echo "::notice title=Site publié::App : $adresse/ — APK $version : $adresse/sprint.apk (page : $adresse/android/)"

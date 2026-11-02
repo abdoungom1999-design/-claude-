@@ -5,6 +5,9 @@
 #   /             app web Sprint (build Flutter, --base-href "/")
 #   /android/     page de téléchargement de l'APK
 #   /sprint.apk   APK Android
+#   /assetlinks.json  lien d'application Android (retour de paiement dans
+#                 l'APK), servi sous /.well-known/assetlinks.json par une
+#                 réécriture de firebase.json (les dossiers « . » sont ignorés)
 #
 # Usage : hebergement/assembler.sh <dossier du build web> <apk> <page android>
 #   <page android> : hebergement/android/index.html avec version, taille et
@@ -27,6 +30,7 @@ cp -R "$web"/. "$sortie"/
 cp hebergement/android/icone.png hebergement/android/favicon.png "$sortie/android/"
 cp "$page" "$sortie/android/index.html"
 cp "$apk" "$sortie/sprint.apk"
+cp hebergement/assetlinks.json "$sortie/assetlinks.json"
 
 if grep -q '__VERSION__\|__TAILLE__\|__DATE__' "$sortie/android/index.html"; then
   echo "La page Android contient encore des marqueurs non remplis." >&2

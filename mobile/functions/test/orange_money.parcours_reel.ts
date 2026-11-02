@@ -21,7 +21,7 @@
  *   5. la surveillance : les 2 demandes relues chez Orange, rien appliqué ;
  *   6. les notifications : sans la bonne clé, refusée (401) sans interroger
  *      Orange ; avec la clé mais une transaction inconnue d'Orange, relue chez
- *      Orange et rien appliqué (202) ;
+ *      Orange (plusieurs fois), rien appliqué, 500 pour qu'Orange la renvoie ;
  *   7. bilan : aucune course créée, aucun solde crédité.
  *
  * Rend une annotation GitHub par étape et n'affiche jamais les identifiants,
@@ -224,16 +224,26 @@ async function principal(): Promise<number> {
           type: 'MERCHANT_PAYMENT',
         }),
       );
+      // Deux relectures rapprochées suffisent ici (en service : 10 secondes).
       const notifier = (autorisation: string) =>
-        repondreNotificationOrange(db, config, cle, { methode: 'POST', autorisation, corpsBrut: corps }, async () => simule, new Date());
+        repondreNotificationOrange(
+          db,
+          config,
+          cle,
+          { methode: 'POST', autorisation, corpsBrut: corps },
+          async () => simule,
+          new Date(),
+          undefined,
+          { delais: [500, 500] },
+        );
       const fausse = await notifier('Basic une-fausse-cle');
       const inconnue = await notifier(`Basic ${cle}`);
-      const ok = fausse.statut === 401 && inconnue.statut === 202 && inconnue.resultat === 'non_confirmee';
+      const ok = fausse.statut === 401 && inconnue.statut === 500 && inconnue.resultat === undefined;
       (ok ? annoncer : echec)(
         ok ? 'notice' : 'error',
         '6. Notifications',
         `sans la bonne clé : HTTP ${fausse.statut} (refusée, Orange pas interrogé) · avec la clé, transaction inconnue d'Orange : ` +
-          `HTTP ${inconnue.statut}, ${inconnue.resultat === 'non_confirmee' ? 'relue chez Orange, rien appliqué' : inconnue.resultat ?? inconnue.corps}.`,
+          `HTTP ${inconnue.statut}, ${inconnue.statut === 500 ? 'relue 3 fois chez Orange, rien appliqué, Orange la renverra' : inconnue.resultat ?? inconnue.corps}.`,
       );
     } catch (e) {
       echec('6. Notifications', raison(e));

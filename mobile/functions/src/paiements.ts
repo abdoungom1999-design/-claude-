@@ -411,7 +411,7 @@ export async function annulerCourse(
 }
 
 // ---------------------------------------------------------------------
-// 5. Surveillance (toutes les 5 minutes)
+// 5. Surveillance (chaque minute)
 // ---------------------------------------------------------------------
 
 export async function surveiller(

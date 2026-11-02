@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/activite/presentation/activite_tab_page.dart';
 import '../../features/admin/presentation/admin_dashboard_page.dart';
@@ -9,6 +10,7 @@ import '../../features/auth/presentation/conducteur_onboarding/conducteur_onboar
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/client/presentation/colis_page.dart';
 import '../../features/client/presentation/passager_page.dart';
+import '../../features/client/presentation/retour_paiement_page.dart';
 import '../../features/compte/presentation/compte_tab_page.dart';
 import '../../features/conducteur/presentation/conducteur_shell_page.dart';
 import '../../features/home/presentation/home_tab_page.dart';
@@ -29,8 +31,23 @@ final AiguillageDemarrage aiguillageDemarrage = AiguillageDemarrage(
   roleDe: (uid) => AuthRepository().roleDe(uid),
 );
 
+/// Retour de paiement sur le site : Max It ouvre le VRAI chemin
+/// `/paiement/retour?ref=…&etat=…`, que le routage à « # » du site ne voit
+/// pas ; on en fait l'adresse de départ. `null` pour toute autre adresse.
+/// (L'APK, lui, reçoit ce chemin directement : lien d'application Android.)
+String? emplacementRetourPaiement(Uri adresse) {
+  if (adresse.path != AppRoutes.retourPaiement) return null;
+  return Uri(
+    path: AppRoutes.retourPaiement,
+    queryParameters: adresse.queryParameters.isEmpty ? null : adresse.queryParameters,
+  ).toString();
+}
+
+final String? _retourPaiementAuDemarrage = kIsWeb ? emplacementRetourPaiement(Uri.base) : null;
+
 final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.welcome,
+  initialLocation: _retourPaiementAuDemarrage ?? AppRoutes.welcome,
+  overridePlatformDefaultLocation: _retourPaiementAuDemarrage != null,
   // Avant toute page : attend la session conservée, puis envoie un compte
   // déjà connecté directement sur son accueil (jamais d'écran de Bienvenue).
   redirect: (context, state) => aiguillageDemarrage.destination(state.matchedLocation),
@@ -121,6 +138,13 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.adminLogin,
       builder: (context, state) => const AdminLoginPage(),
+    ),
+    GoRoute(
+      path: AppRoutes.retourPaiement,
+      builder: (context, state) => RetourPaiementPage(
+        reference: state.uri.queryParameters['ref'],
+        etat: state.uri.queryParameters['etat'],
+      ),
     ),
   ],
 );

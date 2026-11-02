@@ -324,7 +324,7 @@ en `europe-west1` (même région que Firestore `eur3`) :
   automatiquement dans `config/paiementSimule`.
 - `annulerCourse` : annulation par le client (course en attente) ou par
   le chauffeur attribué (avec un motif), puis remboursement.
-- `surveillerCommandes` (toutes les 5 minutes) : paiement non finalisé
+- `surveillerCommandes` (chaque minute depuis la publication 115) : paiement non finalisé
   au bout de 20 minutes → commande expirée ; course sans chauffeur au
   bout de 10 minutes → annulée et remboursée. Un remboursement refusé par
   l'opérateur laisse la commande en `remboursement_echoue`, à traiter à
@@ -703,6 +703,31 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    - **Paiement** : QR code à usage unique au nom de « Sprint », valable
      18 minutes (la commande : 20), lien Max It ouvert par l'app (sinon lien
      Orange Money, sinon lien court) ; session `om_<référence>`.
+   - **Retour dans Sprint après Max It** (publication 115, go du client du
+     2 novembre 2026) : la demande donne à Orange les adresses de retour
+     (`callbackSuccessUrl`, `callbackCancelUrl`) :
+     `https://sprint-vtc.web.app/paiement/retour?ref=<référence>&etat=ok`
+     (ou `etat=annule`), `URL_RETOUR_PAIEMENT` dans `functions/src/index.ts`.
+     - APK : **lien d'application Android** vérifié (filtre d'intention
+       `autoVerify` sur ce seul chemin dans `AndroidManifest.xml`, routage
+       Flutter `flutter_deeplinking_enabled`) ; fichier
+       `hebergement/assetlinks.json` (paquet `sn.groupesantine.sprint`,
+       empreinte SHA-256 publique du certificat Sprint), copié à la racine du
+       site par `hebergement/assembler.sh` et servi sous
+       `/.well-known/assetlinks.json` par une réécriture de `firebase.json`
+       (les dossiers « . » sont ignorés par l'hébergement). La publication
+       vérifie que l'empreinte est celle de l'APK (erreur sinon), puis que le
+       fichier est servi en JSON (avertissement sinon : le site s'ouvre alors
+       à la place de l'app).
+     - Site : le routage à « # » ne voit pas ce chemin ; il devient l'adresse
+       de départ (`emplacementRetourPaiement`, `lib/core/router/app_router.dart`).
+     - Page `RetourPaiementPage` : ne décide jamais du paiement ; elle suit la
+       commande (24 hexadécimaux) ou la recharge (« rch_… ») confirmée par le
+       serveur, puis ouvre le suivi de la course ; annulé : « aucune somme
+       débitée » ; sans session sur l'appareil (iPhone : Safari ne partage pas
+       la session de l'app installée) : invitation à revenir dans Sprint ;
+       au-delà de 3 minutes : renvoi vers Activité, « ne payez pas une seconde
+       fois ».
    - **Sécurité** : une notification n'est acceptée qu'avec la clé enregistrée
      chez Orange (`Authorization: Basic <clé>`, comparée en temps constant),
      puis la transaction est **relue chez Orange** : seuls le statut, le
@@ -716,13 +741,21 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      montant ou devise différents : anomalie, visible de l'Admin.
      `X-Sonatel-Signature` n'est pas vérifié : « évolution à venir, ne pas en
      tenir compte » (support d'Orange, 29 octobre 2026) ; la relecture suffit.
+   - **Notification en avance** (constaté le 2 novembre 2026 : Orange notifie
+     avant de finaliser) : la transaction est relue jusqu'à 5 fois en
+     10 secondes (`RELECTURES_NOTIFICATION_MS`) jusqu'à la voir finie ; si elle
+     ne l'est toujours pas, réponse 500 pour qu'Orange renvoie la notification
+     (publication 115).
    - **Notification perdue** : pendant 1 heure après chaque demande
-     (`relectureFinLe`), la surveillance (toutes les 5 minutes) relit chez
-     Orange les demandes sans issue (en attente, expirées ou refusées), celles
-     en attente d'abord, 20 recherches au plus par passage, arrêt si Orange
-     demande de ralentir : une course payée est créée, un paiement tardif est
-     rendu sur le solde, une recharge est créditée. Un paiement réussi n'est
-     jamais perdu.
+     (`relectureFinLe`), la surveillance relit chez Orange les demandes sans
+     issue (en attente, expirées ou refusées) : chaque minute celles de moins
+     de 5 minutes (`RELECTURE_RAPIDE_MS`), une minute sur cinq toutes les
+     autres (quotas d'Orange) ; celles en attente d'abord, 20 recherches au
+     plus par passage, arrêt si Orange demande de ralentir : une course payée
+     est créée, un paiement tardif est rendu sur le solde, une recharge est
+     créditée. Un paiement réussi n'est jamais perdu. La surveillance
+     (expirations, courses sans chauffeur) tourne chaque minute depuis la
+     publication 115 (avant : toutes les 5 minutes).
    - **Remboursements** (décision du client, 29 octobre 2026) : sur le solde
      Sprint, jamais chez Orange (son API n'en a pas) : course annulée ou sans
      chauffeur, paiement arrivé après l'expiration ou après un premier refus,
@@ -864,11 +897,12 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      trouve pas encore (« transaction introuvable », réponse 202, Orange ne
      renvoie plus) et Orange la finalise à 10:05:22.5 ; la surveillance
      l'applique à 10:07:16. Même scénario pour un second paiement : notifié à
-     11:11:32, appliqué à 11:17:18. Correctif proposé (go du client attendu) :
-     relire plusieurs fois pendant une dizaine de secondes avant d'abandonner,
-     puis répondre 500 pour qu'Orange renvoie la notification ; surveillance
-     toutes les minutes. Mesures d'Orange (depuis la CI) : jeton 1,2 à 1,3 s
-     (gardé une heure par instance), demande de paiement 0,85 s.
+     11:11:32, appliqué à 11:17:18. Correctif (publication 115, go du client
+     du 2 novembre 2026) : relectures pendant 10 secondes puis 500 pour qu'Orange
+     renvoie la notification, surveillance chaque minute pour les demandes
+     récentes (voir « Notification en avance »). Mesures d'Orange (depuis la
+     CI) : jeton 1,2 à 1,3 s (gardé une heure par instance), demande de
+     paiement 0,85 s.
      Avant d'ouvrir à tous : point 3 ci-dessous, et Wave encore simulé (une
      course « payée » par le faux Wave ne coûte rien : vrai Wave à brancher,
      ou Wave retiré, avant le lancement public).

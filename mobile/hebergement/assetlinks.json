@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "sn.groupesantine.sprint",
+      "sha256_cert_fingerprints": [
+        "3E:3B:F8:6C:03:0A:5A:A1:D4:DD:FD:A0:D8:F2:F1:D8:89:0F:7F:40:B8:B2:80:24:B1:41:BF:24:05:37:5F:DA"
+      ]
+    }
+  }
+]

@@ -62,7 +62,10 @@ const creerPaiement = (donnees: unknown = demande(), quand = midi, acces: AccesO
 const creerRecharge = (montantFcfa: number, quand = midi, acces: AccesOrangeMoney = 'tous', uid = 'awa') =>
   creerRechargeCore(db, fournisseurs(quand), uid, { montantFcfa, methodePaiement: 'ORANGE_MONEY' }, quand, acces);
 
-/** Notification d'Orange (POST, avec la clé enregistrée sauf mention contraire ; `null` : sans en-tête). */
+/**
+ * Notification d'Orange (POST, avec la clé enregistrée sauf mention contraire ; `null` : sans en-tête).
+ * Relectures d'une transaction en avance : sans attente réelle.
+ */
 const notifier = (corpsBrut: Buffer, quand = midi, autorisation: string | null = `Basic ${CLE}`) =>
   repondreNotificationOrange(
     db,
@@ -71,6 +74,8 @@ const notifier = (corpsBrut: Buffer, quand = midi, autorisation: string | null =
     { methode: 'POST', autorisation: autorisation ?? undefined, corpsBrut },
     async () => simule,
     quand,
+    undefined,
+    { attendre: async () => {} },
   );
 
 const commande = async (id: string) => (await db.doc(`commandes/${id}`).get()).data()!;
@@ -271,7 +276,7 @@ test('seul ce qu\'Orange dit compte : statut, montant et référence de la notif
   assert.equal((await notifier(orange.notification(autre, { reference: b.commandeId }))).resultat, 'non_confirmee');
   assert.equal((await commande(c.commandeId)).statut, 'en_attente_paiement');
 
-  // Transaction inconnue d'Orange : rien n'est fait (202, Orange n'insiste pas).
+  // Transaction inconnue d'Orange, même après les relectures : rien n'est fait, 500 pour qu'Orange la renvoie.
   const inventee = Buffer.from(
     JSON.stringify({
       transactionId: 'MP999999.9999.Z99999',
@@ -281,8 +286,42 @@ test('seul ce qu\'Orange dit compte : statut, montant et référence de la notif
       type: 'MERCHANT_PAYMENT',
     }),
   );
-  assert.deepEqual(await notifier(inventee), { statut: 202, corps: '', resultat: 'non_confirmee' });
+  assert.deepEqual(await notifier(inventee), { statut: 500, corps: 'Transaction pas encore finie : renvoyez la notification.' });
   assert.equal(await nombre('courses'), 1);
+});
+
+test('notification en avance sur Orange (2 novembre 2026) : relue jusqu\'à la voir finie, course créée aussitôt, une seule', async () => {
+  // Invisible aux deux premières recherches (Orange notifie avant de finaliser).
+  const a = await creerPaiement();
+  const invisible = orange.payer(a.commandeId, PRIX);
+  orange.invisiblePour.set(invisible, 2);
+  assert.equal((await notifier(orange.notification(invisible))).resultat, 'course_creee');
+  assert.equal(orange.recherches.filter((id) => id === invisible).length, 3);
+
+  // Visible mais encore « en cours », finie pendant les relectures.
+  const b = await creerPaiement();
+  const enCours = orange.payer(b.commandeId, PRIX, { statut: 'PENDING' });
+  let attentes = 0;
+  const r = await repondreNotificationOrange(
+    db,
+    config,
+    CLE,
+    { methode: 'POST', autorisation: `Basic ${CLE}`, corpsBrut: orange.notification(enCours, { status: 'SUCCESS' }) },
+    async () => simule,
+    midi,
+    undefined,
+    {
+      attendre: async () => {
+        if (++attentes === 2) orange.transactions.find((t) => t.transactionId === enCours)!.status = 'SUCCESS';
+      },
+    },
+  );
+  assert.deepEqual(r, { statut: 202, corps: '', resultat: 'course_creee' });
+  assert.equal(attentes, 2);
+  assert.equal(await nombre('courses'), 2);
+  // Renvoyée par Orange : déjà traitée.
+  assert.equal((await notifier(orange.notification(enCours))).resultat, 'deja_traite');
+  assert.equal(await nombre('courses'), 2);
 });
 
 test('paiement à un autre marchand avec notre référence, ou d\'un autre type : jamais appliqué', async () => {
@@ -305,10 +344,10 @@ test('montant ou devise différents chez Orange : anomalie (visible de l\'Admin)
   assert.equal(await nombre('courses'), 0);
 });
 
-test('transaction encore en cours chez Orange : rien appliqué, la commande attend', async () => {
+test('transaction encore en cours chez Orange après les relectures : rien appliqué, 500 pour qu\'Orange la renvoie, la commande attend', async () => {
   const { commandeId } = await creerPaiement();
   const id = orange.payer(commandeId, PRIX, { statut: 'PENDING' });
-  assert.equal((await notifier(orange.notification(id, { status: 'SUCCESS' }))).resultat, 'en_attente');
+  assert.equal((await notifier(orange.notification(id, { status: 'SUCCESS' }))).statut, 500);
   assert.equal((await commande(commandeId)).statut, 'en_attente_paiement');
 });
 
@@ -420,6 +459,26 @@ test('rattrapage : payé après l\'expiration ou après un refus, notification p
   assert.equal((await db.doc(`recharges/${recharge.rechargeId}`).get()).get('statut'), 'reussie');
   assert.equal(await solde('awa'), 2 * PRIX + 5000);
   assert.equal(await nombre('courses'), 0);
+});
+
+test('rattrapage chaque minute : les passages intermédiaires ne relisent que les demandes de moins de 5 minutes', async () => {
+  const ancienne = await creerPaiement(demande(), minutes(0));
+  const recente = await creerPaiement(demande(), minutes(9));
+  orange.payer(ancienne.commandeId, PRIX);
+  orange.payer(recente.commandeId, PRIX);
+  // Minute 11 : passage intermédiaire, seule la demande de 2 minutes est relue.
+  assert.deepEqual(await rattraperOrange(db, config, simule, minutes(11), undefined, undefined, { recentesSeulement: true }), {
+    verifiees: 1,
+    appliquees: 1,
+    erreurs: 0,
+    reportees: 0,
+  });
+  assert.equal((await commande(recente.commandeId)).statut, 'payee');
+  assert.equal((await commande(ancienne.commandeId)).statut, 'en_attente_paiement');
+  // Minute 15 : passage complet, l'ancienne aussi.
+  assert.deepEqual(await rattraperOrange(db, config, simule, minutes(15)), { verifiees: 1, appliquees: 1, erreurs: 0, reportees: 0 });
+  assert.equal((await commande(ancienne.commandeId)).statut, 'payee');
+  assert.equal(await nombre('courses'), 2);
 });
 
 test('rattrapage : plus rien n\'est relu une heure après la demande', async () => {

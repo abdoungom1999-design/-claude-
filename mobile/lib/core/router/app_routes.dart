@@ -16,4 +16,8 @@ class AppRoutes {
   static const String conducteurRegister = '/conducteur/inscription';
   static const String admin = '/admin';
   static const String adminLogin = '/admin/connexion';
+
+  /// Retour de Max It après un paiement Orange Money (adresse donnée à Orange
+  /// par le serveur : `URL_RETOUR_PAIEMENT`, functions/src/index.ts).
+  static const String retourPaiement = '/paiement/retour';
 }
