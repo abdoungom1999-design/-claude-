@@ -45,9 +45,27 @@ String? emplacementRetourPaiement(Uri adresse) {
 
 final String? _retourPaiementAuDemarrage = kIsWeb ? emplacementRetourPaiement(Uri.base) : null;
 
+/// Sur iPhone (site et app web installée sur l'écran d'accueil), les écrans
+/// de Sprint ne s'empilent pas dans l'historique du navigateur : chaque
+/// changement d'écran remplace l'entrée courante (l'adresse reste à jour).
+///
+/// Sinon, le glissement de retour d'iOS ramenait à l'écran précédent de
+/// l'historique en affichant l'image qu'iOS en avait gardée : l'écran de
+/// connexion, bouton encore en chargement, à côté de « Compte » (capture du
+/// client, 2 novembre 2026). Le chauffeur connecté était ensuite renvoyé à
+/// son accueil, qui reprenait une nouvelle entrée : le glissement suivant
+/// retombait sur la même image (« le glissement plante »). Sur iPhone, le
+/// retour se fait désormais dans l'app : flèches et glissement natif des
+/// écrans (sur l'écran réel, jamais sur une image figée). Android (bouton
+/// retour) et ordinateur gardent l'historique du navigateur ; l'APK n'en a
+/// pas.
+bool historiqueNavigateurNeutralise({required bool web, required TargetPlatform plateforme}) =>
+    web && plateforme == TargetPlatform.iOS;
+
 final GoRouter appRouter = GoRouter(
   initialLocation: _retourPaiementAuDemarrage ?? AppRoutes.welcome,
   overridePlatformDefaultLocation: _retourPaiementAuDemarrage != null,
+  routerNeglect: historiqueNavigateurNeutralise(web: kIsWeb, plateforme: defaultTargetPlatform),
   // Avant toute page : attend la session conservée, puis envoie un compte
   // déjà connecté directement sur son accueil (jamais d'écran de Bienvenue).
   redirect: (context, state) => aiguillageDemarrage.destination(state.matchedLocation),
