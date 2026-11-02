@@ -20,7 +20,6 @@ import '../../features/onboarding/presentation/welcome_page.dart';
 import '../navigation/home_shell_page.dart';
 import 'aiguillage_demarrage.dart';
 import 'app_routes.dart';
-import 'transition_onyx.dart';
 
 /// Démarrage avec une session conservée : relit la session Firebase puis
 /// envoie le compte connecté sur son accueil (voir [AiguillageDemarrage]).
@@ -117,9 +116,9 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.conducteur,
-      // Fondu sur fond Onyx : l'écran de connexion ne se superpose jamais à
-      // la carte de l'accueil pendant la transition.
-      pageBuilder: (context, state) => transitionOnyx(state, const ConducteurShellPage()),
+      // Transition commune de l'app (thème) : l'accueil, opaque, chasse
+      // l'écran de connexion, sans jamais se superposer à lui.
+      builder: (context, state) => const ConducteurShellPage(),
     ),
     GoRoute(
       path: AppRoutes.conducteurLogin,

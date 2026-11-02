@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'app_colors.dart';
+import 'transition_ecrans.dart';
 
 /// Thème unique de l'app : sombre, charte « Onyx & Vert » (voir
 /// [AppColors]). Tout composant Material (champs, boîtes de dialogue,
@@ -81,6 +83,19 @@ class AppTheme {
     );
 
     return base.copyWith(
+      // Changement d'écran net, sans transparence : le nouvel écran, opaque,
+      // chasse l'ancien (voir GlissementOnyxPageTransitionsBuilder). iPhone et
+      // Mac gardent leur glissement natif et le geste de retour d'iOS.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: GlissementOnyxPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: GlissementOnyxPageTransitionsBuilder(),
+          TargetPlatform.windows: GlissementOnyxPageTransitionsBuilder(),
+          TargetPlatform.linux: GlissementOnyxPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       scaffoldBackgroundColor: AppColors.fond,
       canvasColor: AppColors.fond,
       dividerColor: AppColors.bordVerre,
