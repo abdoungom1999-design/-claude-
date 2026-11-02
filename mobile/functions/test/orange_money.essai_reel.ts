@@ -19,6 +19,8 @@
  * et codes PIN de test, la clé des notifications ni les liens de paiement
  * complets : tout est masqué dans le journal dès réception.
  */
+import { deleteApp, initializeApp } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import type { EnvironnementOrangeMoney } from '../src/methodes_paiement';
 import { ClientOrangeMoney, ErreurOrangeMoney, URL_ORANGE_MONEY } from '../src/orange_money';
 
@@ -153,6 +155,38 @@ function formeReference(ref: string): string {
           ? 'identifiant Orange (MP…)'
           : 'autre forme';
   return `${ref.length} caractères, début « ${debut} », ${sorte}`;
+}
+
+/** Champs d'un document Sprint affichables sans rien révéler de la personne (ni identifiant, ni adresse, ni nom). */
+const CHAMPS_SURS = ['statut', 'type', 'methodePaiement', 'fournisseur', 'prixFcfa', 'montantFcfa', 'motifRemboursement', 'motifAnnulation', 'creeLe', 'payeLe', 'termineeLe', 'expireLe'];
+
+/**
+ * Production, suivi d'un paiement : ce que la VRAIE base de Sprint a fait de cette référence (lecture
+ * seule, champs sûrs seulement) : commande ou course payée, recharge créditée.
+ */
+async function documentsSprint(reference: string): Promise<string[]> {
+  const app = initializeApp({ projectId: 'sprint-vtc' }, 'suivi');
+  try {
+    const db = getFirestore(app);
+    const lignes: string[] = [];
+    for (const chemin of [`commandes/${reference}`, `courses/${reference}`, `recharges/${reference}`, `recharges/rch_${reference}`]) {
+      const doc = await db.doc(chemin).get();
+      const nom = chemin.split('/')[0] + (chemin.includes('rch_') ? ' (rch_ + référence)' : '');
+      if (!doc.exists) {
+        lignes.push(`${nom} : aucun document`);
+        continue;
+      }
+      const champs = CHAMPS_SURS.flatMap((champ) => {
+        const v = doc.get(champ) as unknown;
+        if (v === undefined || v === null) return [];
+        return [`${champ} ${v instanceof Timestamp ? v.toDate().toISOString().slice(0, 19).replace('T', ' ') + ' UTC' : String(v)}`];
+      });
+      lignes.push(`${nom} : ${champs.join(', ') || 'document sans champ affichable'}`);
+    }
+    return lignes;
+  } finally {
+    await deleteApp(app);
+  }
 }
 
 /** Champs texte ou nombre d'une réponse JSON, à toute profondeur (chemins « a.b.c »). */
@@ -444,6 +478,15 @@ async function principal(): Promise<number> {
             `référence : ${t.reference ? formeReference(t.reference) : 'absente'}`,
           ].join(' · '),
         );
+      }
+      // Ce que la base de Sprint en a fait (production seulement, lecture seule).
+      for (const t of trouvees) {
+        if (!production || !t.reference) continue;
+        try {
+          for (const ligne of await documentsSprint(t.reference)) annoncer('notice', '7 ter. Base de Sprint', ligne);
+        } catch (e) {
+          annoncer('warning', '7 ter. Base de Sprint', `Lecture impossible : ${(e as Error).message}`);
+        }
       }
       // Réponse brute : où est notre référence ? Chemins des champs seulement (jamais ceux du client payeur),
       // et ceux dont la valeur contient « rch_ » ou une référence de commande.
