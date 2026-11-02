@@ -70,3 +70,12 @@ chauffeur ajoute le site à son écran d'accueil, une fois.
 Limites sur iPhone : le GPS s'arrête écran verrouillé (l'écran reste
 allumé tant que le chauffeur est en ligne) ; pas de vibration, et le
 bouton silencieux coupe l'alerte sonore.
+
+Retour en arrière sur iPhone (depuis la publication 119) : avec les flèches
+de l'app et le glissement des écrans depuis le bord gauche. Les écrans de
+Sprint ne s'empilent plus dans l'historique de Safari (le glissement de
+retour d'iOS montrait l'image figée d'un écran déjà quitté, comme la
+connexion en chargement, à côté de l'accueil) : dans Safari, sa flèche
+retour fait donc quitter Sprint. Après une publication, fermer complètement
+l'app (balayer vers le haut) puis la rouvrir pour charger la nouvelle
+version.
