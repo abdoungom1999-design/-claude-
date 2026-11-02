@@ -760,6 +760,15 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      réelles que personne ne paie (100 FCFA, une course, une recharge de
      500 FCFA ; elles expirent seules), lectures ; ni numéros de test, ni clé
      publique, ni pages des liens (bac à sable seulement).
+     Entrée `transaction_a_suivre` (identifiant du SMS d'Orange) : relecture
+     d'un paiement réel chez Orange (statut, montant, marchand payé, forme de
+     la référence) et, en production, de ce qu'en a fait la base de Sprint
+     (commande, course, recharge, remboursement), en lecture seule et sans
+     jamais afficher d'identifiant, de nom, de numéro ni d'adresse ; la
+     demande de 100 FCFA et le parcours sont alors sautés. Un identifiant
+     introuvable déclenche un diagnostic (noms des secrets d'Orange du projet
+     et dates, forme des clés comparée au bac à sable, réponse brute
+     d'Orange au jeton), jamais les valeurs.
      Case `preparer_notifications` : secrets manquants de cet environnement
      créés et adresse
      `https://europe-west1-sprint-vtc.cloudfunctions.net/webhookOrangeMoney`
@@ -835,7 +844,22 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      5. à confirmer à ce premier paiement : notification reçue sur notre
         adresse, forme réelle de la transaction relue (code marchand, montant,
         référence), refus d'un second paiement sur un QR « usage unique ».
-     Avant d'ouvrir à tous : point 3 ci-dessous.
+     **Premier paiement réel (2 novembre 2026), réussi** : transaction Orange
+     `MP261102.1005.D30512`, 500 FCFA, `SUCCESS`, payée au code marchand de
+     Sprint. C'était une **course** passager à 500 FCFA (tarif province) payée
+     par Orange Money, pas une recharge : demande créée à 10:05:07 UTC,
+     paiement confirmé à 10:07:12, course créée 2 secondes plus tard
+     (notification d'Orange reçue, relue chez Orange, marchand vérifié),
+     prise par un chauffeur, terminée à 10:27:53 ; aucun mouvement du solde.
+     Forme réelle d'une transaction relue chez Orange : `reference` = notre
+     référence (aussi dans `metadata.qrcodeReference`), `partner.idType` =
+     `CODE` avec notre code marchand, `type` = `MERCHANT_PAYMENT`, avec
+     `channel`, `createdAt`, `metadata.notification.dispatched`. Reste à voir
+     en production : une recharge (« rch_… ») et le refus d'un second paiement
+     sur le même QR.
+     Avant d'ouvrir à tous : point 3 ci-dessous, et Wave encore simulé (une
+     course « payée » par le faux Wave ne coûte rien : vrai Wave à brancher,
+     ou Wave retiré, avant le lancement public).
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.
