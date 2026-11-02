@@ -857,6 +857,18 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      `channel`, `createdAt`, `metadata.notification.dispatched`. Reste à voir
      en production : une recharge (« rch_… ») et le refus d'un second paiement
      sur le même QR.
+     **Délai mesuré (journaux du serveur, essais #23 à #25)** : la course n'a
+     pas été créée par la notification mais par la surveillance. Orange crée
+     la transaction à 10:05:18, notifie à 10:05:19 (clé acceptée ; démarrage à
+     froid de la fonction, environ 2 s), notre relecture à 10:05:22.4 ne la
+     trouve pas encore (« transaction introuvable », réponse 202, Orange ne
+     renvoie plus) et Orange la finalise à 10:05:22.5 ; la surveillance
+     l'applique à 10:07:16. Même scénario pour un second paiement : notifié à
+     11:11:32, appliqué à 11:17:18. Correctif proposé (go du client attendu) :
+     relire plusieurs fois pendant une dizaine de secondes avant d'abandonner,
+     puis répondre 500 pour qu'Orange renvoie la notification ; surveillance
+     toutes les minutes. Mesures d'Orange (depuis la CI) : jeton 1,2 à 1,3 s
+     (gardé une heure par instance), demande de paiement 0,85 s.
      Avant d'ouvrir à tous : point 3 ci-dessous, et Wave encore simulé (une
      course « payée » par le faux Wave ne coûte rien : vrai Wave à brancher,
      ou Wave retiré, avant le lancement public).
