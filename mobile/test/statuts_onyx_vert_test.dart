@@ -74,6 +74,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Dossier KYC : la 3e pièce est l\'« Assurance moto » (plus d\'« Attestation VTC »)', (tester) async {
+    await _ecran(tester, _kyc({}));
+    expect(find.text('Carte grise'), findsOneWidget);
+    expect(find.text('Assurance moto'), findsOneWidget);
+    expect(find.textContaining('VTC'), findsNothing);
+  });
+
   testWidgets('Dossier KYC : les 3 documents envoyés activent la soumission', (tester) async {
     var soumis = false;
     await _ecran(tester, _kyc({'permis': 'x', 'carteGrise': 'x', 'attestationVtc': 'x'}, onSoumis: () => soumis = true));

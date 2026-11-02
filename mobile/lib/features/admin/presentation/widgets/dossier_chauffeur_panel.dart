@@ -13,7 +13,8 @@ import 'visionneuse_document.dart';
 const _documentsKyc = [
   ('permis', 'Permis de conduire', Icons.badge_outlined),
   ('carteGrise', 'Carte grise', Icons.description_outlined),
-  ('attestationVtc', 'Attestation VTC', Icons.shield_outlined),
+  // Clé historique « attestationVtc » : la pièce demandée est l'assurance de la moto.
+  ('attestationVtc', 'Assurance moto', Icons.shield_outlined),
 ];
 
 /// Ouvre le Dossier Chauffeur dans un panneau latéral large : identité,

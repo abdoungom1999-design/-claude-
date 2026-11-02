@@ -71,8 +71,8 @@ côté Admin, etc. restent sur les données de démonstration
 suivante ; la migration des pièces déjà envoyées en Base64 se lance ensuite
 depuis Admin > Paramètres (voir plus bas).
 
-Les documents chauffeur (permis, carte grise, attestation VTC, photo de
-profil) partent dans Firebase Storage
+Les documents chauffeur (permis, carte grise, assurance moto — clé
+historique `attestationVtc` —, photo de profil) partent dans Firebase Storage
 (`kyc_documents/{uid}/{document}.jpg`), et seule leur URL est gardée
 dans Firestore. **Tant que Storage n'est pas activé, l'app retombe
 automatiquement sur le stockage Base64 dans Firestore** (plafond 700 Ko
@@ -164,13 +164,15 @@ depuis la Console.
   vrai prénom et nom (`prenom`, `nomDeFamille`, et `nom` = « Prénom Nom »),
   moto (`moto` : `marque`, `modele`, `couleur` ; `vehiculeId` = « Marque
   Modèle Couleur ») et plaque. Le chauffeur les modifie lui-même (onglet
-  Compte › « Modifier mon profil », `ModifierFicheChauffeurPage`) tant que
-  son dossier n'est pas validé ; ensuite, ses clients les voyant, il envoie
-  une demande (`modificationDemandee`, complète, bornée, datée par le
-  serveur) que l'Admin compare avec le permis et la carte grise (Dossier
-  chauffeur › « Valider la modification » ou « Refuser » ;
-  `modificationRefuseeLe` informe le chauffeur). Son téléphone change
-  aussitôt. Un chauffeur validé ne peut plus changer seul son nom, sa moto
+  Compte › Plus › « Informations personnelles »,
+  `InformationsPersonnellesChauffeurPage`, même parcours que côté client)
+  tant que son dossier n'est pas validé ; ensuite, ses clients les voyant,
+  il envoie une demande (`modificationDemandee`, complète, bornée, datée
+  par le serveur) que l'Admin compare avec le permis et la carte grise
+  (Dossier chauffeur › « Valider la modification » ou « Refuser » ;
+  `modificationRefuseeLe` informe le chauffeur pendant un mois). Il peut
+  annuler sa demande ; revenir à ses informations vérifiées la retire.
+  Son téléphone change aussitôt. Un chauffeur validé ne peut plus changer seul son nom, sa moto
   ni sa plaque, et le nom public reste celui du profil privé.
 - `profils_publics/{uid}` : nom (toujours celui du profil privé), téléphone,
   rôle, véhicule et plaque.

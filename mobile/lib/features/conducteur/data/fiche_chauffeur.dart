@@ -56,6 +56,10 @@ class ModificationDemandee {
   /// « Bajaj Boxer 125 Noir - DK-1234-AB ».
   String get motoEtPlaque => [moto.description, plaque].where((v) => v.trim().isNotEmpty).join(' - ');
 
+  /// La demande porte-t-elle déjà exactement ces valeurs (déjà mises en forme) ?
+  bool porteSur({required String prenom, required String nomDeFamille, required MotoChauffeur moto, required String plaque}) =>
+      this.prenom == prenom && this.nomDeFamille == nomDeFamille && this.moto == moto && this.plaque == plaque;
+
   static ModificationDemandee? depuis(Object? valeur) {
     if (valeur is! Map) return null;
     String texte(String cle) => (valeur[cle] as String?)?.trim() ?? '';
@@ -230,6 +234,7 @@ class PlanFiche {
     this.nomDirect,
     this.telephone,
     this.demande,
+    this.annulerDemande = false,
   });
 
   final ResultatFiche resultat;
@@ -245,12 +250,18 @@ class PlanFiche {
 
   /// Dossier validé : demande à vérifier par l'Admin (sans sa date, posée par le serveur).
   final Map<String, String>? demande;
+
+  /// Dossier validé : le chauffeur est revenu à ses informations vérifiées
+  /// alors qu'une demande attendait ; elle n'a plus d'objet et est retirée.
+  final bool annulerDemande;
 }
 
 /// Décide quoi écrire : téléphone aussitôt ; identité et moto aussitôt tant
 /// que le dossier n'est pas validé, sinon en demande vérifiée par l'Admin.
-/// La comparaison se fait avec ce que montrait le formulaire (ancien compte :
-/// prénom et nom déduits de `nom`, moto à compléter).
+/// La comparaison se fait avec les informations vérifiées (ancien compte :
+/// prénom et nom déduits de `nom`, moto à compléter). Dossier validé avec une
+/// demande en attente : la même demande n'est pas renvoyée ; revenir aux
+/// informations vérifiées la retire.
 PlanFiche planifierFiche({
   required FicheChauffeur avant,
   required String prenom,
@@ -264,13 +275,16 @@ PlanFiche planifierFiche({
   final n = capitaliserNom(nomDeFamille);
   final pl = normaliserPlaque(plaque);
   final m = MotoChauffeur(marque: moto.marque.trim(), modele: moto.modele.trim(), couleur: moto.couleur.trim());
-  final identiteOuMoto = p != prenomAvant || n != nomAvant || m != avant.moto || pl != avant.plaque;
+  final identiteOuMoto = p != prenomAvant || n != nomAvant || m != avant.moto || pl != normaliserPlaque(avant.plaque);
   final tel = telephone.trim();
   final nouveauTelephone = tel != avant.telephone ? tel : null;
+  final enAttente = avant.estValide ? avant.modificationDemandee : null;
   if (!identiteOuMoto) {
+    final annuler = enAttente != null;
     return PlanFiche(
-      resultat: nouveauTelephone == null ? ResultatFiche.inchange : ResultatFiche.enregistre,
+      resultat: (nouveauTelephone == null && !annuler) ? ResultatFiche.inchange : ResultatFiche.enregistre,
       telephone: nouveauTelephone,
+      annulerDemande: annuler,
     );
   }
   if (!avant.estValide) {
@@ -284,6 +298,13 @@ PlanFiche planifierFiche({
         'plaqueImmatriculation': pl,
       },
       nomDirect: nomCompletDe(p, n),
+      telephone: nouveauTelephone,
+    );
+  }
+  if (enAttente != null && enAttente.porteSur(prenom: p, nomDeFamille: n, moto: m, plaque: pl)) {
+    // Déjà demandé tel quel : la demande garde sa date, seul le téléphone change.
+    return PlanFiche(
+      resultat: nouveauTelephone == null ? ResultatFiche.inchange : ResultatFiche.enregistre,
       telephone: nouveauTelephone,
     );
   }
@@ -342,6 +363,7 @@ class FicheChauffeurService {
       return plan.resultat;
     }
     if (plan.telephone case final tel?) await _auth.mettreAJourTelephone(tel);
+    if (plan.annulerDemande) await users.update({'modificationDemandee': FieldValue.delete()});
     if (plan.demande case final demande?) {
       await users.update({
         'modificationDemandee': {...demande, 'demandeLe': FieldValue.serverTimestamp()},

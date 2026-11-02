@@ -83,6 +83,31 @@ class AiguillageDemarrage {
     return _accueilDuRole(uid);
   }
 
+  /// Écran de connexion chauffeur : un chauffeur déjà connecté (retour
+  /// arrière depuis son accueil, sur le site par exemple) retourne
+  /// directement à son accueil au lieu de revoir l'écran de connexion. Sans
+  /// session, avec un autre rôle, ou au moindre doute : l'écran s'affiche
+  /// (sans attendre quand personne n'est connecté).
+  FutureOr<String?> connexionChauffeur() {
+    if (!_firebasePret()) return null;
+    final String? uid;
+    try {
+      uid = uidConnecte();
+    } on Object {
+      return null;
+    }
+    if (uid == null) return null;
+    return _accueilSiChauffeur(uid);
+  }
+
+  Future<String?> _accueilSiChauffeur(String uid) async {
+    try {
+      return await roleDe(uid) == 'conducteur' ? AppRoutes.conducteur : null;
+    } on Object {
+      return null;
+    }
+  }
+
   Future<String> _accueilDuRole(String uid) async {
     String? role;
     try {

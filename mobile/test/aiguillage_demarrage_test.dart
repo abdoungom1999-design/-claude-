@@ -179,6 +179,49 @@ void main() {
     });
   });
 
+  group('écran de connexion chauffeur', () {
+    test('sans Firebase ou sans session : l\'écran s\'affiche, tout de suite, sans lire de rôle', () {
+      final sansFirebase = _FauxFirebase()
+        ..pret = false
+        ..uid = 'u2';
+      final sansSession = _FauxFirebase();
+      for (final faux in [sansFirebase, sansSession]) {
+        final reponse = faux.aiguillage().connexionChauffeur();
+        expect(reponse, isNull);
+        expect(reponse is Future, isFalse);
+        expect(faux.lecturesRole, 0);
+      }
+    });
+
+    test('chauffeur déjà connecté (retour arrière depuis son accueil) : son accueil, pas la connexion', () async {
+      final faux = _FauxFirebase()
+        ..uid = 'u2'
+        ..roles['u2'] = 'conducteur';
+      expect(await faux.aiguillage().connexionChauffeur(), AppRoutes.conducteur);
+    });
+
+    test('client, admin, rôle introuvable ou illisible : l\'écran de connexion s\'affiche', () async {
+      final client = _FauxFirebase()
+        ..uid = 'u1'
+        ..roles['u1'] = 'client';
+      final admin = _FauxFirebase()
+        ..uid = 'u3'
+        ..roles['u3'] = 'admin';
+      final sansRole = _FauxFirebase()..uid = 'u4';
+      final enEchec = _FauxFirebase()
+        ..uid = 'u6'
+        ..erreurRole = Exception('réseau coupé');
+      for (final faux in [client, admin, sansRole, enEchec]) {
+        expect(await faux.aiguillage().connexionChauffeur(), isNull);
+      }
+    });
+
+    test('Firebase qui répond mal : l\'écran s\'affiche', () {
+      final faux = _FauxFirebase()..erreurPret = StateError('pas d\'app');
+      expect(faux.aiguillage().connexionChauffeur(), isNull);
+    });
+  });
+
   group('avec le vrai routeur go_router', () {
     // Mêmes adresses que l'app ; chaque écran compte ses constructions.
     late _FauxFirebase faux;
@@ -200,6 +243,11 @@ void main() {
           ),
           GoRoute(path: AppRoutes.home, builder: (_, __) => const Scaffold(body: Text('ÉCRAN ACCUEIL CLIENT'))),
           GoRoute(path: AppRoutes.conducteur, builder: (_, __) => const Scaffold(body: Text('ÉCRAN ESPACE CHAUFFEUR'))),
+          GoRoute(
+            path: AppRoutes.conducteurLogin,
+            redirect: (_, __) => aiguillage.connexionChauffeur(),
+            builder: (_, __) => const Scaffold(body: Text('ÉCRAN CONNEXION CHAUFFEUR')),
+          ),
           GoRoute(path: AppRoutes.admin, builder: (_, __) => const Scaffold(body: Text('ÉCRAN ADMIN'))),
         ],
       );
@@ -270,6 +318,30 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('ÉCRAN BIENVENUE'), findsOneWidget);
       expect(find.text('ÉCRAN ACCUEIL CLIENT'), findsNothing);
+    });
+
+    testWidgets('chauffeur connecté qui revient sur « Espace Conducteur » : il reste sur son accueil', (tester) async {
+      faux
+        ..uid = 'u2'
+        ..roles['u2'] = 'conducteur';
+      final routeurTest = routeur();
+      await tester.pumpWidget(MaterialApp.router(routerConfig: routeurTest));
+      await tester.pumpAndSettle();
+      expect(find.text('ÉCRAN ESPACE CHAUFFEUR'), findsOneWidget);
+
+      routeurTest.go(AppRoutes.conducteurLogin); // retour arrière du navigateur
+      await tester.pumpAndSettle();
+      expect(find.text('ÉCRAN ESPACE CHAUFFEUR'), findsOneWidget);
+      expect(find.text('ÉCRAN CONNEXION CHAUFFEUR'), findsNothing);
+    });
+
+    testWidgets('personne de connecté : « Espace Conducteur » s\'affiche normalement', (tester) async {
+      final routeurTest = routeur();
+      await tester.pumpWidget(MaterialApp.router(routerConfig: routeurTest));
+      await tester.pumpAndSettle();
+      routeurTest.push(AppRoutes.conducteurLogin);
+      await tester.pumpAndSettle();
+      expect(find.text('ÉCRAN CONNEXION CHAUFFEUR'), findsOneWidget);
     });
 
     testWidgets('lien direct vers un onglet : affiché tel quel, après la lecture de la session', (tester) async {

@@ -144,7 +144,8 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
                             const _SeparateurKyc(),
                             _LigneDocumentKyc(
                               icon: Icons.shield_outlined,
-                              label: 'Attestation VTC',
+                              // Clé historique « attestationVtc » : assurance de la moto.
+                              label: 'Assurance moto',
                               envoye: _envoye('attestationVtc', documents),
                               enCours: _enCoursTeleversement.contains('attestationVtc'),
                               onTap: () => _choisirEtTeleverser('attestationVtc'),

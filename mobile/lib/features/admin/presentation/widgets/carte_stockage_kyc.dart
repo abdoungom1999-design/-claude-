@@ -92,7 +92,7 @@ class _CarteStockageKycState extends State<CarteStockageKyc> {
             const Text('Stockage des documents KYC', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             const Text(
-              'Permis, carte grise, attestation VTC et photo de profil des chauffeurs. Les nouvelles pièces vont '
+              'Permis, carte grise, assurance moto et photo de profil des chauffeurs. Les nouvelles pièces vont '
               'dans Firebase Storage dès que le service est activé ; les anciennes, encore encodées dans la base, '
               'peuvent y être déplacées ici.',
               style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
