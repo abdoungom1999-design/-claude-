@@ -602,7 +602,8 @@ relancer le déploiement (onglet Actions > Run workflow).
 
 ### 7.1 bis Portefeuille Sprint (mode test : faux Wave)
 
-Crédit prépayé du client, **non retirable**, utilisable uniquement pour
+Crédit prépayé du client, **non retirable** (retrait vers Orange Money ou
+Wave préparé mais fermé : voir 7.1 quater), utilisable uniquement pour
 payer des courses. Tout passe par le serveur (`functions/src/portefeuille.ts`)
 et fonctionne aujourd'hui contre le faux Wave : **aucune somme réelle ne
 bouge** tant que le vrai Wave n'est pas branché (voir
@@ -613,7 +614,8 @@ bouge** tant que le vrai Wave n'est pas branché (voir
     (l'interrupteur « Régler mes courses avec mon solde », seul champ que
     le client peut écrire) ;
   - `portefeuilles/{uid}/mouvements/{id}` : livre de comptes en ajout
-    seul (recharge, paiement_course, remboursement, ajustement_admin) avec
+    seul (recharge, paiement_course, remboursement, ajustement_admin ;
+    retrait et retrait_rendu, voir 7.1 quater) avec
     le solde après chaque opération. Identifiants déterministes
     (`recharge_<id>`, `course_<commande>`, `remboursement_<commande>`) :
     rejouer un webhook ou un remboursement ne crédite ni ne débite jamais
@@ -918,12 +920,73 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.
 
+### 7.1 quater Retrait du solde (lot B : préparé, FERMÉ)
+
+Préparé le 2 novembre 2026 (go du client : « prépare le Lot B ») ; **fermé**
+tant que le client n'a pas donné son go pour l'ouvrir.
+
+- **Principe** : le client demande que son solde lui soit envoyé sur Orange
+  Money ou Wave ; le montant est retiré du solde **aussitôt** (mouvement
+  `retrait`, débit : jamais dépensé deux fois) ; un Admin l'envoie depuis le
+  compte de Groupe Santine, puis le marque **versé** (référence du
+  transfert, facultative) ; ou il le **refuse** (motif obligatoire, envoyé au
+  client) et le montant revient sur le solde (mouvement `retrait_rendu`).
+  Journal Admin (`retrait_verse`, `retrait_refuse`) ; notification aux
+  Admins à chaque demande, au client à chaque traitement. Aucun virement
+  automatique : l'API d'Orange Money n'en a pas pour le compte marchand
+  (seul le dépôt « cash in », avec le code secret d'un distributeur, jamais
+  utilisé).
+- **Réglage** : `RETRAITS_OUVERTS = false` (`functions/src/retraits.ts`) et
+  son jumeau `retraitsOuverts = false`
+  (`lib/features/portefeuille/data/retraits.dart`), vérifiés ensemble par
+  `functions/test/retraits.test.ts`. Fermé : `demanderRetrait` refuse avant
+  toute lecture (`failed-precondition`, raison `retraits_fermes`) ; l'app
+  n'affiche rien (ni bouton « Retirer », ni bandeau, ni lecture) et le texte
+  de la recharge reste « non retirable ». Côté Admin, la carte « Retraits de
+  solde à verser » (Finances) n'apparaît que si des retraits attendent.
+- **Données** : `retraits/{rtr_<24 hexadécimaux>}` : `clientId`,
+  `nomClient`, `numeroDuCompte` (le numéro de réception est-il celui du
+  compte ?), `montantFcfa`, `moyen` (`ORANGE_MONEY` ou `WAVE`), `numero`
+  (9 chiffres), `statut` (`demande` puis `verse` ou `refuse`, une seule
+  fois), `creeLe`, `traiteLe`, `traitePar`, `referenceVersement` ou
+  `motifRefus`. Lecture : le client (les siens) et l'Admin ; aucune
+  écriture depuis l'app (règles Firestore).
+- **Contrôles du serveur** : compte client (ni chauffeur, ni Admin), ni
+  suspendu ni banni ; montant entier, 500 FCFA au moins, au plus le solde ;
+  numéro mobile sénégalais (70, 75, 76, 77 ou 78 ; « +221 », « 00221 »,
+  espaces, points et tirets acceptés) ; une seule demande en attente par
+  client, dans une transaction (deux demandes simultanées ne dépensent
+  jamais deux fois le solde) ; traitement par un Admin seulement, une seule
+  fois. Un numéro de réception différent de celui du compte est signalé à
+  l'Admin (compte peut-être utilisé par quelqu'un d'autre : vérifier avant
+  de verser).
+- **Procédure Admin** : Espace Admin › Finances › « Retraits de solde à
+  verser » (les plus anciens d'abord ; numéro sélectionnable pour le
+  copier) : vérifier, envoyer depuis le compte Orange Money ou Wave de
+  Groupe Santine, puis « Marquer versé » ; ou « Refuser » avec le motif.
+- **Pour ouvrir** (go du client) : passer les deux réglages à `true` dans le
+  même commit, mettre à jour le test qui les veut fermés (avec la date du
+  go), adapter les textes d'aide et les conditions (le solde devient
+  retirable), puis publier.
+- **À décider avant d'ouvrir** : frais du transfert (payés par Sprint, ou
+  déduits du montant ; aujourd'hui le client reçoit le montant entier) ;
+  délai annoncé (aucun n'est promis : « après vérification ») ; plafonds
+  éventuels par jour ou par mois ; cadre réglementaire du solde (point 3
+  ci-dessus).
+- **Refermer après ouverture** : les demandes déjà faites restent à traiter
+  par l'Admin (la carte reste visible tant qu'il y en a) ; le client voit le
+  débit dans ses mouvements et est prévenu au traitement.
+- **Tant que c'est fermé**, une publication emporte ce code sans rien
+  changer pour les clients : deux fonctions de plus (`demanderRetrait`, qui
+  refuse, et `traiterRetrait`, Admin seulement), une règle de lecture, une
+  carte Admin invisible sans retrait en attente.
+
 ### 7.2 Tests
 
 ```bash
 cd mobile/functions
-npm test                  # moteur de prix (dont parité avec l'app), validation, signatures, client et paiement Orange Money (faux Orange)
-npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille, Orange Money (émulateur Firestore, faux Orange)
+npm test                  # moteur de prix (dont parité avec l'app), validation, signatures, client et paiement Orange Money (faux Orange), retraits (réglages jumeaux, numéro)
+npm run test:emulateur    # paiement, courses, annulations, surveillance, remboursement Admin, sanctions, motos à proximité, notifications push, portefeuille, Orange Money, retraits du solde (émulateur Firestore, faux Orange)
 ```
 
 

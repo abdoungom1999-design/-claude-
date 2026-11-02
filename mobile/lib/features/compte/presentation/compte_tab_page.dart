@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/demo/demo_data.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/notifications/carte_notifications.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -16,6 +19,7 @@ import '../../../core/widgets/wallet_card.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../portefeuille/data/portefeuille_service.dart';
+import '../../portefeuille/data/retraits.dart';
 import '../../portefeuille/presentation/mouvements_portefeuille_page.dart';
 import '../../portefeuille/presentation/recharge_portefeuille_page.dart';
 import 'aide_support_page.dart';
@@ -33,7 +37,15 @@ const _montantsRecharge = [1000, 2000, 5000, 10000, 20000];
 /// Onglet Compte : profil, portefeuille, statistiques et menu de
 /// paramètres.
 class CompteTabPage extends StatefulWidget {
-  const CompteTabPage({super.key, this.service, this.clientId, this.profil, this.demo});
+  const CompteTabPage({
+    super.key,
+    this.service,
+    this.clientId,
+    this.profil,
+    this.demo,
+    this.retraits,
+    this.retraitsDisponibles = retraitsOuverts,
+  });
 
   /// Injectables pour les tests : accès au portefeuille, client connecté,
   /// flux du profil, et [demo] pour forcer le mode démo.
@@ -42,6 +54,11 @@ class CompteTabPage extends StatefulWidget {
   final Stream<Map<String, dynamic>?>? profil;
   final bool? demo;
 
+  /// Retraits du solde (lot B) : accès injectable, et ouverture (par défaut
+  /// le réglage en service [retraitsOuverts] ; fermé, rien n'apparaît).
+  final RetraitService? retraits;
+  final bool retraitsDisponibles;
+
   @override
   State<CompteTabPage> createState() => _CompteTabPageState();
 }
@@ -49,6 +66,7 @@ class CompteTabPage extends StatefulWidget {
 class _CompteTabPageState extends State<CompteTabPage> {
   final _authRepository = AuthRepository();
   late final PortefeuilleService _portefeuille = widget.service ?? PortefeuilleService();
+  late final RetraitService _retraits = widget.retraits ?? RetraitService();
 
   /// Préférence locale, mode démo seulement : avec Firebase, l'interrupteur
   /// est enregistré dans `portefeuilles/{uid}` (voir [_definirPreference]).
@@ -56,6 +74,14 @@ class _CompteTabPageState extends State<CompteTabPage> {
 
   /// Solde en direct (Firebase réel, client connecté) ; `null` en mode démo.
   Stream<Portefeuille>? _fluxPortefeuille;
+
+  /// Retraits ouverts et client connecté : retrait en attente de versement
+  /// (au plus un), suivi en direct.
+  StreamSubscription<Retrait?>? _suiviRetrait;
+  Retrait? _retraitEnCours;
+
+  /// Dernier profil lu (en-tête) : numéro du compte proposé pour un retrait.
+  Map<String, dynamic>? _profilConnu;
 
   String? get _uid {
     if (widget.demo == true) return null;
@@ -68,6 +94,22 @@ class _CompteTabPageState extends State<CompteTabPage> {
     super.initState();
     final uid = _uid;
     if (uid != null) _fluxPortefeuille = _portefeuille.streamPortefeuille(uid);
+    if (uid != null && widget.retraitsDisponibles) {
+      _suiviRetrait = _retraits.streamRetraitEnCours(uid).listen(
+            (retrait) {
+              if (mounted) setState(() => _retraitEnCours = retrait);
+            },
+            // Lecture impossible : pas de bandeau ; le serveur refuse de
+            // toute façon une seconde demande.
+            onError: (Object _) {},
+          );
+    }
+  }
+
+  @override
+  void dispose() {
+    _suiviRetrait?.cancel();
+    super.dispose();
   }
 
   void _ouvrir(Widget page) {
@@ -143,11 +185,62 @@ class _CompteTabPageState extends State<CompteTabPage> {
     }
   }
 
+  /// Retrait du solde vers Orange Money ou Wave : le serveur réserve le
+  /// montant aussitôt (débité du solde), un Admin Sprint l'envoie puis le
+  /// marque versé, ou le refuse et le montant revient sur le solde.
+  Future<void> _retirer(Portefeuille portefeuille) async {
+    if (_retraitEnCours case final enCours?) {
+      await PremiumDialog.afficher(
+        context,
+        icon: Icons.hourglass_top_rounded,
+        titre: 'Retrait déjà en cours',
+        message: '${_resumeRetrait(enCours)} Vous pourrez faire une nouvelle demande une fois celle-ci traitée.',
+      );
+      return;
+    }
+    if (portefeuille.soldeFcfa < retraitMinFcfa) {
+      await PremiumDialog.afficher(
+        context,
+        icon: Icons.account_balance_wallet_outlined,
+        titre: 'Solde insuffisant',
+        message: 'Le retrait minimal est de ${formaterFcfa(retraitMinFcfa)}. '
+            'Votre solde : ${formaterFcfa(portefeuille.soldeFcfa)}.',
+      );
+      return;
+    }
+    final demande = await showModalBottomSheet<_RetraitDemande>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _RetraitSheet(
+        soldeFcfa: portefeuille.soldeFcfa,
+        numeroPropose: numeroSenegal(_profilConnu?['telephone'] as String? ?? '') ?? '',
+        envoyer: (montantFcfa, moyen, numero) =>
+            _retraits.demander(montantFcfa: montantFcfa, moyen: moyen, numero: numero),
+      ),
+    );
+    if (demande == null || !mounted) return;
+    await PremiumDialog.afficher(
+      context,
+      icon: Icons.check_circle_outline_rounded,
+      titre: 'Demande de retrait envoyée',
+      message: '${formaterFcfa(demande.montantFcfa)} ont été retirés de votre solde. Sprint vous les envoie sur '
+          'votre compte ${demande.moyen.label} (${formaterNumero(demande.numero)}) après vérification. '
+          'Vous serez prévenu dès le versement.',
+      succes: true,
+    );
+  }
+
+  static String _resumeRetrait(Retrait retrait) =>
+      '${formaterFcfa(retrait.montantFcfa)} vers ${retrait.moyen?.label ?? 'votre mobile money'} '
+      '(${retrait.numeroLisible}) : Sprint vous les envoie après vérification.';
+
   Widget _carteWallet(Portefeuille portefeuille) => WalletCard(
         soldeFcfa: portefeuille.soldeFcfa,
         payerAvecSolde: portefeuille.payerAvecSolde,
         onTogglePaiement: _definirPreference,
         onRecharger: () => _recharger(portefeuille),
+        onRetirer: _suiviRetrait == null ? null : () => _retirer(portefeuille),
       );
 
   Future<void> _seDeconnecter() async {
@@ -179,6 +272,10 @@ class _CompteTabPageState extends State<CompteTabPage> {
                   _carteWallet(
                     Portefeuille(soldeFcfa: DemoData.soldePortefeuilleFcfa, payerAvecSolde: _payerAvecSolde),
                   ),
+                if (_retraitEnCours case final retrait?) ...[
+                  const SizedBox(height: 12),
+                  _BandeauRetrait(texte: 'Retrait en cours : ${_resumeRetrait(retrait)}'),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -288,6 +385,7 @@ class _CompteTabPageState extends State<CompteTabPage> {
     return StreamBuilder<Map<String, dynamic>?>(
       stream: widget.profil ?? _authRepository.profilUtilisateurStream(),
       builder: (context, snapshot) {
+        if (snapshot.data case final profil?) _profilConnu = profil;
         final nomFirestore = (snapshot.data?['nom'] as String?)?.trim();
         final nomAffiche = (nomFirestore != null && nomFirestore.isNotEmpty) ? nomFirestore : DemoData.monNomClient;
         final initiale = nomAffiche.isNotEmpty ? nomAffiche[0].toUpperCase() : '?';
@@ -457,7 +555,9 @@ class _RechargeSheetState extends State<_RechargeSheet> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Le solde sert uniquement à payer vos courses. Il n\'est pas retirable.',
+                retraitsOuverts
+                    ? 'Le solde sert à payer vos courses. Vous pouvez aussi le retirer vers Orange Money ou Wave.'
+                    : 'Le solde sert uniquement à payer vos courses. Il n\'est pas retirable.',
                 style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
               ),
               const SizedBox(height: 18),
@@ -541,6 +641,243 @@ class _RechargeSheetState extends State<_RechargeSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Retrait accepté par le serveur (montant déjà retiré du solde).
+class _RetraitDemande {
+  const _RetraitDemande(this.montantFcfa, this.moyen, this.numero);
+
+  final int montantFcfa;
+  final MoyenRetrait moyen;
+
+  /// Numéro tel que retenu (9 chiffres).
+  final String numero;
+}
+
+/// Retrait du solde : montant (tout le solde proposé), moyen et numéro de
+/// réception (celui du compte proposé). La demande part d'ici : une erreur
+/// du serveur s'affiche dans la feuille, pour corriger sans tout ressaisir.
+class _RetraitSheet extends StatefulWidget {
+  const _RetraitSheet({required this.soldeFcfa, required this.numeroPropose, required this.envoyer});
+
+  final int soldeFcfa;
+
+  /// Numéro du compte s'il est valide, vide sinon.
+  final String numeroPropose;
+
+  /// Envoie la demande au serveur ; erreurs : [ApiException].
+  final Future<int> Function(int montantFcfa, MoyenRetrait moyen, String numero) envoyer;
+
+  @override
+  State<_RetraitSheet> createState() => _RetraitSheetState();
+}
+
+class _RetraitSheetState extends State<_RetraitSheet> {
+  late final _montant = TextEditingController(text: '${widget.soldeFcfa}');
+  late final _numero = TextEditingController(text: formaterNumero(widget.numeroPropose));
+  MoyenRetrait _moyen = MoyenRetrait.orangeMoney;
+  bool _envoi = false;
+  String? _erreurServeur;
+
+  @override
+  void dispose() {
+    _montant.dispose();
+    _numero.dispose();
+    super.dispose();
+  }
+
+  int? get _montantSaisi => int.tryParse(_montant.text.replaceAll(RegExp(r'[\s  ]'), ''));
+
+  String? get _erreurMontant {
+    final montant = _montantSaisi;
+    if (montant == null) return 'Saisissez un montant.';
+    if (montant < retraitMinFcfa) return 'Retrait minimal : ${formaterFcfa(retraitMinFcfa)}.';
+    if (montant > widget.soldeFcfa) return 'Votre solde est de ${formaterFcfa(widget.soldeFcfa)}.';
+    return null;
+  }
+
+  String? get _erreurNumero => numeroSenegal(_numero.text) == null
+      ? 'Numéro invalide : 9 chiffres, commençant par 70, 75, 76, 77 ou 78.'
+      : null;
+
+  Future<void> _confirmer() async {
+    final montant = _montantSaisi;
+    final numero = numeroSenegal(_numero.text);
+    if (montant == null || numero == null) return;
+    setState(() {
+      _envoi = true;
+      _erreurServeur = null;
+    });
+    try {
+      await widget.envoyer(montant, _moyen, numero);
+      if (mounted) Navigator.of(context).pop(_RetraitDemande(montant, _moyen, numero));
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _envoi = false;
+          _erreurServeur = e.message;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _envoi = false;
+          _erreurServeur = 'Demande impossible. Vérifiez votre connexion et réessayez.';
+        });
+      }
+    }
+  }
+
+  InputDecoration _decoration(String libelle, {String? aide}) => InputDecoration(
+        isDense: true,
+        labelText: libelle,
+        helperText: aide,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.bord),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.vert, width: 1.6),
+        ),
+      );
+
+  Widget _erreur(String texte, String cle) => Padding(
+        padding: const EdgeInsets.only(top: 6, left: 4),
+        child: Text(texte, key: ValueKey(cle), style: const TextStyle(fontSize: 12.5, color: AppColors.danger)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final erreurMontant = _erreurMontant;
+    final erreurNumero = _erreurNumero;
+    final montant = _montantSaisi;
+    final pret = erreurMontant == null && erreurNumero == null;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        decoration: const BoxDecoration(
+          color: AppColors.carte,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          border: Border(top: BorderSide(color: AppColors.bordVerre)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: AppColors.bord, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Retirer mon solde',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.texte),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Solde disponible : ${formaterFcfa(widget.soldeFcfa)}. Le montant est retiré de votre solde dès la '
+                'demande ; Sprint vous l\'envoie après vérification. En cas de refus, il revient sur votre solde.',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                key: const ValueKey('montant-retrait'),
+                controller: _montant,
+                enabled: !_envoi,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() => _erreurServeur = null),
+                decoration: _decoration('Montant à retirer (FCFA)'),
+              ),
+              if (erreurMontant != null) _erreur(erreurMontant, 'erreur-montant-retrait'),
+              const SizedBox(height: 18),
+              const Text('Recevoir sur', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texte)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                children: MoyenRetrait.values.map((moyen) {
+                  final selectionne = moyen == _moyen;
+                  return ChoiceChip(
+                    key: ValueKey('moyen-retrait-${moyen.apiValue}'),
+                    label: Text(moyen.label),
+                    selected: selectionne,
+                    onSelected: _envoi ? null : (_) => setState(() => _moyen = moyen),
+                    selectedColor: AppColors.vert,
+                    showCheckmark: false,
+                    side: BorderSide(color: selectionne ? AppColors.vert : AppColors.bord),
+                    labelStyle: TextStyle(
+                      color: selectionne ? AppColors.onyx : AppColors.texte,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    backgroundColor: AppColors.carteHaute,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                key: const ValueKey('numero-retrait'),
+                controller: _numero,
+                enabled: !_envoi,
+                keyboardType: TextInputType.phone,
+                onChanged: (_) => setState(() => _erreurServeur = null),
+                decoration: _decoration('Numéro ${_moyen.label}', aide: 'Le numéro qui recevra l\'argent.'),
+              ),
+              if (erreurNumero != null && _numero.text.trim().isNotEmpty) _erreur(erreurNumero, 'erreur-numero-retrait'),
+              if (pret && montant != null) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'Vous recevrez ${formaterFcfa(montant)} sur le ${formaterNumero(numeroSenegal(_numero.text)!)} '
+                  '(${_moyen.label}).',
+                  key: const ValueKey('resume-retrait'),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.texte, height: 1.4),
+                ),
+              ],
+              if (_erreurServeur case final erreur?) _erreur(erreur, 'erreur-serveur-retrait'),
+              const SizedBox(height: 22),
+              PrimaryButton(
+                label: 'Confirmer le retrait',
+                isLoading: _envoi,
+                onPressed: pret && !_envoi ? _confirmer : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Retrait en attente de versement, sous la carte du portefeuille.
+class _BandeauRetrait extends StatelessWidget {
+  const _BandeauRetrait({required this.texte});
+
+  final String texte;
+
+  @override
+  Widget build(BuildContext context) {
+    return CarteVerre(
+      key: const ValueKey('bandeau-retrait'),
+      rayon: 20,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.hourglass_top_rounded, size: 20, color: AppColors.vert),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(texte, style: const TextStyle(fontSize: 13, color: AppColors.texte, height: 1.4)),
+          ),
+        ],
       ),
     );
   }

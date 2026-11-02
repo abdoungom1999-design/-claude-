@@ -4,8 +4,8 @@ import 'onyx_vert.dart';
 
 /// Carte Portefeuille (écran Compte), charte Onyx & Vert : verre sombre
 /// cerné d'un liseré vert et d'une lueur, solde en grand en clair, bouton
-/// Recharger vert (texte Onyx) et interrupteur pour régler les courses avec
-/// le solde.
+/// Recharger vert (texte Onyx), bouton Retirer à côté quand les retraits
+/// sont ouverts, et interrupteur pour régler les courses avec le solde.
 class WalletCard extends StatelessWidget {
   const WalletCard({
     super.key,
@@ -13,12 +13,17 @@ class WalletCard extends StatelessWidget {
     required this.payerAvecSolde,
     required this.onTogglePaiement,
     required this.onRecharger,
+    this.onRetirer,
   });
 
   final int soldeFcfa;
   final bool payerAvecSolde;
   final ValueChanged<bool> onTogglePaiement;
   final VoidCallback onRecharger;
+
+  /// Retrait du solde vers le mobile money ; `null` : pas de bouton (retraits
+  /// fermés), la carte reste exactement comme avant.
+  final VoidCallback? onRetirer;
 
   @override
   Widget build(BuildContext context) {
@@ -52,20 +57,31 @@ class WalletCard extends StatelessWidget {
             style: const TextStyle(color: AppColors.texte, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8),
           ),
           const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: onRecharger,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.vert,
-                foregroundColor: AppColors.onyx,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                elevation: 0,
-              ),
-              child: const Text('Recharger', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-            ),
-          ),
+          if (onRetirer case final retirer?)
+            Row(
+              children: [
+                Expanded(flex: 3, child: _boutonRecharger()),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: 50,
+                    child: OutlinedButton(
+                      key: const ValueKey('bouton-retirer'),
+                      onPressed: retirer,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.texte,
+                        side: const BorderSide(color: AppColors.vert, width: 1.4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      ),
+                      child: const Text('Retirer', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            SizedBox(width: double.infinity, child: _boutonRecharger()),
           const SizedBox(height: 10),
           const Divider(height: 1, color: AppColors.bordVerre),
           Row(
@@ -93,4 +109,18 @@ class WalletCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _boutonRecharger() => SizedBox(
+        height: 50,
+        child: ElevatedButton(
+          onPressed: onRecharger,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.vert,
+            foregroundColor: AppColors.onyx,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            elevation: 0,
+          ),
+          child: const Text('Recharger', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+        ),
+      );
 }

@@ -359,7 +359,7 @@ jobs:
           for service in estimerprix creerpaiement annulercourse webhookpaiement webhookorangemoney pagepaiementsimule \
                          rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte definirtesteurorangemoney \
                          chauffeursproches itinerairecourse notifiermessage notifieracceptation \
-                         creerrecharge ajusterportefeuille migrerdocumentskyc \
+                         creerrecharge ajusterportefeuille migrerdocumentskyc demanderretrait traiterretrait \
                          connexiontelephone synchroniserannuaire; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
@@ -377,7 +377,7 @@ jobs:
           base=https://europe-west1-sprint-vtc.cloudfunctions.net
           for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
                           rembourserCourseAdmin sanctionnerCompte definirTesteurOrangeMoney chauffeursProches itineraireCourse \
-                          notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille \
+                          notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille demanderRetrait traiterRetrait \
                           migrerDocumentsKyc synchroniserAnnuaire; do
             reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
             echo "$fonction : $reponse"

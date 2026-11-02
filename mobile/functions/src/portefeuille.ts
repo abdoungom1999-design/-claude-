@@ -63,6 +63,10 @@ export const TYPES_MOUVEMENT = {
   paiementCourse: 'paiement_course',
   remboursement: 'remboursement',
   ajustementAdmin: 'ajustement_admin',
+  /** Retrait demandé (débit à la demande, voir `retraits.ts`). */
+  retrait: 'retrait',
+  /** Retrait refusé par l'Admin : montant rendu. */
+  retraitRendu: 'retrait_rendu',
 } as const;
 
 export const estReferenceRecharge = (reference: string): boolean => reference.startsWith(PREFIXE_RECHARGE);

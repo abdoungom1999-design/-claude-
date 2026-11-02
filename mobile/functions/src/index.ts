@@ -55,6 +55,7 @@ import {
   surveillerRecharges,
   traiterEvenementRecharge,
 } from './portefeuille';
+import { demanderRetrait as demanderRetraitCore, traiterRetrait as traiterRetraitCore } from './retraits';
 import {
   MessagerieFcm,
   notifierAcceptation as notifierAcceptationCore,
@@ -332,6 +333,19 @@ export const rembourserCourseAdmin = onCall(async (requete) =>
 /** Admin : crédit ou débit manuel du portefeuille d'un client (motivé, journalisé). */
 export const ajusterPortefeuille = onCall(async (requete) =>
   ajusterCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
+);
+
+/**
+ * Client : demande que son solde lui soit renvoyé sur Orange Money ou Wave
+ * (montant réservé aussitôt). Refusée tant que RETRAITS_OUVERTS est faux.
+ */
+export const demanderRetrait = onCall((requete) =>
+  demanderRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie),
+);
+
+/** Admin : retrait versé (référence du transfert) ou refusé (motif, montant rendu sur le solde). Journalisé. */
+export const traiterRetrait = onCall((requete) =>
+  traiterRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie),
 );
 
 /** Admin : désigne ou retire un testeur d'Orange Money (compte client, journalisé). */

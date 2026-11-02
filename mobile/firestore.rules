@@ -236,6 +236,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Retraits du solde (Cloud Functions demanderRetrait / traiterRetrait) :
+    // écrits par le serveur seul, lisibles par leur client et l'Admin.
+    match /retraits/{retraitId} {
+      allow read: if connecte() && (resource.data.clientId == moi() || estAdmin());
+      allow write: if false;
+    }
+
     // ---------------------------------------------------------------
     // Courses : créées par le serveur (Cloud Function), visibles des
     // chauffeurs actifs tant qu'elles sont en attente, acceptées par un

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/demo/admin_demo_data.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/format_fcfa.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -11,20 +12,22 @@ import '../../../../firebase_options.dart';
 import '../../../courses/data/course_service.dart';
 import '../../../finances/data/comptabilite.dart';
 import '../../../finances/data/finance_service.dart';
+import '../../../portefeuille/data/retraits.dart';
 import '../../data/suivi_direct_service.dart';
 
 /// Page "Finances" de l'Admin. En Firebase réel (100 % mobile money :
 /// Sprint encaisse chaque course) : chiffre d'affaires, commissions, et
 /// ce que Sprint doit à chaque chauffeur (sa part, le prix moins la commission, moins les
-/// versements déjà faits), avec saisie des versements. En mode démo : ancien formulaire de réglages,
-/// simulé ([AdminDemoData]).
+/// versements déjà faits), avec saisie des versements ; et les retraits de solde demandés par les
+/// clients, à verser ou refuser. En mode démo : ancien formulaire de réglages, simulé ([AdminDemoData]).
 class AdminFinancesSection extends StatelessWidget {
-  const AdminFinancesSection({super.key, this.service, this.noms, this.maintenant});
+  const AdminFinancesSection({super.key, this.service, this.noms, this.maintenant, this.retraits});
 
   /// Injectables pour les tests.
   final FinanceService? service;
   final Stream<Map<String, String>>? noms;
   final DateTime? maintenant;
+  final RetraitService? retraits;
 
   @override
   Widget build(BuildContext context) {
@@ -33,15 +36,17 @@ class AdminFinancesSection extends StatelessWidget {
       service: service ?? FinanceService(),
       noms: noms ?? SuiviDirectService().streamNomsChauffeurs(),
       maintenant: maintenant,
+      retraits: retraits ?? RetraitService(),
     );
   }
 }
 
 class _FinancesReelles extends StatefulWidget {
-  const _FinancesReelles({required this.service, required this.noms, this.maintenant});
+  const _FinancesReelles({required this.service, required this.noms, required this.retraits, this.maintenant});
 
   final FinanceService service;
   final Stream<Map<String, String>> noms;
+  final RetraitService retraits;
   final DateTime? maintenant;
 
   @override
@@ -66,6 +71,18 @@ class _FinancesReellesState extends State<_FinancesReelles> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Indépendant du reste : une erreur de lecture des retraits ne
+        // masque jamais les comptes des chauffeurs (et inversement).
+        _RetraitsATraiter(service: widget.retraits),
+        _comptes(),
+      ],
+    );
+  }
+
+  Widget _comptes() {
     return StreamBuilder<List<LigneCourse>>(
       stream: _courses,
       builder: (context, courses) => StreamBuilder<List<Reglement>>(
@@ -357,6 +374,303 @@ class _DialogVersementState extends State<_DialogVersement> {
           onPressed: _envoi ? null : _enregistrer,
           style: FilledButton.styleFrom(backgroundColor: AppColors.vert),
           child: const Text('Enregistrer'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Retraits de solde demandés par les clients (lot B), les plus anciens
+/// d'abord : l'Admin envoie le montant depuis le compte Orange Money ou Wave
+/// de Groupe Santine, puis le marque « versé » ; ou il le refuse (motif
+/// envoyé au client) et le montant revient sur le solde du client. Rien
+/// n'apparaît tant qu'aucun retrait n'attend (retraits fermés).
+class _RetraitsATraiter extends StatefulWidget {
+  const _RetraitsATraiter({required this.service});
+
+  final RetraitService service;
+
+  @override
+  State<_RetraitsATraiter> createState() => _RetraitsATraiterState();
+}
+
+class _RetraitsATraiterState extends State<_RetraitsATraiter> {
+  late final Stream<List<Retrait>> _flux = _ouvrirFlux();
+
+  /// Lecture impossible à ouvrir (Firebase absent…) : traitée comme une
+  /// erreur de lecture, sans jamais gêner le reste de la page.
+  Stream<List<Retrait>> _ouvrirFlux() {
+    try {
+      return widget.service.streamRetraitsATraiter();
+    } on Object catch (e) {
+      return Stream.error(e);
+    }
+  }
+
+  Future<void> _traiter(Retrait retrait, {required bool verse}) async {
+    final fait = await showDialog<bool>(
+      context: context,
+      builder: (_) => _DialogRetrait(service: widget.service, retrait: retrait, verse: verse),
+    );
+    if (fait == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            verse
+                ? 'Retrait marqué versé : ${retrait.nomClient} est prévenu.'
+                : 'Retrait refusé : ${formaterFcfa(retrait.montantFcfa)} rendus sur le solde de ${retrait.nomClient}.',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Retrait>>(
+      stream: _flux,
+      builder: (context, instantane) {
+        if (instantane.hasError) {
+          return retraitsOuverts
+              ? const Padding(
+                  padding: EdgeInsets.only(bottom: 22),
+                  child: AppCard(
+                    child: Text(
+                      'Retraits de solde : lecture impossible. Vérifiez votre connexion et vos droits Admin.',
+                      style: TextStyle(color: AppColors.texteDiscret),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink();
+        }
+        final retraits = instantane.data ?? const <Retrait>[];
+        if (retraits.isEmpty && !retraitsOuverts) return const SizedBox.shrink();
+        final total = retraits.fold(0, (t, r) => t + r.montantFcfa);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 22),
+          child: AppCard(
+            key: const ValueKey('retraits-a-traiter'),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  retraits.isEmpty
+                      ? 'Retraits de solde à verser'
+                      : 'Retraits de solde à verser : ${retraits.length} (${formaterFcfa(total)})',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Le montant est déjà retiré du solde du client. Envoyez-le depuis le compte Orange Money ou Wave '
+                  'de Groupe Santine, puis marquez-le « versé » : le client est prévenu. Refusé : le montant revient '
+                  'sur son solde, avec votre motif.',
+                  style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),
+                ),
+                const SizedBox(height: 10),
+                if (retraits.isEmpty)
+                  const Text('Aucun retrait à verser.', style: TextStyle(color: AppColors.texteDiscret))
+                else
+                  for (final (i, retrait) in retraits.indexed) ...[
+                    if (i > 0) const Divider(color: AppColors.bord),
+                    _LigneRetrait(
+                      retrait: retrait,
+                      onVerse: () => _traiter(retrait, verse: true),
+                      onRefuse: () => _traiter(retrait, verse: false),
+                    ),
+                  ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LigneRetrait extends StatelessWidget {
+  const _LigneRetrait({required this.retrait, required this.onVerse, required this.onRefuse});
+
+  final Retrait retrait;
+  final VoidCallback onVerse;
+  final VoidCallback onRefuse;
+
+  static String _date(DateTime d) {
+    final l = d.toLocal();
+    String deux(int n) => n.toString().padLeft(2, '0');
+    return '${deux(l.day)}/${deux(l.month)} à ${deux(l.hour)}h${deux(l.minute)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final creeLe = retrait.creeLe;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  retrait.nomClient,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.texte),
+                ),
+              ),
+              Text(
+                formaterFcfa(retrait.montantFcfa),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.texte),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Sélectionnable : le numéro se copie pour le transfert.
+          SelectableText(
+            '${retrait.moyen?.label ?? 'Moyen inconnu'} · ${retrait.numeroLisible}'
+            '${creeLe == null ? '' : ' · demandé le ${_date(creeLe)}'}',
+            style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret),
+          ),
+          if (!retrait.numeroDuCompte) ...[
+            const SizedBox(height: 6),
+            const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.alerte),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Numéro différent de celui du compte : vérifiez auprès du client avant de verser.',
+                    style: TextStyle(fontSize: 12.5, color: AppColors.alerte, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: [
+              OutlinedButton(onPressed: onRefuse, child: const Text('Refuser')),
+              FilledButton(
+                onPressed: onVerse,
+                style: FilledButton.styleFrom(backgroundColor: AppColors.vert),
+                child: const Text('Marquer versé'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Confirmation d'un retrait versé (référence du transfert, facultative) ou
+/// refusé (motif obligatoire, envoyé au client). Le serveur vérifie tout.
+class _DialogRetrait extends StatefulWidget {
+  const _DialogRetrait({required this.service, required this.retrait, required this.verse});
+
+  final RetraitService service;
+  final Retrait retrait;
+  final bool verse;
+
+  @override
+  State<_DialogRetrait> createState() => _DialogRetraitState();
+}
+
+class _DialogRetraitState extends State<_DialogRetrait> {
+  final _texte = TextEditingController();
+  bool _envoi = false;
+  String? _erreur;
+
+  @override
+  void dispose() {
+    _texte.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirmer() async {
+    final texte = _texte.text.trim();
+    if (!widget.verse && texte.isEmpty) {
+      setState(() => _erreur = 'Indiquez le motif du refus : il est envoyé au client.');
+      return;
+    }
+    setState(() {
+      _envoi = true;
+      _erreur = null;
+    });
+    try {
+      await widget.service.traiter(
+        retraitId: widget.retrait.id,
+        verse: widget.verse,
+        reference: widget.verse ? texte : '',
+        motif: widget.verse ? '' : texte,
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _envoi = false;
+          _erreur = e.message;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _envoi = false;
+          _erreur = 'Enregistrement impossible. Vérifiez votre connexion et vos droits Admin.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.retrait;
+    final moyen = r.moyen?.label ?? 'mobile money';
+    return AlertDialog(
+      title: Text(widget.verse ? 'Retrait versé à ${r.nomClient}' : 'Refuser le retrait de ${r.nomClient}'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.verse
+                  ? 'Confirmez que vous avez envoyé ${formaterFcfa(r.montantFcfa)} sur le ${r.numeroLisible} ($moyen). '
+                      'Le client sera prévenu.'
+                  : '${formaterFcfa(r.montantFcfa)} reviendront sur le solde Sprint du client, qui recevra votre motif.',
+              style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              key: const ValueKey('texte-traitement-retrait'),
+              controller: _texte,
+              enabled: !_envoi,
+              maxLength: widget.verse ? 100 : 300,
+              maxLines: widget.verse ? 1 : 3,
+              minLines: 1,
+              decoration: InputDecoration(
+                labelText: widget.verse ? 'Référence du transfert (facultatif)' : 'Motif du refus',
+                hintText: widget.verse ? 'Ex. : MP261102.1200.A00001' : 'Ex. : numéro injoignable',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            if (_erreur case final erreur?) ...[
+              const SizedBox(height: 6),
+              Text(erreur, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _envoi ? null : () => Navigator.of(context).pop(false), child: const Text('Annuler')),
+        FilledButton(
+          onPressed: _envoi ? null : _confirmer,
+          style: FilledButton.styleFrom(backgroundColor: widget.verse ? AppColors.vert : AppColors.danger),
+          child: Text(widget.verse ? 'Confirmer le versement' : 'Refuser et rendre le montant'),
         ),
       ],
     );

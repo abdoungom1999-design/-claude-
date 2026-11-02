@@ -1247,6 +1247,43 @@ describe('appareils (jetons des notifications push)', () => {
 });
 
 
+describe('retraits du solde : écrits par le serveur seul, lus par leur client et l\'Admin', () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'retraits', 'rtr_1'), {
+        clientId: 'client', montantFcfa: 1500, moyen: 'ORANGE_MONEY', numero: '771234567', statut: 'demande',
+      });
+    });
+  });
+
+  test('le client lit ses retraits (requête sur son identifiant), l\'Admin aussi', async () => {
+    await assertSucceeds(getDoc(doc(en('client'), 'retraits', 'rtr_1')));
+    await assertSucceeds(getDocs(query(
+      collection(en('client'), 'retraits'), where('clientId', '==', 'client'), where('statut', '==', 'demande'),
+    )));
+    await assertSucceeds(getDoc(doc(en('admin'), 'retraits', 'rtr_1')));
+    await assertSucceeds(getDocs(query(collection(en('admin'), 'retraits'), where('statut', '==', 'demande'))));
+  });
+
+  test('personne d\'autre ne lit un retrait (numéro de téléphone du client)', async () => {
+    for (const uid of ['autreClient', 'chauffeur', 'enAttente']) {
+      await assertFails(getDoc(doc(en(uid), 'retraits', 'rtr_1')));
+      await assertFails(getDocs(collection(en(uid), 'retraits')));
+    }
+    await assertFails(getDoc(doc(anonyme(), 'retraits', 'rtr_1')));
+  });
+
+  test('personne, Admin compris, ne crée, ne modifie ni ne supprime un retrait depuis l\'app', async () => {
+    for (const uid of ['client', 'admin', 'chauffeur']) {
+      await assertFails(setDoc(doc(en(uid), 'retraits', 'rtr_faux'), {
+        clientId: 'client', montantFcfa: 100000, moyen: 'WAVE', numero: '771234567', statut: 'demande',
+      }));
+      await assertFails(updateDoc(doc(en(uid), 'retraits', 'rtr_1'), { statut: 'verse' }));
+      await assertFails(deleteDoc(doc(en(uid), 'retraits', 'rtr_1')));
+    }
+  });
+});
+
 describe('portefeuille Sprint : solde et livre écrits par le serveur seul', () => {
   beforeEach(async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {

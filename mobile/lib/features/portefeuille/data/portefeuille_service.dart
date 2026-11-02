@@ -7,8 +7,8 @@ import '../../../core/firebase/fonctions_cloud.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../firebase_options.dart';
 
-/// Portefeuille Sprint (crédit prépayé, non retirable, utilisable pour
-/// payer des courses). Mêmes limites que `functions/src/portefeuille.ts`,
+/// Portefeuille Sprint (crédit prépayé, non retirable tant que les retraits
+/// sont fermés, voir `retraits.dart` ; utilisable pour payer des courses). Mêmes limites que `functions/src/portefeuille.ts`,
 /// qui les fait respecter : ce ne sont ici que des garde-fous d'affichage.
 abstract final class LimitesPortefeuille {
   static const rechargeMinFcfa = 500;
@@ -67,12 +67,18 @@ class MouvementPortefeuille {
   static const paiementCourse = 'paiement_course';
   static const remboursement = 'remboursement';
   static const ajustementAdmin = 'ajustement_admin';
+  static const retrait = 'retrait';
+  static const retraitRendu = 'retrait_rendu';
 
   String get libelle => switch (type) {
         recharge => 'Recharge',
         paiementCourse => 'Paiement d\'une course',
         remboursement => 'Remboursement d\'une course',
         ajustementAdmin => 'Ajustement Sprint',
+        // La note (affichée dessous) dit le moyen (« Orange Money », « Wave »)
+        // ou, pour un retrait refusé, le motif.
+        retrait => 'Retrait du solde',
+        retraitRendu => 'Retrait refusé : montant rendu',
         _ => 'Mouvement',
       };
 
