@@ -141,6 +141,7 @@ async function principal(): Promise<number> {
     try {
       const trajet = { type: 'PASSAGER', depart: PLATEAU, arrivee: ALMADIES };
       const { prixFcfa } = await estimer(calcul, 'client-essai', trajet, maintenant);
+      const debut = Date.now();
       const r = await creerPaiement(
         db,
         calcul,
@@ -151,6 +152,7 @@ async function principal(): Promise<number> {
         undefined,
         'tous',
       );
+      const duree = Date.now() - debut;
       commandeId = r.commandeId;
       lien = r.lienPaiement ?? '';
       masquer(lien);
@@ -159,7 +161,7 @@ async function principal(): Promise<number> {
       (ok ? annoncer : echec)(
         ok ? 'notice' : 'error',
         '1. Course payée par Orange Money',
-        `${ok ? 'Demande acceptée par Orange' : 'Commande inattendue'} : ${prixFcfa} FCFA, commande en attente de paiement, ` +
+        `${ok ? 'Demande acceptée par Orange' : 'Commande inattendue'} en ${duree} ms : ${prixFcfa} FCFA, commande en attente de paiement, ` +
           `lien de paiement ${lien ? `reçu (${new URL(lien).host})` : 'absent'}, relecture prévue pendant 1 heure.`,
       );
     } catch (e) {

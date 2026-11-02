@@ -290,11 +290,12 @@ async function principal(): Promise<number> {
 
   // 1. Jeton d'accès : la preuve que les identifiants de cet environnement sont acceptés par Orange.
   try {
+    const debutJeton = Date.now();
     masquer(await om.jeton());
     annoncer(
       'notice',
       '1. Jeton d\'accès',
-      `Orange accepte les identifiants ${production ? 'de PRODUCTION' : 'de test'} (${new URL(urlBase).host}) : jeton obtenu.`,
+      `Orange accepte les identifiants ${production ? 'de PRODUCTION' : 'de test'} (${new URL(urlBase).host}) : jeton obtenu en ${Date.now() - debutJeton} ms.`,
     );
   } catch (e) {
     annoncer('error', '1. Jeton d\'accès', raison(e));
@@ -377,6 +378,7 @@ async function principal(): Promise<number> {
     annoncer('warning', '4. QR code de paiement', 'Aucun code marchand fourni au lancement : étape sautée.');
   } else {
     try {
+      const debutQr = Date.now();
       const qr = await om.genererQrCode({
         codeMarchand,
         nomMarchand: 'Sprint',
@@ -385,6 +387,7 @@ async function principal(): Promise<number> {
         validiteSecondes: 300,
         usageUnique: true,
       });
+      const dureeQr = Date.now() - debutQr;
       masquer(qr.lienMaxIt, qr.lienOrangeMoney, qr.lienCourt, qr.qrId);
       annoncer(
         'notice',
@@ -395,6 +398,7 @@ async function principal(): Promise<number> {
           `lien court : ${qr.lienCourt ? 'oui' : 'non'}`,
           `image : ${qr.imageBase64 ? `oui (${Math.round((qr.imageBase64.length * 3) / 4 / 1024)} Ko)` : 'non'}`,
           `validité : ${qr.validiteSecondes ?? '?'} s`,
+          `créée par Orange en ${dureeQr} ms`,
         ].join(' · ') + (production ? ' · demande réelle de 100 FCFA que personne ne paie : elle expire seule.' : ''),
       );
       // Ce que voit un client qui ouvre les liens (sans payer) : sur ordinateur et sur Android (bac à sable).
@@ -522,10 +526,15 @@ async function principal(): Promise<number> {
         const champs = champsTexte(element).filter(([chemin]) => !chemin.startsWith('customer'));
         for (const [, v] of champs) if (/rch_|^[0-9a-f]{24}$/i.test(v)) masquer(v);
         const avecReference = champs.filter(([, v]) => /rch_/i.test(v) || /^[0-9a-f]{24}$/.test(v)).map(([chemin]) => chemin);
+        // Horodatages d'Orange (sans rien de personnel) : à comparer à ceux de Sprint (7 ter).
+        const dates = champs
+          .filter(([chemin]) => /(^|\.)(requestDate|createdAt|updatedAt|dispatched)$/.test(chemin))
+          .map(([chemin, v]) => `${chemin} ${v}`);
         annoncer(
           'notice',
           `7 bis. Transaction brute n° ${i + 1}`,
-          `HTTP ${brute.status} · champs : ${champs.map(([chemin]) => chemin).join(', ')} · notre référence dans : ${avecReference.join(', ') || 'aucun champ'}`,
+          `HTTP ${brute.status} · champs : ${champs.map(([chemin]) => chemin).join(', ')} · notre référence dans : ${avecReference.join(', ') || 'aucun champ'}` +
+            ` · horodatages d'Orange : ${dates.join(', ') || 'aucun'}`,
         );
       });
     } catch (e) {
