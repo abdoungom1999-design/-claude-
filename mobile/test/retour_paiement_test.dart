@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -141,6 +143,46 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Paiement transmis à Orange Money'), findsOneWidget);
+    });
+  });
+
+  // Fichiers lus depuis mobile/ (dossier des tests) : l'APK ne s'ouvre seul au
+  // retour de Max It que si les trois concordent.
+  group('Lien d\'application Android (retour de paiement dans l\'APK)', () {
+    test('l\'APK capte seulement l\'adresse de retour, avec vérification du site', () {
+      final manifeste = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      expect(manifeste, contains('android:autoVerify="true"'));
+      expect(
+        manifeste,
+        contains('<data android:scheme="https" android:host="sprint-vtc.web.app" android:pathPrefix="/paiement/retour"/>'),
+      );
+    });
+
+    test('assetlinks.json déclare le paquet Sprint et une empreinte SHA-256', () {
+      final declarations = jsonDecode(File('hebergement/assetlinks.json').readAsStringSync()) as List<dynamic>;
+      final sprint = declarations.cast<Map<String, dynamic>>().singleWhere(
+            (d) => (d['target'] as Map<String, dynamic>)['package_name'] == 'sn.groupesantine.sprint',
+          );
+      expect(sprint['relation'], contains('delegate_permission/common.handle_all_urls'));
+      final empreintes = (sprint['target'] as Map<String, dynamic>)['sha256_cert_fingerprints'] as List<dynamic>;
+      // L'empreinte elle-même est comparée à celle de l'APK signé par la publication.
+      expect(empreintes, isNotEmpty);
+      for (final e in empreintes) {
+        expect(e, matches(RegExp(r'^([0-9A-F]{2}:){31}[0-9A-F]{2}$')));
+      }
+    });
+
+    test('Firebase Hosting sert notre fichier (pas celui qu\'il générerait), avant la réécriture vers l\'app', () {
+      final hebergement = (jsonDecode(File('firebase.json').readAsStringSync()) as Map<String, dynamic>)['hosting']
+          as Map<String, dynamic>;
+      // AUTO (défaut) : Firebase remplace le fichier par le sien, sans l'empreinte de l'APK.
+      expect(hebergement['appAssociation'], 'NONE');
+      final reecritures = (hebergement['rewrites'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final lien = reecritures.indexWhere((r) => r['source'] == '/.well-known/assetlinks.json');
+      expect(lien, isNot(-1));
+      expect(reecritures[lien]['destination'], '/assetlinks.json');
+      expect(lien, lessThan(reecritures.indexWhere((r) => r['source'] == '**')));
+      expect(File('hebergement/assembler.sh').readAsStringSync(), contains('cp hebergement/assetlinks.json'));
     });
   });
 }

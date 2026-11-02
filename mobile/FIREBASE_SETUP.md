@@ -715,10 +715,18 @@ bouge** tant que le vrai Wave n'est pas branché (voir
        empreinte SHA-256 publique du certificat Sprint), copié à la racine du
        site par `hebergement/assembler.sh` et servi sous
        `/.well-known/assetlinks.json` par une réécriture de `firebase.json`
-       (les dossiers « . » sont ignorés par l'hébergement). La publication
-       vérifie que l'empreinte est celle de l'APK (erreur sinon), puis que le
-       fichier est servi en JSON (avertissement sinon : le site s'ouvre alors
-       à la place de l'app).
+       (les dossiers « . » sont ignorés par l'hébergement), avec
+       `"appAssociation": "NONE"` : par défaut (`AUTO`), Firebase Hosting sert
+       à cette adresse un fichier qu'il génère lui-même depuis les apps du
+       projet, sans l'empreinte de l'APK (constaté après la publication 115 :
+       servi en JSON, mais pas le nôtre ; corrigé par la publication 116). La
+       publication vérifie que l'empreinte est celle de l'APK (erreur sinon),
+       puis que le fichier servi est identique au nôtre (avertissement sinon,
+       avec le contenu servi : le site s'ouvre alors à la place de l'app).
+       Android vérifie le lien à l'installation ou à la mise à jour de l'APK :
+       un APK installé avant la correction ne s'ouvre seul qu'après mise à
+       jour (Paramètres › Applications › Sprint › Ouvrir par défaut : le site
+       doit y figurer parmi les liens validés).
      - Site : le routage à « # » ne voit pas ce chemin ; il devient l'adresse
        de départ (`emplacementRetourPaiement`, `lib/core/router/app_router.dart`).
      - Page `RetourPaiementPage` : ne décide jamais du paiement ; elle suit la

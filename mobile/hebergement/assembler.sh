@@ -7,7 +7,9 @@
 #   /sprint.apk   APK Android
 #   /assetlinks.json  lien d'application Android (retour de paiement dans
 #                 l'APK), servi sous /.well-known/assetlinks.json par une
-#                 réécriture de firebase.json (les dossiers « . » sont ignorés)
+#                 réécriture de firebase.json (les dossiers « . » sont ignorés ;
+#                 "appAssociation": "NONE", sinon Firebase sert à la place un
+#                 fichier qu'il génère lui-même, sans l'empreinte de l'APK)
 #
 # Usage : hebergement/assembler.sh <dossier du build web> <apk> <page android>
 #   <page android> : hebergement/android/index.html avec version, taille et

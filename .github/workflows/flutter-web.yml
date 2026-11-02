@@ -856,17 +856,22 @@ jobs:
             echo "En-têtes de sécurité : présents sur $adresse/."
           fi
           # Lien d'application Android (retour de paiement dans l'APK) : servi en
-          # JSON, sans redirection, avec le paquet Sprint (exigences d'Android).
+          # JSON, sans redirection, et identique à hebergement/assetlinks.json
+          # (empreinte vérifiée contre l'APK), pas un fichier généré par Firebase.
+          lien_conforme() {
+            echo "$code" | grep -q '^200 application/json' \
+              && [ "$(jq -cS . "$RUNNER_TEMP/assetlinks.json" 2>/dev/null)" = "$(jq -cS . hebergement/assetlinks.json)" ]
+          }
           for essai in 1 2 3 4; do
             code=$(curl -s -o "$RUNNER_TEMP/assetlinks.json" -w '%{http_code} %{content_type}' "$adresse/.well-known/assetlinks.json")
-            if echo "$code" | grep -q '^200 application/json' && jq -e '.[0].target.package_name == "sn.groupesantine.sprint"' "$RUNNER_TEMP/assetlinks.json" > /dev/null 2>&1; then
-              break
-            fi
+            lien_conforme && break
             sleep 10
           done
-          if echo "$code" | grep -q '^200 application/json' && jq -e '.[0].target.package_name == "sn.groupesantine.sprint"' "$RUNNER_TEMP/assetlinks.json" > /dev/null 2>&1; then
-            echo "Lien d'application Android : $adresse/.well-known/assetlinks.json servi ($code)."
+          if lien_conforme; then
+            echo "Lien d'application Android : $adresse/.well-known/assetlinks.json servi ($code), conforme."
           else
-            echo "::warning title=Lien d'application Android::$adresse/.well-known/assetlinks.json : $code ; l'APK ne s'ouvrira pas seul au retour de Max It (le site s'affichera)."
+            echo "::warning title=Lien d'application Android::$adresse/.well-known/assetlinks.json : $code, contenu différent de hebergement/assetlinks.json ; l'APK ne s'ouvrira pas seul au retour de Max It (le site s'affichera)."
+            # Fichier public (paquet et empreinte du certificat) : affiché pour le diagnostic.
+            echo "Servi :"; head -c 1500 "$RUNNER_TEMP/assetlinks.json"; echo
           fi
           echo "::notice title=Site publié::App : $adresse/ — APK $version : $adresse/sprint.apk (page : $adresse/android/)"

@@ -23,6 +23,7 @@
   },
   "hosting": {
     "public": "build/hebergement",
+    "appAssociation": "NONE",
     "ignore": [
       "firebase.json",
       "**/.*",
