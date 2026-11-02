@@ -41,7 +41,7 @@ enum EnvironnementOrangeMoney {
 /// son jumeau du serveur (`ENVIRONNEMENT_ORANGE_MONEY`,
 /// `functions/src/methodes_paiement.ts`) : un test du serveur vérifie qu'ils
 /// sont d'accord.
-const environnementOrangeMoney = EnvironnementOrangeMoney.bacASable;
+const environnementOrangeMoney = EnvironnementOrangeMoney.production;
 
 /// Le profil (`users/{uid}`) porte-t-il la marque « Testeur Orange Money »,
 /// posée par un Admin ? Seul `true` compte, comme pour le serveur.

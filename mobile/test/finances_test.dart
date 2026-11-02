@@ -327,10 +327,11 @@ void main() {
       expect(find.textContaining('Orange', findRichText: true), findsNothing);
     });
 
-    test('environnement d\'Orange Money : bac à sable jusqu\'au go du client ; seul Orange Money en production débite vraiment', () {
-      // Jumeau : ENVIRONNEMENT_ORANGE_MONEY du serveur. Production : seulement avec le go du client.
-      expect(environnementOrangeMoney, EnvironnementOrangeMoney.bacASable);
-      expect(PaymentMethod.orangeMoney.argentReel(), isFalse);
+    test('environnement d\'Orange Money : production (go du client) ; seul Orange Money en production débite vraiment', () {
+      // Jumeau : ENVIRONNEMENT_ORANGE_MONEY du serveur. Retour au bac à sable : seulement avec un nouveau go du client.
+      expect(environnementOrangeMoney, EnvironnementOrangeMoney.production);
+      expect(PaymentMethod.orangeMoney.argentReel(), isTrue);
+      expect(PaymentMethod.orangeMoney.argentReel(environnement: EnvironnementOrangeMoney.bacASable), isFalse);
       expect(PaymentMethod.orangeMoney.argentReel(environnement: EnvironnementOrangeMoney.production), isTrue);
       for (final environnement in EnvironnementOrangeMoney.values) {
         // Wave passe encore par le faux opérateur du serveur.

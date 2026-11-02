@@ -48,7 +48,7 @@ export type EnvironnementOrangeMoney = 'bacASable' | 'production';
  * `accesOrangeMoney`) : un test vérifie qu'ils sont d'accord, et la
  * publication lit cette ligne telle quelle (secrets à vérifier).
  */
-export const ENVIRONNEMENT_ORANGE_MONEY: EnvironnementOrangeMoney = 'bacASable';
+export const ENVIRONNEMENT_ORANGE_MONEY: EnvironnementOrangeMoney = 'production';
 
 /** Orange Money accepté pour ce client ([testeur] : compte marqué par un Admin). */
 export function orangeMoneyPour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): boolean {

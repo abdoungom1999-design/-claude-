@@ -648,7 +648,7 @@ bouge** tant que le vrai Wave n'est pas branché (voir
   `ajusterPortefeuille`, solde entre 0 et 200 000 FCFA, journalisé dans
   `journal_admin`).
 
-#### Passage à l'argent réel (à faire : vrai Wave à brancher ; Orange Money en essai réservé aux testeurs, production préparée)
+#### Passage à l'argent réel (à faire : vrai Wave à brancher ; Orange Money en production, réservé aux testeurs)
 
 1. Compte Wave Business (API Checkout) : `WAVE_API_KEY` (clé API) et
    `WAVE_WEBHOOK_SECRET` dans Secret Manager, puis brancher
@@ -667,9 +667,11 @@ bouge** tant que le vrai Wave n'est pas branché (voir
    `lib/core/widgets/payment_method_selector.dart`.
 
    **Environnement** (`ENVIRONNEMENT_ORANGE_MONEY` / `environnementOrangeMoney`) :
-   - `bacASable` (réglage en service) : api.sandbox.orange-sonatel.com,
+   - `bacASable` (jusqu'à la publication 113) : api.sandbox.orange-sonatel.com,
      données de test, aucun argent réel ;
-   - `production` : api.orange-sonatel.com, argent réel, versé sur le compte
+   - `production` (réglage en service depuis la publication 114, go du
+     client des 1er et 2 novembre 2026) : api.orange-sonatel.com, argent
+     réel, versé sur le compte
      marchand de Groupe Santine. Le serveur lit alors les secrets de
      production (voir **Secrets**), le contrôle du marchand payé devient
      strict, et l'app dit « Orange Money : argent réel · Wave : mode test,
@@ -812,9 +814,16 @@ bouge** tant que le vrai Wave n'est pas branché (voir
         présenter (formulaire ou en-tête Basic) : HTTP 401, « Invalid ApiKey
         for given resource » (`oauth.v2.InvalidApiKeyForGivenResource`) : clé
         connue, mais application de production pas encore autorisée sur l'API
-        Orange Money. À faire activer par Orange ; rien n'est publié d'ici là ;
-     3. publication : `ENVIRONNEMENT_ORANGE_MONEY` et `environnementOrangeMoney`
-        sur `production`, accès inchangé (`testeurs`) ; Wave reste simulé ;
+        Orange Money. Activée par Orange le 2 novembre 2026 (confirmation
+        d'Alioune au client) : essai #17 vert (jeton de production, demande
+        de 100 FCFA acceptée avec notre code marchand, parcours complet :
+        course de 2800 FCFA et recharge de 500 FCFA, jamais payées), puis #18 :
+        `ORANGE_MONEY_CLE_NOTIFICATION` créée et adresse des notifications
+        enregistrée chez Orange en production (relue : une seule adresse, la
+        nôtre) ;
+     3. publication 114 (2 novembre 2026) : `ENVIRONNEMENT_ORANGE_MONEY` et
+        `environnementOrangeMoney` sur `production`, accès inchangé
+        (`testeurs`) ; Wave reste simulé ;
      4. un testeur au Sénégal (compte Orange Money et Max It sur son
         téléphone, compte client Sprint marqué « Testeur Orange Money »)
         recharge **500 FCFA** (la plus petite recharge acceptée) par Orange

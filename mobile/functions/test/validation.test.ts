@@ -126,8 +126,8 @@ test('Orange Money : essai réservé aux testeurs (go du client, 29 octobre 2026
   assert.match(serveur, new RegExp(`^export const ACCES_ORANGE_MONEY: AccesOrangeMoney = '${ACCES_ORANGE_MONEY}';$`, 'm'));
 });
 
-test('Orange Money : bac à sable jusqu\'au go du client pour la production, dans le serveur comme dans l\'app', () => {
-  assert.equal(ENVIRONNEMENT_ORANGE_MONEY, 'bacASable', 'production (argent réel) : seulement avec le go du client');
+test('Orange Money : production (go du client, 1er novembre 2026), dans le serveur comme dans l\'app', () => {
+  assert.equal(ENVIRONNEMENT_ORANGE_MONEY, 'production', 'retour au bac à sable : seulement avec un nouveau go du client');
   // Jumeau dans l'app (textes « mode test » ou « argent réel »), lu depuis functions/lib/test.
   const app = readFileSync(resolve(__dirname, '..', '..', '..', 'lib', 'core', 'widgets', 'payment_method_selector.dart'), 'utf8');
   const jumeau = app.match(/^const environnementOrangeMoney = EnvironnementOrangeMoney\.(bacASable|production);$/m);
