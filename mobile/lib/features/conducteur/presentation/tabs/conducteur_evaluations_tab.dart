@@ -263,7 +263,7 @@ class _EvaluationsDemo extends StatelessWidget {
 
   static const _iconesCompliments = {
     'Excellente conduite': Icons.thumb_up_alt_outlined,
-    'Voiture impeccable': Icons.auto_awesome_outlined,
+    'Moto impeccable': Icons.auto_awesome_outlined,
     'Bonne conversation': Icons.chat_bubble_outline_rounded,
     'Trajet efficace': Icons.bolt_rounded,
   };

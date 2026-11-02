@@ -475,7 +475,7 @@ class DemoData {
 
   static const List<ComplimentConducteur> _complimentsConducteur = [
     ComplimentConducteur(label: 'Excellente conduite', compte: 28),
-    ComplimentConducteur(label: 'Voiture impeccable', compte: 19),
+    ComplimentConducteur(label: 'Moto impeccable', compte: 19),
     ComplimentConducteur(label: 'Bonne conversation', compte: 14),
     ComplimentConducteur(label: 'Trajet efficace', compte: 22),
   ];

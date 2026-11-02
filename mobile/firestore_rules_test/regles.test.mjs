@@ -171,6 +171,78 @@ describe('users (profil privé)', () => {
   });
 });
 
+describe('chauffeur 100 % moto : identité et moto', () => {
+  const moto = { marque: 'Bajaj', modele: 'Boxer 125', couleur: 'Noir' };
+  const demande = (extra = {}) => ({
+    prenom: 'Moussa', nomDeFamille: 'Diop', marque: 'TVS', modele: 'HLX 125', couleur: 'Rouge',
+    plaque: 'DK-5678-CD', demandeLe: serverTimestamp(), ...extra,
+  });
+
+  test('inscription chauffeur avec prénom, nom et moto : acceptée ; client avec une moto, plaque trop longue : refusées', async () => {
+    const base = {
+      role: 'conducteur', nom: 'Moussa Diop', email: 'nouveau@test.sn', telephone: '+221771111111',
+      statut: 'HORS_LIGNE', estValide: false, vehiculeId: 'Bajaj Boxer 125 Noir', plaqueImmatriculation: 'DK-1234-AB',
+    };
+    await assertSucceeds(setDoc(doc(en('nouveau'), 'users', 'nouveau'), { ...base, prenom: 'Moussa', nomDeFamille: 'Diop', moto }));
+    await assertFails(setDoc(doc(en('nouveau'), 'users', 'nouveau'), { ...base, plaqueImmatriculation: 'DK-1234-AB-0000000' }));
+    await assertFails(setDoc(doc(en('nouveau'), 'users', 'nouveau'), { ...base, moto: { marque: 'Bajaj', modele: 'Boxer' } }));
+    await assertFails(setDoc(doc(en('nouveau'), 'users', 'nouveau'), {
+      role: 'client', nom: 'Ali', email: 'nouveau@test.sn', telephone: '+221771111111', moto,
+    }));
+  });
+
+  test('dossier pas encore validé : le chauffeur corrige lui-même identité, moto et plaque', async () => {
+    await assertSucceeds(updateDoc(doc(en('enAttente'), 'users', 'enAttente'), {
+      prenom: 'Ibou', nomDeFamille: 'Sarr', nom: 'Ibou Sarr', moto, vehiculeId: 'Bajaj Boxer 125 Noir',
+      plaqueImmatriculation: 'DK-1234-AB',
+    }));
+    await assertFails(updateDoc(doc(en('enAttente'), 'users', 'enAttente'), { moto: { ...moto, couleur: '' } }));
+    await assertFails(updateDoc(doc(en('enAttente'), 'users', 'enAttente'), { prenom: 'I' }));
+    // Pas de demande à faire : il modifie directement.
+    await assertFails(updateDoc(doc(en('enAttente'), 'users', 'enAttente'), { modificationDemandee: demande() }));
+  });
+
+  test('chauffeur validé : nom, moto et plaque ne changent pas sans l\'Admin ; téléphone libre', async () => {
+    for (const changement of [
+      { nom: 'Pseudo' }, { prenom: 'Pseudo' }, { nomDeFamille: 'Pseudo' }, { moto },
+      { vehiculeId: 'Autre moto' }, { plaqueImmatriculation: 'DK-0000-ZZ' },
+    ]) {
+      await assertFails(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), changement), JSON.stringify(changement));
+    }
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { telephone: '+221778888888' }));
+  });
+
+  test('chauffeur validé : demande de modification complète, datée par le serveur ; annulable', async () => {
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: demande() }));
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: deleteField() }));
+    const { couleur, ...incomplete } = demande();
+    assert.ok(couleur);
+    for (const invalide of [
+      incomplete,
+      demande({ plaque: 'DK' }),
+      demande({ prenom: 'x'.repeat(41) }),
+      demande({ demandeLe: new Date('2026-01-01') }),
+      demande({ statutValidation: 'valide' }),
+    ]) {
+      await assertFails(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: invalide }));
+    }
+  });
+
+  test('client : ni moto, ni identité structurée, ni demande', async () => {
+    await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { moto }));
+    await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { prenom: 'Awa' }));
+    await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { modificationDemandee: demande() }));
+  });
+
+  test('l\'Admin applique une demande (identité, moto, plaque) et la retire', async () => {
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: demande() }));
+    await assertSucceeds(updateDoc(doc(en('admin'), 'users', 'chauffeur'), {
+      prenom: 'Moussa', nomDeFamille: 'Diop', nom: 'Moussa Diop', moto: { marque: 'TVS', modele: 'HLX 125', couleur: 'Rouge' },
+      vehiculeId: 'TVS HLX 125 Rouge', plaqueImmatriculation: 'DK-5678-CD', modificationDemandee: deleteField(),
+    }));
+  });
+});
+
 describe('profils_publics', () => {
   test('publier son propre profil public : accepté', async () => {
     await assertSucceeds(setDoc(doc(en('client'), 'profils_publics', 'client'), { nom: 'Awa', telephone: TEL_CLIENT, role: 'client' }));
@@ -189,7 +261,13 @@ describe('profils_publics', () => {
 
   test('resynchroniser son profil (merge) sans toucher à "disponible" : accepté', async () => {
     await assertSucceeds(setDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'),
-      { nom: 'Moussa Diop', telephone: TEL_CHAUFFEUR, role: 'conducteur' }, { merge: true }));
+      { nom: 'Moussa', telephone: TEL_CHAUFFEUR, role: 'conducteur' }, { merge: true }));
+  });
+
+  test('afficher un autre nom que celui de son profil privé (vérifié par l\'Admin) : refusé', async () => {
+    await assertFails(setDoc(doc(en('chauffeur'), 'profils_publics', 'chauffeur'),
+      { nom: 'Pseudo', telephone: TEL_CHAUFFEUR, role: 'conducteur' }, { merge: true }));
+    await assertFails(setDoc(doc(en('client'), 'profils_publics', 'client'), { nom: 'Autre', telephone: TEL_CLIENT, role: 'client' }));
   });
 
   test('l\'admin règle la disponibilité : accepté', async () => {

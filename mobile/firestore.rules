@@ -43,6 +43,47 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    function texteBorne(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    // Chauffeur au dossier validé : ses clients voient son nom, sa moto et sa
+    // plaque, vérifiés par l'Admin avec ses pièces (permis, carte grise).
+    function chauffeurValide(d) {
+      return d.get('role', '') == 'conducteur' && d.get('statutValidation', null) == 'valide';
+    }
+
+    // Identité et moto structurées (compte chauffeur 100 % moto).
+    function champsIdentiteMoto() {
+      return ['prenom', 'nomDeFamille', 'moto', 'vehiculeId', 'plaqueImmatriculation'];
+    }
+
+    function motoValide(m) {
+      return m is map && m.keys().hasOnly(['marque', 'modele', 'couleur'])
+        && m.keys().hasAll(['marque', 'modele', 'couleur'])
+        && texteBorne(m.marque, 1, 30) && texteBorne(m.modele, 1, 30) && texteBorne(m.couleur, 1, 30);
+    }
+
+    function identiteMotoValides(d) {
+      return (!('prenom' in d) || texteBorne(d.prenom, 2, 40))
+        && (!('nomDeFamille' in d) || texteBorne(d.nomDeFamille, 2, 40))
+        && (!('moto' in d) || motoValide(d.moto))
+        && (!('vehiculeId' in d) || texteBorne(d.vehiculeId, 0, 100))
+        && (!('plaqueImmatriculation' in d) || texteBorne(d.plaqueImmatriculation, 0, 15));
+    }
+
+    // Demande de modification d'un chauffeur validé : complète, bornée,
+    // datée par le serveur. L'Admin l'applique ou la refuse.
+    function demandeValide(d) {
+      return d is map
+        && d.keys().hasOnly(['prenom', 'nomDeFamille', 'marque', 'modele', 'couleur', 'plaque', 'demandeLe'])
+        && d.keys().hasAll(['prenom', 'nomDeFamille', 'marque', 'modele', 'couleur', 'plaque', 'demandeLe'])
+        && texteBorne(d.prenom, 2, 40) && texteBorne(d.nomDeFamille, 2, 40)
+        && texteBorne(d.marque, 1, 30) && texteBorne(d.modele, 1, 30) && texteBorne(d.couleur, 1, 30)
+        && texteBorne(d.plaque, 4, 15)
+        && d.demandeLe == request.time;
+    }
+
     // ---------------------------------------------------------------
     // Profil privé : identité, pièces KYC, statuts de validation et de
     // modération. Lisible uniquement par son propriétaire et l'Admin.
@@ -55,20 +96,39 @@ service cloud.firestore {
       allow create: if connecte() && moi() == uid
         && request.resource.data.keys().hasOnly([
              'role', 'nom', 'email', 'telephone', 'statut', 'creeLe',
-             'vehiculeId', 'plaqueImmatriculation', 'estValide'])
+             'vehiculeId', 'plaqueImmatriculation', 'estValide',
+             'prenom', 'nomDeFamille', 'moto'])
         && request.resource.data.role in ['client', 'conducteur']
         && request.resource.data.email == request.auth.token.email
-        && request.resource.data.get('estValide', false) == false;
+        && request.resource.data.get('estValide', false) == false
+        && (request.resource.data.role == 'conducteur'
+            || !request.resource.data.keys().hasAny(['prenom', 'nomDeFamille', 'moto']))
+        && identiteMotoValides(request.resource.data);
 
       // Le propriétaire ne peut modifier que son nom, son téléphone et ses
       // pièces KYC ; envoyer une pièce remet le dossier "en_attente", sans
       // jamais pouvoir le passer à "valide". statutCompte, role et
       // estValide sont réservés à l'Admin.
+      // Chauffeur : identité (prénom, nom) et moto (marque, modèle, couleur,
+      // plaque) modifiables par lui-même tant que son dossier n'est pas
+      // validé ; ensuite par une demande (« modificationDemandee ») que
+      // l'Admin vérifie avec ses pièces avant de l'appliquer.
       allow update: if estAdmin()
         || (connecte() && moi() == uid
-            && champsModifies().hasOnly(['nom', 'telephone', 'documents', 'statutValidation'])
+            && champsModifies().hasOnly(['nom', 'telephone', 'documents', 'statutValidation',
+                                          'prenom', 'nomDeFamille', 'moto', 'vehiculeId',
+                                          'plaqueImmatriculation', 'modificationDemandee'])
             && (!('statutValidation' in champsModifies())
-                || request.resource.data.statutValidation == 'en_attente'));
+                || request.resource.data.statutValidation == 'en_attente')
+            && !(chauffeurValide(resource.data)
+                 && champsModifies().hasAny(['nom', 'prenom', 'nomDeFamille', 'moto', 'vehiculeId',
+                                             'plaqueImmatriculation']))
+            && (!champsModifies().hasAny(champsIdentiteMoto())
+                || (resource.data.get('role', '') == 'conducteur' && identiteMotoValides(request.resource.data)))
+            && (!('modificationDemandee' in champsModifies())
+                || (chauffeurValide(resource.data)
+                    && (!('modificationDemandee' in request.resource.data)
+                        || demandeValide(request.resource.data.modificationDemandee)))));
 
       allow delete: if estAdmin();
     }
@@ -159,14 +219,19 @@ service cloud.firestore {
       allow get: if connecte() && (moi() == uid || estAdmin() || contactAutorise(moi(), uid));
       allow list: if estAdmin();
 
+      // Le nom public est toujours celui du profil privé : un chauffeur
+      // validé ne peut pas en afficher un autre que celui vérifié par
+      // l'Admin.
       allow create: if estAdmin()
         || (connecte() && moi() == uid
             && request.resource.data.keys().hasOnly(['nom', 'telephone', 'role'])
-            && request.resource.data.role == profil().role);
+            && request.resource.data.role == profil().role
+            && request.resource.data.get('nom', '') == profil().get('nom', ''));
 
       allow update: if estAdmin()
         || (connecte() && moi() == uid
-            && champsModifies().hasOnly(['nom', 'telephone']))
+            && champsModifies().hasOnly(['nom', 'telephone'])
+            && request.resource.data.get('nom', '') == profil().get('nom', ''))
         // Note moyenne : un client ajoute SA note, dans la même écriture
         // que son évaluation (voir /evaluations).
         || (connecte() && evaluationAjoutee(uid));

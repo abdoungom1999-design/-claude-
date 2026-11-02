@@ -6,11 +6,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../../conducteur/data/fiche_chauffeur.dart';
 import '../../data/auth_repository.dart';
 import 'widgets/indicateur_etapes.dart';
 
 /// Parcours d'inscription Chauffeur en 2 étapes : informations
-/// personnelles puis véhicule. Crée le compte (Firebase réel ou mode
+/// personnelles (prénom et nom comme sur les pièces) puis moto (Sprint est
+/// 100 % moto : marque, modèle, couleur, plaque). Crée le compte (Firebase réel ou mode
 /// démo, voir [AuthRepository.inscrireConducteur]) puis redirige vers
 /// [ConducteurShellPage], qui enchaîne vérification email puis
 /// [ConducteurKYCPage] pour les vraies pièces justificatives.
@@ -28,13 +30,13 @@ class ConducteurOnboardingPage extends StatefulWidget {
 }
 
 class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
-  static const _labelsEtapes = ['Informations', 'Véhicule'];
+  static const _labelsEtapes = ['Informations', 'Moto'];
 
   int _etape = 0;
   bool _enCours = false;
 
   final _formKeyInfos = GlobalKey<FormState>();
-  final _formKeyVehicule = GlobalKey<FormState>();
+  final _formKeyMoto = GlobalKey<FormState>();
 
   final _prenomController = TextEditingController();
   final _nomController = TextEditingController();
@@ -46,7 +48,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
 
   final _marqueController = TextEditingController();
   final _modeleController = TextEditingController();
-  final _anneeController = TextEditingController();
+  final _couleurController = TextEditingController();
   final _plaqueController = TextEditingController();
 
   @override
@@ -59,7 +61,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
     _confirmationController.dispose();
     _marqueController.dispose();
     _modeleController.dispose();
-    _anneeController.dispose();
+    _couleurController.dispose();
     _plaqueController.dispose();
     super.dispose();
   }
@@ -78,21 +80,30 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
   }
 
   void _validerEtCreerCompte() {
-    if (!_formKeyVehicule.currentState!.validate()) return;
+    if (!_formKeyMoto.currentState!.validate()) return;
     _soumettreDossier();
   }
 
   Future<void> _soumettreDossier() async {
     setState(() => _enCours = true);
     try {
+      final prenom = capitaliserNom(_prenomController.text);
+      final nomDeFamille = capitaliserNom(_nomController.text);
+      final moto = MotoChauffeur(
+        marque: _marqueController.text.trim(),
+        modele: _modeleController.text.trim(),
+        couleur: _couleurController.text.trim(),
+      );
       await AuthRepository().inscrireConducteur(
-        nom: '${_prenomController.text.trim()} ${_nomController.text.trim()}',
+        nom: nomCompletDe(prenom, nomDeFamille),
         email: _emailController.text.trim(),
         telephone: _telephoneController.text.trim(),
         motDePasse: _motDePasseController.text,
-        vehiculeId: '${_marqueController.text.trim()} ${_modeleController.text.trim()} '
-            '(${_anneeController.text.trim()})',
-        plaqueImmatriculation: _plaqueController.text.trim().toUpperCase(),
+        vehiculeId: moto.description,
+        plaqueImmatriculation: normaliserPlaque(_plaqueController.text),
+        prenom: prenom,
+        nomDeFamille: nomDeFamille,
+        moto: moto.versFirestore(),
       );
       if (!mounted) return;
       AppSnackbar.succes(
@@ -152,11 +163,11 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
                           onToggleMotDePasseVisible: () =>
                               setState(() => _motDePasseVisible = !_motDePasseVisible),
                         ),
-                      _ => _EtapeVehicule(
-                          formKey: _formKeyVehicule,
+                      _ => _EtapeMoto(
+                          formKey: _formKeyMoto,
                           marqueController: _marqueController,
                           modeleController: _modeleController,
-                          anneeController: _anneeController,
+                          couleurController: _couleurController,
                           plaqueController: _plaqueController,
                         ),
                     },
@@ -174,14 +185,20 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
                         onPressed: _etapePrecedente,
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(56),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           side: const BorderSide(color: AppColors.bord),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: const Text(
-                          'Précédent',
-                          style: TextStyle(color: AppColors.texte, fontWeight: FontWeight.w700),
+                        // Une seule ligne, même sur un petit écran.
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Précédent',
+                            maxLines: 1,
+                            style: TextStyle(color: AppColors.texte, fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
                     ),
@@ -237,17 +254,19 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
         children: [
           const _EnTeteEtape(
             titre: 'Vos informations',
-            sousTitre: 'Ces informations serviront à créer votre profil chauffeur.',
+            sousTitre: 'Votre vrai prénom et votre vrai nom, comme sur votre permis de conduire : '
+                'ce sont eux que verront vos clients.',
           ),
           const SizedBox(height: 22),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: AppTextField(
                   label: 'Prénom',
                   controller: prenomController,
                   prefixIcon: Icons.person_outline,
-                  validator: (v) => (v == null || v.trim().length < 2) ? 'Requis' : null,
+                  validator: (v) => validerNomPropre(v, champ: 'Prénom'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -256,7 +275,7 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
                   label: 'Nom',
                   controller: nomController,
                   prefixIcon: Icons.person_outline,
-                  validator: (v) => (v == null || v.trim().length < 2) ? 'Requis' : null,
+                  validator: (v) => validerNomPropre(v, champ: 'Nom'),
                 ),
               ),
             ],
@@ -308,19 +327,19 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
   }
 }
 
-class _EtapeVehicule extends StatelessWidget {
-  const _EtapeVehicule({
+class _EtapeMoto extends StatelessWidget {
+  const _EtapeMoto({
     required this.formKey,
     required this.marqueController,
     required this.modeleController,
-    required this.anneeController,
+    required this.couleurController,
     required this.plaqueController,
   });
 
   final GlobalKey<FormState> formKey;
   final TextEditingController marqueController;
   final TextEditingController modeleController;
-  final TextEditingController anneeController;
+  final TextEditingController couleurController;
   final TextEditingController plaqueController;
 
   @override
@@ -331,41 +350,42 @@ class _EtapeVehicule extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _EnTeteEtape(
-            titre: 'Votre véhicule',
-            sousTitre: 'Renseignez le véhicule que vous utiliserez pour vos courses.',
+            titre: 'Votre moto',
+            sousTitre: 'La moto avec laquelle vous ferez vos courses. Vos clients la reconnaîtront à sa '
+                'description et à sa plaque.',
           ),
           const SizedBox(height: 22),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: AppTextField(
                   label: 'Marque',
-                  hint: 'Ex : Peugeot',
+                  hint: 'Ex : Bajaj',
                   controller: marqueController,
-                  prefixIcon: Icons.directions_car_outlined,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  prefixIcon: Icons.two_wheeler_rounded,
+                  validator: (v) => validerChampMoto(v, champ: 'Marque'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: AppTextField(
                   label: 'Modèle',
-                  hint: 'Ex : 308',
+                  hint: 'Ex : Boxer 125',
                   controller: modeleController,
-                  prefixIcon: Icons.directions_car_outlined,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  prefixIcon: Icons.two_wheeler_rounded,
+                  validator: (v) => validerChampMoto(v, champ: 'Modèle'),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
           AppTextField(
-            label: 'Année',
-            hint: 'Ex : 2019',
-            controller: anneeController,
-            keyboardType: TextInputType.number,
-            prefixIcon: Icons.calendar_today_outlined,
-            validator: (v) => (v == null || v.trim().length != 4) ? 'Année invalide' : null,
+            label: 'Couleur',
+            hint: 'Ex : Noir',
+            controller: couleurController,
+            prefixIcon: Icons.palette_outlined,
+            validator: (v) => validerChampMoto(v, champ: 'Couleur'),
           ),
           const SizedBox(height: 14),
           AppTextField(
@@ -373,7 +393,7 @@ class _EtapeVehicule extends StatelessWidget {
             hint: 'Ex : DK-1234-AB',
             controller: plaqueController,
             prefixIcon: Icons.pin_outlined,
-            validator: (v) => (v == null || v.trim().length < 4) ? 'Plaque invalide' : null,
+            validator: validerPlaque,
           ),
         ],
       ),

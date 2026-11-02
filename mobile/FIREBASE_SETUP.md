@@ -160,7 +160,20 @@ depuis la Console.
   dossier "en attente", sans jamais pouvoir le passer à "validé".
   `statutValidation` (validé / rejeté), `statutCompte`, `estValide` et
   `role` ne sont modifiables que par l'Admin.
-- `profils_publics/{uid}` : nom, téléphone, rôle, véhicule et plaque.
+- Chauffeur (compte 100 % moto, demande du client du 2 novembre 2026) :
+  vrai prénom et nom (`prenom`, `nomDeFamille`, et `nom` = « Prénom Nom »),
+  moto (`moto` : `marque`, `modele`, `couleur` ; `vehiculeId` = « Marque
+  Modèle Couleur ») et plaque. Le chauffeur les modifie lui-même (onglet
+  Compte › « Modifier mon profil », `ModifierFicheChauffeurPage`) tant que
+  son dossier n'est pas validé ; ensuite, ses clients les voyant, il envoie
+  une demande (`modificationDemandee`, complète, bornée, datée par le
+  serveur) que l'Admin compare avec le permis et la carte grise (Dossier
+  chauffeur › « Valider la modification » ou « Refuser » ;
+  `modificationRefuseeLe` informe le chauffeur). Son téléphone change
+  aussitôt. Un chauffeur validé ne peut plus changer seul son nom, sa moto
+  ni sa plaque, et le nom public reste celui du profil privé.
+- `profils_publics/{uid}` : nom (toujours celui du profil privé), téléphone,
+  rôle, véhicule et plaque.
   Lecture **document par document** : par son propriétaire, l'Admin, ou
   l'autre partie d'une course en cours (voir `liaisons`). **Aucun
   listage** : un client ne peut pas énumérer les chauffeurs, ni un

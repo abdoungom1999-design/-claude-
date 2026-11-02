@@ -5,6 +5,7 @@ import '../../../../core/models/statut_compte.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/image_document.dart';
+import '../../../conducteur/data/fiche_chauffeur.dart';
 import '../../data/admin_kyc_service.dart';
 import 'dialogue_sanction.dart';
 import 'visionneuse_document.dart';
@@ -117,6 +118,16 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
               padding: const EdgeInsets.fromLTRB(28, 24, 28, 40),
               children: [
                 _EnTete(conducteur: c),
+                if (c.modificationDemandee case final demande?) ...[
+                  const SizedBox(height: 24),
+                  _ModificationDemandee(
+                    conducteur: c,
+                    demande: demande,
+                    enCours: _enCours,
+                    onValider: () => _executer(() => widget.service.validerModification(c.id)),
+                    onRefuser: () => _executer(() => widget.service.refuserModification(c.id)),
+                  ),
+                ],
                 const SizedBox(height: 28),
                 const _TitreSection('Pièces justificatives'),
                 const SizedBox(height: 4),
@@ -243,6 +254,106 @@ class _EnTete extends StatelessWidget {
           icon: const Icon(Icons.close_rounded),
         ),
       ],
+    );
+  }
+}
+
+/// Changement demandé par le chauffeur (dossier validé) : avant / après,
+/// à comparer avec le permis et la carte grise plus bas.
+class _ModificationDemandee extends StatelessWidget {
+  const _ModificationDemandee({
+    required this.conducteur,
+    required this.demande,
+    required this.enCours,
+    required this.onValider,
+    required this.onRefuser,
+  });
+
+  final ConducteurKycAdmin conducteur;
+  final ModificationDemandee demande;
+  final bool enCours;
+  final VoidCallback onValider;
+  final VoidCallback onRefuser;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = conducteur;
+    final motoActuelle = [c.vehiculeId, c.plaqueImmatriculation].where((v) => v != null && v.isNotEmpty).join(' - ');
+    Widget ligne(String libelle, String avant, String apres) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 90,
+                child: Text(libelle, style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
+              ),
+              Expanded(
+                child: avant == apres
+                    ? Text('$apres (inchangée)', style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret))
+                    : Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            avant.isEmpty ? 'non renseignée' : avant,
+                            style: const TextStyle(fontSize: 13.5, color: AppColors.texteDiscret),
+                          ),
+                          const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.alerte),
+                          Text(apres, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        );
+    return Container(
+      key: const ValueKey('modification-demandee'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.alerte.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.alerte.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Modification demandée par le chauffeur',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          const Text(
+            'Comparez avec le permis et la carte grise ci-dessous. Validée, elle devient ce que voient ses clients.',
+            style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
+          ),
+          const SizedBox(height: 12),
+          ligne('Identité', c.nom, demande.nomComplet),
+          ligne('Moto', motoActuelle, demande.motoEtPlaque),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: _BoutonAction(
+                  label: 'Refuser',
+                  icone: Icons.close_rounded,
+                  couleur: AppColors.danger,
+                  plein: false,
+                  onPressed: enCours ? null : onRefuser,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _BoutonAction(
+                  label: 'Valider la modification',
+                  icone: Icons.check_rounded,
+                  couleur: AppColors.vert,
+                  onPressed: enCours ? null : onValider,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

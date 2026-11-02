@@ -9,7 +9,7 @@ import '../../../evaluations/presentation/evaluation_course.dart';
 /// d'immatriculation, pour reconnaître la bonne moto.
 ///
 /// [profil] est le profil public du chauffeur (`profils_publics`) :
-/// `nom`, `vehiculeId` (marque, modèle, année), `plaqueImmatriculation`,
+/// `nom`, `vehiculeId` (marque, modèle, couleur de la moto), `plaqueImmatriculation`,
 /// `noteSomme` / `noteNombre`. `null` sans [erreur] : chargement en cours.
 /// Une information manquante est dite comme telle, jamais inventée.
 class CarteChauffeur extends StatelessWidget {

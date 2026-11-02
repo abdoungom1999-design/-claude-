@@ -157,7 +157,7 @@ class _EnTeteTableau extends StatelessWidget {
         SizedBox(width: 46),
         SizedBox(width: 14),
         Expanded(flex: 3, child: Text('Chauffeur', style: _style)),
-        Expanded(flex: 2, child: Text('Véhicule', style: _style)),
+        Expanded(flex: 2, child: Text('Moto', style: _style)),
         SizedBox(width: 80, child: Text('Note', style: _style)),
         SizedBox(width: 110, child: Text('Statut', style: _style)),
         SizedBox(width: 190, child: Text('Actions', style: _style)),
@@ -405,7 +405,7 @@ class _EnTeteTableauReel extends StatelessWidget {
         SizedBox(width: 46),
         SizedBox(width: 14),
         Expanded(flex: 3, child: Text('Chauffeur', style: _style)),
-        Expanded(flex: 2, child: Text('Véhicule', style: _style)),
+        Expanded(flex: 2, child: Text('Moto', style: _style)),
         SizedBox(width: 130, child: Text('Statut du dossier', style: _style)),
         SizedBox(width: 110, child: Text('Compte', style: _style)),
         SizedBox(width: 130, child: Text('Actions', style: _style)),
@@ -479,6 +479,15 @@ class _LigneChauffeurReel extends StatelessWidget {
                   conducteur.telephone,
                   style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                 ),
+                if (conducteur.modificationDemandee != null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Modification à vérifier',
+                      key: ValueKey('badge-modification'),
+                      style: TextStyle(fontSize: 11.5, color: AppColors.alerte, fontWeight: FontWeight.w700),
+                    ),
+                  ),
               ],
             ),
           ),

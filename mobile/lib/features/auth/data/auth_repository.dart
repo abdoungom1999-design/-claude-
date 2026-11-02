@@ -186,6 +186,9 @@ class AuthRepository {
   /// tant que son adresse n'est pas confirmée). En mode démo, la même
   /// règle KYC est appliquée localement via
   /// [DemoData.soumettreDossierConducteur].
+  /// [nom] : « Prénom Nom » ; [vehiculeId] : « Marque Modèle Couleur »
+  /// (affichages), avec leurs parties : [prenom], [nomDeFamille] et [moto]
+  /// (`marque`, `modele`, `couleur`).
   Future<void> inscrireConducteur({
     required String nom,
     required String email,
@@ -193,6 +196,9 @@ class AuthRepository {
     required String motDePasse,
     required String vehiculeId,
     required String plaqueImmatriculation,
+    String? prenom,
+    String? nomDeFamille,
+    Map<String, String>? moto,
   }) async {
     if (!DefaultFirebaseOptions.estConfigure) {
       await _authentifierEnModeDemo();
@@ -217,6 +223,9 @@ class AuthRepository {
         'telephone': telephone,
         'vehiculeId': vehiculeId,
         'plaqueImmatriculation': plaqueImmatriculation,
+        if (prenom != null) 'prenom': prenom,
+        if (nomDeFamille != null) 'nomDeFamille': nomDeFamille,
+        if (moto != null) 'moto': moto,
         'statut': 'HORS_LIGNE',
         'estValide': false,
         'creeLe': FieldValue.serverTimestamp(),
@@ -393,6 +402,17 @@ class AuthRepository {
     });
     // Numéro changé : le serveur publie la nouvelle entrée d'annuaire et
     // retire l'ancienne (l'ancien numéro ne permet plus de se connecter).
+    await _publierProfilEtAnnuaire();
+  }
+
+  /// Met à jour le seul téléphone du profil (fiche chauffeur : son nom, vérifié
+  /// par l'Admin, ne change pas ici), puis le profil public et l'annuaire de
+  /// connexion par téléphone.
+  Future<void> mettreAJourTelephone(String telephone) async {
+    if (!DefaultFirebaseOptions.estConfigure) return;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    await _firestore.collection('users').doc(uid).update({'telephone': telephone});
     await _publierProfilEtAnnuaire();
   }
 

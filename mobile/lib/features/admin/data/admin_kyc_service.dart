@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../../core/firebase/fonctions_cloud.dart';
 import '../../../core/models/statut_compte.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../conducteur/data/fiche_chauffeur.dart';
 
 /// Profil Conducteur tel que lu directement depuis Firestore
 /// (`users/{uid}`, `role == 'conducteur'`), pour la supervision KYC
@@ -19,7 +20,12 @@ class ConducteurKycAdmin {
     required this.statutValidation,
     required this.statutCompte,
     required this.documents,
+    this.modificationDemandee,
   });
+
+  /// Changement d'identité ou de moto demandé par le chauffeur validé, à
+  /// vérifier avec ses pièces ([AdminKycService.validerModification]).
+  final ModificationDemandee? modificationDemandee;
 
   final String id;
   final String nom;
@@ -58,6 +64,7 @@ class ConducteurKycAdmin {
       statutValidation: donnees['statutValidation'] as String?,
       statutCompte: (donnees['statutCompte'] as String?) ?? StatutCompte.actif,
       documents: (donnees['documents'] as Map<String, dynamic>?) ?? {},
+      modificationDemandee: ModificationDemandee.depuis(donnees['modificationDemandee']),
     );
   }
 }
@@ -191,6 +198,38 @@ class AdminKycService {
       'estValide': false,
     });
     await _publierProfilPublic(uid);
+  }
+
+  /// Applique la modification demandée par un chauffeur validé (identité :
+  /// prénom et nom ; moto : marque, modèle, couleur, plaque), après
+  /// vérification de ses pièces : elle devient ce que voient ses clients.
+  Future<void> validerModification(String uid) async {
+    final ref = _firestore.collection('users').doc(uid);
+    await _firestore.runTransaction((tx) async {
+      final doc = await tx.get(ref);
+      final demande = ModificationDemandee.depuis(doc.data()?['modificationDemandee']);
+      if (demande == null) return;
+      tx.update(ref, {
+        'prenom': demande.prenom,
+        'nomDeFamille': demande.nomDeFamille,
+        'nom': demande.nomComplet,
+        'moto': demande.moto.versFirestore(),
+        'vehiculeId': demande.moto.description,
+        'plaqueImmatriculation': demande.plaque,
+        'modificationDemandee': FieldValue.delete(),
+        'modificationRefuseeLe': FieldValue.delete(),
+      });
+    });
+    await _publierProfilPublic(uid);
+  }
+
+  /// Refuse la modification demandée : rien ne change pour les clients ; le
+  /// chauffeur en est informé dans son onglet Compte.
+  Future<void> refuserModification(String uid) async {
+    await _firestore.collection('users').doc(uid).update({
+      'modificationDemandee': FieldValue.delete(),
+      'modificationRefuseeLe': FieldValue.serverTimestamp(),
+    });
   }
 
   /// Rattrapage des comptes créés avant les règles de sécurité : publie
