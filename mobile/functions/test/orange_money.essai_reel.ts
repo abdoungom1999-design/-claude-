@@ -140,6 +140,21 @@ function formeCle(valeur: string): string {
   return valeur ? `${valeur.length} caractères, ${sorte}` : 'vide';
 }
 
+/** Forme d'une référence, sans sa valeur : longueur, début, et ce qu'elle semble être. */
+function formeReference(ref: string): string {
+  const debut = /^[A-Za-z0-9_-]{4}/.test(ref) ? ref.slice(0, 4) : '?';
+  const sorte = ref.startsWith('rch_')
+    ? 'recharge Sprint'
+    : /^[0-9a-f]{24}$/.test(ref)
+      ? 'commande Sprint (24 hexadécimaux)'
+      : /rch_/i.test(ref)
+        ? 'contient « rch_ » ailleurs qu\'au début'
+        : /^MP\d/.test(ref)
+          ? 'identifiant Orange (MP…)'
+          : 'autre forme';
+  return `${ref.length} caractères, début « ${debut} », ${sorte}`;
+}
+
 /** Champs texte ou nombre d'une réponse JSON, à toute profondeur (chemins « a.b.c »). */
 function champsTexte(valeur: unknown, prefixe = '', profondeur = 0): Array<[string, string]> {
   if (valeur === null || typeof valeur !== 'object' || profondeur > 4) return [];
@@ -413,22 +428,41 @@ async function principal(): Promise<number> {
         echecs += 1;
         annoncer('error', '7. Suivi du paiement', 'Orange ne connaît aucune transaction avec cet identifiant dans cet environnement.');
       }
+      const memes = trouvees.filter((t) => t.transactionId === aSuivre).length;
+      annoncer('notice', '7. Suivi du paiement', `${trouvees.length} transaction(s) renvoyée(s) par Orange, dont ${memes} avec cet identifiant.`);
       for (const t of trouvees) {
         masquer(t.reference);
         const marchand = t.codeMarchand === undefined ? 'sans code' : t.codeMarchand === codeMarchand ? 'code de Sprint' : 'AUTRE code';
-        const reference = !t.reference ? 'absente' : t.reference.startsWith('rch_') ? 'recharge Sprint (rch_…)' : 'présente (course ?)';
         annoncer(
           'notice',
-          '7. Suivi du paiement',
+          `7. Suivi du paiement (${t.transactionId === aSuivre ? 'celle demandée' : 'AUTRE transaction'})`,
           [
             `statut : ${t.statut ?? 'absent'}`,
             `montant : ${t.montantFcfa ?? '?'} ${t.devise ?? ''}`.trim(),
             `type : ${t.type ?? 'absent'}`,
             `marchand payé : ${t.typePartenaire ?? 'nature absente'}, ${marchand}`,
-            `référence : ${reference}`,
+            `référence : ${t.reference ? formeReference(t.reference) : 'absente'}`,
           ].join(' · '),
         );
       }
+      // Réponse brute : où est notre référence ? Chemins des champs seulement (jamais ceux du client payeur),
+      // et ceux dont la valeur contient « rch_ » ou une référence de commande.
+      const brute = await fetch(
+        `${urlBase}/api/eWallet/v1/transactions?${new URLSearchParams({ size: '20', transactionId: aSuivre })}`,
+        { headers: { Authorization: `Bearer ${await om.jeton()}`, Accept: 'application/json' }, signal: AbortSignal.timeout(15000) },
+      );
+      const liste = (await brute.json().catch(() => undefined)) as unknown;
+      const elements = Array.isArray(liste) ? liste : [];
+      elements.forEach((element, i) => {
+        const champs = champsTexte(element).filter(([chemin]) => !chemin.startsWith('customer'));
+        for (const [, v] of champs) if (/rch_|^[0-9a-f]{24}$/i.test(v)) masquer(v);
+        const avecReference = champs.filter(([, v]) => /rch_/i.test(v) || /^[0-9a-f]{24}$/.test(v)).map(([chemin]) => chemin);
+        annoncer(
+          'notice',
+          `7 bis. Transaction brute n° ${i + 1}`,
+          `HTTP ${brute.status} · champs : ${champs.map(([chemin]) => chemin).join(', ')} · notre référence dans : ${avecReference.join(', ') || 'aucun champ'}`,
+        );
+      });
     } catch (e) {
       echecs += 1;
       annoncer('error', '7. Suivi du paiement', raison(e));
