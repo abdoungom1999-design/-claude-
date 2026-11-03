@@ -18,6 +18,7 @@ class AuthScaffold extends StatelessWidget {
     required this.form,
     this.footer,
     this.showBackButton = true,
+    this.enCours = false,
   });
 
   /// Conservée pour la compatibilité des écrans d'authentification qui
@@ -29,65 +30,75 @@ class AuthScaffold extends StatelessWidget {
   final Widget? footer;
   final bool showBackButton;
 
+  /// Connexion ou inscription en cours (quelques secondes) : ni retour ni
+  /// glissement de retour avant la réponse. Un geste commencé pendant que
+  /// l'opération aboutissait laissait l'écran figé à mi-chemin sous le
+  /// suivant ; l'écran suivant arrive désormais toujours net. La flèche
+  /// reste disponible.
+  final bool enCours;
+
   @override
   Widget build(BuildContext context) {
     final peutRevenir = showBackButton && Navigator.of(context).canPop();
 
-    return ThemeOnyxVert(
-      child: Scaffold(
-        backgroundColor: AppColors.fond,
-        body: FondOnyxVert(
-          child: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        height: 48,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            if (peutRevenir)
-                              IconButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                tooltip: 'Retour',
-                                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.texte),
-                              )
-                            else
-                              const SizedBox.shrink(),
-                            if (_authentificationSimulee) const _BadgeModeDemo(),
-                          ],
+    return PopScope(
+      canPop: !enCours,
+      child: ThemeOnyxVert(
+        child: Scaffold(
+          backgroundColor: AppColors.fond,
+          body: FondOnyxVert(
+            child: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 460),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          height: 48,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              if (peutRevenir)
+                                IconButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  tooltip: 'Retour',
+                                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.texte),
+                                )
+                              else
+                                const SizedBox.shrink(),
+                              if (_authentificationSimulee) const _BadgeModeDemo(),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Align(alignment: Alignment.centerLeft, child: TuileLogo(taille: 64)),
-                      const SizedBox(height: 22),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: AppColors.texte,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
-                          letterSpacing: -0.5,
+                        const SizedBox(height: 12),
+                        const Align(alignment: Alignment.centerLeft, child: TuileLogo(taille: 64)),
+                        const SizedBox(height: 22),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: AppColors.texte,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            height: 1.1,
+                            letterSpacing: -0.5,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(color: AppColors.texteDiscret, fontSize: 15, height: 1.35),
-                      ),
-                      const SizedBox(height: 26),
-                      CarteVerre(padding: const EdgeInsets.fromLTRB(20, 24, 20, 20), child: form),
-                      if (footer != null) ...[
-                        const SizedBox(height: 18),
-                        footer!,
+                        const SizedBox(height: 8),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(color: AppColors.texteDiscret, fontSize: 15, height: 1.35),
+                        ),
+                        const SizedBox(height: 26),
+                        CarteVerre(padding: const EdgeInsets.fromLTRB(20, 24, 20, 20), child: form),
+                        if (footer != null) ...[
+                          const SizedBox(height: 18),
+                          footer!,
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),

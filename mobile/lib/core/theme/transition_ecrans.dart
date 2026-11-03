@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
@@ -57,4 +58,33 @@ class GlissementOnyxPageTransitionsBuilder extends PageTransitionsBuilder {
       child: SlideTransition(position: animation.drive(_arrivee), child: ecran),
     );
   }
+}
+
+/// iPhone et Mac : le glissement natif d'iOS (le nouvel écran arrive par la
+/// droite, l'ancien recule) et son geste de retour depuis le bord gauche,
+/// inchangés, sur le même fond Onyx opaque que sur Android : aucun écran ne
+/// se voit à travers un autre, même un écran au fond transparent.
+class GlissementNatifOnyxPageTransitionsBuilder extends PageTransitionsBuilder {
+  const GlissementNatifOnyxPageTransitionsBuilder();
+
+  static const _natif = CupertinoPageTransitionsBuilder();
+
+  @override
+  Duration get transitionDuration => _natif.transitionDuration;
+
+  @override
+  Duration get reverseTransitionDuration => _natif.reverseTransitionDuration;
+
+  @override
+  DelegatedTransitionBuilder? get delegatedTransition => _natif.delegatedTransition;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) =>
+      _natif.buildTransitions(route, context, animation, secondaryAnimation, ColoredBox(color: AppColors.fond, child: child));
 }

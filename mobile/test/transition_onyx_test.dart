@@ -110,13 +110,15 @@ Future<void> _geste(WidgetTester tester, String methode, [double? progression]) 
 }
 
 void main() {
-  test('thème : glissement opaque sur Android (et ordinateur) ; iPhone et Mac gardent leur glissement natif', () {
+  test('thème : glissement opaque sur Android (et ordinateur) ; iPhone et Mac gardent leur glissement natif, sur fond opaque', () {
     final builders = AppTheme.sombre.pageTransitionsTheme.builders;
     for (final plateforme in [TargetPlatform.android, TargetPlatform.fuchsia, TargetPlatform.windows, TargetPlatform.linux]) {
       expect(builders[plateforme], isA<GlissementOnyxPageTransitionsBuilder>(), reason: plateforme.name);
     }
-    expect(builders[TargetPlatform.iOS], isA<CupertinoPageTransitionsBuilder>());
-    expect(builders[TargetPlatform.macOS], isA<CupertinoPageTransitionsBuilder>());
+    expect(builders[TargetPlatform.iOS], isA<GlissementNatifOnyxPageTransitionsBuilder>());
+    expect(builders[TargetPlatform.macOS], isA<GlissementNatifOnyxPageTransitionsBuilder>());
+    // Le glissement natif d'iOS est conservé tel quel (durée, geste de retour).
+    expect(builders[TargetPlatform.iOS]!.transitionDuration, const CupertinoPageTransitionsBuilder().transitionDuration);
   });
 
   test('dans l\'app : l\'accueil chauffeur suit la transition commune ; un chauffeur connecté qui revient sur la connexion retrouve son accueil', () {

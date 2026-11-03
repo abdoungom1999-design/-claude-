@@ -122,7 +122,11 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Création du compte en cours : ni retour ni glissement de retour avant la
+    // réponse (comme les écrans de connexion, voir AuthScaffold.enCours).
+    return PopScope(
+      canPop: !_enCours,
+      child: Scaffold(
       backgroundColor: AppColors.fond,
       appBar: AppBar(
         backgroundColor: AppColors.fond,
@@ -217,6 +221,7 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

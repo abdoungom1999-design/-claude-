@@ -9,11 +9,15 @@ import '../../../core/widgets/mot_de_passe_oublie_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../data/auth_repository.dart';
 
-/// Connexion Client. Poussé contextuellement lorsqu'une action protégée
-/// (ex : commander une course) est déclenchée sans session active ; un
-/// succès renvoie `true` à l'appelant via [context.pop].
+/// Connexion Client, ouverte depuis l'écran de Bienvenue. Succès : l'accueil
+/// Client, en une seule transition (il chasse l'écran de connexion), au lieu
+/// de refermer d'abord cet écran pour revenir à Bienvenue puis d'ouvrir
+/// l'accueil (deux mouvements en sens opposés à la fois).
 class ClientLoginPage extends StatefulWidget {
-  const ClientLoginPage({super.key});
+  const ClientLoginPage({super.key, this.authRepository});
+
+  /// Connexion et inscription ; injectable pour les tests.
+  final AuthRepository? authRepository;
 
   @override
   State<ClientLoginPage> createState() => _ClientLoginPageState();
@@ -23,7 +27,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _identifiantController = TextEditingController();
   final _motDePasseController = TextEditingController();
-  final _authRepository = AuthRepository();
+  late final AuthRepository _authRepository = widget.authRepository ?? AuthRepository();
 
   bool _enCours = false;
   String? _erreur;
@@ -48,7 +52,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
         motDePasse: _motDePasseController.text,
       );
       if (!mounted) return;
-      context.pop(true);
+      context.go(AppRoutes.home);
     } on ApiException catch (e) {
       setState(() => _erreur = e.message);
     } finally {
@@ -73,6 +77,7 @@ class _ClientLoginPageState extends State<ClientLoginPage> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
+      enCours: _enCours,
       icon: Icons.two_wheeler_rounded,
       title: 'Content de vous revoir',
       subtitle: 'Connectez-vous pour réserver une course ou envoyer un colis',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -14,7 +15,10 @@ import '../data/auth_repository.dart';
 /// compte en quelques champs comme un client, ses documents et son
 /// véhicule doivent être soumis puis validés.
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  const RegisterPage({super.key, this.authRepository});
+
+  /// Connexion et inscription ; injectable pour les tests.
+  final AuthRepository? authRepository;
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -28,7 +32,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _motDePasseController = TextEditingController();
   final _confirmationController = TextEditingController();
   final _parrainageController = TextEditingController();
-  final _authRepository = AuthRepository();
+  late final AuthRepository _authRepository = widget.authRepository ?? AuthRepository();
 
   bool _motDePasseVisible = false;
   bool _enCours = false;
@@ -64,7 +68,8 @@ class _RegisterPageState extends State<RegisterPage> {
         context,
         'Un email de confirmation vous a été envoyé pour valider votre compte.',
       );
-      context.pop(true);
+      // Accueil Client en une seule transition (comme après la connexion).
+      context.go(AppRoutes.home);
     } on ApiException catch (e) {
       setState(() => _erreur = e.message);
     } finally {
@@ -75,6 +80,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
+      enCours: _enCours,
       icon: Icons.person_add_alt_1_rounded,
       title: 'Créer un compte',
       subtitle: 'Rejoignez Sprint pour réserver vos courses',

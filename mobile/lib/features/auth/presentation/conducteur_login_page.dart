@@ -68,78 +68,74 @@ class _ConducteurLoginPageState extends State<ConducteurLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Connexion en cours : ni retour ni glissement de retour avant la
-    // réponse (quelques secondes). Un geste commencé pendant que la
-    // connexion aboutissait laissait l'écran figé à mi-chemin sous l'accueil ;
-    // l'accueil arrive désormais toujours net. La flèche reste disponible.
-    return PopScope(
-      canPop: !_enCours,
-      child: AuthScaffold(
-        icon: Icons.two_wheeler_rounded,
-        title: 'Espace Conducteur',
-        subtitle: 'Connectez-vous pour prendre des courses',
-        form: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppTextField(
-                label: 'Email ou numéro de téléphone',
-                controller: _identifiantController,
-                keyboardType: TextInputType.emailAddress,
-                prefixIcon: Icons.person_outline,
-                validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
-                    ? 'Email ou numéro requis'
-                    : null,
-              ),
-              const SizedBox(height: 14),
-              AppTextField(
-                label: 'Mot de passe',
-                controller: _motDePasseController,
-                obscureText: true,
-                prefixIcon: Icons.lock_outline,
-                validator: (valeur) => (valeur == null || valeur.length < 8)
-                    ? '8 caractères minimum'
-                    : null,
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _motDePasseOublie,
-                  style: TextButton.styleFrom(
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    'Mot de passe oublié ?',
-                    style: TextStyle(color: AppColors.vert, fontWeight: FontWeight.w700, fontSize: 13),
-                  ),
+    // Connexion en cours : ni retour ni glissement de retour (voir
+    // [AuthScaffold.enCours]) ; l'accueil arrive ensuite net.
+    return AuthScaffold(
+      enCours: _enCours,
+      icon: Icons.two_wheeler_rounded,
+      title: 'Espace Conducteur',
+      subtitle: 'Connectez-vous pour prendre des courses',
+      form: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              label: 'Email ou numéro de téléphone',
+              controller: _identifiantController,
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: Icons.person_outline,
+              validator: (valeur) => (valeur == null || valeur.trim().isEmpty)
+                  ? 'Email ou numéro requis'
+                  : null,
+            ),
+            const SizedBox(height: 14),
+            AppTextField(
+              label: 'Mot de passe',
+              controller: _motDePasseController,
+              obscureText: true,
+              prefixIcon: Icons.lock_outline,
+              validator: (valeur) => (valeur == null || valeur.length < 8)
+                  ? '8 caractères minimum'
+                  : null,
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _motDePasseOublie,
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Mot de passe oublié ?',
+                  style: TextStyle(color: AppColors.vert, fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
-              if (_erreur != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _erreur!,
-                  style: const TextStyle(color: AppColors.danger, fontSize: 13),
-                ),
-              ],
-              const SizedBox(height: 12),
-              PrimaryButton(
-                label: 'Se connecter',
-                isLoading: _enCours,
-                onPressed: _seConnecter,
+            ),
+            if (_erreur != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _erreur!,
+                style: const TextStyle(color: AppColors.danger, fontSize: 13),
               ),
             ],
-          ),
-        ),
-        footer: Center(
-          child: TextButton(
-            onPressed: () => context.push(AppRoutes.conducteurRegister),
-            child: const Text(
-              'Pas encore de compte ? Créer un compte',
-              style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w500),
+            const SizedBox(height: 12),
+            PrimaryButton(
+              label: 'Se connecter',
+              isLoading: _enCours,
+              onPressed: _seConnecter,
             ),
+          ],
+        ),
+      ),
+      footer: Center(
+        child: TextButton(
+          onPressed: () => context.push(AppRoutes.conducteurRegister),
+          child: const Text(
+            'Pas encore de compte ? Créer un compte',
+            style: TextStyle(color: AppColors.texteDiscret, fontWeight: FontWeight.w500),
           ),
         ),
       ),

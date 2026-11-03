@@ -58,6 +58,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
+      enCours: _enCours,
       icon: Icons.admin_panel_settings_outlined,
       title: 'Espace Admin',
       subtitle: 'Gestion de la plateforme Sprint',
