@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/notifications/capacites_navigateur.dart';
+import '../../../core/paiement/retour_operateur.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/onyx_vert.dart';
@@ -31,13 +34,24 @@ SortePaiement? sortePaiement(String? reference) {
 /// Elle ne décide jamais qu'un paiement a réussi : elle suit, en temps réel,
 /// la commande ou la recharge que seul le serveur confirme (après relecture
 /// chez Orange), puis ouvre le suivi de la course. Sans session sur cet
-/// appareil (iPhone : Safari ne partage pas la session de l'app installée),
-/// elle invite à revenir dans Sprint, où le paiement s'affiche de toute façon.
+/// appareil, elle invite à revenir dans l'application Sprint, où le paiement
+/// s'affiche de toute façon :
+/// - iPhone : Safari ne partage pas la session du site installé sur l'écran
+///   d'accueil, et iOS n'ouvre jamais un lien dans ce site installé. Le site
+///   installé demande donc à Orange de ne pas ramener ici ([paiementSansRetour]) ;
+///   si cette page s'ouvre quand même, elle dit d'ouvrir Sprint depuis son
+///   icône (aucun bouton qui resterait dans Safari) ;
+/// - Android, dans un navigateur : bouton qui rouvre l'APK Sprint sur cette
+///   page ([lienRetourDansLApplication]) ; sans APK sur le téléphone, la page
+///   revient avec `app=0` et propose de le télécharger.
 class RetourPaiementPage extends StatefulWidget {
   const RetourPaiementPage({
     super.key,
     required this.reference,
     required this.etat,
+    this.applicationAbsente = false,
+    this.capacites,
+    this.ouvrirLien,
     this.sessionConnectee,
     this.suivreCommande,
     this.suivreRecharge,
@@ -49,6 +63,17 @@ class RetourPaiementPage extends StatefulWidget {
 
   /// `ok` (paiement validé dans Max It) ou `annule`.
   final String? etat;
+
+  /// Page rouverte avec `app=0` : l'essai d'ouverture de l'APK a échoué
+  /// (il n'est pas installé sur ce téléphone).
+  final bool applicationAbsente;
+
+  /// Ce que le navigateur dit de lui-même ; `null` : lu dans le navigateur.
+  /// Injectable pour les tests.
+  final CapacitesNavigateur Function()? capacites;
+
+  /// Ouvre une adresse (injectable pour les tests).
+  final Future<bool> Function(Uri lien)? ouvrirLien;
 
   /// Compte connecté sur cet appareil (après relecture de la session), `null`
   /// sinon. Injectable pour les tests.
@@ -169,9 +194,60 @@ class _RetourPaiementPageState extends State<RetourPaiementPage> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => SuiviCoursePage(courseId: courseId)));
   }
 
+  /// Que dire, et quel bouton proposer, quand cet appareil n'a pas la session
+  /// de Sprint (voir la documentation de la classe).
+  ({String titre, String texte, String? action, VoidCallback? onAction}) _horsSession() {
+    const titre = 'Paiement transmis à Orange Money';
+    const suite = 'votre course ou votre recharge s\'y affiche dès la confirmation du paiement.';
+    final navigateur = (widget.capacites ?? lireCapacitesNavigateur)();
+    if (navigateur.iphone) {
+      return (
+        titre: titre,
+        texte: 'Fermez cette page et ouvrez Sprint depuis l\'icône de votre écran d\'accueil : $suite',
+        action: null,
+        onAction: null,
+      );
+    }
+    if (navigateur.android && !navigateur.vueIntegree) {
+      if (widget.applicationAbsente) {
+        return (
+          titre: titre,
+          texte: 'L\'application Sprint n\'est pas installée sur ce téléphone. Installez-la : $suite',
+          action: 'Télécharger l\'application',
+          onAction: () => _ouvrir(Uri.https(hoteSprint, '/android/')),
+        );
+      }
+      final lien = lienRetourDansLApplication(reference: widget.reference, etat: widget.etat);
+      if (lien != null) {
+        return (
+          titre: titre,
+          texte: 'Ouvrez l\'application Sprint : $suite',
+          action: 'Ouvrir l\'application Sprint',
+          onAction: () => _ouvrir(lien),
+        );
+      }
+    }
+    return (
+      titre: titre,
+      texte: 'Revenez dans l\'application Sprint : $suite',
+      action: 'Ouvrir Sprint',
+      onAction: () => context.go(AppRoutes.welcome),
+    );
+  }
+
+  Future<void> _ouvrir(Uri lien) async {
+    final ouvrir = widget.ouvrirLien ?? ((Uri l) => launchUrl(l, webOnlyWindowName: '_self'));
+    try {
+      await ouvrir(lien);
+    } on Object {
+      // Rien d'autre à faire : la page reste affichée.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final course = sortePaiement(widget.reference) != SortePaiement.recharge;
+    final hors = _etat == _Etat.horsSession ? _horsSession() : null;
     final (IconData icone, Color couleur, String titre, String texte) = switch (_etat) {
       _Etat.verification => (
           Icons.hourglass_top_rounded,
@@ -208,8 +284,8 @@ class _RetourPaiementPageState extends State<RetourPaiementPage> {
       _Etat.horsSession => (
           Icons.phone_iphone_rounded,
           AppColors.vert,
-          'Paiement transmis à Orange Money',
-          'Revenez dans l\'application Sprint : votre course ou votre recharge s\'y affiche dès sa confirmation.',
+          hors!.titre,
+          hors.texte,
         ),
       _Etat.tropLong => (
           Icons.schedule_rounded,
@@ -220,11 +296,11 @@ class _RetourPaiementPageState extends State<RetourPaiementPage> {
               : 'Votre solde sera crédité dès que le paiement sera confirmé. Ne payez pas une seconde fois.',
         ),
     };
-    final (String action, VoidCallback onAction) = switch (_etat) {
+    final (String? action, VoidCallback? onAction) = switch (_etat) {
       _Etat.confirme => ('Suivre ma course', _ouvrirSuivi),
       _Etat.rechargee => ('Voir mon portefeuille', () => context.go(AppRoutes.compteTab)),
       _Etat.tropLong when course => ('Voir mes courses', () => context.go(AppRoutes.activiteTab)),
-      _Etat.horsSession => ('Ouvrir Sprint', () => context.go(AppRoutes.welcome)),
+      _Etat.horsSession => (hors!.action, hors.onAction),
       _ => ('Retour à l\'accueil', () => context.go(AppRoutes.welcome)),
     };
     return SousPageOnyx(
@@ -258,7 +334,7 @@ class _RetourPaiementPageState extends State<RetourPaiementPage> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 14.5, color: AppColors.texteDiscret, height: 1.45),
                   ),
-                  if (_etat != _Etat.verification) ...[
+                  if (_etat != _Etat.verification && action != null) ...[
                     const SizedBox(height: 32),
                     PrimaryButton(label: action, onPressed: onAction),
                   ],

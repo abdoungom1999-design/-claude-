@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Timestamp, type DocumentReference, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { lireSansRetour } from './commandes';
 import {
   FOURNISSEUR_ORANGE,
   type CreateurSession,
@@ -132,7 +133,7 @@ export interface RechargeCreee {
 export function validerRecharge(
   donnees: unknown,
   methodes: readonly Methode[] = METHODES_RECHARGE,
-): { montantFcfa: number; methodePaiement: Methode } {
+): { montantFcfa: number; methodePaiement: Methode; sansRetour: boolean } {
   const d = objet(donnees);
   const montant = d.montantFcfa;
   if (typeof montant !== 'number' || !Number.isInteger(montant)) {
@@ -144,7 +145,11 @@ export function validerRecharge(
   if (montant > RECHARGE_MAX_FCFA) {
     throw new HttpsError('invalid-argument', `La recharge maximale est de ${RECHARGE_MAX_FCFA} FCFA.`);
   }
-  return { montantFcfa: montant, methodePaiement: verifierMethode(d.methodePaiement, methodes, 'recharger') };
+  return {
+    montantFcfa: montant,
+    methodePaiement: verifierMethode(d.methodePaiement, methodes, 'recharger'),
+    sansRetour: lireSansRetour(d),
+  };
 }
 
 /**
@@ -170,7 +175,7 @@ export async function creerRecharge(
     throw new HttpsError('permission-denied', 'Votre compte ne permet pas de recharger le portefeuille.');
   }
   const testeur = profil.get('testeurOrangeMoney') === true;
-  const { montantFcfa, methodePaiement } = validerRecharge(donnees, methodesRechargePour(testeur, acces));
+  const { montantFcfa, methodePaiement, sansRetour } = validerRecharge(donnees, methodesRechargePour(testeur, acces));
 
   const soldeActuel = solde(await refPortefeuille(db, uid).get());
   if (soldeActuel + montantFcfa > SOLDE_MAX_FCFA) {
@@ -200,7 +205,7 @@ export async function creerRecharge(
   let session: SessionPaiement;
   try {
     fournisseur = fournisseurs(methodePaiement);
-    session = await fournisseur.creerSession(ref.id, montantFcfa);
+    session = await fournisseur.creerSession(ref.id, montantFcfa, { sansRetour });
   } catch (e) {
     logger.error('Session de recharge impossible', e);
     throw new HttpsError('unavailable', 'Le paiement est momentanément indisponible. Réessayez.');

@@ -135,6 +135,53 @@ test('demande Orange Money : QR chez Orange, commande en attente avec le lien Ma
   assert.equal(await nombre('courses'), 0);
 });
 
+test('retour après paiement : adresses de retour données à Orange, sauf demande « sans retour » de l\'app (site installé sur iPhone)', async () => {
+  const RETOUR = 'https://sprint.example/paiement/retour';
+  const avecRetour = fournisseursDuMoyen(simule, () => new FournisseurOrangeMoney(config, () => midi, RETOUR));
+  const payer = (donnees: unknown) =>
+    creerPaiementCore(db, calculDistance(db, googleFactice, () => midi), avecRetour, 'awa', donnees, midi, undefined, 'tous');
+  const recharger = (donnees: Record<string, unknown>) =>
+    creerRechargeCore(db, avecRetour, 'awa', { montantFcfa: 5000, methodePaiement: 'ORANGE_MONEY', ...donnees }, midi, 'tous');
+
+  const course = await payer(demande());
+  assert.equal(orange.qrCodes[0].callbackSuccessUrl, `${RETOUR}?ref=${course.commandeId}&etat=ok`);
+  assert.equal(orange.qrCodes[0].callbackCancelUrl, `${RETOUR}?ref=${course.commandeId}&etat=annule`);
+
+  const courseSansRetour = await payer(demande({ sansRetour: true }));
+  assert.deepEqual(orange.qrCodes[1], {
+    reference: courseSansRetour.commandeId,
+    montantFcfa: PRIX,
+    code: CODE_MARCHAND_TEST,
+    name: 'Sprint',
+    validity: 1080,
+    isSingleUse: true,
+  });
+  // Même commande, même lien Max It, même suivi : seul le retour change.
+  const c = await commande(courseSansRetour.commandeId);
+  assert.equal(c.statut, 'en_attente_paiement');
+  assert.equal(c.lienPaiement, courseSansRetour.lienPaiement);
+  assert.equal(c.sansRetour, undefined, 'rien de plus n\'est enregistré');
+
+  const recharge = await recharger({});
+  assert.equal(orange.qrCodes[2].callbackSuccessUrl, `${RETOUR}?ref=${recharge.rechargeId}&etat=ok`);
+  const rechargeSansRetour = await recharger({ sansRetour: true });
+  assert.equal(orange.qrCodes[3].reference, rechargeSansRetour.rechargeId);
+  assert.equal(orange.qrCodes[3].callbackSuccessUrl, undefined);
+  assert.equal(orange.qrCodes[3].callbackCancelUrl, undefined);
+
+  // Valeur fantaisiste : refusée avant d'appeler Orange, rien de créé.
+  await refuse(payer(demande({ sansRetour: 'oui' })), 'invalid-argument');
+  await refuse(recharger({ sansRetour: 1 }), 'invalid-argument');
+  assert.equal(orange.qrCodes.length, 4);
+  assert.equal(await nombre('commandes'), 2);
+  assert.equal(await nombre('recharges'), 2);
+
+  // Le paiement « sans retour » se confirme comme les autres : course créée.
+  const id = orange.payer(courseSansRetour.commandeId, PRIX);
+  assert.equal((await notifier(orange.notification(id))).resultat, 'course_creee');
+  assert.equal((await commande(courseSansRetour.commandeId)).statut, 'payee');
+});
+
 test('Orange Money fermé (réglage actuel) : refusé avant d\'appeler Orange, même pour un testeur', async () => {
   await db.doc('users/awa').update({ testeurOrangeMoney: true });
   const erreur = await refuse(creerPaiement(demande(), midi, 'ferme'), 'failed-precondition');

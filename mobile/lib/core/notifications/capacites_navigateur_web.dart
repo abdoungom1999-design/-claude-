@@ -17,7 +17,14 @@ CapacitesNavigateur lireCapacites() {
     final standaloneSafari = navigateur['standalone'].dartify() as bool? ?? false;
     final media = globalContext.callMethod<JSObject>('matchMedia'.toJS, '(display-mode: standalone)'.toJS);
     final standaloneMedia = media['matches'].dartify() as bool? ?? false;
-    return CapacitesNavigateur(iphone: iphone, ecranAccueil: standaloneSafari || standaloneMedia);
+    final android = agent.contains('Android');
+    return CapacitesNavigateur(
+      iphone: iphone,
+      ecranAccueil: standaloneSafari || standaloneMedia,
+      android: android,
+      // Vue web intégrée d'Android : « ; wv) » dans l'agent.
+      vueIntegree: android && agent.contains('; wv)'),
+    );
   } catch (_) {
     return const CapacitesNavigateur();
   }

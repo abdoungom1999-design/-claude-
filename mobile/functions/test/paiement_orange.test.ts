@@ -80,6 +80,31 @@ test('demande de paiement : Max It ramène le client sur la page de retour de Sp
   assert.equal(orange.qrCodes[0].callbackCancelUrl, 'https://sprint.example/paiement/retour?ref=rch_a1b2c3&etat=annule');
 });
 
+test('demande « sans retour » (site installé sur iPhone) : aucune adresse de retour donnée à Orange, le reste identique', async () => {
+  const orange = new FauxOrange();
+  const fournisseur = new FournisseurOrangeMoney(
+    { client: orange.client(), codeMarchand: CODE_MARCHAND_TEST },
+    () => midi,
+    'https://sprint.example/paiement/retour',
+  );
+  const session = await fournisseur.creerSession('a1b2c3', 2300, { sansRetour: true });
+  // (Copie : la comparaison ne doit pas figer le type de la liste pour la suite.)
+  assert.deepEqual([...orange.qrCodes], [
+    { reference: 'a1b2c3', montantFcfa: 2300, code: CODE_MARCHAND_TEST, name: 'Sprint', validity: 1080, isSingleUse: true },
+  ]);
+  assert.equal(session.sessionId, 'om_a1b2c3');
+  assert.equal(session.lienPaiement, 'https://sugu.orange-sonatel.com/mp/maxit1');
+  assert.equal(session.relectureFinLe?.getTime(), midi.getTime() + FENETRE_RELECTURE_MS);
+
+  // Non demandé (false ou absent) : les adresses de retour sont données.
+  await fournisseur.creerSession('d4e5f6', 2300, { sansRetour: false });
+  await fournisseur.creerSession('a7b8c9', 2300, {});
+  for (const [i, reference] of [[1, 'd4e5f6'], [2, 'a7b8c9']] as const) {
+    assert.equal(orange.qrCodes[i].callbackSuccessUrl, `https://sprint.example/paiement/retour?ref=${reference}&etat=ok`);
+    assert.equal(orange.qrCodes[i].callbackCancelUrl, `https://sprint.example/paiement/retour?ref=${reference}&etat=annule`);
+  }
+});
+
 test('demande de paiement : sans lien Max It, lien Orange Money puis lien court ; sans aucun lien, erreur', async () => {
   const reponses = [
     { deepLinks: { OM: 'https://sugu.orange-sonatel.com/om' }, shortLink: 'https://sugu.orange-sonatel.com/court' },

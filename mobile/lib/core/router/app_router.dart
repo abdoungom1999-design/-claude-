@@ -167,6 +167,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => RetourPaiementPage(
         reference: state.uri.queryParameters['ref'],
         etat: state.uri.queryParameters['etat'],
+        applicationAbsente: state.uri.queryParameters['app'] == '0',
       ),
     ),
   ],

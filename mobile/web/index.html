@@ -177,7 +177,11 @@
         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
       var dejaFermee = false;
       try { dejaFermee = localStorage.getItem(cle) === '1'; } catch (e) {}
-      if (!(ios || android) || installee || dejaFermee) return;
+      // Jamais sur la page de retour d'un paiement (Max It ramène le client
+      // ici) : le client vient de payer, il doit revenir dans Sprint, pas
+      // lire une invitation à l'installer.
+      var retourPaiement = location.pathname.indexOf('/paiement/retour') === 0;
+      if (!(ios || android) || installee || dejaFermee || retourPaiement) return;
       var aide = document.getElementById('aide-installation');
       var autre = aide.querySelector('[data-plateforme="' + (ios ? 'android' : 'ios') + '"]');
       autre.parentNode.removeChild(autre);

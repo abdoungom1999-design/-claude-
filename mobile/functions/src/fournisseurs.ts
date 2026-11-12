@@ -40,6 +40,19 @@ export interface SessionPaiement {
   relectureFinLe?: Date;
 }
 
+/** Ce que l'app peut demander pour une session de paiement. */
+export interface OptionsSession {
+  /**
+   * Ne pas demander à l'opérateur de ramener le client sur une page de Sprint
+   * après le paiement : l'app où il a commandé est restée ouverte derrière et
+   * suit le paiement toute seule. Demandé par le site installé sur l'écran
+   * d'accueil d'un iPhone, où cette page s'ouvrirait dans Safari, hors de
+   * l'app et sans sa session (iOS n'ouvre jamais un lien dans un site
+   * installé).
+   */
+  sansRetour?: boolean;
+}
+
 export interface EvenementPaiement {
   sessionId: string;
   /** Identifiant de notre commande (client_reference). */
@@ -51,7 +64,7 @@ export interface EvenementPaiement {
 
 export interface FournisseurPaiement {
   readonly nom: NomFournisseur;
-  creerSession(commandeId: string, montantFcfa: number): Promise<SessionPaiement>;
+  creerSession(commandeId: string, montantFcfa: number, options?: OptionsSession): Promise<SessionPaiement>;
   /** Vérifie la signature et lit l'événement ; lève [ErreurSignature]. */
   lireWebhook(corpsBrut: Buffer, signature: string | undefined, maintenant: Date): EvenementPaiement;
   rembourser(sessionId: string, montantFcfa: number): Promise<void>;

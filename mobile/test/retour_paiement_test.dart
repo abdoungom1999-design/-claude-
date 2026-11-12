@@ -4,7 +4,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sprint/core/notifications/capacites_navigateur.dart';
+import 'package:sprint/core/paiement/retour_operateur.dart';
 import 'package:sprint/core/router/app_router.dart';
+import 'package:sprint/core/widgets/primary_button.dart';
 import 'package:sprint/features/client/presentation/retour_paiement_page.dart';
 import 'package:sprint/features/courses/data/course_service.dart';
 import 'package:sprint/features/portefeuille/data/portefeuille_service.dart';
@@ -53,6 +56,91 @@ void main() {
       await ouvrir(tester, RetourPaiementPage(reference: _commande, etat: 'ok', sessionConnectee: () async => null));
       expect(find.text('Paiement transmis à Orange Money'), findsOneWidget);
       expect(find.text('Ouvrir Sprint'), findsOneWidget);
+    });
+
+    group('sans session sur cet appareil : ce que dit la page selon le téléphone', () {
+      const iphone = CapacitesNavigateur(iphone: true);
+      const iphoneInstalle = CapacitesNavigateur(iphone: true, ecranAccueil: true);
+      const android = CapacitesNavigateur(android: true);
+      const androidIntegre = CapacitesNavigateur(android: true, vueIntegree: true);
+
+      RetourPaiementPage page(CapacitesNavigateur c, {String? reference = _commande, String etat = 'ok', bool absente = false, Future<bool> Function(Uri)? ouvrirLien}) =>
+          RetourPaiementPage(
+            reference: reference,
+            etat: etat,
+            applicationAbsente: absente,
+            capacites: () => c,
+            ouvrirLien: ouvrirLien,
+            sessionConnectee: () async => null,
+          );
+
+      testWidgets('iPhone (Safari ou site installé) : ouvrir Sprint depuis son icône, aucun bouton qui resterait dans Safari',
+          (tester) async {
+        for (final c in [iphone, iphoneInstalle]) {
+          await ouvrir(tester, RetourPaiementPage(key: UniqueKey(), reference: _commande, etat: 'ok', capacites: () => c, sessionConnectee: () async => null));
+          expect(find.text('Paiement transmis à Orange Money'), findsOneWidget);
+          expect(find.textContaining('ouvrez Sprint depuis l\'icône de votre écran d\'accueil'), findsOneWidget);
+          expect(find.byType(PrimaryButton), findsNothing);
+          expect(find.text('Ouvrir Sprint'), findsNothing);
+        }
+      });
+
+      testWidgets('Android dans un navigateur : bouton qui rouvre l\'application Sprint sur cette page', (tester) async {
+        final ouverts = <Uri>[];
+        await ouvrir(tester, page(android, ouvrirLien: (l) async { ouverts.add(l); return true; }));
+        expect(find.textContaining('Ouvrez l\'application Sprint'), findsOneWidget);
+        await tester.tap(find.text('Ouvrir l\'application Sprint'));
+        expect(ouverts, [lienRetourDansLApplication(reference: _commande, etat: 'ok')]);
+        final lien = ouverts.single.toString();
+        expect(lien, startsWith('intent://sprint-vtc.web.app/paiement/retour?ref=$_commande&etat=ok#Intent;'));
+        expect(lien, contains('package=sn.groupesantine.sprint'));
+        // Sans l'application : la page revient avec app=0 (elle ne réessaie pas).
+        expect(lien, contains('app%3D0'));
+      });
+
+      testWidgets('Android sans l\'application (page rouverte avec app=0) : proposer de la télécharger', (tester) async {
+        final ouverts = <Uri>[];
+        await ouvrir(tester, page(android, absente: true, ouvrirLien: (l) async { ouverts.add(l); return true; }));
+        expect(find.textContaining('n\'est pas installée sur ce téléphone'), findsOneWidget);
+        expect(find.text('Ouvrir l\'application Sprint'), findsNothing);
+        await tester.tap(find.text('Télécharger l\'application'));
+        expect(ouverts, [Uri.parse('https://sprint-vtc.web.app/android/')]);
+      });
+
+      testWidgets('Android, vue web intégrée à une autre application, ou référence inattendue : comme avant (« Ouvrir Sprint »)',
+          (tester) async {
+        await ouvrir(tester, page(androidIntegre));
+        expect(find.text('Ouvrir Sprint'), findsOneWidget);
+        expect(find.text('Ouvrir l\'application Sprint'), findsNothing);
+        await ouvrir(tester, RetourPaiementPage(key: UniqueKey(), reference: 'essai-sprint-1', etat: 'ok', capacites: () => android, sessionConnectee: () async => null));
+        expect(find.text('Ouvrir Sprint'), findsOneWidget);
+      });
+
+      testWidgets('ouverture qui échoue : la page reste affichée, sans erreur', (tester) async {
+        await ouvrir(tester, page(android, ouvrirLien: (_) async => throw StateError('refusé')));
+        await tester.tap(find.text('Ouvrir l\'application Sprint'));
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(find.text('Paiement transmis à Orange Money'), findsOneWidget);
+      });
+
+      testWidgets('avec la session (le plus courant) : la page suit le paiement, quel que soit le téléphone', (tester) async {
+        final commande = StreamController<CommandePaiement?>();
+        await ouvrir(
+          tester,
+          RetourPaiementPage(
+            reference: _commande,
+            etat: 'ok',
+            capacites: () => iphoneInstalle,
+            sessionConnectee: () async => 'awa',
+            suivreCommande: (_) => commande.stream,
+          ),
+        );
+        commande.add(const CommandePaiement(statut: StatutCommande.enAttente));
+        await tester.pump();
+        expect(find.text('Paiement reçu, confirmation en cours…'), findsOneWidget);
+        unawaited(commande.close());
+      });
     });
 
     testWidgets('course : attente de la confirmation du serveur, puis suivi de la course ouvert', (tester) async {
@@ -143,6 +231,40 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Paiement transmis à Orange Money'), findsOneWidget);
+    });
+  });
+
+  group('Retour après paiement : ce qui est lu dans les fichiers du projet', () {
+    test('la bannière « Installez Sprint » n\'apparaît jamais sur la page de retour de paiement', () {
+      final index = File('web/index.html').readAsStringSync();
+      expect(index, contains("location.pathname.indexOf('/paiement/retour') === 0"));
+      expect(index, contains('|| retourPaiement) return;'));
+    });
+
+    test('demandes de paiement et de recharge : l\'option « sans retour » du téléphone est transmise au serveur', () {
+      for (final fichier in [
+        'lib/features/courses/data/course_service.dart',
+        'lib/features/portefeuille/data/portefeuille_service.dart',
+      ]) {
+        final source = File(fichier).readAsStringSync();
+        expect(source, contains('...optionRetour(),'), reason: fichier);
+        expect(source, contains("import '../../../core/paiement/retour_operateur.dart';"), reason: fichier);
+      }
+    });
+
+    test('le routeur donne app=0 à la page de retour', () {
+      expect(
+        File('lib/core/router/app_router.dart').readAsStringSync(),
+        contains("applicationAbsente: state.uri.queryParameters['app'] == '0'"),
+      );
+    });
+
+    test('adresse du site et paquet de l\'APK : ceux du manifeste Android et d\'assetlinks.json', () {
+      final manifeste = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      expect(manifeste, contains('android:host="$hoteSprint"'));
+      expect(manifeste, contains('android:pathPrefix="$cheminRetourPaiement"'));
+      expect(File('hebergement/assetlinks.json').readAsStringSync(), contains('"package_name": "$paquetSprint"'));
+      expect(File('functions/src/index.ts').readAsStringSync(), contains('const URL_RETOUR_PAIEMENT = `\${SITE}$cheminRetourPaiement`;'));
     });
   });
 

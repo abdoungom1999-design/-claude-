@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/firebase/fonctions_cloud.dart';
+import '../../../core/paiement/retour_operateur.dart';
 import '../../../core/widgets/payment_method_selector.dart';
 import '../../../firebase_options.dart';
 
@@ -173,6 +174,8 @@ class PortefeuilleService {
       final resultat = await FonctionsCloud.appeler('creerRecharge', {
         'montantFcfa': montantFcfa,
         'methodePaiement': methodePaiement,
+        // Voir CourseService.creerPaiement : même option pour la recharge.
+        ...optionRetour(),
       });
       return RechargeDemandee(
         rechargeId: resultat['rechargeId'] as String,

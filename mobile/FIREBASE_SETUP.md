@@ -748,6 +748,28 @@ bouge** tant que le vrai Wave n'est pas branché (voir
        doit y figurer parmi les liens validés).
      - Site : le routage à « # » ne voit pas ce chemin ; il devient l'adresse
        de départ (`emplacementRetourPaiement`, `lib/core/router/app_router.dart`).
+     - **iPhone, site installé sur l'écran d'accueil** (signalé par le client le
+       12 novembre 2026 : après le paiement, Safari s'ouvrait sur le site, avec
+       l'invitation à l'installer, à la place de Sprint) : iOS n'ouvre jamais un
+       lien dans un site installé (ni lien universel, ni schéma personnalisé : un
+       `sprintapp://` n'y changerait rien) et Safari n'a pas la session de
+       l'app. Le site installé envoie donc `sansRetour: true` à `creerPaiement`
+       et `creerRecharge` (`paiementSansRetour`, `lib/core/paiement/retour_operateur.dart` ;
+       option lue par `lireSansRetour`, `functions/src/commandes.ts`) : le serveur
+       ne donne alors aucune adresse de retour à Orange, le client reste dans
+       Max It, puis revient dans Sprint, resté ouvert derrière, qui suit le
+       paiement tout seul (même commande, même lien, même relecture chez Orange :
+       seul le retour change). Les apps plus anciennes n'envoient rien : retour
+       comme avant. Safari (hors site installé), Android et l'APK gardent le
+       retour. La page de retour n'affiche plus l'invitation à installer
+       Sprint (`web/index.html`) et, sur iPhone sans session, dit d'ouvrir
+       Sprint depuis son icône (aucun bouton qui resterait dans Safari).
+     - **Android dans un navigateur** (l'APK n'a pas pris le lien) : la page de
+       retour, sans session, propose « Ouvrir l'application Sprint »
+       (`lienRetourDansLApplication` : lien `intent://` adressé au seul paquet
+       Sprint, avec la page elle-même en repli) ; sans APK sur le téléphone, la
+       page revient avec `app=0` et propose de le télécharger. Un navigateur
+       n'ouvre un lien `intent://` que sur un geste du client : d'où un bouton.
      - Page `RetourPaiementPage` : ne décide jamais du paiement ; elle suit la
        commande (24 hexadécimaux) ou la recharge (« rch_… ») confirmée par le
        serveur, puis ouvre le suivi de la course ; annulé : « aucune somme

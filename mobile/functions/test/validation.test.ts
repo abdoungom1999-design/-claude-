@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { DISTANCE_MAX_KM, DISTANCE_TRAJET_MAX_KM, estimer, prixServeur, validerDemande } from '../src/commandes';
+import { validerRecharge } from '../src/portefeuille';
 import type { CalculDistance } from '../src/distances';
 import {
   ACCES_ORANGE_MONEY,
@@ -104,6 +105,21 @@ test('commande : le prix envoyé ne sert que de contrôle, jamais de valeur', ()
   refuse(() => validerDemande(commande({ prixAttendu: 0 })), 'invalid-argument');
   refuse(() => validerDemande(commande({ prixAttendu: 2300.5 })), 'invalid-argument');
   refuse(() => validerDemande(commande({ prixAttendu: '2300' })), 'invalid-argument');
+});
+
+test('commande : option « sans retour » (site installé sur iPhone) : absente = non, booléen seulement', () => {
+  assert.equal(validerDemande(commande()).sansRetour, false, 'les apps plus anciennes ne l\'envoient pas');
+  assert.equal(validerDemande(commande({ sansRetour: null })).sansRetour, false);
+  assert.equal(validerDemande(commande({ sansRetour: false })).sansRetour, false);
+  assert.equal(validerDemande(commande({ sansRetour: true })).sansRetour, true);
+  for (const valeur of ['true', 1, {}, []]) {
+    refuse(() => validerDemande(commande({ sansRetour: valeur })), 'invalid-argument');
+  }
+  // Recharge : même option, même règle.
+  const recharge = { montantFcfa: 5000, methodePaiement: 'WAVE' };
+  assert.equal(validerRecharge(recharge).sansRetour, false);
+  assert.equal(validerRecharge({ ...recharge, sansRetour: true }).sansRetour, true);
+  refuse(() => validerRecharge({ ...recharge, sansRetour: 'oui' }), 'invalid-argument');
 });
 
 test('commande : 100 % mobile money (ou solde Sprint), adresses obligatoires', () => {

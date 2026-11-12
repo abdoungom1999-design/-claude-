@@ -51,6 +51,8 @@ export interface Demande extends Trajet {
   adresseArrivee: string;
   methodePaiement: Methode;
   prixAttendu: number;
+  /** Voir [lireSansRetour]. */
+  sansRetour: boolean;
 }
 
 function invalide(message: string): HttpsError {
@@ -108,6 +110,21 @@ export function validerTrajet(donnees: unknown): Trajet {
   return { type: d.type as TypeCourse, depart, arrivee, distanceKm };
 }
 
+/**
+ * Option « sansRetour » d'une demande de paiement ou de recharge : `true`
+ * quand l'app demande que l'opérateur ne ramène pas le client sur une page
+ * de Sprint après le paiement (site installé sur l'écran d'accueil d'un
+ * iPhone : cette page s'ouvrirait dans Safari, hors de l'app). Absente :
+ * `false` (les apps plus anciennes ne l'envoient pas). Ne change ni le prix,
+ * ni le moyen de paiement, ni ce qui est encaissé.
+ */
+export function lireSansRetour(donnees: Record<string, unknown>): boolean {
+  const valeur = donnees.sansRetour;
+  if (valeur === undefined || valeur === null) return false;
+  if (typeof valeur !== 'boolean') throw invalide('Requête invalide.');
+  return valeur;
+}
+
 /** [methodes] : moyens acceptés (ceux ouverts aux clients, sauf essai). */
 export function validerDemande(donnees: unknown, methodes: readonly Methode[] = METHODES_ACTIVES): Demande {
   const trajet = validerTrajet(donnees);
@@ -123,6 +140,7 @@ export function validerDemande(donnees: unknown, methodes: readonly Methode[] = 
     adresseArrivee: texte(d.adresseArrivee, "Adresse d'arrivée", 300),
     methodePaiement,
     prixAttendu,
+    sansRetour: lireSansRetour(d),
   };
 }
 

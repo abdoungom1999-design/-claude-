@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/firebase/fonctions_cloud.dart';
+import '../../../core/paiement/retour_operateur.dart';
 import '../../../core/utils/flux_repris.dart';
 import '../../conducteur/data/position_chauffeur_service.dart';
 import 'depart_gps.dart';
@@ -409,6 +410,10 @@ class CourseService {
         'adresseArrivee': adresseArrivee,
         'methodePaiement': methodePaiement,
         'prixAttendu': prixFcfa,
+        // Site installé sur l'écran d'accueil d'un iPhone : pas de page de
+        // retour après le paiement (elle s'ouvrirait dans Safari, hors de
+        // Sprint) ; le prix et le moyen de paiement n'en dépendent pas.
+        ...optionRetour(),
       });
       return DemandePaiement(
         commandeId: resultat['commandeId'] as String,

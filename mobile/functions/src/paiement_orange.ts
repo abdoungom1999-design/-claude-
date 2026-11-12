@@ -7,6 +7,7 @@ import {
   type EvenementPaiement,
   type FournisseurDuMoyen,
   type FournisseurPaiement,
+  type OptionsSession,
   type SessionPaiement,
 } from './fournisseurs';
 import type { EnvironnementOrangeMoney } from './methodes_paiement';
@@ -177,8 +178,9 @@ export class FournisseurOrangeMoney implements CreateurSession {
 
   /**
    * [urlRetour] : page de Sprint où Max It ramène le client après le paiement
-   * (« ?ref=<référence>&etat=ok » ou « &etat=annule ») ; sans elle, Orange
-   * affiche sa page par défaut.
+   * (« ?ref=<référence>&etat=ok » ou « &etat=annule ») ; sans elle, ou quand
+   * l'app demande une session « sans retour » ([OptionsSession.sansRetour]),
+   * le client reste dans Max It, sur la page d'Orange.
    */
   constructor(
     private readonly config: ConfigOrange,
@@ -186,10 +188,11 @@ export class FournisseurOrangeMoney implements CreateurSession {
     private readonly urlRetour?: string,
   ) {}
 
-  async creerSession(reference: string, montantFcfa: number): Promise<SessionPaiement> {
+  async creerSession(reference: string, montantFcfa: number, options: OptionsSession = {}): Promise<SessionPaiement> {
     const debut = this.horloge();
+    const urlRetour = options.sansRetour === true ? undefined : this.urlRetour;
     const retour = (etat: 'ok' | 'annule') =>
-      this.urlRetour === undefined ? undefined : `${this.urlRetour}?${new URLSearchParams({ ref: reference, etat })}`;
+      urlRetour === undefined ? undefined : `${urlRetour}?${new URLSearchParams({ ref: reference, etat })}`;
     const qr = await this.config.client.genererQrCode({
       codeMarchand: this.config.codeMarchand,
       nomMarchand: NOM_MARCHAND_ORANGE,

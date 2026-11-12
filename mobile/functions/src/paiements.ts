@@ -90,7 +90,7 @@ export async function creerPaiement(
   let session: SessionPaiement;
   try {
     fournisseur = fournisseurs(demande.methodePaiement);
-    session = await fournisseur.creerSession(ref.id, estimation.prixFcfa);
+    session = await fournisseur.creerSession(ref.id, estimation.prixFcfa, { sansRetour: demande.sansRetour });
   } catch (e) {
     logger.error('Session de paiement impossible', e);
     throw new HttpsError('unavailable', 'Le paiement est momentanément indisponible. Réessayez.');
