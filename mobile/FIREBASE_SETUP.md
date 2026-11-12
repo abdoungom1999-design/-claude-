@@ -748,9 +748,10 @@ bouge** tant que le vrai Wave n'est pas branché (voir
        doit y figurer parmi les liens validés).
      - Site : le routage à « # » ne voit pas ce chemin ; il devient l'adresse
        de départ (`emplacementRetourPaiement`, `lib/core/router/app_router.dart`).
-     - **iPhone, site installé sur l'écran d'accueil** (signalé par le client le
-       12 novembre 2026 : après le paiement, Safari s'ouvrait sur le site, avec
-       l'invitation à l'installer, à la place de Sprint) : iOS n'ouvre jamais un
+     - **iPhone, site installé sur l'écran d'accueil** (publication 120, go du
+       client du 12 novembre 2026 ; signalé le même jour : après le paiement,
+       Safari s'ouvrait sur le site, avec l'invitation à l'installer, à la
+       place de Sprint) : iOS n'ouvre jamais un
        lien dans un site installé (ni lien universel, ni schéma personnalisé : un
        `sprintapp://` n'y changerait rien) et Safari n'a pas la session de
        l'app. Le site installé envoie donc `sansRetour: true` à `creerPaiement`
@@ -764,7 +765,7 @@ bouge** tant que le vrai Wave n'est pas branché (voir
        retour. La page de retour n'affiche plus l'invitation à installer
        Sprint (`web/index.html`) et, sur iPhone sans session, dit d'ouvrir
        Sprint depuis son icône (aucun bouton qui resterait dans Safari).
-     - **Android dans un navigateur** (l'APK n'a pas pris le lien) : la page de
+     - **Android dans un navigateur** (publication 120 ; l'APK n'a pas pris le lien) : la page de
        retour, sans session, propose « Ouvrir l'application Sprint »
        (`lienRetourDansLApplication` : lien `intent://` adressé au seul paquet
        Sprint, avec la page elle-même en repli) ; sans APK sur le téléphone, la
