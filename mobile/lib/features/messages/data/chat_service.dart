@@ -47,6 +47,11 @@ class ChatMessageFirestore {
 /// quelqu'un que dans ce cadre. Il n'existe aucune liste de chauffeurs
 /// ni de clients à parcourir.
 class ChatService {
+  /// Longueur maximale d'un message à la saisie. Les règles de la base
+  /// acceptent jusqu'à 2000 signes : la marge de moitié évite tout refus
+  /// quand la saisie et les règles ne comptent pas pareil (émojis composés).
+  static const int longueurMaxMessage = 1000;
+
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   FirebaseAuth get _auth => FirebaseAuth.instance;
 

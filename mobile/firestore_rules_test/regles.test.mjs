@@ -1447,3 +1447,179 @@ describe('portefeuille Sprint : solde et livre écrits par le serveur seul', () 
     await assertFails(setDoc(doc(anonyme(), 'portefeuilles', 'nouveau'), { payerAvecSolde: true }));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase B de la sécurité : bornes et réserves ajoutées aux règles. Chaque
+// bloc montre d'abord ce que l'app envoie réellement (doit passer, aucun
+// retour en arrière), puis ce qui est désormais refusé.
+// ---------------------------------------------------------------------------
+describe('phase B : l\'app continue comme avant, les abus s\'arrêtent', () => {
+  const adresseStorage = (uid, cle) =>
+    `https://firebasestorage.googleapis.com/v0/b/sprint-vtc.firebasestorage.app/o/kyc_documents%2F${uid}%2F${cle}.jpg?alt=media&token=3f1c2b6e-0a54-4d7e-9a9b-5c2e8d1f7a10`;
+
+  describe('messagerie', () => {
+    const chatId = ['chauffeur', 'client'].sort().join('_');
+    beforeEach(() => poserCourseAcceptee());
+
+    test('envoi réel de l\'app (document du chat, puis message horodaté par le serveur) : accepté, des deux côtés', async () => {
+      for (const uid of ['client', 'chauffeur']) {
+        const db = en(uid);
+        await assertSucceeds(setDoc(doc(db, 'chats', chatId), {
+          participants: [uid, uid === 'client' ? 'chauffeur' : 'client'], dernierMessage: 'Bonjour', misAJourLe: serverTimestamp(),
+        }, { merge: true }));
+        await assertSucceeds(addDoc(collection(db, 'chats', chatId, 'messages'), {
+          senderId: uid, text: 'Bonjour', timestamp: serverTimestamp(),
+        }));
+      }
+    });
+
+    test('texte : 2000 signes passent (accents et émojis compris), 2001 sont refusés', async () => {
+      const db = en('client');
+      const message = (text) => ({ senderId: 'client', text, timestamp: serverTimestamp() });
+      await assertSucceeds(addDoc(collection(db, 'chats', chatId, 'messages'), message('a'.repeat(2000))));
+      await assertSucceeds(addDoc(collection(db, 'chats', chatId, 'messages'), message('é'.repeat(2000))));
+      await assertSucceeds(addDoc(collection(db, 'chats', chatId, 'messages'), message('😀'.repeat(1000))));
+      await assertFails(addDoc(collection(db, 'chats', chatId, 'messages'), message('a'.repeat(2001))));
+      await assertFails(addDoc(collection(db, 'chats', chatId, 'messages'), message('a'.repeat(100000))));
+      const chat = (dernierMessage) => ({ participants: ['client', 'chauffeur'], dernierMessage });
+      await assertSucceeds(setDoc(doc(db, 'chats', chatId), chat('a'.repeat(2000)), { merge: true }));
+      await assertFails(setDoc(doc(db, 'chats', chatId), chat('a'.repeat(2001)), { merge: true }));
+    });
+
+    test('texte qui n\'est pas une chaîne : refusé', async () => {
+      const db = en('client');
+      for (const text of [42, ['a'], { a: 1 }, null, true]) {
+        await assertFails(addDoc(collection(db, 'chats', chatId, 'messages'), { senderId: 'client', text, timestamp: serverTimestamp() }), String(text));
+      }
+    });
+
+    test('horodatage : seule l\'heure du serveur est acceptée, pas de date inventée', async () => {
+      const db = en('client');
+      for (const timestamp of [new Date('2099-01-01T00:00:00Z'), new Date('2001-01-01T00:00:00Z'), new Date(), 12345, 'hier']) {
+        await assertFails(addDoc(collection(db, 'chats', chatId, 'messages'), { senderId: 'client', text: 'x', timestamp }), String(timestamp));
+      }
+      await assertSucceeds(addDoc(collection(db, 'chats', chatId, 'messages'), { senderId: 'client', text: 'x', timestamp: serverTimestamp() }));
+    });
+  });
+
+  describe('temps en ligne', () => {
+    const ligne = (uid) => ({ chauffeurId: uid, date: '2026-09-27', secondes: 60, majLe: serverTimestamp() });
+    const poserLigneAncienne = (uid) => env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'temps_en_ligne', `${uid}_2026-09-27`),
+        { chauffeurId: uid, date: '2026-09-27', secondes: 600, majLe: new Date(Date.now() - 120000) }));
+
+    test('chauffeur actif : première minute puis +60 s, comme l\'app : accepté', async () => {
+      const ref = doc(en('chauffeur'), 'temps_en_ligne', 'chauffeur_2026-09-27');
+      await assertSucceeds(setDoc(ref, ligne('chauffeur')));
+      await env.withSecurityRulesDisabled((ctx) =>
+        updateDoc(doc(ctx.firestore(), 'temps_en_ligne', 'chauffeur_2026-09-27'), { majLe: new Date(Date.now() - 120000) }));
+      await assertSucceeds(updateDoc(ref, { secondes: increment(60), majLe: serverTimestamp() }));
+    });
+
+    test('client, dossier en attente, chauffeur suspendu ou banni : refusé, même pour son propre identifiant', async () => {
+      for (const uid of ['client', 'autreClient', 'enAttente', 'suspendu', 'banni']) {
+        await assertFails(setDoc(doc(en(uid), 'temps_en_ligne', `${uid}_2026-09-27`), ligne(uid)), uid);
+      }
+    });
+
+    test('chauffeur suspendu après coup : ne compte plus ses minutes ; un chauffeur actif, si', async () => {
+      await poserLigneAncienne('suspendu');
+      await poserLigneAncienne('chauffeur');
+      await assertFails(updateDoc(doc(en('suspendu'), 'temps_en_ligne', 'suspendu_2026-09-27'), { secondes: increment(60), majLe: serverTimestamp() }));
+      await assertSucceeds(updateDoc(doc(en('chauffeur'), 'temps_en_ligne', 'chauffeur_2026-09-27'), { secondes: increment(60), majLe: serverTimestamp() }));
+    });
+  });
+
+  describe('pièces du dossier chauffeur', () => {
+    const CLES = ['permis', 'carteGrise', 'attestationVtc', 'photoProfil'];
+
+    test('envois réels de l\'app (adresse Storage ou image encodée, avec statutValidation) : acceptés', async () => {
+      const ref = doc(en('enAttente'), 'users', 'enAttente');
+      for (const cle of CLES) {
+        await assertSucceeds(updateDoc(ref, { [`documents.${cle}`]: adresseStorage('enAttente', cle), statutValidation: 'en_attente' }), cle);
+      }
+      // Repli quand Storage est indisponible : jusqu'à 700 Ko avant encodage, environ 955 000 signes.
+      const image = 'data:image/jpeg;base64,' + 'A'.repeat(955000);
+      await assertSucceeds(updateDoc(ref, { 'documents.permis': image, statutValidation: 'en_attente' }));
+    });
+
+    test('chauffeur validé qui renouvelle une pièce : accepté', async () => {
+      await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), {
+        'documents.permis': adresseStorage('chauffeur', 'permis'), statutValidation: 'en_attente',
+      }));
+    });
+
+    test('une ancienne pièce non conforme ne bloque pas un nouvel envoi', async () => {
+      await env.withSecurityRulesDisabled((ctx) =>
+        updateDoc(doc(ctx.firestore(), 'users', 'enAttente'), { documents: { carteGrise: 'http://ancien.exemple/photo.jpg' } }));
+      await assertSucceeds(updateDoc(doc(en('enAttente'), 'users', 'enAttente'), {
+        'documents.permis': adresseStorage('enAttente', 'permis'), statutValidation: 'en_attente',
+      }));
+    });
+
+    test('un client n\'a aucune pièce de dossier à envoyer : refusé', async () => {
+      await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { 'documents.permis': adresseStorage('client', 'permis') }));
+      await assertFails(updateDoc(doc(en('client'), 'users', 'client'), { documents: { permis: adresseStorage('client', 'permis') } }));
+    });
+
+    test('pièce inconnue, adresse extérieure, valeur qui n\'est pas du texte ou trop longue : refusé', async () => {
+      const ref = doc(en('enAttente'), 'users', 'enAttente');
+      const valide = adresseStorage('enAttente', 'permis');
+      const refusees = [
+        { 'documents.pirate': valide },
+        { 'documents.permis': 'https://exemple.sn/pixel.gif' },
+        { 'documents.permis': 'http://firebasestorage.googleapis.com/v0/b/x/o/y?alt=media' },
+        { 'documents.permis': 'https://firebasestorage.googleapis.com.exemple.sn/v0/b/x/o/y' },
+        { 'documents.permis': 'javascript:alert(1)' },
+        { 'documents.permis': 'data:text/html;base64,PGgxPmhpPC9oMT4=' },
+        { 'documents.permis': 42 },
+        { 'documents.permis': { url: valide } },
+        { 'documents.permis': valide + 'x'.repeat(2000) },
+        { 'documents.permis': 'data:image/jpeg;base64,' + 'A'.repeat(1000000) },
+        { documents: 'texte' },
+        { documents: { permis: 'https://exemple.sn/pixel.gif' } },
+      ];
+      for (const changement of refusees) {
+        await assertFails(updateDoc(ref, { ...changement, statutValidation: 'en_attente' }), JSON.stringify(changement).slice(0, 80));
+      }
+    });
+  });
+
+  describe('nom et téléphone', () => {
+    const base = { role: 'client', email: 'nouveau@test.sn', statut: 'ACTIF' };
+    const inscription = (extra) => setDoc(doc(en('nouveau'), 'users', 'nouveau'), { ...base, nom: 'Ali', telephone: '+221771111111', ...extra });
+
+    test('inscription : nom jusqu\'à 200 signes, téléphone jusqu\'à 60, statut jusqu\'à 30 : accepté', async () => {
+      await assertSucceeds(inscription({ nom: 'N'.repeat(200), telephone: '7'.repeat(60), statut: 'S'.repeat(30) }));
+    });
+
+    test('inscription : nom de 201 signes, téléphone de 61 ou statut de 31 : refusé', async () => {
+      await assertFails(inscription({ nom: 'N'.repeat(201) }));
+      await assertFails(inscription({ telephone: '7'.repeat(61) }));
+      await assertFails(inscription({ statut: 'S'.repeat(31) }));
+      await assertFails(inscription({ nom: 42 }));
+    });
+
+    test('profil : téléphone vide accepté (l\'écran Informations personnelles le permet) ; nom de 201 ou téléphone de 61 : refusé', async () => {
+      const ref = doc(en('client'), 'users', 'client');
+      await assertSucceeds(updateDoc(ref, { nom: 'Awa D.', telephone: '' }));
+      await assertSucceeds(updateDoc(ref, { nom: 'N'.repeat(200), telephone: '7'.repeat(60) }));
+      await assertFails(updateDoc(ref, { nom: 'N'.repeat(201) }));
+      await assertFails(updateDoc(ref, { telephone: '7'.repeat(61) }));
+    });
+
+    test('profil public : téléphone vide accepté, 61 signes refusé (création comme mise à jour)', async () => {
+      await assertSucceeds(setDoc(doc(en('client'), 'profils_publics', 'client'), { nom: 'Awa', telephone: '', role: 'client' }));
+      await assertSucceeds(setDoc(doc(en('client'), 'profils_publics', 'client'), { nom: 'Awa', telephone: TEL_CLIENT, role: 'client' }, { merge: true }));
+      await assertFails(setDoc(doc(en('client'), 'profils_publics', 'client'), { nom: 'Awa', telephone: '7'.repeat(61), role: 'client' }, { merge: true }));
+      await assertFails(updateDoc(doc(en('client'), 'profils_publics', 'client'), { telephone: '7'.repeat(61) }));
+      await assertFails(setDoc(doc(en('autreClient'), 'profils_publics', 'autreClient'), { nom: 'Fatou', telephone: '7'.repeat(61), role: 'client' }));
+    });
+
+    test('un ancien profil trop long ne bloque pas les autres modifications', async () => {
+      await env.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), 'users', 'ancien'), { role: 'client', nom: 'N'.repeat(300), email: 'ancien@test.sn' }));
+      await assertSucceeds(updateDoc(doc(en('ancien'), 'users', 'ancien'), { telephone: '+221771111111' }));
+    });
+  });
+});

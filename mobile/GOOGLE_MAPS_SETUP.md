@@ -26,6 +26,13 @@
 >   Google avec chaque clé (site et APK) et le style « Sprint sombre »
 >   (`tool/verifier_session_carte.sh`). Un refus apparaît en
 >   avertissement dans le résumé du run.
+> - Contrôle inverse (`tool/verifier_refus_cle_google.sh`) : la CI vérifie que
+>   chaque clé est REFUSÉE par Google depuis un faux site ou une fausse
+>   application, et pour une API qui n'est pas la carte. Il reste inactif
+>   tant que `CONTROLE_RESTRICTIONS_GOOGLE` vaut `inactif` dans
+>   `.github/workflows/flutter-web.yml` : le passer à `actif` une fois les
+>   restrictions posées dans la console (étape 5), pour être averti si une
+>   restriction disparaît.
 > - Le composant Google Maps officiel (Maps JavaScript API, décrit
 >   ci-dessous) n'est pas utilisé.
 

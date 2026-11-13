@@ -199,6 +199,17 @@ void main() {
       expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, isEmpty);
     });
 
+    testWidgets('saisie plafonnée à 1000 signes (sans compteur à l\'écran) : un message de cette taille part tel quel', (tester) async {
+      final chat = await ouvrir(tester);
+      await tester.enterText(find.byType(TextField), 'a' * 1500);
+      await tester.pump();
+      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text.length, ChatService.longueurMaxMessage);
+      expect(find.textContaining('/1000'), findsNothing);
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+      expect(chat.envois.single.$3.length, 1000);
+    });
+
     testWidgets('course terminée : message refusé, dit clairement, texte conservé', (tester) async {
       await ouvrir(tester, erreurEnvoi: FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'));
       await tester.enterText(find.byType(TextField), 'Merci pour la course');

@@ -47,6 +47,48 @@ service cloud.firestore {
       return v is string && v.size() >= min && v.size() <= max;
     }
 
+    // Longueurs maximales (phase B de la sécurité). L'app n'en fixe pas pour
+    // le nom et le téléphone, mais personne n'a un nom de plus de 200 signes
+    // ni un numéro de plus de 60 : sans plafond, un profil pouvait peser
+    // jusqu'à 1 Mo et alourdir les écrans de l'Admin qui les affichent.
+    function nomBorne(v) {
+      return texteBorne(v, 0, 200);
+    }
+
+    function telephoneBorne(v) {
+      return texteBorne(v, 0, 60);
+    }
+
+    // Une pièce du dossier chauffeur (permis, carte grise, attestation, photo)
+    // est soit l'adresse de téléchargement Firebase Storage (cas normal), soit
+    // une image encodée (repli de l'app quand Storage est indisponible, 700 Ko
+    // au plus avant encodage). Jamais une adresse extérieure : l'Admin ouvre
+    // ces images en consultant le dossier.
+    function pieceValide(v) {
+      return v is string
+        && ((v.size() <= 2000 && v.matches('https://firebasestorage\\.googleapis\\.com/[\\s\\S]*'))
+            || (v.size() <= 1000000 && v.matches('data:image/[a-z0-9.+-]+;base64,[\\s\\S]*')));
+    }
+
+    function pieceEnvoyeeValide(documents, touchees, cle) {
+      return !(cle in touchees) || !(cle in documents) || pieceValide(documents[cle]);
+    }
+
+    // Envoi de pièces : réservé à un compte chauffeur, aux quatre pièces que
+    // l'app envoie, chacune bien formée. Seules les pièces de CETTE écriture
+    // sont contrôlées : une ancienne pièce ne bloque jamais un nouvel envoi.
+    function piecesDossierValides(avant, apres) {
+      let documents = apres.get('documents', {});
+      let touchees = documents.diff(avant.get('documents', {})).affectedKeys();
+      return avant.get('role', '') == 'conducteur'
+        && documents is map
+        && touchees.hasOnly(['permis', 'carteGrise', 'attestationVtc', 'photoProfil'])
+        && pieceEnvoyeeValide(documents, touchees, 'permis')
+        && pieceEnvoyeeValide(documents, touchees, 'carteGrise')
+        && pieceEnvoyeeValide(documents, touchees, 'attestationVtc')
+        && pieceEnvoyeeValide(documents, touchees, 'photoProfil');
+    }
+
     // Chauffeur au dossier validé : ses clients voient son nom, sa moto et sa
     // plaque, vérifiés par l'Admin avec ses pièces (permis, carte grise).
     function chauffeurValide(d) {
@@ -103,7 +145,10 @@ service cloud.firestore {
         && request.resource.data.get('estValide', false) == false
         && (request.resource.data.role == 'conducteur'
             || !request.resource.data.keys().hasAny(['prenom', 'nomDeFamille', 'moto']))
-        && identiteMotoValides(request.resource.data);
+        && identiteMotoValides(request.resource.data)
+        && (!('nom' in request.resource.data) || nomBorne(request.resource.data.nom))
+        && (!('telephone' in request.resource.data) || telephoneBorne(request.resource.data.telephone))
+        && (!('statut' in request.resource.data) || texteBorne(request.resource.data.statut, 0, 30));
 
       // Le propriétaire ne peut modifier que son nom, son téléphone et ses
       // pièces KYC ; envoyer une pièce remet le dossier "en_attente", sans
@@ -125,6 +170,9 @@ service cloud.firestore {
                                              'plaqueImmatriculation']))
             && (!champsModifies().hasAny(champsIdentiteMoto())
                 || (resource.data.get('role', '') == 'conducteur' && identiteMotoValides(request.resource.data)))
+            && (!('nom' in champsModifies()) || nomBorne(request.resource.data.nom))
+            && (!('telephone' in champsModifies()) || telephoneBorne(request.resource.data.telephone))
+            && (!('documents' in champsModifies()) || piecesDossierValides(resource.data, request.resource.data))
             && (!('modificationDemandee' in champsModifies())
                 || (chauffeurValide(resource.data)
                     && (!('modificationDemandee' in request.resource.data)
@@ -226,12 +274,14 @@ service cloud.firestore {
         || (connecte() && moi() == uid
             && request.resource.data.keys().hasOnly(['nom', 'telephone', 'role'])
             && request.resource.data.role == profil().role
-            && request.resource.data.get('nom', '') == profil().get('nom', ''));
+            && request.resource.data.get('nom', '') == profil().get('nom', '')
+            && (!('telephone' in request.resource.data) || telephoneBorne(request.resource.data.telephone)));
 
       allow update: if estAdmin()
         || (connecte() && moi() == uid
             && champsModifies().hasOnly(['nom', 'telephone'])
-            && request.resource.data.get('nom', '') == profil().get('nom', ''))
+            && request.resource.data.get('nom', '') == profil().get('nom', '')
+            && (!('telephone' in champsModifies()) || telephoneBorne(request.resource.data.telephone)))
         // Note moyenne : un client ajoute SA note, dans la même écriture
         // que son évaluation (voir /evaluations).
         || (connecte() && evaluationAjoutee(uid));
@@ -522,11 +572,14 @@ service cloud.firestore {
     }
 
     // Temps en ligne du chauffeur, par jour ("{uid}_{AAAA-MM-JJ}") : +60 s
-    // par minute passée en ligne, au plus une fois toutes les 50 s.
+    // par minute passée en ligne, au plus une fois toutes les 50 s. Réservé
+    // au chauffeur actif (dossier validé, ni suspendu ni banni), comme la
+    // position qu'il publie en même temps : un client ou un dossier en
+    // attente n'a aucune raison d'écrire ici.
     match /temps_en_ligne/{jourId} {
       allow read: if connecte() && (resource.data.chauffeurId == moi() || estAdmin());
 
-      allow create: if connecte()
+      allow create: if connecte() && conducteurActif()
         && jourId == moi() + '_' + request.resource.data.date
         && request.resource.data.keys().hasOnly(['chauffeurId', 'date', 'secondes', 'majLe'])
         && request.resource.data.chauffeurId == moi()
@@ -534,7 +587,7 @@ service cloud.firestore {
         && request.resource.data.secondes == 60
         && request.resource.data.majLe == request.time;
 
-      allow update: if connecte()
+      allow update: if connecte() && conducteurActif()
         && resource.data.chauffeurId == moi()
         && champsModifies().hasOnly(['secondes', 'majLe'])
         && request.resource.data.secondes == resource.data.secondes + 60
@@ -686,14 +739,22 @@ service cloud.firestore {
         && contactEnCoursDuChat(chatId)
         && chatId.split('_').size() == 2
         && request.resource.data.participants.size() == 2
-        && request.resource.data.participants.toSet() == chatId.split('_').toSet();
+        && request.resource.data.participants.toSet() == chatId.split('_').toSet()
+        && (!('dernierMessage' in request.resource.data)
+            || texteBorne(request.resource.data.dernierMessage, 0, 2000));
 
+      // Message : le texte tient dans 2000 signes (l'app en accepte 1000 à la
+      // saisie) et l'heure est toujours celle du serveur (l'app envoie
+      // serverTimestamp()) : impossible de se donner une date fausse pour se
+      // placer en tête ou en queue de la conversation.
       match /messages/{messageId} {
         allow read: if membreDuChat(chatId);
         allow create: if membreDuChat(chatId)
           && contactEnCoursDuChat(chatId)
           && request.resource.data.keys().hasOnly(['senderId', 'text', 'timestamp'])
-          && request.resource.data.senderId == moi();
+          && request.resource.data.senderId == moi()
+          && texteBorne(request.resource.data.get('text', ''), 0, 2000)
+          && (!('timestamp' in request.resource.data) || request.resource.data.timestamp == request.time);
       }
     }
   }

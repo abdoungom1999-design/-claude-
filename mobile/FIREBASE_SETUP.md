@@ -114,10 +114,19 @@ impossible à accorder depuis la CI).
 
 ## 6. Sécurité Firestore et rôle Admin
 
-Les règles de sécurité sont dans `firestore.rules` (testées sur
-l'émulateur Firestore : `firestore_rules_test/`, 73 cas). Elles
-remplacent les règles "mode Test" de l'étape 3, qui laissent n'importe
-qui lire et modifier toute la base.
+Les règles de sécurité sont dans `firestore.rules`. Elles sont testées sur
+l'émulateur Firestore à chaque publication : `firestore_rules_test/regles.test.mjs`
+(ce que l'app fait réellement, et ce qui est refusé) et
+`firestore_rules_test/attaques.test.mjs` (attaques simulées, voir
+`securite/LISEZMOI.md`). Elles remplacent les règles "mode Test" de l'étape 3,
+qui laissent n'importe qui lire et modifier toute la base.
+
+Bornes ajoutées à la phase B de la sécurité (13 novembre 2026), sans rien
+changer à ce que l'app envoie : message de chat de 2000 signes au plus avec
+l'heure du serveur (l'app limite la saisie à 1000), temps en ligne réservé au
+chauffeur actif, pièces du dossier chauffeur réservées aux comptes chauffeur
+(permis, carte grise, attestation, photo ; adresse Firebase Storage ou image
+encodée), nom jusqu'à 200 signes et téléphone jusqu'à 60.
 
 **L'ordre compte** : l'app doit être déployée *avant* de publier les
 règles (l'ancienne version de l'app lisait des données que ces règles

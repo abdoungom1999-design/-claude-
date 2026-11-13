@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/onyx_vert.dart';
@@ -349,6 +350,9 @@ class _BarreSaisie extends StatelessWidget {
                 controller: controller,
                 minLines: 1,
                 maxLines: 4,
+                // Plafond silencieux (pas de compteur à l'écran) : les règles
+                // de la base refusent un message de plus de 2000 signes.
+                inputFormatters: [LengthLimitingTextInputFormatter(ChatService.longueurMaxMessage)],
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onEnvoyer(),
                 decoration: const InputDecoration(

@@ -53,6 +53,14 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  # Contrôle du refus des clés Google (phase E de la sécurité) : passer à « actif »
+  # une fois les restrictions posées dans la console Google Cloud (sites web et
+  # application autorisés, API de la carte seulement). Tant qu'il est « inactif »,
+  # les deux étapes « Vérifier que la clé … est refusée » sont sautées : le journal
+  # de la CI est public, rien n'y est signalé avant que la restriction soit en place.
+  CONTROLE_RESTRICTIONS_GOOGLE: inactif
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -109,6 +117,19 @@ jobs:
           dart run tool/style_carte_json.dart "$RUNNER_TEMP/style.json" > /dev/null
           bash tool/verifier_session_carte.sh "Carte du site" "$RUNNER_TEMP/style.json" \
             "Referer: https://sprint-vtc.web.app/"
+
+      # Contrôle inverse (phase E de la sécurité) : la même clé doit être REFUSÉE
+      # par Google depuis un site inconnu, et pour une API qui n'est pas la
+      # carte. Non bloquant (avertissement dans le résumé du run), jamais de clé
+      # ni de réponse dans le journal public. Voir securite/LISEZMOI.md.
+      - name: Vérifier que la clé web est refusée hors du site
+        if: env.CONTROLE_RESTRICTIONS_GOOGLE == 'actif'
+        env:
+          CLE: ${{ secrets.GOOGLE_MAPS_WEB_KEY }}
+        run: |
+          if [ -z "$CLE" ]; then exit 0; fi
+          bash tool/verifier_refus_cle_google.sh appelant "Clé web, faux site" "Referer: https://exemple.invalid/"
+          bash tool/verifier_refus_cle_google.sh api "Clé web, autre API" "Referer: https://sprint-vtc.web.app/"
 
       # Site publié sur Firebase Hosting (job hebergement).
       - uses: actions/upload-artifact@v4
@@ -675,6 +696,21 @@ jobs:
           sha1=$(grep -o "'X-Android-Cert': '[0-9A-F]*'" lib/core/maps/fond_carte.dart | grep -o '[0-9A-F]\{40\}')
           dart run tool/style_carte_json.dart "$RUNNER_TEMP/style.json" > /dev/null
           bash tool/verifier_session_carte.sh "Carte de l'APK" "$RUNNER_TEMP/style.json" \
+            "X-Android-Package: sn.groupesantine.sprint" "X-Android-Cert: $sha1"
+
+      # Contrôle inverse (phase E de la sécurité) : la clé Android doit être
+      # REFUSÉE par Google pour une autre application, et pour une API qui n'est
+      # pas la carte. Non bloquant ; rien de secret dans le journal public.
+      - name: Vérifier que la clé Android est refusée hors de l'APK
+        if: steps.secret.outputs.present == 'true' && env.CONTROLE_RESTRICTIONS_GOOGLE == 'actif'
+        env:
+          CLE: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY }}
+        run: |
+          if [ -z "$CLE" ]; then exit 0; fi
+          sha1=$(grep -o "'X-Android-Cert': '[0-9A-F]*'" lib/core/maps/fond_carte.dart | grep -o '[0-9A-F]\{40\}')
+          bash tool/verifier_refus_cle_google.sh appelant "Clé Android, fausse application" \
+            "X-Android-Package: invalide.exemple.pirate" "X-Android-Cert: 0000000000000000000000000000000000000000"
+          bash tool/verifier_refus_cle_google.sh api "Clé Android, autre API" \
             "X-Android-Package: sn.groupesantine.sprint" "X-Android-Cert: $sha1"
 
       # APK et page de téléchargement (version, taille, date inscrites),

@@ -18,11 +18,29 @@ sont **publics** : une alerte doit être traitée tout de suite.
 | Lots de design (commits déclarés `Lot-Design: oui`) | `outils_design.mjs commits` | un fichier hors de la zone visuelle autorisée, ou une ligne nouvelle qui appelle le serveur, la base ou les secrets, ou qui touche aux moyens de paiement ouverts (Orange Money reste fermé) |
 | En-têtes de sécurité du site en ligne | étape du job `hebergement` | **n'avertit que** |
 | Sauvegardes de la base Firestore | `sauvegardes.mjs droits\|planifier\|verifier` (flux `.github/workflows/sauvegardes.yml`, chaque jour) | aucune sauvegarde récente (plus de 36 h), planification absente, droits manquants. **Ne bloque aucun déploiement** : flux séparé, ticket GitHub en cas d'échec planifié (`FIREBASE_SETUP.md`, section 10) |
+| Attaques simulées contre les règles de la base | `firestore_rules_test/attaques.test.mjs` (étape « Règles Firestore (émulateur) ») | une attaque réussit (règle affaiblie par une modification) ou un geste légitime est refusé. Une attaque par ligne de tableau, rejouée à chaque publication ; une attaque réussie remet les données à neuf avant la suivante |
+| Refus des clés Google (faux site, faux appelant, autre API que la carte) | `tool/verifier_refus_cle_google.sh` (étapes « Vérifier que la clé … est refusée », jobs `build` et `android`) | **n'avertit que**, et seulement une fois le réglage `CONTROLE_RESTRICTIONS_GOOGLE` passé à `actif` dans `flutter-web.yml` (après la pose des restrictions dans la console Google Cloud). Ni clé ni réponse de Google dans le journal public |
 | Machines et Flutter figés, essai sans publication | `test/workflows.test.mjs` (parmi « les contrôles eux-mêmes ») | un flux utilise autre chose que `ubuntu-24.04` (décision du client du 14 octobre 2026 : pas de passage à Ubuntu 26 sans essai), une installation de Flutter n'est pas à la version exacte 3.47.7 (décision du 15 octobre 2026), ou l'option « essai » du flux principal pourrait déployer (job `firebase` non sauté, `hebergement` ou `deploy` indépendants de lui) |
 
 Une trouvaille n'est jamais affichée en entier (4 premiers caractères et
 longueur). Si la base d'avis (registre npm, pub.dev) est injoignable, le
 contrôle le signale sans bloquer et se refait au push suivant.
+
+## Ajouter une attaque aux tests permanents
+
+`firestore_rules_test/attaques.test.mjs` rejoue des attaques réelles contre
+les vraies règles (`firestore.rules`), sur l'émulateur et avec des données
+fictives. Chaque ligne d'un tableau est une attaque qui **doit être refusée
+par les règles** (un refus d'une autre nature, requête mal formée par
+exemple, fait échouer le test : il ne peut pas réussir pour une mauvaise
+raison). Le bloc « contrôles » montre au contraire des gestes légitimes qui
+**doivent passer** : sans eux, un refus ne prouverait rien.
+
+Pour une nouvelle règle ou une nouvelle collection, ajouter ses attaques
+dans la famille qui convient (`famille(...)`) et, si la règle ouvre un
+usage, un geste légitime dans les contrôles. Un test d'attaque se vérifie
+en le jouant contre une base entièrement ouverte
+(`allow read, write: if true;`) : il doit alors échouer.
 
 ## Une alerte s'affiche : que faire ?
 

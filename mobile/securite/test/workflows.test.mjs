@@ -88,3 +88,33 @@ test('essai sans publication : l\'APK est quand même compilé, mais seulement a
   assert.match(condition, /needs\.firebase\.result == 'success'/, 'en lancement normal, android attend le déploiement du backend');
   assert.match(condition, /inputs\.essai/, 'seul l\'essai peut se passer du déploiement du backend');
 });
+
+/** Texte de l'étape `nom` d'un job : de sa ligne « - name: » jusqu'à l'étape suivante. */
+function etape(texteJob, nom) {
+  const lignes = texteJob.split('\n');
+  const debut = lignes.findIndex((ligne) => ligne.trim() === `- name: ${nom}`);
+  assert.ok(debut >= 0, `étape « ${nom} » introuvable`);
+  const fin = lignes.findIndex((ligne, i) => i > debut && /^ {6}- /.test(ligne));
+  return lignes.slice(debut, fin < 0 ? undefined : fin).join('\n');
+}
+
+test('refus des clés Google : contrôlé pour le site et pour l\'APK, clé transmise par l\'environnement seulement, jamais bloquant', () => {
+  const principal = lire('flutter-web.yml');
+  const cas = [
+    ['build', 'Vérifier que la clé web est refusée hors du site', 'GOOGLE_MAPS_WEB_KEY'],
+    ['android', 'Vérifier que la clé Android est refusée hors de l\'APK', 'GOOGLE_MAPS_ANDROID_KEY'],
+  ];
+  for (const [nomJob, nomEtape, secret] of cas) {
+    const bloc = etape(job(principal, nomJob), nomEtape);
+    assert.match(bloc, new RegExp(`^\\s+CLE: \\$\\{\\{ secrets\\.${secret} \\}\\}\\s*$`, 'm'), `${nomEtape} : la clé doit venir du secret ${secret}, par l'environnement`);
+    const commandes = bloc.slice(bloc.indexOf('run: |'));
+    assert.doesNotMatch(commandes, /secrets\./, `${nomEtape} : jamais de secret dans la ligne de commande (visible du journal public)`);
+    assert.match(commandes, /verifier_refus_cle_google\.sh appelant /, `${nomEtape} : contrôle « faux appelant » absent`);
+    assert.match(commandes, /verifier_refus_cle_google\.sh api /, `${nomEtape} : contrôle « autre API » absent`);
+    assert.doesNotMatch(bloc, /continue-on-error:\s*false/, `${nomEtape} : ce contrôle n'a pas à bloquer`);
+    assert.match(bloc, /^\s+if: .*env\.CONTROLE_RESTRICTIONS_GOOGLE == 'actif'/m, `${nomEtape} : doit dépendre du réglage CONTROLE_RESTRICTIONS_GOOGLE`);
+  }
+  // Réglage global : « inactif » tant que les restrictions ne sont pas posées chez Google (rien dans le journal public avant),
+  // « actif » ensuite. Toute autre valeur ferait sauter le contrôle sans que personne le voie.
+  assert.match(principal, /^env:\s*\n(?:\s+#.*\n)+\s+CONTROLE_RESTRICTIONS_GOOGLE: (actif|inactif)\s*$/m, 'réglage CONTROLE_RESTRICTIONS_GOOGLE absent ou invalide (« actif » ou « inactif »)');
+});
