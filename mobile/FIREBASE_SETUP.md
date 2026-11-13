@@ -1431,3 +1431,9 @@ Si le compte d'un Admin est piraté, la notification arrive sur le téléphone d
 vrai propriétaire (« Ce n'est pas vous ? ») : c'est le but. Passer à
 l'application stricte (refus au dépassement) demandera du code supplémentaire et
 le feu vert du client.
+
+Mise en ligne le 13 novembre 2026 (publication 122, go du client « 121 » : l'essai
+sans publication avait pris le numéro 121), avec les phases B (règles de la base
+bornées) et E (attaques simulées permanentes, voir `securite/LISEZMOI.md`). Le
+client garde l'observation active le temps de régler les seuils d'après l'usage
+réel, puis décidera du blocage dur (Admin strict, priorité basse).
