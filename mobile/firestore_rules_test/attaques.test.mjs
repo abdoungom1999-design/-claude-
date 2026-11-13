@@ -140,7 +140,6 @@ describe('contrôles : les gestes légitimes fonctionnent (sans eux, les refus n
   });
 
   test('un chauffeur validé voit les courses en attente (le radar) ; un administrateur voit tout', async () => {
-    await assertSucceeds(getDocs(query(collection(en('moussa'), 'courses'), where('statut', '==', 'en_attente'))));
     await assertSucceeds(getDocs(query(collection(en('moussa'), 'radar'), orderBy('timestamp'))));
     await assertSucceeds(getDoc(doc(en('moussa'), 'radar', 'attente_fatou')));
     for (const chemin of ['users/fatou', 'journal_admin/j1', 'portefeuilles/fatou', 'retraits/r1']) {
@@ -281,6 +280,8 @@ famille('aspiration de masse (listes complètes, annuaires, positions)', [
   ['chauffeur validé : positions de ses collègues', () => getDocs(collection(en('moussa'), 'positions_chauffeurs'))],
   ['chauffeur validé : liste des profils publics', () => getDocs(collection(en('moussa'), 'profils_publics'))],
   ['chauffeur validé : liste des utilisateurs', () => getDocs(collection(en('moussa'), 'users'))],
+  ['chauffeur validé : liste des courses en attente (adresses exactes des clients)', () => getDocs(query(collection(en('moussa'), 'courses'), where('statut', '==', 'en_attente')))],
+  ['chauffeur validé : lecture d\'une course en attente (adresse exacte, arrivée exacte)', () => getDoc(doc(en('moussa'), 'courses', 'attente_fatou'))],
   ['chauffeur validé : position exacte du départ d\'une course en attente', () => getDoc(doc(en('moussa'), 'courses', 'attente_fatou', 'prive', 'depart'))],
   ['chauffeur validé : départ exact d\'une course terminée (il perd l\'accès à la fin)', () => getDoc(doc(en('moussa'), 'courses', 'finie_fatou', 'prive', 'depart'))],
   ['chauffeur validé : profil d\'un client sans course en cours avec lui', () => getDoc(doc(en('moussa'), 'profils_publics', 'awa'))],

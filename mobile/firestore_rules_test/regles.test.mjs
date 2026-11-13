@@ -345,11 +345,14 @@ describe('courses', () => {
     await assertFails(setDoc(doc(db, 'courses', 'c1'), { clientId: 'client', chauffeurId: null, statut: 'en_attente', prixFcfa: 100 }));
   });
 
-  test('radar : un chauffeur actif voit les courses en attente', async () => {
-    await assertSucceeds(getDocs(query(collection(en('chauffeur'), 'courses'), where('statut', '==', 'en_attente'))));
+  test('un chauffeur actif ne lit pas une course en attente (il n\'en voit que le radar) : refusé ; le client et l\'Admin, si', async () => {
+    await assertFails(getDocs(query(collection(en('chauffeur'), 'courses'), where('statut', '==', 'en_attente'))));
+    await assertFails(getDoc(doc(en('chauffeur'), 'courses', 'c1')));
+    await assertSucceeds(getDoc(doc(en('client'), 'courses', 'c1')));
+    await assertSucceeds(getDoc(doc(en('admin'), 'courses', 'c1')));
   });
 
-  test('radar : chauffeur suspendu, banni, non validé ou client : refusé', async () => {
+  test('course en attente : chauffeur suspendu, banni, non validé ou client (sans filtre sur lui) : refusé', async () => {
     for (const uid of ['suspendu', 'banni', 'enAttente', 'client']) {
       await assertFails(getDocs(query(collection(en(uid), 'courses'), where('statut', '==', 'en_attente'))));
     }
@@ -359,12 +362,12 @@ describe('courses', () => {
     await assertFails(getDocs(collection(en('chauffeur'), 'courses')));
   });
 
-  test('un chauffeur actif accepte une course libre (transaction) : accepté', async () => {
+  test('un chauffeur actif accepte une course libre (transaction qui relit le radar) : accepté', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'radar', 'c1'), { clientId: 'client', statut: 'en_attente', prixFcfa: 2000 }));
     const db = en('chauffeur');
     await assertSucceeds(runTransaction(db, async (t) => {
-      const ref = doc(db, 'courses', 'c1');
-      await t.get(ref);
-      t.update(ref, { chauffeurId: 'chauffeur', statut: 'acceptee' });
+      await t.get(doc(db, 'radar', 'c1'));
+      t.update(doc(db, 'courses', 'c1'), { chauffeurId: 'chauffeur', statut: 'acceptee' });
     }));
   });
 
@@ -414,8 +417,8 @@ describe('courses : position exacte du départ (document privé)', () => {
     const lue = await assertSucceeds(lire('client'));
     assert.deepEqual(lue.data(), exacte);
     await assertSucceeds(lire('admin'));
-    // Le radar voit la course, pas la position exacte.
-    await assertSucceeds(getDoc(doc(en('chauffeur'), 'courses', 'c1')));
+    // Les chauffeurs ne voient ni la course en attente (que son radar), ni la position exacte.
+    await assertFails(getDoc(doc(en('chauffeur'), 'courses', 'c1')));
     for (const uid of ['chauffeur', 'suspendu', 'banni', 'enAttente', 'autreClient']) {
       await assertFails(lire(uid));
     }
@@ -1205,14 +1208,17 @@ describe('confidentialité : contact limité à la course en cours', () => {
       await assertSucceeds(addDoc(collection(en('client'), 'chats', chatId, 'messages'), { senderId: 'client', text: 'Bonjour' }));
     });
 
-    test('acceptation par transaction, exactement comme l\'app : lecture, mise à jour, liaison', async () => {
+    test('acceptation par transaction, exactement comme l\'app : lecture du radar, mise à jour, liaison, retrait du radar', async () => {
+      await env.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), 'radar', 'c1'), { clientId: 'client', statut: 'en_attente', prixFcfa: 2000 }));
       const db = en('chauffeur');
-      const course = doc(db, 'courses', 'c1');
+      const proposition = doc(db, 'radar', 'c1');
       const accepte = await runTransaction(db, async (transaction) => {
-        const instantane = await transaction.get(course);
-        if (instantane.data().statut !== 'en_attente') return false;
-        transaction.update(course, { chauffeurId: 'chauffeur', statut: 'acceptee' });
+        const instantane = await transaction.get(proposition);
+        if (!instantane.exists()) return false;
+        transaction.update(doc(db, 'courses', 'c1'), { chauffeurId: 'chauffeur', statut: 'acceptee' });
         transaction.set(doc(db, 'liaisons', `${instantane.data().clientId}_chauffeur`), liaison());
+        transaction.delete(proposition);
         return true;
       });
       if (!accepte) throw new Error('transaction refusée');

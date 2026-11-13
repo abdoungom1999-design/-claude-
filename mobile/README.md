@@ -112,9 +112,11 @@ exactes) et la position exacte du départ (`prive/depart`), comme avant. Le rada
 oublis. La notification « Nouvelle course » ne contient plus d'adresses : la zone, la longueur du trajet et le
 prix. Deux étapes : l'étape 1 ajoute le radar sans rien retirer (les chauffeurs qui n'ont pas encore mis à jour
 leur app voient encore les courses comme avant) ; l'étape 2 retire aux règles la lecture des courses en attente
-par les chauffeurs, une fois les apps mises à jour (PWA rouverte, APK réinstallé). Reste visible avant
-l'acceptation : le `clientId` (identifiant sans nom ni téléphone) ; après la course, le chauffeur garde
-l'adresse des courses qu'il a faites dans son historique. Tests : `radar_chauffeur_test.dart`, règles
+par les chauffeurs (`firestore.rules`, bloc `courses` : seuls le client, le chauffeur attribué et l'Admin la
+lisent), une fois les apps mises à jour (PWA rouverte, APK réinstallé) : une app de chauffeur d'avant l'étape 1 ne
+voit alors plus aucune course et doit être mise à jour. Reste visible avant l'acceptation : le `clientId`
+(identifiant sans nom ni téléphone) ; après la course, le chauffeur garde l'adresse des courses qu'il a faites
+dans son historique. Tests : `radar_chauffeur_test.dart`, règles
 Firestore (`regles.test.mjs`, `attaques.test.mjs`), `functions/test/paiements.emulateur.test.ts` et
 `notifications.emulateur.test.ts`.
 

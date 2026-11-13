@@ -359,10 +359,10 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // Courses : créées par le serveur (Cloud Function), visibles des
-    // chauffeurs actifs tant qu'elles sont en attente, acceptées par un
-    // seul chauffeur actif. Le prix n'est jamais modifiable depuis l'app,
-    // sauf par l'Admin.
+    // Courses : créées par le serveur (Cloud Function), proposées aux
+    // chauffeurs actifs par le radar tant qu'elles sont en attente (zones
+    // arrondies, sans adresse), acceptées par un seul chauffeur actif. Le prix
+    // n'est jamais modifiable depuis l'app, sauf par l'Admin.
     // ---------------------------------------------------------------
     match /courses/{courseId} {
       // Création réservée au serveur, une fois le paiement confirmé par le
@@ -371,17 +371,18 @@ service cloud.firestore {
       // depuis l'app : personne ne choisit son prix ni ne voyage sans payer.
       allow create: if false;
 
+      // Une course en attente n'est lue que par son client et l'Admin : les
+      // chauffeurs ne voient d'une course que son radar (`radar/{id}`, zones
+      // arrondies) tant qu'ils ne l'ont pas acceptée, puis la course elle-même,
+      // adresse exacte comprise, une fois qu'elle leur est attribuée.
       allow get: if connecte()
         && (resource.data.clientId == moi()
             || resource.data.chauffeurId == moi()
-            || estAdmin()
-            || (resource.data.statut == 'en_attente' && conducteurActif()));
+            || estAdmin());
 
-      // Radar des chauffeurs : uniquement les courses en attente. Un
-      // chauffeur retrouve aussi les courses qui lui sont attribuées, et
-      // un client ses propres courses (ex. "Courses à noter").
+      // Un chauffeur retrouve les courses qui lui sont attribuées, et un
+      // client ses propres courses (ex. "Courses à noter").
       allow list: if estAdmin()
-        || (resource.data.statut == 'en_attente' && conducteurActif())
         || (connecte() && resource.data.chauffeurId == moi())
         || (connecte() && resource.data.clientId == moi());
 
@@ -418,14 +419,14 @@ service cloud.firestore {
 
       allow delete: if estAdmin();
 
-      // Position EXACTE du départ du client (souvent sa position GPS). Tant
-      // que la course attend un chauffeur, tout chauffeur actif peut la lire :
-      // le document de la course ne porte alors qu'un départ arrondi à ~150 m
+      // Position EXACTE du départ du client (souvent sa position GPS). Le
+      // document de la course ne porte qu'un départ arrondi à ~150 m
       // (`departArrondi`), et la position exacte est déposée ici par le serveur
       // à la création. Elle n'est lisible que par le client de la course, par son
       // chauffeur tant que la course est acceptée ou en cours (il la perd à la
       // fin : plus aucun accès aux adresses exactes de ses anciens clients) et
-      // par l'Admin. Jamais écrite depuis l'app.
+      // par l'Admin. Jamais écrite depuis l'app. Les autres chauffeurs ne
+      // voient d'une course en attente que son radar (`radar/{id}`).
       match /prive/{docId} {
         function courseDuDepart() {
           return get(/databases/$(database)/documents/courses/$(courseId)).data;
