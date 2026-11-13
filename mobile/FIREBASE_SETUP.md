@@ -1028,6 +1028,15 @@ plus la comptabilité.
 - **À savoir avant de publier** : les comptes qui servent aux essais doivent être
   marqués « Compte de test » (Admin > Clients > Portefeuille) **avant** la mise en ligne,
   sinon ils n'ont plus que leur solde, et ne peuvent ni commander avec Wave ni recharger.
+  Les chiffres d'affaires, commissions et « Sprint doit » de l'Admin et des chauffeurs
+  baissent d'un coup (les anciennes courses de test en sortent) : c'est voulu. Si des
+  versements avaient été saisis aux chauffeurs pour ces courses de test (Finances >
+  « Versé aux chauffeurs »), leur compte afficherait « à déduire » : vérifier que ce total
+  est à zéro avant de publier.
+- **Coût** : un paiement par solde relit le livre du client dans la transaction (comme
+  une demande de retrait) pour savoir si son solde est de l'argent réel. Négligeable
+  aujourd'hui ; à surveiller si les livres deviennent très longs (un compteur d'argent
+  réel dans le portefeuille serait alors la suite).
 - **Tests** : `functions/test/validation.test.ts`, `argent_reel.test.ts`,
   `paiements.emulateur.test.ts`, `portefeuille.emulateur.test.ts`,
   `paiement_orange.emulateur.test.ts` ; règles `firestore_rules_test/attaques.test.mjs` ;
