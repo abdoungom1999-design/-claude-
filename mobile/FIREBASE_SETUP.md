@@ -1444,3 +1444,9 @@ sans publication avait pris le numéro 121), avec les phases B (règles de la ba
 bornées) et E (attaques simulées permanentes, voir `securite/LISEZMOI.md`). Le
 client garde l'observation active le temps de régler les seuils d'après l'usage
 réel, puis décidera du blocage dur (Admin strict, priorité basse).
+
+Radar des chauffeurs : mis en ligne le 13 novembre 2026 (publication 124, go du
+client « 124 étapes 1 et 2 » : l'essai sans publication avait pris le numéro 123).
+Les chauffeurs ne voient plus qu'une zone arrondie avant d'accepter ; les anciennes
+apps de chauffeur (avant la 124) ne voient plus aucune course et doivent être mises
+à jour (site rouvert, APK réinstallé). Voir `README.md`, « Radar des chauffeurs ».
