@@ -64,6 +64,7 @@ async function semer() {
     await poser('annuaire_telephones/client_+221770000002', { uid: 'fatou', email: 'fatou@test.sn' });
     await poser('config/paiementSimule', { secret: 'x' });
     await poser('journal_admin/j1', { action: 'ajustement' });
+    await poser('controle_admin/admin_2026-11-13', { adminId: 'admin', jour: '2026-11-13', creditsFcfa: 5000, versementsFcfa: 0, operations: 1 });
     await poser('appareils/fatou/jetons/t1', { plateforme: 'android' });
     // Deux compteurs prêts à recevoir +60 s : l'un pour le contrôle, l'autre pour l'attaque (le contrôle remet l'heure à zéro).
     await poser('temps_en_ligne/moussa_2026-09-27', { chauffeurId: 'moussa', date: '2026-09-27', secondes: 600, majLe: new Date(Date.now() - 120000) });
@@ -228,6 +229,11 @@ famille('élévation de privilèges', [
   ['un client écrit la configuration du serveur', () => setDoc(doc(en('awa'), 'config', 'paiementSimule'), { secret: 'y' })],
   ['un client lit le journal des actions de l\'Admin', () => getDoc(doc(en('awa'), 'journal_admin', 'j1'))],
   ['un client écrit dans le journal des actions de l\'Admin', () => setDoc(doc(en('awa'), 'journal_admin', 'faux'), { action: 'ajustement' })],
+  ['un client lit les compteurs de contrôle des Admin', () => getDoc(doc(en('awa'), 'controle_admin', 'admin_2026-11-13'))],
+  ['un client écrit un compteur de contrôle des Admin', () => setDoc(doc(en('awa'), 'controle_admin', 'faux_2026-11-13'), { creditsFcfa: 0 })],
+  ['un Admin remet à zéro son compteur du jour depuis l\'app (le serveur seul l\'écrit)', () => setDoc(doc(en('admin'), 'controle_admin', 'admin_2026-11-13'), { creditsFcfa: 0, operations: 0 })],
+  ['un Admin efface une ligne du journal de ses actions depuis l\'app', () => deleteDoc(doc(en('admin'), 'journal_admin', 'j1'))],
+  ['un Admin réécrit une ligne du journal de ses actions depuis l\'app', () => updateDoc(doc(en('admin'), 'journal_admin', 'j1'), { action: 'rien' })],
   ['un client se fait passer pour l\'Admin dans un ticket', () => addDoc(collection(en('fatou'), 'tickets', 'aide_fatou', 'messages'), {
     auteurId: 'fatou', auteurRole: 'admin', texte: 'Remboursement accordé', creeLe: serverTimestamp(),
   })],

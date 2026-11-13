@@ -1403,3 +1403,31 @@ identifiant de compte (le texte d'une erreur imprévue n'est pas filtré).
   la compilation seule ne suffit pas (c'est ce qui a révélé le défaut R8 ci-dessus).
 - **À prévoir** : mentionner le suivi des plantages dans la politique de
   confidentialité de l'app (données techniques de plantage, sans identité).
+
+## 12. Observation de sécurité (phase C, depuis le 13 novembre 2026)
+
+Le serveur **regarde** et le dit ; il **ne refuse rien** et ne change aucune
+réponse (`functions/src/observation.ts`). Décision du client : observer ce que
+font les vrais utilisateurs, régler les seuils d'après le journal, puis décider,
+avec un feu vert distinct, de les appliquer par un refus. Toute erreur
+d'observation est journalisée et avalée, et la réponse n'attend jamais
+l'observation plus de 4 secondes : elle ne peut ni faire échouer ni retarder un
+paiement, un retrait, un crédit ou une recherche d'adresse (un crédit déjà
+enregistré dont la réponse tarderait ferait croire à un échec, et l'Admin le
+referait).
+
+| Ce qui est observé | Où | Signalé quand |
+|---|---|---|
+| Fréquence des appels par compte (`creerPaiement`, `creerRecharge`, `demanderRetrait`, `annulerCourse`, `estimerPrix`, `rechercherAdresses`, `coordonneesAdresse`, `itineraireCourse`, `chauffeursProches`, `notifierMessage`) | journal « Observation : fréquence anormale » ; notification aux Admin à 5 fois le seuil, une par compte, par fonction et par heure | un compte dépasse le seuil de la fonction dans la minute (`REGLES_FREQUENCE`) |
+| E-mail non vérifié sur `creerPaiement`, `creerRecharge`, `demanderRetrait` | journal « Observation : e-mail non vérifié » (information) | à chaque geste : dit combien de clients réels seraient touchés si l'on exigeait la vérification |
+| Paiements en attente d'un même client | journal « Observation : paiements en attente nombreux » | 5 ou plus |
+| Crédits de portefeuille et retraits versés par un Admin | compteur du jour `controle_admin/{admin}_{AAAA-MM-JJ}` (serveur seul : aucune règle ne l'ouvre) ; notification à **tous** les Admin à chaque crédit et chaque retrait versé, avec le nom du client, le montant et l'auteur | à chaque opération ; avertissement renforcé au dépassement des plafonds du jour (`PLAFONDS_ADMIN_JOUR` : 150 000 FCFA de crédits, 300 000 FCFA de retraits versés, 15 opérations) |
+
+Les seuils sont des valeurs de départ posées sans données réelles. Pour lire le
+journal : Google Cloud > Journalisation (Logs Explorer), projet `sprint-vtc`,
+filtre `jsonPayload.message:"Observation"` ou `"Contrôle Admin"`.
+
+Si le compte d'un Admin est piraté, la notification arrive sur le téléphone du
+vrai propriétaire (« Ce n'est pas vous ? ») : c'est le but. Passer à
+l'application stricte (refus au dépassement) demandera du code supplémentaire et
+le feu vert du client.

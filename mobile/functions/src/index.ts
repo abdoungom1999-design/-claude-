@@ -61,11 +61,21 @@ import {
   traiterRetrait as traiterRetraitCore,
 } from './retraits';
 import {
+  type EnvoiPush,
+  LIENS,
   MessagerieFcm,
   notifierAcceptation as notifierAcceptationCore,
   notifierMessage as notifierMessageCore,
   SITE,
 } from './notifications';
+import {
+  ObservateurFrequence,
+  observerAjustement,
+  observerCommandesEnAttente,
+  observerEmail,
+  observerRetraitTraite,
+  sansRetarder,
+} from './observation';
 import { AccesGoogleReel, prevenirAdmins, verifierSauvegardes as verifierSauvegardesCore } from './sauvegardes';
 import { pageMessage, pagePaiement, secretSimulation } from './simulation';
 
@@ -79,6 +89,26 @@ initializeApp();
 
 /** Envoi des notifications push (Firebase Cloud Messaging). */
 const messagerie = new MessagerieFcm();
+
+/**
+ * Observation (phase C de la sécurité, voir `observation.ts`) : le serveur
+ * REGARDE la fréquence des appels, les e-mails non vérifiés, les paiements en
+ * attente et les opérations sensibles de l'Admin, et le dit (journal,
+ * notification aux Admin). Il ne refuse rien et ne change aucune réponse.
+ */
+const prevenirLesAdmin = (push: EnvoiPush) => prevenirAdmins(getFirestore(), messagerie, push);
+const frequence = new ObservateurFrequence(async ({ uid, fonction, appels, regle }) => {
+  const profil = await getFirestore().collection('users').doc(uid).get();
+  const nom = [profil.get('nom'), profil.get('email')].find((v) => typeof v === 'string' && v.trim()) ?? `le compte ${uid.slice(0, 6)}…`;
+  await prevenirLesAdmin({
+    titre: 'Activité inhabituelle',
+    corps: `${nom} a appelé « ${fonction} » ${appels} fois en ${regle.fenetreSecondes} secondes. À vérifier dans le journal du serveur.`,
+    canal: 'messages',
+    lien: LIENS.admin,
+    donnees: { type: 'frequence', fonction },
+    dureeVieSecondes: 6 * 3600,
+  });
+});
 
 /** Clé Google Maps Platform (Places + Routes), dans Secret Manager. */
 const cleGoogle = defineSecret('GOOGLE_MAPS_API_KEY');
@@ -176,27 +206,42 @@ async function fournisseurs(): Promise<FournisseurDuMoyen> {
 }
 
 /** Prix d'un trajet, sur la distance par la route. */
-export const estimerPrix = onCall(options, (requete) =>
-  estimer(distance(), requete.auth?.uid, requete.data, new Date()),
-);
+export const estimerPrix = onCall(options, async (requete) => {
+  await sansRetarder(frequence.observer('estimerPrix', requete.auth?.uid));
+  return estimer(distance(), requete.auth?.uid, requete.data, new Date());
+});
 
 /**
  * Demande de paiement : prix recalculé par le serveur, commande en
  * attente et lien de paiement. La course n'existera qu'une fois le
  * paiement confirmé par le fournisseur (webhookPaiement).
  */
-export const creerPaiement = onCall(optionsPaiement, async (requete) =>
-  creerPaiementCore(getFirestore(), distance(), await fournisseurs(), requete.auth?.uid, requete.data, new Date(), messagerie),
-);
+export const creerPaiement = onCall(optionsPaiement, async (requete) => {
+  await sansRetarder(frequence.observer('creerPaiement', requete.auth?.uid));
+  observerEmail('creerPaiement', requete.auth);
+  const demande = await creerPaiementCore(
+    getFirestore(),
+    distance(),
+    await fournisseurs(),
+    requete.auth?.uid,
+    requete.data,
+    new Date(),
+    messagerie,
+  );
+  await sansRetarder(observerCommandesEnAttente(getFirestore(), requete.auth?.uid));
+  return demande;
+});
 
 /**
  * Portefeuille : demande de recharge (Wave, et Orange Money une fois ouvert,
  * voir `methodes_paiement.ts`). Le solde n'est crédité que sur la
  * confirmation du fournisseur, jamais par l'app.
  */
-export const creerRecharge = onCall(avecSecrets(secretsClientOrange), async (requete) =>
-  creerRechargeCore(getFirestore(), await fournisseurs(), requete.auth?.uid, requete.data, new Date()),
-);
+export const creerRecharge = onCall(avecSecrets(secretsClientOrange), async (requete) => {
+  await sansRetarder(frequence.observer('creerRecharge', requete.auth?.uid));
+  observerEmail('creerRecharge', requete.auth);
+  return creerRechargeCore(getFirestore(), await fournisseurs(), requete.auth?.uid, requete.data, new Date());
+});
 
 /** Confirmation signée du fournisseur de paiement. */
 export const webhookPaiement = onRequest(async (req, res) => {
@@ -325,9 +370,10 @@ export const pagePaiementSimule = onRequest(async (req, res) => {
 });
 
 /** Annulation par le client (en attente) ou le chauffeur (avec motif), puis remboursement. */
-export const annulerCourse = onCall(async (requete) =>
-  annulerCourseCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date(), messagerie),
-);
+export const annulerCourse = onCall(async (requete) => {
+  await sansRetarder(frequence.observer('annulerCourse', requete.auth?.uid));
+  return annulerCourseCore(getFirestore(), await fournisseur(), requete.auth?.uid, requete.data, new Date(), messagerie);
+});
 
 /** Admin : remboursement intégral d'une course (support). */
 export const rembourserCourseAdmin = onCall(async (requete) =>
@@ -335,9 +381,11 @@ export const rembourserCourseAdmin = onCall(async (requete) =>
 );
 
 /** Admin : crédit ou débit manuel du portefeuille d'un client (motivé, journalisé). */
-export const ajusterPortefeuille = onCall(async (requete) =>
-  ajusterCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
-);
+export const ajusterPortefeuille = onCall(async (requete) => {
+  const resultat = await ajusterCore(getFirestore(), requete.auth?.uid, requete.data, new Date());
+  await sansRetarder(observerAjustement(getFirestore(), requete.auth?.uid, requete.data, new Date(), prevenirLesAdmin));
+  return resultat;
+});
 
 /** Client : ce qui peut être retiré maintenant (argent réel, plafond du jour, retrait en cours). Lecture seule. */
 export const infosRetrait = onCall((requete) => infosRetraitCore(getFirestore(), requete.auth?.uid, new Date()));
@@ -347,14 +395,20 @@ export const infosRetrait = onCall((requete) => infosRetraitCore(getFirestore(),
  * (montant réservé aussitôt, envoi sous 48 h, frais de transfert déduits).
  * Refusée si RETRAITS_OUVERTS est faux.
  */
-export const demanderRetrait = onCall((requete) =>
-  demanderRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie),
-);
+export const demanderRetrait = onCall(async (requete) => {
+  await sansRetarder(frequence.observer('demanderRetrait', requete.auth?.uid));
+  observerEmail('demanderRetrait', requete.auth);
+  return demanderRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie);
+});
 
 /** Admin : retrait versé (frais déduits, référence du transfert) ou refusé (motif, montant rendu sur le solde). Journalisé. */
-export const traiterRetrait = onCall((requete) =>
-  traiterRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie),
-);
+export const traiterRetrait = onCall(async (requete) => {
+  const resultat = await traiterRetraitCore(getFirestore(), requete.auth?.uid, requete.data, new Date(), messagerie);
+  await sansRetarder(
+    observerRetraitTraite(getFirestore(), requete.auth?.uid, requete.data, resultat.statut, new Date(), prevenirLesAdmin),
+  );
+  return resultat;
+});
 
 /** Admin : désigne ou retire un testeur d'Orange Money (compte client, journalisé). */
 export const definirTesteurOrangeMoney = onCall((requete) =>
@@ -415,24 +469,28 @@ export const verifierSauvegardes = onSchedule(
 );
 
 /** Autocomplétion d'adresses (Google Places). */
-export const rechercherAdresses = onCall(options, (requete) =>
-  rechercherCore(google(), requete.auth?.uid, requete.data),
-);
+export const rechercherAdresses = onCall(options, async (requete) => {
+  await sansRetarder(frequence.observer('rechercherAdresses', requete.auth?.uid));
+  return rechercherCore(google(), requete.auth?.uid, requete.data);
+});
 
 /** Coordonnées de l'adresse choisie (Google Places). */
-export const coordonneesAdresse = onCall(options, (requete) =>
-  coordonneesCore(google(), requete.auth?.uid, requete.data),
-);
+export const coordonneesAdresse = onCall(options, async (requete) => {
+  await sansRetarder(frequence.observer('coordonneesAdresse', requete.auth?.uid));
+  return coordonneesCore(google(), requete.auth?.uid, requete.data);
+});
 
 /** Chauffeur : tracé et distance pour rejoindre son client, puis la destination (Google Routes). */
-export const itineraireCourse = onCall(options, (requete) =>
-  itineraireCourseCore(getFirestore(), google(), requete.auth?.uid, requete.data, new Date()),
-);
+export const itineraireCourse = onCall(options, async (requete) => {
+  await sansRetarder(frequence.observer('itineraireCourse', requete.auth?.uid));
+  return itineraireCourseCore(getFirestore(), google(), requete.auth?.uid, requete.data, new Date());
+});
 
 /** Accueil client : chauffeurs disponibles alentour, anonymes et arrondis à 150 m. */
-export const chauffeursProches = onCall((requete) =>
-  chauffeursProchesCore(getFirestore(), requete.auth?.uid, requete.data, new Date()),
-);
+export const chauffeursProches = onCall(async (requete) => {
+  await sansRetarder(frequence.observer('chauffeursProches', requete.auth?.uid));
+  return chauffeursProchesCore(getFirestore(), requete.auth?.uid, requete.data, new Date());
+});
 
 /**
  * Clé web Firebase du projet : publique par conception (elle est dans l'app,
@@ -466,9 +524,10 @@ export const synchroniserAnnuaire = onCall((requete) =>
 );
 
 /** Push : prévient l'autre partie d'un message qui vient d'être envoyé (texte relu côté serveur). */
-export const notifierMessage = onCall((requete) =>
-  notifierMessageCore(getFirestore(), messagerie, requete.auth?.uid, requete.data, new Date()),
-);
+export const notifierMessage = onCall(async (requete) => {
+  await sansRetarder(frequence.observer('notifierMessage', requete.auth?.uid));
+  return notifierMessageCore(getFirestore(), messagerie, requete.auth?.uid, requete.data, new Date());
+});
 
 /** Push : prévient le client que son chauffeur a accepté la course. */
 export const notifierAcceptation = onCall((requete) =>
