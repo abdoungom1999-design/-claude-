@@ -90,9 +90,12 @@ class _ClientsReelsState extends State<_ClientsReels> {
 
     final courses = <String, int>{};
     final depenses = <String, int>{};
+    // Argent de test (faux Wave) : jamais compté comme une dépense réelle, mais visible à part.
+    final depensesDeTest = <String, int>{};
     for (final c in _terminees) {
       courses[c.clientId] = (courses[c.clientId] ?? 0) + 1;
-      depenses[c.clientId] = (depenses[c.clientId] ?? 0) + c.prixFcfa;
+      final montants = c.argentDeTest ? depensesDeTest : depenses;
+      montants[c.clientId] = (montants[c.clientId] ?? 0) + c.prixFcfa;
     }
 
     final recherche = _recherche.trim().toLowerCase();
@@ -173,7 +176,7 @@ class _ClientsReelsState extends State<_ClientsReels> {
                         Text(client.nom, style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (client.testeurOrangeMoney)
                           const Text(
-                            'Testeur Orange Money',
+                            'Compte de test',
                             key: ValueKey('marque-testeur-orange-money'),
                             style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.vert),
                           ),
@@ -194,7 +197,20 @@ class _ClientsReelsState extends State<_ClientsReels> {
                   SizedBox(width: 90, child: Text('${courses[client.id] ?? 0}', style: const TextStyle(fontSize: 13))),
                   SizedBox(
                     width: 120,
-                    child: Text(formaterFcfa(depenses[client.id] ?? 0), style: const TextStyle(fontSize: 13)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(formaterFcfa(depenses[client.id] ?? 0), style: const TextStyle(fontSize: 13)),
+                        if ((depensesDeTest[client.id] ?? 0) > 0)
+                          Text(
+                            '+ ${formaterFcfa(depensesDeTest[client.id]!)} de test',
+                            key: ValueKey('depense-de-test-${client.id}'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, color: AppColors.texteDiscret),
+                          ),
+                      ],
+                    ),
                   ),
                   SizedBox(
                     width: 110,

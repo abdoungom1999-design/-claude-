@@ -255,9 +255,11 @@ depuis la Console.
 - Courses : aucune course ne peut être créée depuis l'app, même par
   l'Admin. Seul le serveur les crée (étape 7), une fois le paiement
   confirmé par l'opérateur, avec le prix qu'il calcule lui-même.
-  Paiement 100 % mobile money (Wave) ou avec le solde du portefeuille ;
-  Orange Money est en **essai réservé aux testeurs** désignés par l'Admin,
-  invisible des autres clients (voir « Passage à l'argent réel »).
+  Paiement par mobile money ou avec le solde du portefeuille. Le faux Wave et
+  Orange Money (essai) ne sont proposés qu'aux **comptes de test** désignés par
+  l'Admin, invisibles des autres clients, qui n'ont que leur solde pour
+  l'instant (voir « Faux Wave : comptes de test et argent de test » et
+  « Passage à l'argent réel »).
 - Annulations (client tant que la course est en attente, chauffeur avec
   un motif) : uniquement par la Cloud Function `annulerCourse`, qui
   rembourse le client ; jamais directement depuis l'app.
@@ -306,9 +308,12 @@ depuis la Console.
 - Paiement en mode test : tout le parcours passe par le serveur, mais
   l'opérateur est simulé (« faux Wave », page de paiement
   `pagePaiementSimule`, aucune somme débitée ; `modePaiement:
-  "simulation"` sur la course). Pour passer au vrai Wave : ranger
-  `WAVE_API_KEY` et `WAVE_WEBHOOK_SECRET` dans Secret Manager et brancher
-  `FournisseurWave` (déjà écrit) dans `functions/src/index.ts`. Orange
+  "simulation"` sur la course). Ce faux Wave n'est ouvert qu'aux comptes de
+  test, et tout ce qu'il produit est marqué « argent de test » (voir plus bas).
+  Pour passer au vrai Wave : ranger
+  `WAVE_API_KEY` et `WAVE_WEBHOOK_SECRET` dans Secret Manager, brancher
+  `FournisseurWave` (déjà écrit) dans `functions/src/index.ts` et passer
+  `WAVE_REEL` / `waveReel` à `true` (avec le go du client). Orange
   Money a son fournisseur réel (bac à sable d'Orange) et n'est accepté
   que pour les testeurs désignés par l'Admin (voir « Passage à l'argent
   réel »).
@@ -640,7 +645,9 @@ vers Orange Money ou Wave depuis la publication 117 (argent réellement payé
 seulement : voir 7.1 quater). Tout passe par le serveur (`functions/src/portefeuille.ts`)
 et fonctionne aujourd'hui contre le faux Wave : **aucune somme réelle ne
 bouge** tant que le vrai Wave n'est pas branché (voir
-« Passage à l'argent réel » plus bas).
+« Passage à l'argent réel » plus bas). Le faux Wave n'est proposé qu'aux
+comptes de test et ses recharges sont marquées « argent de test » (voir
+« Faux Wave : comptes de test et argent de test »).
 
 - **Données** (jamais écrites par l'app, sauf la préférence) :
   - `portefeuilles/{uid}` : `soldeFcfa` (serveur) et `payerAvecSolde`
@@ -709,10 +716,10 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      réel, versé sur le compte
      marchand de Groupe Santine. Le serveur lit alors les secrets de
      production (voir **Secrets**), le contrôle du marchand payé devient
-     strict, et l'app dit « Orange Money : argent réel · Wave : mode test,
-     aucun débit réel » sous les moyens proposés (un client qui ne voit que
-     Wave garde « mode test, aucun débit réel »), comme dans l'espace Admin
-     (Paramètres, Finances, désignation d'un testeur).
+     strict, et l'app dit « Orange Money : argent réel · Wave : argent de
+     test, aucun débit réel » sous les moyens proposés (un compte de test qui
+     ne voit que Wave a « argent de test, aucun débit réel »), comme dans
+     l'espace Admin (Paramètres, Finances, désignation d'un compte de test).
 
    **Accès** (`ACCES_ORANGE_MONEY` / `accesOrangeMoney`), trois positions :
    - `ferme` : le serveur refuse `ORANGE_MONEY` (course et
@@ -720,12 +727,14 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      propose pas, et aucune fonction ne déclare ni ne lit les secrets
      d'Orange : une publication ne peut pas échouer à cause d'eux ;
    - `testeurs` (réglage en service depuis la publication 113 : essai réel
-     de bout en bout, décision du client du 29 octobre 2026) : seuls les comptes **clients** marqués « Testeur Orange
-     Money » voient Orange Money et peuvent payer ou recharger avec ; pour tous
-     les autres, rien ne change. La marque (`testeurOrangeMoney: true` dans
-     `users/{uid}`) se pose dans l'espace Admin : Clients > recherche par nom
-     ou numéro de téléphone > icône Portefeuille > interrupteur « Testeur
-     Orange Money » (confirmation, fonction `definirTesteurOrangeMoney`,
+     de bout en bout, décision du client du 29 octobre 2026) : seuls les comptes **clients** marqués « Compte de
+     test » voient Orange Money et peuvent payer ou recharger avec ; les
+     autres clients ne le voient pas. La marque (`testeurOrangeMoney: true` dans
+     `users/{uid}`, appelée « Testeur Orange Money » jusqu'au 13 novembre 2026,
+     « Compte de test » depuis : elle ouvre aussi le faux Wave) se pose dans
+     l'espace Admin : Clients > recherche par nom
+     ou numéro de téléphone > icône Portefeuille > interrupteur « Compte de
+     test » (confirmation, fonction `definirTesteurOrangeMoney`,
      journalisée dans `journal_admin`). Un client ne peut pas se la donner
      lui-même (règles Firestore). La liste des clients l'affiche sous le nom ;
    - `tous` : ouverture officielle à tous les clients.
@@ -971,10 +980,59 @@ bouge** tant que le vrai Wave n'est pas branché (voir
      paiement 0,85 s.
      Avant d'ouvrir à tous : point 3 ci-dessous, et Wave encore simulé (une
      course « payée » par le faux Wave ne coûte rien : vrai Wave à brancher,
-     ou Wave retiré, avant le lancement public).
+     ou Wave retiré, avant le lancement public ; en attendant, le faux Wave est
+     cloisonné aux comptes de test et marqué « argent de test », voir plus bas).
 3. **Avant de garder l'argent des clients** : faire confirmer le cadre
    réglementaire (monnaie électronique, BCEAO).
 4. Un premier test réel avec un petit montant, puis contrôle du livre.
+
+### 7.1 quinquies Faux Wave : comptes de test et argent de test (phase D, lot 2)
+
+Décision du client du 13 novembre 2026 : le faux Wave est **cloisonné aux comptes de
+test** et tout ce qu'il produit est marqué **« argent de test »**, pour qu'il ne pollue
+plus la comptabilité.
+
+- **Qui y a droit** : `methodesPour(testeur)` (`functions/src/methodes_paiement.ts`).
+  Un client ordinaire n'a que son **solde Sprint** ; un compte de test (marque
+  `testeurOrangeMoney: true` posée par l'Admin, libellé « Compte de test ») a en plus le
+  faux Wave et, pendant l'essai, Orange Money. Un client ordinaire qui demande Wave ou une
+  recharge reçoit `failed-precondition` (« Wave n'est pas encore disponible : payez avec
+  votre solde Sprint », ou « Le paiement en ligne n'est pas encore ouvert à votre compte »),
+  avant tout appel à Google, toute commande et toute session de paiement. `WAVE_REEL`
+  (jumeau `waveReel` dans `lib/core/widgets/payment_method_selector.dart`, un test les
+  compare) reste `false` tant que le vrai Wave n'est pas branché : alors seulement Wave
+  s'ouvre à tous, sur un nouveau go du client. Dans l'app, la feuille de paiement et la
+  recharge d'un client ordinaire disent « Le paiement en ligne n'est pas encore ouvert à
+  votre compte » (aucun bouton de paiement) ; le mode démo (sans Firebase) garde Wave.
+- **Le marquage** (`functions/src/argent_reel.ts`) : `encaissementReel(fournisseur, date)`
+  (vrai Wave, ou Orange Money en production depuis le 2 novembre 2026 9 h 43) et
+  `argentDeTestDe(document)`. Le serveur écrit `argentDeTest` sur la **commande**, la
+  **course**, la proposition du **radar**, la **recharge** et le **mouvement** du livre
+  (seulement quand il est vrai). Aucune règle ne laisse une app l'écrire ni le changer
+  (`firestore.rules` : champs des courses limités ; attaques `attaques.test.mjs`).
+  Course payée avec le solde : argent réel seulement si la part réelle du solde
+  (`montantRetirable`, l'argent réel d'abord) la couvre en entier, sinon argent de test.
+  Un paiement en cours au moment de la mise en ligne (sans marque) est jugé sur son
+  fournisseur et sa date, jamais en argent réel par défaut.
+- **Dans la comptabilité** (`lib/features/finances/data/comptabilite.dart`) : une course en
+  argent de test n'apporte ni chiffre d'affaires, ni commission, ni part au chauffeur, ni
+  « Sprint doit ». Elle reste visible et marquée : tuile « Argent de test (non compté) » et
+  mention dans Finances (Admin), « dont N de test » dans la vue d'ensemble, « + X de test »
+  sous la dépense d'un client, note et puce « Test » dans les gains du chauffeur,
+  « Argent de test » dans l'historique du portefeuille, « Déjà payé par Wave · argent de
+  test » sur la course (le chauffeur le voit avant d'accepter, dans le radar).
+- **Courses d'avant le marquage** (`argent_de_test.dart`) : jugées sur leur moyen de
+  paiement. `WAVE` : argent de test ; `ORANGE_MONEY` : argent réel depuis le 2 novembre 2026
+  9 h 43, bac à sable avant ; `PORTEFEUILLE` : argent de test (l'origine de l'argent n'est pas
+  enregistrée : par prudence) ; autre : comptée comme avant. Rien n'est réécrit dans la base.
+- **À savoir avant de publier** : les comptes qui servent aux essais doivent être
+  marqués « Compte de test » (Admin > Clients > Portefeuille) **avant** la mise en ligne,
+  sinon ils n'ont plus que leur solde, et ne peuvent ni commander avec Wave ni recharger.
+- **Tests** : `functions/test/validation.test.ts`, `argent_reel.test.ts`,
+  `paiements.emulateur.test.ts`, `portefeuille.emulateur.test.ts`,
+  `paiement_orange.emulateur.test.ts` ; règles `firestore_rules_test/attaques.test.mjs` ;
+  app `test/argent_de_test_test.dart`, `finances_test.dart`, `portefeuille_test.dart`,
+  `admin_pilotage_test.dart`.
 
 ### 7.1 quater Retrait du solde (lot B : OUVERT depuis la publication 117)
 
@@ -998,7 +1056,8 @@ pour le moment.
   distributeur, jamais utilisé).
 - **Seul l'argent réellement payé se retire** (garde-fou ajouté à
   l'ouverture : Wave est encore simulé, une recharge Wave ne crée que de
-  l'argent de test). `montantRetirable` (`functions/src/retraits.ts`) relit
+  l'argent de test). `montantRetirable` (`functions/src/portefeuille.ts`, ré-exporté
+  par `retraits.ts`, avec `encaissementReel` de `argent_reel.ts`) relit
   le livre du client dans la transaction de la demande : recharges et
   remboursements payés réellement (Orange Money en production, depuis
   `DEBUT_ARGENT_REEL_ORANGE` = 2 novembre 2026 9 h 43, déploiement de la

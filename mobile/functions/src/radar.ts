@@ -1,4 +1,5 @@
 import { FieldValue, type DocumentData, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
+import { argentDeTestDe } from './argent_reel';
 import { arrondirPosition } from './proximite';
 import { distanceKm, type Point } from './tarification';
 import { VILLES_PROVINCE } from './zone';
@@ -13,7 +14,8 @@ import { VILLES_PROVINCE } from './zone';
  * n'est lisible que par lui, par le chauffeur qui l'a acceptée et par l'Admin.
  * Le radar est un document à part, `radar/{id}` (même identifiant), qui n'a que
  * ce qu'il faut pour juger une course : prix, distance, type, un départ et une
- * arrivée arrondis à une case d'environ 150 m, et des libellés de zone. Les
+ * arrivée arrondis à une case d'environ 150 m, des libellés de zone, et la marque
+ * « argent de test » quand la course est payée en faux argent. Les
  * champs portent les mêmes noms que ceux de la course : l'app lit un document
  * du radar comme une course (`CourseFirestore.depuisDocument`).
  *
@@ -65,6 +67,8 @@ export function donneesRadar(c: DocumentData, prixFcfa: number): DocumentData {
     distanceKm: c.distanceKm,
     prixFcfa,
     methodePaiement: c.methodePaiement,
+    // Course payée en argent de test : le chauffeur le sait avant d'accepter.
+    argentDeTest: argentDeTestDe(c),
     timestamp: FieldValue.serverTimestamp(),
   };
 }

@@ -87,7 +87,7 @@ class CourseActiveBandeau extends StatelessWidget {
                         ),
                         // Rappel : la course est déjà réglée dans l'app.
                         Text(
-                          course.libellePaiement,
+                          course.libellePaiementMarque,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: AppColors.texteDiscret, fontSize: 12, fontWeight: FontWeight.w600),

@@ -41,20 +41,22 @@ async function semer() {
     await poser('profils_publics/fatou', { nom: 'Fatou', telephone: '+221770000002', role: 'client' });
     // Courses : une en attente de chauffeur, une en cours (Fatou et Moussa), une terminée.
     await poser('courses/attente_fatou', {
-      clientId: 'fatou', chauffeurId: null, statut: 'en_attente', prixFcfa: 2300, departArrondi: true,
+      clientId: 'fatou', chauffeurId: null, statut: 'en_attente', prixFcfa: 2300, departArrondi: true, argentDeTest: true,
       latitudeDepart: 14.6925, longitudeDepart: -17.4468,
     });
-    await poser('courses/cours_fatou', { clientId: 'fatou', chauffeurId: 'moussa', statut: 'en_cours', prixFcfa: 2300 });
+    await poser('courses/cours_fatou', { clientId: 'fatou', chauffeurId: 'moussa', statut: 'en_cours', prixFcfa: 2300, argentDeTest: true });
+    // Course réservée au contrôle de la fin de course (le geste légitime la modifie).
+    await poser('courses/cours_controle', { clientId: 'fatou', chauffeurId: 'moussa', statut: 'en_cours', prixFcfa: 2300, argentDeTest: true });
     await poser('courses/cours_fatou/prive/depart', { latitude: 14.69251, longitude: -17.44682 });
     await poser('courses/finie_fatou', { clientId: 'fatou', chauffeurId: 'moussa', statut: 'terminee', prixFcfa: 2300, termineeLe: new Date() });
     await poser('liaisons/fatou_moussa', { clientId: 'fatou', chauffeurId: 'moussa', courseId: 'cours_fatou' });
     await poser('chats/fatou_moussa', { participants: ['fatou', 'moussa'], dernierMessage: 'Je suis là' });
     // Argent : commande, portefeuille et livre de comptes, retrait, recharge.
-    await poser('commandes/cmd_fatou', { clientId: 'fatou', statut: 'payee', prixFcfa: 2300 });
+    await poser('commandes/cmd_fatou', { clientId: 'fatou', statut: 'payee', prixFcfa: 2300, argentDeTest: true });
     await poser('portefeuilles/fatou', { soldeFcfa: 50000, payerAvecSolde: false });
-    await poser('portefeuilles/fatou/mouvements/m1', { type: 'recharge', montantFcfa: 50000 });
+    await poser('portefeuilles/fatou/mouvements/m1', { type: 'recharge', montantFcfa: 50000, argentDeTest: true });
     await poser('retraits/r1', { clientId: 'fatou', montantFcfa: 10000 });
-    await poser('recharges/rch1', { clientId: 'fatou', montantFcfa: 50000, statut: 'reussie' });
+    await poser('recharges/rch1', { clientId: 'fatou', montantFcfa: 50000, statut: 'reussie', argentDeTest: true });
     await poser('reglements/reg1', { chauffeurId: 'moussa', montantFcfa: 5000, sens: 'plateforme_vers_chauffeur' });
     // Divers : position, aide, évaluation, annuaire, configuration du serveur, journal, jetons de notification.
     await poser('positions_chauffeurs/moussa', { latitude: 14.69, longitude: -17.44, majLe: Timestamp.now() });
@@ -71,7 +73,7 @@ async function semer() {
     await poser('temps_en_ligne/moussa_2026-09-28', { chauffeurId: 'moussa', date: '2026-09-28', secondes: 600, majLe: new Date(Date.now() - 120000) });
     await poser('courses/finie_fatou/prive/depart', { latitude: 14.69251, longitude: -17.44682 });
     await poser('radar/attente_fatou', {
-      clientId: 'fatou', statut: 'en_attente', type: 'PASSAGER', prixFcfa: 2300, distanceKm: 8.2, methodePaiement: 'WAVE',
+      clientId: 'fatou', statut: 'en_attente', type: 'PASSAGER', prixFcfa: 2300, distanceKm: 8.2, methodePaiement: 'WAVE', argentDeTest: true,
       adresseDepart: 'Zone de départ approximative (Dakar)', adresseArrivee: 'Zone d\'arrivée approximative (Dakar)', adressesMasquees: true,
       latitudeDepart: 14.69278, longitudeDepart: -17.44617, departArrondi: true, latitudeArrivee: 14.74533, longitudeArrivee: -17.51307,
       timestamp: new Date(),
@@ -159,6 +161,10 @@ describe('contrôles : les gestes légitimes fonctionnent (sans eux, les refus n
     await assertSucceeds(updateDoc(doc(en('ibou'), 'users', 'ibou'), { 'documents.permis': adresseStorage, statutValidation: 'en_attente' }));
   });
 
+  test('le chauffeur d\'une course en cours la termine avec la commission de 10 % (sans toucher à la marque « argent de test »)', async () => {
+    await assertSucceeds(updateDoc(doc(en('moussa'), 'courses', 'cours_controle'), { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: 230 }));
+  });
+
   test('un chauffeur actif compte ses minutes en ligne', async () => {
     await assertSucceeds(updateDoc(doc(en('moussa'), 'temps_en_ligne', 'moussa_2026-09-27'), {
       secondes: 660, majLe: serverTimestamp(),
@@ -215,6 +221,15 @@ famille('argent : ce qu\'un client ou un chauffeur tente d\'écrire lui-même', 
   ['modifie un règlement existant (chauffeur)', () => updateDoc(doc(en('moussa'), 'reglements', 'reg1'), { montantFcfa: 999999 })],
   ['lit les règlements d\'un autre chauffeur', () => getDoc(doc(en('ibou'), 'reglements', 'reg1'))],
   ['change le montant d\'une commande payée', () => updateDoc(doc(en('fatou'), 'commandes', 'cmd_fatou'), { prixFcfa: 1 })],
+  // Marque « argent de test » (faux Wave) : posée par le serveur seul. La retirer ferait compter de l'argent fictif dans la comptabilité.
+  ['retire la marque « argent de test » en terminant sa course (chauffeur)', () => updateDoc(doc(en('moussa'), 'courses', 'cours_fatou'), { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: 230, argentDeTest: false })],
+  ['retire la marque « argent de test » en acceptant une course (chauffeur)', () => updateDoc(doc(en('moussa'), 'courses', 'attente_fatou'), { statut: 'acceptee', chauffeurId: 'moussa', argentDeTest: false })],
+  ['retire la marque « argent de test » de sa course (chauffeur)', () => updateDoc(doc(en('moussa'), 'courses', 'cours_fatou'), { argentDeTest: false })],
+  ['retire la marque « argent de test » de sa course (client)', () => updateDoc(doc(en('fatou'), 'courses', 'cours_fatou'), { argentDeTest: false })],
+  ['retire la marque « argent de test » de sa commande (client)', () => updateDoc(doc(en('fatou'), 'commandes', 'cmd_fatou'), { argentDeTest: false })],
+  ['retire la marque « argent de test » d\'une recharge (client)', () => updateDoc(doc(en('fatou'), 'recharges', 'rch1'), { argentDeTest: false })],
+  ['retire la marque « argent de test » d\'une ligne de son livre de comptes (client)', () => updateDoc(doc(en('fatou'), 'portefeuilles', 'fatou', 'mouvements', 'm1'), { argentDeTest: false })],
+  ['retire la marque « argent de test » d\'une proposition du radar (chauffeur)', () => updateDoc(doc(en('moussa'), 'radar', 'attente_fatou'), { argentDeTest: false })],
 ]);
 
 famille('élévation de privilèges', [

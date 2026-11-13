@@ -102,6 +102,8 @@ class _PassagerPageState extends State<PassagerPage> {
       montantFcfa: estimation.prixFcfa,
       portefeuille: portefeuille,
       testeurOrangeMoney: testeurOrangeMoney,
+      // Sans Firebase (mode démo), pas de compte de test : Wave y reste proposé, comme avant.
+      demo: !DefaultFirebaseOptions.estConfigure,
     );
     if (methode == null || !mounted) return;
 

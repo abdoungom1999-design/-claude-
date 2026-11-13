@@ -190,7 +190,7 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.course.libellePaiement,
+                      widget.course.libellePaiementMarque,
                       style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
                     ),
                   ],

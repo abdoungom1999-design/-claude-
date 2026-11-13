@@ -3,7 +3,7 @@
 import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
-import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { calculDistance, cleTrajet } from '../src/distances';
 import { FournisseurSimule, type EvenementPaiement } from '../src/fournisseurs';
@@ -49,8 +49,9 @@ const googleFactice = {
   },
 } as unknown as ClientGoogle;
 
+// Orange Money est fermé ici (réglage « ferme ») : ces tests portent sur le faux Wave et le solde Sprint.
 const creerPaiement = (uid: string | undefined, donnees: unknown, quand = midi, google = googleFactice) =>
-  creerPaiementCore(db, calculDistance(db, google, () => quand), () => fournisseur, uid, donnees, quand);
+  creerPaiementCore(db, calculDistance(db, google, () => quand), () => fournisseur, uid, donnees, quand, undefined, 'ferme');
 
 /** Événement tel que le fournisseur le confirmerait pour cette commande. */
 async function evenement(commandeId: string, extra: Partial<EvenementPaiement> = {}): Promise<EvenementPaiement> {
@@ -85,8 +86,11 @@ beforeEach(async () => {
     // Récursif : une course porte aussi son document privé (position exacte du départ).
     await db.recursiveDelete(db.collection(nom));
   }
-  await db.doc('users/awa').set({ role: 'client', nom: 'Awa' });
-  await db.doc('users/fatou').set({ role: 'client', nom: 'Fatou' });
+  // Comptes de test : le faux Wave leur est réservé (décision du client, 13 novembre 2026).
+  await db.doc('users/awa').set({ role: 'client', nom: 'Awa', testeurOrangeMoney: true });
+  await db.doc('users/fatou').set({ role: 'client', nom: 'Fatou', testeurOrangeMoney: true });
+  // Client ordinaire : n'a que son solde Sprint.
+  await db.doc('users/lambda').set({ role: 'client', nom: 'Lambda' });
   await db.doc('users/moussa').set({ role: 'conducteur', statutValidation: 'valide' });
   await db.doc('users/banni').set({ role: 'client', statutCompte: 'banni' });
 });
@@ -229,9 +233,77 @@ test('Orange Money fermé : refusé avant tout, ni commande, ni session de paiem
   assert.equal(await nombre('courses'), 0);
   assert.equal(sessions, 0);
   assert.equal(appelsRoutes, 0, 'refus avant tout appel à Google');
-  // Wave et le solde Sprint, eux, restent ouverts.
+  // Wave (de test) et le solde Sprint, eux, restent ouverts à ce compte de test.
   const wave = await creerPaiement('awa', demande({ methodePaiement: 'WAVE' }));
   assert.equal(await statutCommande(wave.commandeId), 'en_attente_paiement');
+});
+
+// --- Faux Wave : cloisonné aux comptes de test, tout ce qu'il produit est de l'argent de test -----
+// (décision du client, 13 novembre 2026)
+
+test('faux Wave : refusé à un client ordinaire avant tout (ni commande, ni session de paiement, ni appel à Google) ; ouvert au compte de test', async () => {
+  let sessions = 0;
+  const reel = fournisseur.creerSession.bind(fournisseur);
+  fournisseur.creerSession = async () => {
+    sessions++;
+    return reel();
+  };
+  const erreur = await refuse(creerPaiement('lambda', demande({ methodePaiement: 'WAVE' })), 'failed-precondition');
+  assert.match(erreur.message, /Wave n'est pas encore disponible : payez avec votre solde Sprint/);
+  assert.deepEqual(erreur.details, { raison: 'methode_indisponible' });
+  assert.equal(await nombre('commandes'), 0);
+  assert.equal(await nombre('courses'), 0);
+  assert.equal(sessions, 0);
+  assert.equal(appelsRoutes, 0, 'refus avant tout appel à Google');
+
+  // Le compte de test garde le faux Wave.
+  const wave = await creerPaiement('awa', demande({ methodePaiement: 'WAVE' }));
+  assert.equal(await statutCommande(wave.commandeId), 'en_attente_paiement');
+  assert.equal(sessions, 1);
+
+  // Le solde Sprint reste ouvert à tous : le client ordinaire n'a simplement rien dessus.
+  const sansSolde = await refuse(creerPaiement('lambda', demande({ methodePaiement: 'PORTEFEUILLE' })), 'failed-precondition');
+  assert.deepEqual(sansSolde.details, { raison: 'solde-insuffisant', soldeFcfa: 0 });
+  assert.equal(await nombre('courses'), 0);
+});
+
+test('faux Wave : la marque « compte de test » doit être exactement true (une valeur approchante ne donne aucun accès)', async () => {
+  for (const marque of ['oui', 1, 'true', {}, null]) {
+    await db.doc('users/lambda').update({ testeurOrangeMoney: marque });
+    await refuse(creerPaiement('lambda', demande({ methodePaiement: 'WAVE' })), 'failed-precondition');
+  }
+  assert.equal(await nombre('commandes'), 0);
+  await db.doc('users/lambda').update({ testeurOrangeMoney: true });
+  await creerPaiement('lambda', demande({ methodePaiement: 'WAVE' }));
+  assert.equal(await nombre('commandes'), 1);
+});
+
+test('argent de test : tout ce que produit le faux Wave est marqué, commande, course et radar (le chauffeur le sait avant d\'accepter)', async () => {
+  const { commandeId, courseId } = await payer();
+  const commande = (await db.doc(`commandes/${commandeId}`).get()).data()!;
+  assert.equal(commande.fournisseur, 'simulation');
+  assert.equal(commande.argentDeTest, true);
+  assert.equal((await course(courseId)).argentDeTest, true);
+  assert.equal((await radar(courseId))!.argentDeTest, true);
+});
+
+test('argent de test : un paiement en cours au moment de la mise en ligne (sans marque) est jugé sur son fournisseur, jamais en argent réel par défaut', async () => {
+  const { commandeId } = await creerPaiement('awa', demande());
+  await db.doc(`commandes/${commandeId}`).update({ argentDeTest: FieldValue.delete() });
+  assert.equal(await traiterEvenement(db, fournisseur, await evenement(commandeId), midi), 'course_creee');
+  const courseId = (await db.doc(`commandes/${commandeId}`).get()).get('courseId') as string;
+  assert.equal((await course(courseId)).argentDeTest, true, 'faux Wave : de l\'argent de test');
+  assert.equal((await radar(courseId))!.argentDeTest, true);
+});
+
+test('argent de test : la marque d\'une commande fait foi, elle n\'est pas devinée de nouveau à la création de la course', async () => {
+  const { commandeId } = await creerPaiement('awa', demande());
+  // Un fournisseur réel (jamais le cas aujourd'hui) : la course reprend la marque de sa commande.
+  await db.doc(`commandes/${commandeId}`).update({ argentDeTest: false });
+  assert.equal(await traiterEvenement(db, fournisseur, await evenement(commandeId), midi), 'course_creee');
+  const courseId = (await db.doc(`commandes/${commandeId}`).get()).get('courseId') as string;
+  assert.equal((await course(courseId)).argentDeTest, false);
+  assert.equal((await radar(courseId))!.argentDeTest, false);
 });
 
 test('distance par la route mise en cache ; cache périmé recalculé ; Google en panne : secours', async () => {

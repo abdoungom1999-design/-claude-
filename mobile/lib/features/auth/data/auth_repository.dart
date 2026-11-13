@@ -361,12 +361,12 @@ class AuthRepository {
     return doc.data();
   }
 
-  /// L'utilisateur connecté est-il marqué « Testeur Orange Money » par un
-  /// Admin ? Lu seulement pendant l'essai réservé aux testeurs (aucune
-  /// lecture sinon) ; `false` en mode démo, hors connexion ou si la lecture
-  /// échoue : Orange Money n'est alors simplement pas proposé.
+  /// L'utilisateur connecté est-il un COMPTE DE TEST, marqué par un Admin
+  /// (champ `testeurOrangeMoney`) ? Cette marque ouvre le faux Wave (réservé
+  /// aux comptes de test, quel que soit l'accès à Orange Money) et Orange Money
+  /// pendant l'essai. `false` en mode démo, hors connexion ou si la lecture
+  /// échoue : ni le faux Wave ni Orange Money ne sont alors proposés.
   Future<bool> chargerTesteurOrangeMoney() async {
-    if (accesOrangeMoney != AccesOrangeMoney.testeurs) return false;
     try {
       return estTesteurOrangeMoney(await chargerProfilUtilisateur().timeout(const Duration(seconds: 4)));
     } on Object {

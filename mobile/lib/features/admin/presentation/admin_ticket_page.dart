@@ -331,7 +331,7 @@ class _AdminTicketPageState extends State<AdminTicketPage> {
             _Info('Arrivée', course.adresseArrivee),
             _Info('Statut', course.libelleStatut +
                 (course.annuleePar != null ? ' (par ${course.annuleePar})' : '')),
-            _Info('Prix', '${formaterFcfa(course.prixFcfa)} · ${course.libellePaiement}'),
+            _Info('Prix', '${formaterFcfa(course.prixFcfa)} · ${course.libellePaiementMarque}'),
             if (_commande case final commande?)
               StreamBuilder<CommandePaiement?>(
                 stream: commande.flux,

@@ -172,6 +172,10 @@ class _VueGains extends StatelessWidget {
             ],
           ),
         ),
+        if (compte.nombreCoursesDeTest > 0) ...[
+          const SizedBox(height: 16),
+          _NoteArgentDeTest(courses: compte.nombreCoursesDeTest, montantFcfa: compte.montantDeTestFcfa),
+        ],
         const SizedBox(height: 24),
         const Text('Dernières courses', style: styleTitreSection),
         const SizedBox(height: 12),
@@ -292,6 +296,37 @@ class _LigneMontant extends StatelessWidget {
   }
 }
 
+/// Courses payées en argent de test (faux Wave) : visibles, mais ni payées ni comptées dans les gains.
+class _NoteArgentDeTest extends StatelessWidget {
+  const _NoteArgentDeTest({required this.courses, required this.montantFcfa});
+
+  final int courses;
+  final int montantFcfa;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('note-argent-de-test'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.carteHaute, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.science_outlined, size: 18, color: AppColors.texteDiscret),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${courses <= 1 ? '$courses course' : '$courses courses'} en argent de test '
+              '(${formaterFcfa(montantFcfa)}) : aucun paiement réel, elles ne comptent pas dans vos gains.',
+              style: const TextStyle(fontSize: 12.5, color: AppColors.texte, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LigneCourseReelle extends StatelessWidget {
   const _LigneCourseReelle({required this.ligne});
 
@@ -315,24 +350,34 @@ class _LigneCourseReelle extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  ligne.remboursee ? 'Remboursée au client' : 'Payée par ${ligne.libelleMethode}',
+                  ligne.remboursee
+                      ? 'Remboursée au client'
+                      : ligne.argentDeTest
+                          ? 'Payée par ${ligne.libelleMethode} · argent de test'
+                          : 'Payée par ${ligne.libelleMethode}',
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                 ),
                 Text(
                   ligne.remboursee
                       ? '${_date(ligne.date)} · suite à un signalement, non payée'
-                      : '${_date(ligne.date)} · prix ${formaterFcfa(ligne.prixFcfa)}',
+                      : ligne.argentDeTest
+                          ? '${_date(ligne.date)} · prix ${formaterFcfa(ligne.prixFcfa)} · non compté'
+                          : '${_date(ligne.date)} · prix ${formaterFcfa(ligne.prixFcfa)}',
                   style: const TextStyle(fontSize: 11.5, color: AppColors.texteDiscret),
                 ),
               ],
             ),
           ),
           Text(
-            ligne.remboursee ? formaterFcfa(0) : '+${formaterFcfa(ligne.partChauffeurFcfa)}',
+            ligne.remboursee
+                ? formaterFcfa(0)
+                : ligne.argentDeTest
+                    ? 'Test'
+                    : '+${formaterFcfa(ligne.partChauffeurFcfa)}',
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13.5,
-              color: ligne.remboursee ? AppColors.texteDiscret : AppColors.vert,
+              color: ligne.remboursee || ligne.argentDeTest ? AppColors.texteDiscret : AppColors.vert,
             ),
           ),
         ],

@@ -105,6 +105,8 @@ class _ColisPageState extends State<ColisPage> {
       montantFcfa: estimation.prixFcfa,
       portefeuille: portefeuille,
       testeurOrangeMoney: testeurOrangeMoney,
+      // Sans Firebase (mode démo), pas de compte de test : Wave y reste proposé, comme avant.
+      demo: !DefaultFirebaseOptions.estConfigure,
     );
     if (methode == null || !mounted) return;
 

@@ -8,8 +8,10 @@ import 'payment_method_selector.dart';
 /// confirmation du prix et avant toute création de course (voir
 /// `PassagerPage` / `ColisPage`). Groupe Santine est passé au 100% mobile
 /// money : les opérateurs proposés sont [moyensMobileMoneyPour] ce client
-/// (Wave ; Orange Money selon [accesOrangeMoney] et, pendant l'essai, s'il
-/// est testeur). Le choix referme la sheet puis ouvre le sas de
+/// (le faux Wave, réservé aux comptes de test ; Orange Money selon
+/// [accesOrangeMoney] et, pendant l'essai, s'il est testeur). Un client
+/// ordinaire n'en a aucun pour l'instant : la sheet le lui dit, et il ne peut
+/// payer qu'avec son solde. Le choix referme la sheet puis ouvre le sas de
 /// paiement (`PaymentProcessingPage`), seul habilité à créer la course une
 /// fois le paiement confirmé.
 ///
@@ -22,14 +24,16 @@ import 'payment_method_selector.dart';
 /// s'il ne la couvre pas, le client est prévenu et paie par mobile money
 /// pour le total.
 ///
-/// [testeurOrangeMoney] : compte marqué « Testeur Orange Money » par un Admin
-/// (voir `AuthRepository.chargerTesteurOrangeMoney`). La mention du bas dit
-/// quels moyens débitent vraiment ([mentionPaiement], selon [environnement]).
+/// [testeurOrangeMoney] : compte de test, marqué par un Admin (voir
+/// `AuthRepository.chargerTesteurOrangeMoney`). La mention du bas dit quels
+/// moyens débitent vraiment, et lesquels ne sont que de l'argent de test
+/// ([mentionPaiement], selon [environnement]). [demo] : app sans Firebase.
 Future<PaymentMethod?> afficherSelectionPaiementSheet(
   BuildContext context, {
   int? montantFcfa,
   Portefeuille? portefeuille,
   bool testeurOrangeMoney = false,
+  bool demo = false,
   AccesOrangeMoney acces = accesOrangeMoney,
   EnvironnementOrangeMoney environnement = environnementOrangeMoney,
 }) {
@@ -40,7 +44,7 @@ Future<PaymentMethod?> afficherSelectionPaiementSheet(
     builder: (_) => _SelectionPaiementSheet(
       montantFcfa: montantFcfa,
       portefeuille: portefeuille,
-      moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney, acces: acces),
+      moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney, demo: demo, acces: acces),
       environnement: environnement,
     ),
   );
@@ -131,32 +135,69 @@ class _SelectionPaiementSheet extends StatelessWidget {
           if (_soldeUtilisable case final solde?) ...[
             _BoutonSolde(soldeFcfa: solde, montantFcfa: montantFcfa!),
             const SizedBox(height: 14),
-            const Center(
-              child: Text('ou par mobile money', style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
-            ),
-            const SizedBox(height: 14),
-          ] else if (_soldeInsuffisant case final solde?) ...[
-            _AvertissementSolde(soldeFcfa: solde),
-            const SizedBox(height: 14),
-          ],
-          for (var i = 0; i < moyens.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
-            _BoutonPaiement.operateur(moyens[i]),
-          ],
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.texteDiscret),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  mentionPaiement(moyens, environnement: environnement),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
-                ),
+            if (moyens.isNotEmpty) ...[
+              const Center(
+                child: Text('ou par mobile money', style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
               ),
+              const SizedBox(height: 14),
             ],
+          ] else if (_soldeInsuffisant case final solde?) ...[
+            _AvertissementSolde(soldeFcfa: solde, moyens: moyens),
+            const SizedBox(height: 14),
+          ],
+          if (moyens.isEmpty)
+            // Client ordinaire : ni faux Wave (réservé aux comptes de test), ni Orange Money (pas encore ouvert).
+            const _PaiementPasEncoreOuvert()
+          else ...[
+            for (var i = 0; i < moyens.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              _BoutonPaiement.operateur(moyens[i], environnement: environnement),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.texteDiscret),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    mentionPaiement(moyens, environnement: environnement),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Un client ordinaire n'a, pour l'instant, aucun mobile money : le faux Wave
+/// est réservé aux comptes de test et Orange Money n'est pas encore ouvert à
+/// tous (décisions du client). Il ne peut commander qu'avec son solde Sprint.
+class _PaiementPasEncoreOuvert extends StatelessWidget {
+  const _PaiementPasEncoreOuvert();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('paiement-pas-encore-ouvert'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(color: AppColors.carteHaute, borderRadius: BorderRadius.circular(14)),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, size: 18, color: AppColors.texteDiscret),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Le paiement en ligne n'est pas encore ouvert à votre compte. "
+              'Vous pourrez commander une course dès son ouverture.',
+              style: TextStyle(fontSize: 13, color: AppColors.texte, height: 1.4),
+            ),
           ),
         ],
       ),
@@ -170,29 +211,39 @@ class _BoutonPaiement extends StatelessWidget {
     required this.fond,
     required this.couleurTexte,
     required this.icone,
+    this.sousTitre,
   });
 
   /// Bouton de paiement : vert plein à texte Onyx (l'action « Payer » de la
   /// charte) ; Orange Money, second choix, garde une surface sombre à texte vert.
-  factory _BoutonPaiement.operateur(PaymentMethod methode) => switch (methode) {
-        PaymentMethod.orangeMoney => _BoutonPaiement(
-            methode: methode,
-            fond: AppColors.carteHaute,
-            couleurTexte: AppColors.vert,
-            icone: Icons.account_balance_wallet_rounded,
-          ),
-        _ => _BoutonPaiement(
-            methode: methode,
-            fond: AppColors.vert,
-            couleurTexte: AppColors.onyx,
-            icone: Icons.waves_rounded,
-          ),
-      };
+  /// Un moyen qui ne débite personne (le faux Wave) le dit sous son nom :
+  /// « Argent de test · aucun débit réel ».
+  factory _BoutonPaiement.operateur(PaymentMethod methode, {required EnvironnementOrangeMoney environnement}) {
+    final sousTitre =
+        methode.argentDeTest(environnement: environnement) ? 'Argent de test · aucun débit réel' : null;
+    return switch (methode) {
+      PaymentMethod.orangeMoney => _BoutonPaiement(
+          methode: methode,
+          fond: AppColors.carteHaute,
+          couleurTexte: AppColors.vert,
+          icone: Icons.account_balance_wallet_rounded,
+          sousTitre: sousTitre,
+        ),
+      _ => _BoutonPaiement(
+          methode: methode,
+          fond: AppColors.vert,
+          couleurTexte: AppColors.onyx,
+          icone: Icons.waves_rounded,
+          sousTitre: sousTitre,
+        ),
+    };
+  }
 
   final PaymentMethod methode;
   final Color fond;
   final Color couleurTexte;
   final IconData icone;
+  final String? sousTitre;
 
   @override
   Widget build(BuildContext context) {
@@ -218,13 +269,26 @@ class _BoutonPaiement extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  'Payer avec ${methode.label}',
-                  style: TextStyle(
-                    color: couleurTexte,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Payer avec ${methode.label}',
+                      style: TextStyle(
+                        color: couleurTexte,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (sousTitre != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        sousTitre!,
+                        key: const ValueKey('mention-argent-de-test'),
+                        style: TextStyle(color: couleurTexte.withValues(alpha: 0.78), fontSize: 12.5, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Icon(Icons.arrow_forward_rounded, color: couleurTexte),
@@ -295,9 +359,12 @@ class _BoutonSolde extends StatelessWidget {
 }
 
 class _AvertissementSolde extends StatelessWidget {
-  const _AvertissementSolde({required this.soldeFcfa});
+  const _AvertissementSolde({required this.soldeFcfa, required this.moyens});
 
   final int soldeFcfa;
+
+  /// Mobile money proposé à ce client (vide : il n'en a aucun pour l'instant).
+  final List<PaymentMethod> moyens;
 
   @override
   Widget build(BuildContext context) {
@@ -311,8 +378,10 @@ class _AvertissementSolde extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Votre solde (${formaterFcfa(soldeFcfa)}) ne couvre pas cette course : '
-              'payez le total avec Wave.',
+              moyens.isEmpty
+                  ? 'Votre solde (${formaterFcfa(soldeFcfa)}) ne couvre pas cette course.'
+                  : 'Votre solde (${formaterFcfa(soldeFcfa)}) ne couvre pas cette course : '
+                      'payez le total avec ${moyens.map((m) => m.label).join(' ou ')}.',
               style: const TextStyle(fontSize: 12.5, color: AppColors.texte, height: 1.35),
             ),
           ),

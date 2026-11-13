@@ -7,6 +7,7 @@ import 'package:sprint/core/network/api_exception.dart';
 import 'package:sprint/core/utils/format_fcfa.dart';
 import 'package:sprint/core/widgets/payment_method_selector.dart';
 import 'package:sprint/core/widgets/payment_method_sheet.dart';
+import 'package:sprint/core/widgets/primary_button.dart';
 import 'package:sprint/features/admin/presentation/admin_portefeuille_page.dart';
 import 'package:sprint/features/client/presentation/payment_processing_page.dart';
 import 'package:sprint/features/compte/presentation/compte_tab_page.dart';
@@ -161,6 +162,8 @@ void main() {
       WidgetTester tester, {
       Portefeuille? portefeuille,
       int montant = 2300,
+      bool compteDeTest = true, // le faux Wave n'est ouvert qu'aux comptes de test
+      bool demo = false,
     }) async {
       PaymentMethod? choix;
       var termine = false;
@@ -168,7 +171,15 @@ void main() {
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async {
-              choix = await afficherSelectionPaiementSheet(context, montantFcfa: montant, portefeuille: portefeuille);
+              choix = await afficherSelectionPaiementSheet(
+                context,
+                montantFcfa: montant,
+                portefeuille: portefeuille,
+                testeurOrangeMoney: compteDeTest,
+                demo: demo,
+                // Ces tests portent sur le solde et Wave : Orange Money y est fermé.
+                acces: AccesOrangeMoney.ferme,
+              );
               termine = true;
             },
             child: const Text('Ouvrir'),
@@ -190,7 +201,7 @@ void main() {
     final avertissement = find.byKey(const ValueKey('solde-insuffisant'));
 
     testWidgets('sans portefeuille (démo, hors connexion) : Wave seulement', (tester) async {
-      await ouvrir(tester);
+      await ouvrir(tester, compteDeTest: false, demo: true);
       await ouvrirSheet(tester);
       expect(boutonSolde, findsNothing);
       expect(avertissement, findsNothing);
@@ -572,13 +583,19 @@ void main() {
   });
 
   group('onglet Compte : portefeuille réel (Firebase)', () {
-    Future<_ServiceFactice> ouvrir(WidgetTester tester, {Portefeuille portefeuille = const Portefeuille()}) async {
+    Future<_ServiceFactice> ouvrir(
+      WidgetTester tester, {
+      Portefeuille portefeuille = const Portefeuille(),
+      bool? compteDeTest,
+    }) async {
       tester.view.physicalSize = const Size(900, 3000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       final service = _ServiceFactice(portefeuille: portefeuille);
       await tester.pumpWidget(
-        MaterialApp(home: CompteTabPage(service: service, clientId: 'awa', profil: Stream.value(null))),
+        MaterialApp(
+          home: CompteTabPage(service: service, clientId: 'awa', profil: Stream.value(null), compteDeTest: compteDeTest),
+        ),
       );
       await tester.pump();
       return service;
@@ -607,7 +624,7 @@ void main() {
 
     testWidgets('recharge : le sas est ouvert avec le montant et l\'opérateur choisis, rien n\'est crédité d\'avance',
         (tester) async {
-      final service = await ouvrir(tester);
+      final service = await ouvrir(tester, compteDeTest: true);
       await tester.tap(find.text('Recharger'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('5000 FCFA'));
@@ -620,6 +637,34 @@ void main() {
       expect(service.methodeRecue, 'WAVE');
       expect(find.text('Payer avec Wave · ${formaterFcfa(5000)}'), findsOneWidget);
       expect(DemoData.soldePortefeuilleFcfa, 0);
+    });
+
+    testWidgets('recharge : un client ordinaire n\'a aucun mobile money (faux Wave réservé aux comptes de test) : explication, rien à confirmer', (tester) async {
+      final service = await ouvrir(tester, compteDeTest: false);
+      await tester.tap(find.text('Recharger'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('recharge-pas-encore-ouverte')), findsOneWidget);
+      expect(find.textContaining("La recharge en ligne n'est pas encore ouverte à votre compte"), findsOneWidget);
+      expect(find.byKey(const ValueKey('operateur-WAVE')), findsNothing);
+      expect(find.text('Payer avec'), findsNothing);
+      expect(find.byKey(const ValueKey('mention-recharge')), findsNothing);
+      // Le bouton est inactif : aucune demande n'est envoyée au serveur.
+      expect(tester.widget<PrimaryButton>(find.widgetWithText(PrimaryButton, 'Confirmer la recharge')).onPressed, isNull);
+      await tester.tap(find.text('Confirmer la recharge'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(service.montantRecu, isNull);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('recharge : le compte de test choisit Wave, qui se dit « argent de test, aucun débit réel »', (tester) async {
+      await ouvrir(tester, compteDeTest: true);
+      await tester.tap(find.text('Recharger'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('recharge-pas-encore-ouverte')), findsNothing);
+      expect(find.byKey(const ValueKey('operateur-WAVE')), findsOneWidget);
+      // Orange Money (essai, argent réel) et Wave (argent de test) : la mention les distingue.
+      expect(find.text('Paiement sécurisé — Orange Money : argent réel · Wave : argent de test, aucun débit réel'), findsOneWidget);
+      expect(tester.widget<PrimaryButton>(find.widgetWithText(PrimaryButton, 'Confirmer la recharge')).onPressed, isNotNull);
     });
 
     testWidgets('solde au plafond : la recharge est refusée dès la saisie', (tester) async {
@@ -704,23 +749,28 @@ void main() {
     final marqueTesteur = find.byKey(const ValueKey('testeur-orange-money'));
     bool marquee(WidgetTester tester) => tester.widget<Switch>(marqueTesteur).value;
 
-    testWidgets('testeur Orange Money : désigné après confirmation, envoyé au serveur ; effet expliqué', (tester) async {
+    testWidgets('compte de test : désigné après confirmation, envoyé au serveur ; effet expliqué (faux Wave et Orange Money)', (tester) async {
       final service = await ouvrir(tester, solde: 0, mouvements: const []);
       expect(marquee(tester), isFalse);
-      expect(find.textContaining('Essai en cours : un testeur voit Orange Money et peut payer avec'), findsOneWidget);
+      expect(find.text('Compte de test'), findsOneWidget);
+      expect(find.textContaining('Compte de test : peut payer et recharger avec Wave (argent de test : aucun débit réel, jamais compté dans la comptabilité)'), findsOneWidget);
 
       await tester.tap(marqueTesteur);
       await tester.pumpAndSettle();
-      expect(find.text('Désigner un testeur Orange Money ?'), findsOneWidget);
-      expect(find.textContaining('Awa Diop pourra voir Orange Money'), findsOneWidget);
+      expect(find.text('Désigner un compte de test ?'), findsOneWidget);
+      expect(find.textContaining('Awa Diop pourra payer et recharger avec Wave (argent de test'), findsOneWidget);
+      expect(
+        find.descendant(of: find.byType(AlertDialog), matching: find.textContaining('Les autres clients ne voient ni Wave ni Orange Money.')),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Confirmer'));
       await tester.pumpAndSettle();
       expect(service.testeursDefinis, [('awa', true)]);
-      expect(find.text('Awa Diop est désormais testeur Orange Money.'), findsOneWidget);
+      expect(find.text('Awa Diop est désormais un compte de test.'), findsOneWidget);
       expect(marquee(tester), isTrue);
     });
 
-    testWidgets('testeur Orange Money : confirmation annulée, rien n\'est envoyé ; retrait sans confirmation', (tester) async {
+    testWidgets('compte de test : confirmation annulée, rien n\'est envoyé ; retrait sans confirmation', (tester) async {
       final service = await ouvrir(tester, solde: 0, mouvements: const []);
       await tester.tap(marqueTesteur);
       await tester.pumpAndSettle();
@@ -734,11 +784,11 @@ void main() {
       await tester.tap(marqueTesteur);
       await tester.pumpAndSettle();
       expect(testeur.testeursDefinis, [('awa', false)]);
-      expect(find.text("Awa Diop n'est plus testeur Orange Money."), findsOneWidget);
+      expect(find.text("Awa Diop n'est plus un compte de test."), findsOneWidget);
       expect(marquee(tester), isFalse);
     });
 
-    testWidgets('testeur Orange Money : refus du serveur affiché, marque inchangée', (tester) async {
+    testWidgets('compte de test : refus du serveur affiché, marque inchangée', (tester) async {
       await ouvrir(
         tester,
         solde: 0,

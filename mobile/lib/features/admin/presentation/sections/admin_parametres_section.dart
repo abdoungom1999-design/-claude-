@@ -264,16 +264,18 @@ class _ReglesEnVigueur extends StatelessWidget {
             ligne(
               'Moyens de paiement',
               switch (accesOrangeMoney) {
-                AccesOrangeMoney.ferme => 'Wave, solde Sprint (Orange Money bientôt)',
-                AccesOrangeMoney.testeurs => 'Wave, solde Sprint (Orange Money : essai réservé aux testeurs)',
-                AccesOrangeMoney.tous => 'Wave, Orange Money, solde Sprint',
+                AccesOrangeMoney.ferme => 'Solde Sprint ; comptes de test : aussi Wave de test (Orange Money bientôt)',
+                AccesOrangeMoney.testeurs =>
+                  'Solde Sprint ; comptes de test : aussi Wave de test et Orange Money (essai)',
+                AccesOrangeMoney.tous => 'Solde Sprint, Orange Money ; comptes de test : aussi Wave de test',
               },
             ),
             ligne(
               'Encaissement',
               switch (environnementOrangeMoney) {
                 EnvironnementOrangeMoney.bacASable => 'Mode test (aucun débit réel)',
-                EnvironnementOrangeMoney.production => 'Orange Money : argent réel · Wave : mode test (aucun débit réel)',
+                EnvironnementOrangeMoney.production =>
+                  'Orange Money : argent réel · Wave : argent de test (aucun débit réel, jamais compté)',
               },
             ),
           ],

@@ -120,6 +120,19 @@ dans son historique. Tests : `radar_chauffeur_test.dart`, règles
 Firestore (`regles.test.mjs`, `attaques.test.mjs`), `functions/test/paiements.emulateur.test.ts` et
 `notifications.emulateur.test.ts`.
 
+**Faux Wave : réservé aux comptes de test, « argent de test » hors de la comptabilité** (décision du client,
+13 novembre 2026, priorité moyenne) : tant que Wave est simulé, il ne débite personne. Il n'est donc proposé
+qu'aux comptes de test (les comptes clients marqués par un Admin, libellé « Compte de test » ; la même marque
+ouvre Orange Money pendant l'essai) ; un client ordinaire n'a que son solde Sprint, et le serveur refuse Wave et
+la recharge à tout autre (`methodesPour`, `WAVE_REEL`). Tout ce que produit le faux Wave est marqué
+`argentDeTest` par le serveur (commande, course, radar, recharge, mouvement du livre ; `functions/src/argent_reel.ts`)
+et ne compte ni dans le chiffre d'affaires, ni dans les commissions, ni dans ce que Sprint doit aux chauffeurs
+(`LigneCourse.argentDeTest`, `Compte`) : il reste visible et marqué (Finances, gains du chauffeur, historique
+du portefeuille, radar). Les courses d'avant le marquage sont jugées sur leur moyen de paiement
+(`argent_de_test.dart`). Détail et mise en service : `FIREBASE_SETUP.md`, « Faux Wave : comptes de test et argent
+de test ». Tests : `argent_de_test_test.dart`, `finances_test.dart`, `functions/test/argent_reel.test.ts`,
+`paiements.emulateur.test.ts`, `portefeuille.emulateur.test.ts`, `attaques.test.mjs`.
+
 Mise en ligne le 9 octobre 2026 (run #102), avec l'écran Colis par GPS et la correction du contrôle des
 secrets de l'APK (`securite/garde_fuites.mjs apk`). Après la mise en ligne, l'app installée doit être
 rouverte (PWA) et l'APK réinstallé : une ancienne version ne lit pas la position exacte et montrerait au

@@ -10,6 +10,12 @@ import '../../courses/data/course_service.dart';
 /// chiffre d'affaires, ni commission, ni part pour le chauffeur. Si cette
 /// part lui avait déjà été versée, son solde devient négatif : elle est
 /// déduite de ses prochains gains.
+///
+/// Une course payée en ARGENT DE TEST (faux Wave, solde fait d'argent de test :
+/// aucune somme réelle encaissée, décision du client du 13 novembre 2026) ne
+/// compte pas non plus : elle reste visible, marquée, mais n'entre ni dans le
+/// chiffre d'affaires, ni dans les commissions, ni dans ce que Sprint doit au
+/// chauffeur.
 class LigneCourse {
   const LigneCourse({
     required this.courseId,
@@ -20,6 +26,7 @@ class LigneCourse {
     this.methodePaiement,
     this.clientId = '',
     this.remboursee = false,
+    this.argentDeTest = false,
   });
 
   factory LigneCourse.depuisCourse(CourseFirestore course) => LigneCourse(
@@ -32,12 +39,13 @@ class LigneCourse {
         clientId: course.clientId,
         date: course.termineeLe ?? course.timestamp,
         remboursee: course.rembourseeLe != null,
+        argentDeTest: course.argentDeTest,
       );
 
   /// Part du chauffeur sur [course] (celle qu'un remboursement lui
   /// retirerait) : 0 si la course n'est pas terminée.
   static int partChauffeurDe(CourseFirestore course) =>
-      course.statut == StatutCourse.terminee && course.chauffeurId != null
+      course.statut == StatutCourse.terminee && course.chauffeurId != null && !course.argentDeTest
           ? course.prixFcfa - (course.commissionFcfa ?? Commission.historique(course.prixFcfa))
           : 0;
 
@@ -54,26 +62,33 @@ class LigneCourse {
   /// Remboursée intégralement au client : ne compte plus dans les comptes.
   final bool remboursee;
 
-  /// Ce que Sprint garde du paiement du client (0 si remboursé).
-  int get encaisseFcfa => remboursee ? 0 : prixFcfa;
+  /// Payée en argent de test : aucune somme réelle encaissée, ne compte pas
+  /// dans les comptes (voir [CourseFirestore.argentDeTest]).
+  final bool argentDeTest;
 
-  /// Commission de Sprint effectivement gagnée (0 si remboursé).
-  int get commissionGagneeFcfa => remboursee ? 0 : commissionFcfa;
+  /// Compte dans les comptes de Sprint : ni remboursée, ni payée en argent de test.
+  bool get compte => !remboursee && !argentDeTest;
+
+  /// Ce que Sprint garde du paiement du client (0 si remboursé, ou en argent de test).
+  int get encaisseFcfa => compte ? prixFcfa : 0;
+
+  /// Commission de Sprint effectivement gagnée (0 si remboursé, ou en argent de test).
+  int get commissionGagneeFcfa => compte ? commissionFcfa : 0;
 
   /// Taux de commission de cette course, tel que figé à son arrivée (10 % ou
   /// 15 % selon sa date), arrondi au pourcent.
   int get pourcentageCommission =>
       prixFcfa <= 0 ? Commission.pourcentage : (commissionFcfa * 100 / prixFcfa).round();
 
-  /// Part du chauffeur qui lui a été retirée par le remboursement.
-  int get partRetireeFcfa => remboursee ? prixFcfa - commissionFcfa : 0;
+  /// Part du chauffeur qui lui a été retirée par le remboursement (rien pour de l'argent de test : il n'avait rien reçu).
+  int get partRetireeFcfa => remboursee && !argentDeTest ? prixFcfa - commissionFcfa : 0;
 
   /// "WAVE" / "ORANGE_MONEY" (affichage seulement).
   final String? methodePaiement;
 
   /// Ce que Sprint doit au chauffeur pour cette course (0 si remboursée :
-  /// le chauffeur n'est pas payé pour une course remboursée).
-  int get partChauffeurFcfa => remboursee ? 0 : prixFcfa - commissionFcfa;
+  /// le chauffeur n'est pas payé pour une course remboursée, ni pour de l'argent de test).
+  int get partChauffeurFcfa => compte ? prixFcfa - commissionFcfa : 0;
 
   String get libelleMethode => switch (methodePaiement) {
         'WAVE' => 'Wave',
@@ -110,9 +125,18 @@ class Compte {
   final List<LigneCourse> courses;
   final List<Reglement> reglements;
 
-  /// Courses payées (hors courses remboursées).
-  int get nombreCourses => courses.where((c) => !c.remboursee).length;
-  int get nombreRemboursees => courses.where((c) => c.remboursee).length;
+  /// Courses payées en argent réel (hors courses remboursées et hors argent de test).
+  int get nombreCourses => courses.where((c) => c.compte).length;
+  int get nombreRemboursees => courses.where((c) => c.remboursee && !c.argentDeTest).length;
+
+  /// Courses payées en argent de test : visibles, jamais comptées.
+  int get nombreCoursesDeTest => courses.where((c) => c.argentDeTest).length;
+
+  /// Prix de ces courses de test (remboursées ou non) : de l'argent qui n'a jamais été encaissé.
+  int get montantDeTestFcfa => _somme(courses.where((c) => c.argentDeTest).map((c) => c.prixFcfa));
+
+  /// Toutes les courses terminées et non remboursées, en argent réel ou de test : l'activité, pas la comptabilité.
+  int get nombreCoursesTerminees => courses.where((c) => !c.remboursee).length;
   int get chiffreAffairesFcfa => _somme(courses.map((c) => c.encaisseFcfa));
   int get commissionsFcfa => _somme(courses.map((c) => c.commissionGagneeFcfa));
 
@@ -128,7 +152,7 @@ class Compte {
   /// passage de 15 % à 10 %) : l'écran n'affiche alors aucun pourcentage plutôt
   /// qu'un taux faux. Sans course payée : le taux actuel.
   int? get pourcentageCommission {
-    final payees = courses.where((c) => !c.remboursee).toList();
+    final payees = courses.where((c) => c.compte).toList();
     if (payees.isEmpty) return Commission.pourcentage;
     final premier = payees.first.pourcentageCommission;
     return payees.every((c) => c.pourcentageCommission == premier) ? premier : null;

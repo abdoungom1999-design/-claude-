@@ -131,7 +131,8 @@ class _VueFinances extends StatelessWidget {
     final aujourdhui = compte.depuis(Periodes.debutJour(maintenant));
     final semaine = compte.depuis(Periodes.debutSemaine(maintenant));
     final ids = {
-      for (final c in compte.courses) c.chauffeurId,
+      // Un chauffeur qui n'a fait que des courses en argent de test n'a rien à se faire verser.
+      for (final c in compte.courses) if (!c.argentDeTest) c.chauffeurId,
       for (final r in compte.reglements) r.chauffeurId,
     }..remove('');
     final comptes = [for (final id in ids) (id, compte.duChauffeur(id))]
@@ -156,20 +157,31 @@ class _VueFinances extends StatelessWidget {
             tuile('Commissions Sprint (total)', compte.commissionsFcfa, Icons.percent_rounded),
             tuile('Versé aux chauffeurs', compte.versementsFcfa, Icons.check_circle_outline_rounded),
             tuile('Reste à verser aux chauffeurs', duAuxChauffeurs, Icons.call_made_rounded, accent: AppColors.alerte),
+            // Faux Wave : jamais encaissé, exclu de tous les chiffres ci-dessus, mais visible.
+            if (compte.nombreCoursesDeTest > 0)
+              tuile(
+                'Argent de test (non compté)',
+                compte.montantDeTestFcfa,
+                Icons.science_outlined,
+                accent: AppColors.texteDiscret,
+              ),
           ],
         ),
         const SizedBox(height: 10),
         Text(
           'Commission : ${Commission.pourcentage} % de chaque course terminée, figée à la fin de la course '
           '(imposée par les règles Firestore) ; les courses terminées avant le changement de taux gardent leurs '
-          '${Commission.pourcentageHistorique} %. ${compte.nombreCourses} courses terminées au total, toutes '
-          'payées en mobile money (${accesOrangeMoney == AccesOrangeMoney.ferme ? 'Wave' : 'Wave ou Orange Money'}) '
+          '${Commission.pourcentageHistorique} %. ${compte.nombreCourses} courses terminées en argent réel, '
+          'payées en mobile money (${accesOrangeMoney == AccesOrangeMoney.ferme ? 'aucun encore ouvert à tous' : 'Orange Money'}) '
           'ou avec le solde du portefeuille, et encaissées par Sprint, qui reverse au chauffeur le prix moins la '
           'commission (${switch (environnementOrangeMoney) {
             EnvironnementOrangeMoney.bacASable => 'paiements encore en mode test : aucun argent réellement encaissé',
             EnvironnementOrangeMoney.production =>
-              'Orange Money encaisse de l\'argent réel ; Wave est encore en mode test, sans argent réel',
+              'Orange Money encaisse de l\'argent réel ; Wave est encore le faux Wave, de l\'argent de test',
           }}).'
+          '${compte.nombreCoursesDeTest == 0 ? '' : ' ${compte.nombreCoursesDeTest} course(s) en argent de test '
+              '(${formaterFcfa(compte.montantDeTestFcfa)}, jamais encaissés), exclue(s) de tous ces chiffres : ni chiffre '
+              'd\'affaires, ni commission, ni part à verser aux chauffeurs.'}'
           '${compte.nombreRemboursees == 0 ? '' : ' ${compte.nombreRemboursees} course(s) remboursée(s) au client, exclue(s) '
               'des comptes : part des chauffeurs retirée (${formaterFcfa(compte.partsRetireesFcfa)}).'}',
           style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.4),

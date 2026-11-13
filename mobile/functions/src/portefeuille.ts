@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Timestamp, type DocumentReference, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { argentDeTestDe, dateDe, encaissementReel } from './argent_reel';
 import { lireSansRetour } from './commandes';
 import {
   FOURNISSEUR_ORANGE,
@@ -97,6 +98,8 @@ export function ecrireMouvement(
     montantFcfa: number;
     reference: string | null;
     note?: string;
+    /** Mouvement en argent de test (faux Wave, voir `argent_reel.ts`) ; absent pour de l'argent réel. */
+    argentDeTest?: boolean;
   },
   maintenant: Date,
 ): number {
@@ -109,6 +112,7 @@ export function ecrireMouvement(
     soldeApresFcfa: soldeApres,
     reference: mouvement.reference,
     ...(mouvement.note ? { note: mouvement.note } : {}),
+    ...(mouvement.argentDeTest === true ? { argentDeTest: true } : {}),
     creeLe: Timestamp.fromDate(maintenant),
   });
   return soldeApres;
@@ -216,6 +220,8 @@ export async function creerRecharge(
     montantFcfa,
     methodePaiement,
     fournisseur: fournisseur.nom,
+    // Faux Wave : de l'argent de test, jamais compté dans la comptabilité.
+    argentDeTest: !encaissementReel(fournisseur.nom, maintenant),
     sessionPaiementId: session.sessionId,
     lienPaiement: session.lienPaiement,
     creeLe: Timestamp.fromDate(maintenant),
@@ -280,7 +286,13 @@ export async function traiterEvenementRecharge(
       db,
       clientId,
       soldeAvant,
-      { id: `recharge_${refRecharge.id}`, type: TYPES_MOUVEMENT.recharge, montantFcfa, reference: refRecharge.id },
+      {
+        id: `recharge_${refRecharge.id}`,
+        type: TYPES_MOUVEMENT.recharge,
+        montantFcfa,
+        reference: refRecharge.id,
+        argentDeTest: argentDeTestDe(recharge.data()!),
+      },
       maintenant,
     );
     tx.update(refRecharge, { statut: STATUTS_RECHARGE.reussie, creditee: true, termineeLe: Timestamp.fromDate(maintenant) });
@@ -325,7 +337,8 @@ export const FOURNISSEURS_REMBOURSES_SUR_SOLDE: readonly string[] = [FOURNISSEUR
  * Débite le solde de [prixFcfa] à l'intérieur de la transaction [tx] qui
  * crée aussi la course. Lève `solde-insuffisant` sans rien écrire si le
  * solde ne suffit pas (le client choisit alors un mode mobile money).
- * [portefeuille] est le document déjà lu dans [tx].
+ * [portefeuille] est le document déjà lu dans [tx]. [argentDeTest] : la course
+ * est payée en argent de test (voir [montantRetirable] et `paiements.ts`).
  */
 export function debiterPourCourse(
   tx: Transaction,
@@ -335,12 +348,13 @@ export function debiterPourCourse(
   commandeId: string,
   prixFcfa: number,
   maintenant: Date,
+  argentDeTest: boolean = false,
 ): void {
   const soldeAvant = solde(portefeuille);
   if (soldeAvant < prixFcfa) {
     throw new HttpsError(
       'failed-precondition',
-      `Solde insuffisant : ${soldeAvant} FCFA disponibles pour une course de ${prixFcfa} FCFA. Rechargez votre solde ou choisissez Wave.`,
+      `Solde insuffisant : ${soldeAvant} FCFA disponibles pour une course de ${prixFcfa} FCFA. Rechargez votre solde.`,
       { raison: 'solde-insuffisant', soldeFcfa: soldeAvant },
     );
   }
@@ -349,7 +363,7 @@ export function debiterPourCourse(
     db,
     uid,
     soldeAvant,
-    { id: `course_${commandeId}`, type: TYPES_MOUVEMENT.paiementCourse, montantFcfa: -prixFcfa, reference: commandeId },
+    { id: `course_${commandeId}`, type: TYPES_MOUVEMENT.paiementCourse, montantFcfa: -prixFcfa, reference: commandeId, argentDeTest },
     maintenant,
   );
 }
@@ -393,6 +407,7 @@ export async function rembourserSurPortefeuille(
           montantFcfa: prixFcfa,
           reference: refCommande.id,
           note: motif,
+          argentDeTest: argentDeTestDe(commande.data()!),
         },
         maintenant,
       );
@@ -405,4 +420,69 @@ export async function rembourserSurPortefeuille(
     });
     return true;
   });
+}
+
+// ---------------------------------------------------------------------
+// 5. Argent réel du solde
+// ---------------------------------------------------------------------
+
+/**
+ * Part du solde qui peut être retirée : l'argent réel entré (recharges et
+ * remboursements de paiements réellement encaissés), moins les courses payées
+ * avec le solde (comptées d'abord sur l'argent réel, par prudence), les
+ * retraits et les ajustements négatifs de l'Admin ; jamais plus que le solde.
+ * Un remboursement de course payée avec le solde annule son débit ; un
+ * ajustement positif de l'Admin (geste commercial) ne se retire pas. Lu dans
+ * la transaction de la demande : le livre et le solde sont cohérents.
+ *
+ * Sert aussi à marquer une course payée avec le solde (`paiements.ts`) : elle
+ * n'est payée en argent réel que si cette part réelle la couvre en entier ;
+ * sinon c'est de l'argent de test, qui ne compte pas dans la comptabilité.
+ */
+export async function montantRetirable(tx: Transaction, db: Firestore, uid: string, soldeFcfa: number): Promise<number> {
+  const mouvements = (await tx.get(refPortefeuille(db, uid).collection('mouvements'))).docs;
+  const sources: DocumentReference[] = [];
+  for (const m of mouvements) {
+    const reference = m.get('reference');
+    if (typeof reference !== 'string' || reference.length === 0 || reference.includes('/')) continue;
+    if (m.get('type') === TYPES_MOUVEMENT.recharge) sources.push(db.collection('recharges').doc(reference));
+    if (m.get('type') === TYPES_MOUVEMENT.remboursement) sources.push(db.collection('commandes').doc(reference));
+  }
+  const lues = sources.length > 0 ? await tx.getAll(...sources) : [];
+  const reel = new Map<string, boolean>();
+  for (const s of lues) {
+    reel.set(s.ref.path, s.exists && encaissementReel(s.get('fournisseur'), dateDe(s.get('creeLe'))));
+  }
+  const fournisseurDe = new Map(lues.map((s) => [s.ref.path, s.exists ? s.get('fournisseur') : undefined]));
+
+  let retirable = 0;
+  for (const m of mouvements) {
+    const montant = m.get('montantFcfa');
+    if (typeof montant !== 'number' || !Number.isFinite(montant)) continue;
+    const reference = m.get('reference');
+    switch (m.get('type')) {
+      case TYPES_MOUVEMENT.recharge:
+        if (reel.get(`recharges/${reference}`) === true) retirable += montant;
+        break;
+      case TYPES_MOUVEMENT.remboursement: {
+        const chemin = `commandes/${reference}`;
+        // Course payée avec le solde : son débit est annulé. Paiement réel
+        // (Orange Money en production) : argent réel rendu.
+        if (fournisseurDe.get(chemin) === 'portefeuille' || reel.get(chemin) === true) retirable += montant;
+        break;
+      }
+      case TYPES_MOUVEMENT.ajustementAdmin:
+        retirable += Math.min(0, montant);
+        break;
+      default:
+        // Courses payées, retraits (débits) ; retraits refusés (crédits rendus).
+        if (
+          montant < 0 ||
+          m.get('type') === TYPES_MOUVEMENT.retraitRendu
+        ) {
+          retirable += montant;
+        }
+    }
+  }
+  return Math.max(0, Math.min(soldeFcfa, retirable));
 }

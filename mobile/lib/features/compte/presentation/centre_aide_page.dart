@@ -29,9 +29,9 @@ const _questions = [
             'Orange Money), ou le solde de votre Portefeuille Santine, rechargeable avec Wave ou '
             'Orange Money depuis l\'onglet Compte. Une course payée par Orange Money puis annulée '
             'vous est remboursée sur ce solde.'
-        : 'Deux moyens de paiement sont disponibles : Wave, ou le solde de votre '
-            'Portefeuille Santine, rechargeable avec Wave depuis l\'onglet Compte. '
-            'Orange Money arrivera bientôt.',
+        : 'Le paiement en ligne n\'est pas encore ouvert à tous : pendant la phase de test, il est '
+            'réservé aux comptes de test. À son ouverture, vous paierez par mobile money ou avec le '
+            'solde de votre Portefeuille Santine, rechargeable depuis l\'onglet Compte.',
   ),
   if (retraitsOuverts)
     _Question(

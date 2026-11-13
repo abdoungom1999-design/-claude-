@@ -1,12 +1,16 @@
 import { randomBytes } from 'node:crypto';
-import { Timestamp, type DocumentReference, type Firestore, type Transaction } from 'firebase-admin/firestore';
+import { Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { verifierAdmin } from './admin';
-import { FOURNISSEUR_ORANGE } from './fournisseurs';
-import { ENVIRONNEMENT_ORANGE_MONEY } from './methodes_paiement';
 import { pousser, type Messagerie } from './notifications';
-import { ecrireMouvement, objet, refPortefeuille, solde, TYPES_MOUVEMENT } from './portefeuille';
+import { ecrireMouvement, montantRetirable, objet, refPortefeuille, solde, TYPES_MOUVEMENT } from './portefeuille';
 import { prevenirAdmins } from './sauvegardes';
+
+// Le calcul de l'argent réel vit dans `argent_reel.ts` et `portefeuille.ts` (les
+// paiements s'en servent aussi, sans passer par ce module, qui dépend de l'Admin,
+// lui-même dépendant des paiements) : il reste exporté d'ici pour qui l'importe.
+export { DEBUT_ARGENT_REEL_ORANGE, encaissementReel } from './argent_reel';
+export { montantRetirable } from './portefeuille';
 
 /**
  * Retrait du solde Sprint (lot B ; préparé, puis ouvert avec le go du client
@@ -47,13 +51,6 @@ export const RETRAIT_MAX_JOUR_FCFA = 50_000;
 /** Délai annoncé au client pour l'envoi (décision du client, 2 novembre 2026). */
 export const DELAI_VERSEMENT_HEURES = 48;
 
-/**
- * Orange Money encaisse de l'argent réel depuis la publication 114 (fonctions
- * déployées le 2 novembre 2026 entre 9 h 41 et 9 h 43, heure de Dakar = UTC) ;
- * avant : bac à sable, argent de test.
- */
-export const DEBUT_ARGENT_REEL_ORANGE = new Date('2026-11-02T09:43:00Z');
-
 /** Une demande à la fois par client : la suivante après le traitement de la première. */
 export const MOYENS_RETRAIT = ['ORANGE_MONEY', 'WAVE'] as const;
 export type MoyenRetrait = (typeof MOYENS_RETRAIT)[number];
@@ -89,81 +86,6 @@ export const fraisMaxFcfa = (montant: number) => Math.min(montant - 1, Math.max(
 const nomClient = (nom: unknown) => (typeof nom === 'string' && nom.trim() ? nom.trim().slice(0, 80) : 'Client');
 
 const formaterFcfa = (montant: number) => `${montant.toLocaleString('fr-FR').replace(/[\u202F\u00A0]/g, ' ')} FCFA`;
-
-/**
- * Argent réellement encaissé par Sprint pour une recharge ou une commande :
- * vrai Wave (`wave`, pas encore branché), ou Orange Money en production
- * (depuis [DEBUT_ARGENT_REEL_ORANGE]). Le faux Wave (`simulation`) et le bac à
- * sable d'Orange Money ne sont que de l'argent de test.
- */
-export function encaissementReel(fournisseur: unknown, creeLe: Date | null): boolean {
-  if (fournisseur === 'wave') return true;
-  return (
-    fournisseur === FOURNISSEUR_ORANGE &&
-    ENVIRONNEMENT_ORANGE_MONEY === 'production' &&
-    creeLe !== null &&
-    creeLe.getTime() >= DEBUT_ARGENT_REEL_ORANGE.getTime()
-  );
-}
-
-const date = (v: unknown) => (v instanceof Timestamp ? v.toDate() : null);
-
-/**
- * Part du solde qui peut être retirée : l'argent réel entré (recharges et
- * remboursements de paiements réellement encaissés), moins les courses payées
- * avec le solde (comptées d'abord sur l'argent réel, par prudence), les
- * retraits et les ajustements négatifs de l'Admin ; jamais plus que le solde.
- * Un remboursement de course payée avec le solde annule son débit ; un
- * ajustement positif de l'Admin (geste commercial) ne se retire pas. Lu dans
- * la transaction de la demande : le livre et le solde sont cohérents.
- */
-export async function montantRetirable(tx: Transaction, db: Firestore, uid: string, soldeFcfa: number): Promise<number> {
-  const mouvements = (await tx.get(refPortefeuille(db, uid).collection('mouvements'))).docs;
-  const sources: DocumentReference[] = [];
-  for (const m of mouvements) {
-    const reference = m.get('reference');
-    if (typeof reference !== 'string' || reference.length === 0 || reference.includes('/')) continue;
-    if (m.get('type') === TYPES_MOUVEMENT.recharge) sources.push(db.collection('recharges').doc(reference));
-    if (m.get('type') === TYPES_MOUVEMENT.remboursement) sources.push(db.collection('commandes').doc(reference));
-  }
-  const lues = sources.length > 0 ? await tx.getAll(...sources) : [];
-  const reel = new Map<string, boolean>();
-  for (const s of lues) {
-    reel.set(s.ref.path, s.exists && encaissementReel(s.get('fournisseur'), date(s.get('creeLe'))));
-  }
-  const fournisseurDe = new Map(lues.map((s) => [s.ref.path, s.exists ? s.get('fournisseur') : undefined]));
-
-  let retirable = 0;
-  for (const m of mouvements) {
-    const montant = m.get('montantFcfa');
-    if (typeof montant !== 'number' || !Number.isFinite(montant)) continue;
-    const reference = m.get('reference');
-    switch (m.get('type')) {
-      case TYPES_MOUVEMENT.recharge:
-        if (reel.get(`recharges/${reference}`) === true) retirable += montant;
-        break;
-      case TYPES_MOUVEMENT.remboursement: {
-        const chemin = `commandes/${reference}`;
-        // Course payée avec le solde : son débit est annulé. Paiement réel
-        // (Orange Money en production) : argent réel rendu.
-        if (fournisseurDe.get(chemin) === 'portefeuille' || reel.get(chemin) === true) retirable += montant;
-        break;
-      }
-      case TYPES_MOUVEMENT.ajustementAdmin:
-        retirable += Math.min(0, montant);
-        break;
-      default:
-        // Courses payées, retraits (débits) ; retraits refusés (crédits rendus).
-        if (
-          montant < 0 ||
-          m.get('type') === TYPES_MOUVEMENT.retraitRendu
-        ) {
-          retirable += montant;
-        }
-    }
-  }
-  return Math.max(0, Math.min(soldeFcfa, retirable));
-}
 
 /** Retraits du client ce jour-là (refusés exclus : leur montant est revenu sur le solde). */
 async function retireLeJour(tx: Transaction, db: Firestore, uid: string, jour: string): Promise<number> {

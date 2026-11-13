@@ -223,16 +223,20 @@ test('essai réservé aux testeurs : le testeur paie et recharge avec Orange Mon
   // Client ordinaire, ou marque mal formée (seul `true` compte) : comme si Orange était fermé.
   for (const uid of ['fatou', 'khady']) {
     const erreur = await refuse(creerPaiement(demande(), midi, 'testeurs', uid), 'failed-precondition');
-    assert.match(erreur.message, /Orange Money n'est pas encore disponible : payez avec Wave ou votre solde Sprint/);
+    assert.match(erreur.message, /Orange Money n'est pas encore disponible : payez avec votre solde Sprint/);
     await refuse(creerRecharge(5000, midi, 'testeurs', uid), 'failed-precondition');
   }
   assert.equal(orange.qrCodes.length, 2, 'aucune demande chez Orange pour eux');
-  // Wave reste ouvert à tous.
-  const wave = await creerPaiement(demande({ methodePaiement: 'WAVE' }), midi, 'testeurs', 'fatou');
+  // Le faux Wave n'est plus ouvert à tous (décision du client, 13 novembre 2026) : un client ordinaire n'a que son
+  // solde Sprint, le compte de test garde le faux Wave.
+  const refusWave = await refuse(creerPaiement(demande({ methodePaiement: 'WAVE' }), midi, 'testeurs', 'fatou'), 'failed-precondition');
+  assert.match(refusWave.message, /Wave n'est pas encore disponible : payez avec votre solde Sprint/);
+  const wave = await creerPaiement(demande({ methodePaiement: 'WAVE' }), midi, 'testeurs', 'awa');
   assert.equal((await commande(wave.commandeId)).fournisseur, 'simulation');
 });
 
 test('chaque moyen reste chez son fournisseur : Wave par Wave, Orange Money par Orange', async () => {
+  await db.doc('users/awa').update({ testeurOrangeMoney: true }); // compte de test : le faux Wave lui est ouvert
   const wave = await creerPaiement(demande({ methodePaiement: 'WAVE' }));
   assert.equal((await commande(wave.commandeId)).fournisseur, 'simulation');
   assert.match(wave.lienPaiement!, /^https:\/\/page\?session=sim_/);
@@ -266,6 +270,7 @@ test('Orange non configuré ou injoignable : paiement Orange indisponible, rien 
   assert.equal(await nombre('commandes'), 0);
   assert.equal(await nombre('recharges'), 0);
 
+  await db.doc('users/awa').update({ testeurOrangeMoney: true }); // compte de test : le faux Wave lui est ouvert
   const wave = await creerPaiement(demande({ methodePaiement: 'WAVE' }));
   assert.equal((await commande(wave.commandeId)).statut, 'en_attente_paiement');
 });

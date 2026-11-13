@@ -272,25 +272,42 @@ void main() {
     });
   });
 
-  group('Client : Wave ou solde Sprint (Orange Money fermé)', () {
+  group('Client : solde Sprint, faux Wave réservé aux comptes de test, Orange Money pendant l\'essai', () {
     test('aucun mode de paiement en espèces : mobile money, ou solde Sprint (rechargé par mobile money)', () {
       expect(PaymentMethod.values, [PaymentMethod.wave, PaymentMethod.orangeMoney, PaymentMethod.portefeuille]);
       expect(PaymentMethod.values.map((m) => m.apiValue), ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']);
     });
 
-    test('essai réservé aux testeurs (go du client) : un client ordinaire ne voit que Wave, le testeur aussi Orange Money', () {
-      // Jumeau : ACCES_ORANGE_MONEY du serveur. Ouverture à tous : seulement avec un nouveau go du client.
+    test('essai réservé aux testeurs (go du client) : un client ordinaire n\'a aucun mobile money, le compte de test a Wave et Orange Money', () {
+      // Jumeaux : ACCES_ORANGE_MONEY et WAVE_REEL du serveur. Ouverture : seulement avec un nouveau go du client.
       expect(accesOrangeMoney, AccesOrangeMoney.testeurs);
-      expect(moyensMobileMoneyPour(testeur: false), [PaymentMethod.wave]);
+      expect(waveReel, isFalse);
+      expect(moyensMobileMoneyPour(testeur: false), isEmpty);
       expect(moyensMobileMoneyPour(testeur: true), [PaymentMethod.wave, PaymentMethod.orangeMoney]);
       expect(PaymentMethod.orangeMoney.label, 'Orange Money'); // libellé de l'historique conservé
+    });
+
+    test('faux Wave : réservé aux comptes de test (décision du client, 13 novembre 2026), sauf en démo ou quand le vrai Wave est branché', () {
+      expect(moyensMobileMoneyPour(testeur: false, acces: AccesOrangeMoney.ferme), isEmpty);
+      expect(moyensMobileMoneyPour(testeur: true, acces: AccesOrangeMoney.ferme), [PaymentMethod.wave]);
+      // Mode démo (sans Firebase) : pas de compte de test à chercher, Wave comme avant.
+      expect(moyensMobileMoneyPour(testeur: false, demo: true), [PaymentMethod.wave]);
+      // Vrai Wave branché (jamais le cas aujourd'hui) : ouvert à tous.
+      expect(moyensMobileMoneyPour(testeur: false, vraiWave: true), [PaymentMethod.wave]);
+      // Ce que produit le faux Wave n'est jamais de l'argent réel, le vrai Wave si.
+      expect(PaymentMethod.wave.argentDeTest(), isTrue);
+      expect(PaymentMethod.wave.argentDeTest(vraiWave: true), isFalse);
+      expect(PaymentMethod.orangeMoney.argentDeTest(), isFalse);
+      expect(PaymentMethod.orangeMoney.argentDeTest(environnement: EnvironnementOrangeMoney.bacASable), isTrue);
+      expect(PaymentMethod.portefeuille.argentDeTest(), isFalse);
     });
 
     test('essai réservé aux testeurs, puis ouverture : mêmes règles que le serveur', () {
       const avecOrange = [PaymentMethod.wave, PaymentMethod.orangeMoney];
       expect(moyensMobileMoneyPour(testeur: true, acces: AccesOrangeMoney.testeurs), avecOrange);
-      expect(moyensMobileMoneyPour(testeur: false, acces: AccesOrangeMoney.testeurs), [PaymentMethod.wave]);
-      expect(moyensMobileMoneyPour(testeur: false, acces: AccesOrangeMoney.tous), avecOrange);
+      expect(moyensMobileMoneyPour(testeur: false, acces: AccesOrangeMoney.testeurs), isEmpty);
+      expect(moyensMobileMoneyPour(testeur: false, acces: AccesOrangeMoney.tous), [PaymentMethod.orangeMoney]);
+      expect(moyensMobileMoneyPour(testeur: true, acces: AccesOrangeMoney.tous), avecOrange);
       expect(moyensMobileMoneyPour(testeur: true, acces: AccesOrangeMoney.ferme), [PaymentMethod.wave]);
       // Marque posée par un Admin : seul `true` compte.
       expect(estTesteurOrangeMoney({'testeurOrangeMoney': true}), isTrue);
@@ -322,9 +339,16 @@ void main() {
       await ouvrir(testeur: true);
       expect(find.text('Payer avec Wave'), findsOneWidget);
       expect(find.text('Payer avec Orange Money'), findsOneWidget);
+      // Wave dit qu'il n'est que de l'argent de test ; Orange Money (argent réel) ne le dit pas.
+      expect(find.byKey(const ValueKey('mention-argent-de-test')), findsOneWidget);
+      expect(find.text('Argent de test · aucun débit réel'), findsOneWidget);
+      // Client ordinaire : ni Wave (réservé aux comptes de test) ni Orange Money (essai) ; il est prévenu.
       await ouvrir(testeur: false);
-      expect(find.text('Payer avec Wave'), findsOneWidget);
+      expect(find.text('Payer avec Wave'), findsNothing);
+      expect(find.byKey(const ValueKey('paiement-pas-encore-ouvert')), findsOneWidget);
+      expect(find.textContaining("Le paiement en ligne n'est pas encore ouvert à votre compte"), findsOneWidget);
       expect(find.textContaining('Orange', findRichText: true), findsNothing);
+      expect(find.byKey(const ValueKey('mention-argent-de-test')), findsNothing);
     });
 
     test('environnement d\'Orange Money : production (go du client) ; seul Orange Money en production débite vraiment', () {
@@ -339,12 +363,12 @@ void main() {
         expect(PaymentMethod.portefeuille.argentReel(environnement: environnement), isFalse);
       }
       const avecOrange = [PaymentMethod.wave, PaymentMethod.orangeMoney];
-      const essai = 'Paiement sécurisé — mode test, aucun débit réel';
+      const essai = 'Paiement sécurisé — argent de test, aucun débit réel';
       expect(mentionPaiement(avecOrange, environnement: EnvironnementOrangeMoney.bacASable), essai);
       expect(mentionPaiement([PaymentMethod.wave], environnement: EnvironnementOrangeMoney.production), essai);
       expect(
         mentionPaiement(avecOrange, environnement: EnvironnementOrangeMoney.production),
-        'Paiement sécurisé — Orange Money : argent réel · Wave : mode test, aucun débit réel',
+        'Paiement sécurisé — Orange Money : argent réel · Wave : argent de test, aucun débit réel',
       );
       expect(mentionPaiement([PaymentMethod.orangeMoney], environnement: EnvironnementOrangeMoney.production), 'Paiement sécurisé');
     });
@@ -375,20 +399,22 @@ void main() {
       }
 
       await ouvrir(testeur: true);
-      expect(find.text('Paiement sécurisé — Orange Money : argent réel · Wave : mode test, aucun débit réel'), findsOneWidget);
+      expect(find.text('Paiement sécurisé — Orange Money : argent réel · Wave : argent de test, aucun débit réel'), findsOneWidget);
       expect(tester.takeException(), isNull);
-      // Un client ordinaire ne voit que Wave, encore en mode test.
+      // Un client ordinaire n'a aucun mobile money : pas de mention de paiement, mais l'explication.
       await ouvrir(testeur: false);
-      expect(find.text('Paiement sécurisé — mode test, aucun débit réel'), findsOneWidget);
+      expect(find.textContaining('Paiement sécurisé'), findsNothing);
+      expect(find.byKey(const ValueKey('paiement-pas-encore-ouvert')), findsOneWidget);
       expect(find.textContaining('Orange', findRichText: true), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('la sheet ne propose que Wave : plus d\'Orange Money (course gratuite par la simulation)', (tester) async {
+    testWidgets('mode démo (sans Firebase) : la sheet ne propose que Wave, jamais Orange Money', (tester) async {
       PaymentMethod? choix;
       await tester.pumpWidget(MaterialApp(
         home: Builder(
           builder: (context) => TextButton(
-            onPressed: () async => choix = await afficherSelectionPaiementSheet(context, montantFcfa: 3000),
+            onPressed: () async => choix = await afficherSelectionPaiementSheet(context, montantFcfa: 3000, demo: true),
             child: const Text('Ouvrir'),
           ),
         ),

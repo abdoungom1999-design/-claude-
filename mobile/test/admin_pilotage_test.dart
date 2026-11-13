@@ -56,6 +56,24 @@ CourseFirestore _course(String id, String client, String? chauffeur, String stat
       timestamp: quand,
     );
 
+/// Même activité, avec une course payée en argent de test (faux Wave) d'Awa Diallo.
+class _PilotageAvecArgentDeTest extends _PilotageFactice {
+  @override
+  Stream<List<LigneCourse>> streamCoursesTerminees() => Stream.value([
+        _terminee('c1', 'moussa', 3000, DateTime.utc(2026, 9, 27, 9)), // argent réel, aujourd'hui
+        LigneCourse(
+          courseId: 'c2-test',
+          chauffeurId: 'moussa',
+          clientId: 'c2',
+          prixFcfa: 2000,
+          commissionFcfa: Commission.historique(2000),
+          methodePaiement: 'WAVE',
+          date: DateTime.utc(2026, 9, 27, 11), // argent de test, aujourd'hui
+          argentDeTest: true,
+        ),
+      ]);
+}
+
 class _PilotageFactice extends PilotageService {
   @override
   Stream<List<LigneCourse>> streamCoursesTerminees() => Stream.value([
@@ -133,6 +151,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Dashboard : l\'argent de test n\'entre ni dans le chiffre d\'affaires ni dans la commission, mais dans l\'activité', (tester) async {
+    await _afficher(tester, AdminOverviewSection(service: _PilotageAvecArgentDeTest(), maintenant: _maintenant));
+
+    // CA du jour : les 3 000 réels seulement (les 2 000 de test ne sont pas encaissés) ; commission : 15 % de 3 000.
+    expect(find.text(formaterFcfa(3000)), findsOneWidget);
+    expect(find.text(formaterFcfa(5000)), findsNothing);
+    expect(find.text('Commission Sprint : ${formaterFcfa(450)}'), findsOneWidget);
+    // L'activité compte les deux courses, et dit combien sont de test.
+    expect(find.text('2'), findsWidgets);
+    expect(find.text("2 cette semaine · dont 1 de test aujourd'hui"), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Clients : la dépense réelle d\'un client ne compte pas l\'argent de test, qui est montré à côté', (tester) async {
+    await _afficher(tester, AdminClientsSection(service: _PilotageAvecArgentDeTest()));
+
+    // Fatou Sow : 3 000 réels. Awa Diallo : une course, payée en argent de test : 0 dépensé, 2 000 de test.
+    expect(find.text(formaterFcfa(3000)), findsOneWidget);
+    expect(find.text(formaterFcfa(0)), findsWidgets);
+    expect(find.byKey(const ValueKey('depense-de-test-c2')), findsOneWidget);
+    expect(find.text('+ ${formaterFcfa(2000)} de test'), findsOneWidget);
+    expect(find.byKey(const ValueKey('depense-de-test-c1')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Clients : vrais inscrits, courses, dépenses et recherche', (tester) async {
     await _afficher(tester, AdminClientsSection(service: _PilotageFactice()));
 
@@ -142,10 +185,10 @@ void main() {
     expect(find.text(formaterFcfa(17000)), findsOneWidget); // Fatou : 3 courses
     expect(find.text(formaterFcfa(2000)), findsOneWidget); // Awa Diallo : 1 course
     expect(find.text('10/09/2026'), findsOneWidget);
-    // Testeur Orange Money : étiquette sous le nom, pour ce seul client.
+    // Compte de test : étiquette sous le nom, pour ce seul client.
     expect(find.byKey(const ValueKey('marque-testeur-orange-money')), findsOneWidget);
     expect(
-      find.descendant(of: find.ancestor(of: find.text('Awa Diallo'), matching: find.byType(Column)).first, matching: find.text('Testeur Orange Money')),
+      find.descendant(of: find.ancestor(of: find.text('Awa Diallo'), matching: find.byType(Column)).first, matching: find.text('Compte de test')),
       findsOneWidget,
     );
     // Les plus récents d'abord, comptes sans date à la fin.
@@ -167,7 +210,7 @@ void main() {
   testWidgets('Paramètres : règles réellement appliquées, exemples calculés', (tester) async {
     await _afficher(tester, const AdminParametresSection(demo: false));
     expect(find.text('Règles en vigueur'), findsOneWidget);
-    expect(find.text('Wave, solde Sprint (Orange Money : essai réservé aux testeurs)'), findsOneWidget);
+    expect(find.text('Solde Sprint ; comptes de test : aussi Wave de test et Orange Money (essai)'), findsOneWidget);
     expect(find.text('10 % du prix'), findsOneWidget); // commission de Sprint
     expect(find.text('90 % du prix'), findsOneWidget); // part du chauffeur
     expect(

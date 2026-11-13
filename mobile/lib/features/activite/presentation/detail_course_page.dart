@@ -59,7 +59,7 @@ class _DetailCoursePageState extends State<DetailCoursePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(c.libellePaiement, style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret)),
+                    Text(c.libellePaiementMarque, style: const TextStyle(fontSize: 13, color: AppColors.texteDiscret)),
                     Text(formaterFcfa(c.prixFcfa), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                   ],
                 ),

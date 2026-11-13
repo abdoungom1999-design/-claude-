@@ -7,9 +7,29 @@ import { HttpsError } from 'firebase-functions/v2/https';
  * en contenir) et son fournisseur réel est branché (`paiement_orange.ts`,
  * jamais le faux opérateur), mais il n'est accepté que selon
  * [ACCES_ORANGE_MONEY].
+ *
+ * Wave est CONNU, mais son fournisseur est encore le faux Wave (`simulation`,
+ * `fournisseurs.ts`) : il n'est accepté que des comptes de test, tant que
+ * [WAVE_REEL] est faux.
  */
 export const METHODES_CONNUES = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'] as const;
 export type Methode = (typeof METHODES_CONNUES)[number];
+
+/**
+ * Le vrai Wave est-il branché ? Tant qu'il ne l'est pas, « Wave » est le faux
+ * Wave : aucune somme n'est débitée. Décision du client (13 novembre 2026) : le
+ * faux Wave est cloisonné aux COMPTES DE TEST (les comptes clients marqués par
+ * un Admin, `testeurOrangeMoney`, voir [AccesOrangeMoney]) et tout ce qu'il
+ * produit est marqué « argent de test » (`argent_reel.ts`), jamais compté dans la
+ * comptabilité. Les autres clients ne le voient pas et le serveur le refuse.
+ *
+ * Ne passe à `true` qu'avec le go du client, quand le vrai Wave est branché
+ * (`FournisseurWave`, clés marchandes dans Secret Manager, `fournisseur()` de
+ * `index.ts`) : seul alors Wave est ouvert à tous. Même réglage, en même temps,
+ * dans l'app (`waveReel`, lib/core/widgets/payment_method_selector.dart) : un
+ * test vérifie qu'ils sont d'accord.
+ */
+export const WAVE_REEL: boolean = false;
 
 /**
  * Qui peut payer avec Orange Money (décisions du client, 29 octobre 2026) :
@@ -55,14 +75,35 @@ export function orangeMoneyPour(testeur: boolean, acces: AccesOrangeMoney = ACCE
   return acces === 'tous' || (acces === 'testeurs' && testeur);
 }
 
-/** Moyens acceptés pour un nouveau paiement de ce client. */
-export function methodesPour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): readonly Methode[] {
-  return orangeMoneyPour(testeur, acces) ? ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'] : ['WAVE', 'PORTEFEUILLE'];
+/** Wave accepté pour ce client : le vrai Wave pour tous, le faux Wave pour les seuls comptes de test. */
+export function wavePour(testeur: boolean, waveReel: boolean = WAVE_REEL): boolean {
+  return waveReel || testeur;
+}
+
+/**
+ * Moyens acceptés pour un nouveau paiement de ce client. Un client ordinaire
+ * (ni testeur, Wave simulé) n'a que son solde Sprint : le mobile money s'ouvre à
+ * lui avec Orange Money pour tous ou le vrai Wave, sur un nouveau go du client.
+ */
+export function methodesPour(
+  testeur: boolean,
+  acces: AccesOrangeMoney = ACCES_ORANGE_MONEY,
+  waveReel: boolean = WAVE_REEL,
+): readonly Methode[] {
+  return [
+    ...(wavePour(testeur, waveReel) ? (['WAVE'] as const) : []),
+    ...(orangeMoneyPour(testeur, acces) ? (['ORANGE_MONEY'] as const) : []),
+    'PORTEFEUILLE',
+  ];
 }
 
 /** Moyens qui rechargent le portefeuille de ce client : le mobile money accepté (jamais le solde lui-même). */
-export function methodesRechargePour(testeur: boolean, acces: AccesOrangeMoney = ACCES_ORANGE_MONEY): readonly Methode[] {
-  return methodesPour(testeur, acces).filter((m) => m !== 'PORTEFEUILLE');
+export function methodesRechargePour(
+  testeur: boolean,
+  acces: AccesOrangeMoney = ACCES_ORANGE_MONEY,
+  waveReel: boolean = WAVE_REEL,
+): readonly Methode[] {
+  return methodesPour(testeur, acces, waveReel).filter((m) => m !== 'PORTEFEUILLE');
 }
 
 /** Moyens acceptés aujourd'hui pour un client ordinaire (pas testeur). */
@@ -78,23 +119,32 @@ const LIBELLES: Record<Methode, string> = {
 };
 
 /**
- * Valide le moyen de paiement reçu. Un moyen connu mais fermé (Orange
- * Money) est une précondition non remplie, avec un message qui indique quoi
- * choisir à la place ; toute autre valeur est un argument invalide.
+ * Valide le moyen de paiement reçu. Un moyen connu mais fermé à ce compte
+ * (Orange Money, ou Wave tant qu'il est simulé) est une précondition non
+ * remplie, avec un message qui indique quoi choisir à la place ; sans aucun
+ * moyen ouvert (recharge d'un client ordinaire), il dit que le paiement en ligne
+ * n'est pas encore ouvert. Toute autre valeur est un argument invalide.
  */
 export function verifierMethode(valeur: unknown, autorisees: readonly Methode[], action: 'payer' | 'recharger'): Methode {
   const connue = METHODES_CONNUES.find((m) => m === valeur);
   const choix = autorisees.map((m) => LIBELLES[m]).join(' ou ');
   if (connue !== undefined && autorisees.includes(connue)) return connue;
-  if (connue === 'ORANGE_MONEY') {
+  if (connue !== undefined && autorisees.length === 0) {
+    throw new HttpsError('failed-precondition', "Le paiement en ligne n'est pas encore ouvert à votre compte.", {
+      raison: 'methode_indisponible',
+    });
+  }
+  if (connue === 'ORANGE_MONEY' || connue === 'WAVE') {
     throw new HttpsError(
       'failed-precondition',
-      `Orange Money n'est pas encore disponible : ${action === 'payer' ? 'payez' : 'rechargez'} avec ${choix}.`,
+      `${LIBELLES[connue]} n'est pas encore disponible : ${action === 'payer' ? 'payez' : 'rechargez'} avec ${choix}.`,
       { raison: 'methode_indisponible' },
     );
   }
   throw new HttpsError(
     'invalid-argument',
-    `Mode de paiement invalide : ${autorisees.length === 1 ? `${choix} uniquement` : choix}.`,
+    autorisees.length === 0
+      ? 'Mode de paiement invalide.'
+      : `Mode de paiement invalide : ${autorisees.length === 1 ? `${choix} uniquement` : choix}.`,
   );
 }

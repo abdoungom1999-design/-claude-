@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { DISTANCE_MAX_KM, DISTANCE_TRAJET_MAX_KM, estimer, prixServeur, validerDemande } from '../src/commandes';
+import { DEBUT_ARGENT_REEL_ORANGE } from '../src/argent_reel';
 import { validerRecharge } from '../src/portefeuille';
 import type { CalculDistance } from '../src/distances';
 import {
@@ -15,6 +16,8 @@ import {
   methodesPour,
   methodesRechargePour,
   verifierMethode,
+  WAVE_REEL,
+  wavePour,
   type Methode,
 } from '../src/methodes_paiement';
 import { SECRETS_ORANGE_MONEY } from '../src/paiement_orange';
@@ -40,7 +43,8 @@ const commande = (extra: Record<string, unknown> = {}) => ({
   arrivee: ALMADIES,
   adresseDepart: 'Plateau',
   adresseArrivee: 'Almadies',
-  methodePaiement: 'WAVE',
+  // Le solde Sprint est ouvert à tous les clients ; Wave (de test) seulement aux comptes de test.
+  methodePaiement: 'PORTEFEUILLE',
   prixAttendu: 2300,
   ...extra,
 });
@@ -117,14 +121,17 @@ test('commande : option « sans retour » (site installé sur iPhone) : absente 
   }
   // Recharge : même option, même règle.
   const recharge = { montantFcfa: 5000, methodePaiement: 'WAVE' };
-  assert.equal(validerRecharge(recharge).sansRetour, false);
-  assert.equal(validerRecharge({ ...recharge, sansRetour: true }).sansRetour, true);
-  refuse(() => validerRecharge({ ...recharge, sansRetour: 'oui' }), 'invalid-argument');
+  const compteDeTest = methodesRechargePour(true);
+  assert.equal(validerRecharge(recharge, compteDeTest).sansRetour, false);
+  assert.equal(validerRecharge({ ...recharge, sansRetour: true }, compteDeTest).sansRetour, true);
+  refuse(() => validerRecharge({ ...recharge, sansRetour: 'oui' }, compteDeTest), 'invalid-argument');
 });
 
 test('commande : 100 % mobile money (ou solde Sprint), adresses obligatoires', () => {
-  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /Wave ou votre solde Sprint/);
-  assert.equal(validerDemande(commande({ methodePaiement: 'WAVE' })).methodePaiement, 'WAVE');
+  const compteDeTest = methodesPour(true, 'ferme');
+  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' })), 'invalid-argument', /votre solde Sprint uniquement/);
+  refuse(() => validerDemande(commande({ methodePaiement: 'ESPECES' }), compteDeTest), 'invalid-argument', /Wave ou votre solde Sprint/);
+  assert.equal(validerDemande(commande({ methodePaiement: 'WAVE' }), compteDeTest).methodePaiement, 'WAVE');
   assert.equal(validerDemande(commande({ methodePaiement: 'PORTEFEUILLE' })).methodePaiement, 'PORTEFEUILLE');
   refuse(() => validerDemande(commande({ adresseDepart: '  ' })), 'invalid-argument');
   refuse(() => validerDemande(commande({ adresseArrivee: 'x'.repeat(301) })), 'invalid-argument');
@@ -157,6 +164,14 @@ test('Orange Money : production (go du client, 1er novembre 2026), dans le serve
   );
 });
 
+test('argent réel d\'Orange Money : même début dans le serveur et dans l\'app (courses d\'avant le marquage jugées sur leur date)', () => {
+  const app = readFileSync(resolve(__dirname, '..', '..', '..', 'lib', 'features', 'finances', 'data', 'argent_de_test.dart'), 'utf8');
+  const jumeau = app.match(/^final debutArgentReelOrange = DateTime\.utc\((\d+), (\d+), (\d+), (\d+), (\d+)\);$/m);
+  assert.ok(jumeau, 'debutArgentReelOrange introuvable dans argent_de_test.dart : le texte a-t-il changé de forme ?');
+  const [annee, mois, jour, heure, minute] = jumeau.slice(1).map(Number);
+  assert.equal(Date.UTC(annee, mois - 1, jour, heure, minute), DEBUT_ARGENT_REEL_ORANGE.getTime(), 'l\'app et le serveur ne jugent pas les anciennes courses pareil');
+});
+
 test('secrets d\'Orange Money : jamais mélangés entre bac à sable et production, mêmes noms pour le serveur, la publication et l\'essai', () => {
   const { bacASable, production } = SECRETS_ORANGE_MONEY;
   assert.equal(bacASable.codeMarchand, production.codeMarchand, 'un seul code marchand : celui de Groupe Santine');
@@ -182,15 +197,19 @@ test('secrets d\'Orange Money : jamais mélangés entre bac à sable et producti
 test('accès à Orange Money : fermé pour tous, essai pour les seuls testeurs, puis ouvert à tous', () => {
   const avecOrange: Methode[] = ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE'];
   const sansOrange: Methode[] = ['WAVE', 'PORTEFEUILLE'];
-  assert.deepEqual(methodesPour(false, 'ferme'), sansOrange);
-  assert.deepEqual(methodesPour(true, 'ferme'), sansOrange, 'fermé : même un testeur est refusé');
-  assert.deepEqual(methodesPour(false, 'testeurs'), sansOrange, 'essai : invisible pour un client ordinaire');
+  // Un client ordinaire n'a que son solde (le faux Wave est réservé aux comptes de test).
+  assert.deepEqual(methodesPour(false, 'ferme'), ['PORTEFEUILLE']);
+  assert.deepEqual(methodesPour(true, 'ferme'), sansOrange, 'fermé : même un testeur est refusé pour Orange Money');
+  assert.deepEqual(methodesPour(false, 'testeurs'), ['PORTEFEUILLE'], 'essai : Orange Money invisible pour un client ordinaire');
   assert.deepEqual(methodesPour(true, 'testeurs'), avecOrange);
-  assert.deepEqual(methodesPour(false, 'tous'), avecOrange);
+  assert.deepEqual(methodesPour(false, 'tous'), ['ORANGE_MONEY', 'PORTEFEUILLE']);
+  assert.deepEqual(methodesPour(true, 'tous'), avecOrange);
   assert.deepEqual(methodesRechargePour(true, 'testeurs'), ['WAVE', 'ORANGE_MONEY']);
-  assert.deepEqual(methodesRechargePour(false, 'testeurs'), ['WAVE']);
-  // Réglage en service : un client ordinaire ne voit pas Orange Money.
+  assert.deepEqual(methodesRechargePour(false, 'testeurs'), []);
+  assert.deepEqual(methodesRechargePour(false, 'tous'), ['ORANGE_MONEY']);
+  // Réglage en service : un client ordinaire ne voit ni Orange Money ni le faux Wave.
   assert.deepEqual(METHODES_ACTIVES, methodesPour(false));
+  assert.deepEqual(METHODES_ACTIVES, ['PORTEFEUILLE']);
   assert.deepEqual(METHODES_RECHARGE, methodesRechargePour(false));
 });
 
@@ -199,7 +218,7 @@ test('commande : Orange Money fermé tant que le client n\'a pas donné son go',
   refuse(
     () => validerDemande(commande({ methodePaiement: 'ORANGE_MONEY' })),
     'failed-precondition',
-    /Orange Money n'est pas encore disponible : payez avec Wave ou votre solde Sprint/,
+    /Orange Money n'est pas encore disponible : payez avec votre solde Sprint/,
   );
   // Connu (l'historique en contient) mais jamais accepté pour un nouveau paiement.
   assert.ok(METHODES_CONNUES.includes('ORANGE_MONEY'));
@@ -219,11 +238,47 @@ test('Orange Money ouvert (essais) : accepté pour une course comme pour une rec
   refuse(() => verifierMethode('PORTEFEUILLE', ['WAVE', 'ORANGE_MONEY'], 'recharger'), 'invalid-argument', /Wave ou Orange Money/);
 });
 
-test('recharge : le mobile money actif est Wave seul', () => {
-  assert.deepEqual([...METHODES_RECHARGE], ['WAVE']);
-  assert.equal(verifierMethode('WAVE', METHODES_RECHARGE, 'recharger'), 'WAVE');
-  refuse(() => verifierMethode('ORANGE_MONEY', METHODES_RECHARGE, 'recharger'), 'failed-precondition', /rechargez avec Wave\./);
-  refuse(() => verifierMethode('PORTEFEUILLE', METHODES_RECHARGE, 'recharger'), 'invalid-argument', /Wave uniquement/);
+test('recharge : aucun mobile money pour un client ordinaire ; Wave (de test) pour un compte de test', () => {
+  // Client ordinaire : rien à proposer tant qu'Orange Money n'est pas ouvert à tous (le message le dit).
+  assert.deepEqual([...METHODES_RECHARGE], []);
+  for (const valeur of ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']) {
+    refuse(() => verifierMethode(valeur, METHODES_RECHARGE, 'recharger'), 'failed-precondition', /paiement en ligne n'est pas encore ouvert à votre compte/);
+  }
+  refuse(() => verifierMethode('ESPECES', METHODES_RECHARGE, 'recharger'), 'invalid-argument', /^Mode de paiement invalide\.$/);
+  // Compte de test : le faux Wave ; Orange Money seulement pendant l'essai.
+  const wave = methodesRechargePour(true, 'ferme');
+  assert.deepEqual([...wave], ['WAVE']);
+  assert.equal(verifierMethode('WAVE', wave, 'recharger'), 'WAVE');
+  refuse(() => verifierMethode('ORANGE_MONEY', wave, 'recharger'), 'failed-precondition', /rechargez avec Wave\./);
+  refuse(() => verifierMethode('PORTEFEUILLE', wave, 'recharger'), 'invalid-argument', /Wave uniquement/);
+});
+
+test('faux Wave : réservé aux comptes de test tant que le vrai Wave n\'est pas branché, dans le serveur comme dans l\'app', () => {
+  assert.equal(WAVE_REEL, false, 'vrai Wave pour tous : seulement quand il est branché, avec un nouveau go du client');
+  // Jumeau dans l'app (choix du moyen de paiement), lu depuis functions/lib/test.
+  const app = readFileSync(resolve(__dirname, '..', '..', '..', 'lib', 'core', 'widgets', 'payment_method_selector.dart'), 'utf8');
+  const jumeau = app.match(/^const waveReel = (true|false);$/m);
+  assert.ok(jumeau, 'waveReel introuvable dans payment_method_selector.dart : le texte a-t-il changé de forme ?');
+  assert.equal(jumeau[1], String(WAVE_REEL), 'l\'app proposerait Wave à des clients que le serveur refuse (ou l\'inverse)');
+  const serveur = readFileSync(resolve(__dirname, '..', '..', 'src', 'methodes_paiement.ts'), 'utf8');
+  assert.match(serveur, new RegExp(`^export const WAVE_REEL: boolean = ${WAVE_REEL};$`, 'm'));
+
+  // Qui y a droit : un compte de test seul, tant que Wave est simulé ; tout le monde avec le vrai Wave.
+  assert.equal(wavePour(false), false);
+  assert.equal(wavePour(true), true);
+  assert.equal(wavePour(false, true), true);
+  assert.deepEqual(methodesPour(false, 'testeurs', false), ['PORTEFEUILLE']);
+  assert.deepEqual(methodesPour(true, 'testeurs', false), ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']);
+  assert.deepEqual(methodesPour(false, 'testeurs', true), ['WAVE', 'PORTEFEUILLE'], 'vrai Wave : ouvert à tous');
+
+  // Refus d'un client ordinaire : précondition non remplie, le message dit quoi choisir.
+  refuse(
+    () => validerDemande(commande({ methodePaiement: 'WAVE' })),
+    'failed-precondition',
+    /Wave n'est pas encore disponible : payez avec votre solde Sprint/,
+  );
+  refuse(() => validerRecharge({ montantFcfa: 5000, methodePaiement: 'WAVE' }), 'failed-precondition', /pas encore ouvert à votre compte/);
+  assert.equal(validerDemande(commande({ methodePaiement: 'WAVE' }), methodesPour(true)).methodePaiement, 'WAVE');
 });
 
 // --- Sprint = petits trajets à l'intérieur d'une même ville (décision du client, 12 octobre 2026) ---

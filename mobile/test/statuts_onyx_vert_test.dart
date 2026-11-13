@@ -97,10 +97,10 @@ void main() {
 
     expect(find.byType(EcranOnyxVert), findsOneWidget);
     expect(find.text('Questions fréquentes'), findsOneWidget);
-    expect(find.textContaining('Deux moyens de paiement'), findsNothing);
+    expect(find.textContaining('pas encore ouvert à tous'), findsNothing);
     await tester.tap(find.text('Comment payer ma course ?'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Deux moyens de paiement'), findsOneWidget);
+    expect(find.textContaining('pas encore ouvert à tous'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.scrollUntilVisible(find.text('Contacter le support'), 300, scrollable: find.byType(Scrollable).first);

@@ -43,6 +43,7 @@ class CompteTabPage extends StatefulWidget {
     this.clientId,
     this.profil,
     this.demo,
+    this.compteDeTest,
     this.retraits,
     this.retraitsDisponibles = retraitsOuverts,
   });
@@ -53,6 +54,10 @@ class CompteTabPage extends StatefulWidget {
   final String? clientId;
   final Stream<Map<String, dynamic>?>? profil;
   final bool? demo;
+
+  /// Force l'état « compte de test » (le faux Wave et, pendant l'essai, Orange
+  /// Money sont proposés pour recharger) au lieu de le lire dans le profil.
+  final bool? compteDeTest;
 
   /// Retraits du solde (lot B) : accès injectable, et ouverture (par défaut
   /// le réglage en service [retraitsOuverts] ; fermé, rien n'apparaît).
@@ -127,7 +132,8 @@ class _CompteTabPageState extends State<CompteTabPage> {
   /// confirmation de celui-ci (jamais sur la foi de l'app). Mode démo :
   /// crédit fictif immédiat.
   Future<void> _recharger(Portefeuille portefeuille) async {
-    final testeurOrangeMoney = _uid != null && await _authRepository.chargerTesteurOrangeMoney();
+    final testeurOrangeMoney =
+        widget.compteDeTest ?? (_uid != null && await _authRepository.chargerTesteurOrangeMoney());
     if (!mounted) return;
     final choix = await showModalBottomSheet<_ChoixRecharge>(
       context: context,
@@ -135,7 +141,8 @@ class _CompteTabPageState extends State<CompteTabPage> {
       isScrollControlled: true,
       builder: (_) => _RechargeSheet(
         rechargePossibleFcfa: portefeuille.rechargePossibleFcfa,
-        moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney),
+        // Sans Firebase (mode démo), pas de compte de test : Wave y reste proposé, comme avant.
+        moyens: moyensMobileMoneyPour(testeur: testeurOrangeMoney, demo: _uid == null),
         retraitPossible: _suiviRetrait != null,
       ),
     );
@@ -483,6 +490,8 @@ class _RechargeSheet extends StatefulWidget {
   final int rechargePossibleFcfa;
 
   /// Opérateurs de mobile money proposés à ce client ([moyensMobileMoneyPour]).
+  /// Vide pour un client ordinaire, pour l'instant : le faux Wave est réservé
+  /// aux comptes de test et Orange Money n'est pas encore ouvert à tous.
   final List<PaymentMethod> moyens;
 
   /// Retraits ouverts pour ce compte (bouton « Retirer » affiché).
@@ -494,7 +503,7 @@ class _RechargeSheet extends StatefulWidget {
 
 class _RechargeSheetState extends State<_RechargeSheet> {
   int? _montantChoisi = _montantsRecharge[1];
-  PaymentMethod _methode = PaymentMethod.wave;
+  late PaymentMethod _methode = widget.moyens.isEmpty ? PaymentMethod.wave : widget.moyens.first;
   final _autreMontant = TextEditingController();
 
   @override
@@ -609,29 +618,58 @@ class _RechargeSheetState extends State<_RechargeSheet> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text('Payer avec', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texte)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 10,
-                children: widget.moyens.map((methode) {
-                  final selectionne = methode == _methode;
-                  return ChoiceChip(
-                    key: ValueKey('operateur-${methode.apiValue}'),
-                    label: Text(methode.label),
-                    selected: selectionne,
-                    onSelected: (_) => setState(() => _methode = methode),
-                    selectedColor: AppColors.vert,
-                    showCheckmark: false,
-                    side: BorderSide(color: selectionne ? AppColors.vert : AppColors.bord),
-                    labelStyle: TextStyle(
-                      color: selectionne ? AppColors.onyx : AppColors.texte,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    backgroundColor: AppColors.carteHaute,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  );
-                }).toList(),
-              ),
+              if (widget.moyens.isEmpty)
+                Container(
+                  key: const ValueKey('recharge-pas-encore-ouverte'),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: AppColors.carteHaute, borderRadius: BorderRadius.circular(14)),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 18, color: AppColors.texteDiscret),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "La recharge en ligne n'est pas encore ouverte à votre compte. "
+                          'Vous pourrez recharger votre solde dès son ouverture.',
+                          style: TextStyle(fontSize: 13, color: AppColors.texte, height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                const Text('Payer avec', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.texte)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  children: widget.moyens.map((methode) {
+                    final selectionne = methode == _methode;
+                    return ChoiceChip(
+                      key: ValueKey('operateur-${methode.apiValue}'),
+                      label: Text(methode.label),
+                      selected: selectionne,
+                      onSelected: (_) => setState(() => _methode = methode),
+                      selectedColor: AppColors.vert,
+                      showCheckmark: false,
+                      side: BorderSide(color: selectionne ? AppColors.vert : AppColors.bord),
+                      labelStyle: TextStyle(
+                        color: selectionne ? AppColors.onyx : AppColors.texte,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      backgroundColor: AppColors.carteHaute,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                // Dit quels moyens débitent vraiment : le faux Wave n'est que de l'argent de test.
+                Text(
+                  mentionPaiement(widget.moyens),
+                  key: const ValueKey('mention-recharge'),
+                  style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret),
+                ),
+              ],
               if (erreur != null) ...[
                 const SizedBox(height: 12),
                 Text(erreur, key: const ValueKey('erreur-recharge'), style: const TextStyle(fontSize: 12.5, color: AppColors.danger)),
@@ -639,7 +677,9 @@ class _RechargeSheetState extends State<_RechargeSheet> {
               const SizedBox(height: 22),
               PrimaryButton(
                 label: 'Confirmer la recharge',
-                onPressed: erreur != null ? null : () => Navigator.of(context).pop(_ChoixRecharge(_montantChoisi!, _methode)),
+                onPressed: erreur != null || widget.moyens.isEmpty
+                    ? null
+                    : () => Navigator.of(context).pop(_ChoixRecharge(_montantChoisi!, _methode)),
               ),
             ],
           ),

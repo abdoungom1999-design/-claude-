@@ -120,6 +120,12 @@ class _LigneMouvement extends StatelessWidget {
                 Text(mouvement.libelle, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.texte)),
                 if (mouvement.note case final note? when note.isNotEmpty)
                   Text(note, style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
+                if (mouvement.argentDeTest)
+                  Text(
+                    'Argent de test',
+                    key: ValueKey('argent-de-test-${mouvement.id}'),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.texteDiscret),
+                  ),
                 if (creeLe != null)
                   Text(_date(creeLe), style: const TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
               ],

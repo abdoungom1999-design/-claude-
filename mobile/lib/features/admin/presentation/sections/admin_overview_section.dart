@@ -152,10 +152,12 @@ class _OverviewReelState extends State<_OverviewReel> {
             Expanded(
               child: AdminKpiCard(
                 icon: Icons.task_alt_rounded,
-                valeur: '${jour.nombreCourses}',
+                valeur: '${jour.nombreCoursesTerminees}',
                 label: "Courses terminées aujourd'hui",
                 accent: AppColors.vert,
-                detail: '${semaine.nombreCourses} cette semaine',
+                // L'activité compte toutes les courses ; le chiffre d'affaires et la commission, seulement l'argent réel.
+                detail: '${semaine.nombreCoursesTerminees} cette semaine'
+                    '${jour.nombreCoursesDeTest == 0 ? '' : ' · dont ${jour.nombreCoursesDeTest} de test aujourd\'hui'}',
               ),
             ),
             const SizedBox(width: 18),

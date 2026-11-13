@@ -92,13 +92,19 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
           'argent réel, débité de son compte Orange Money et versé sur le compte marchand de Groupe Santine',
       };
 
-  /// Effet de la marque selon le réglage en service ([accesOrangeMoney]).
+  /// Ce que le faux Wave coûte à un compte de test : rien, et il n'entre jamais dans la comptabilité.
+  static const _argentDeTestWave = 'argent de test : aucun débit réel, jamais compté dans la comptabilité';
+
+  /// Effet de la marque « compte de test » selon le réglage en service ([accesOrangeMoney]).
   static String get _effetTesteur => switch (accesOrangeMoney) {
         AccesOrangeMoney.ferme =>
-          "Orange Money est fermé : cette marque ne prendra effet que pendant l'essai réservé aux testeurs. Journalisé.",
+          'Ce compte peut payer et recharger avec Wave ($_argentDeTestWave). Les autres clients ne voient pas Wave. '
+              "Orange Money est fermé : cette marque ne prendra effet qu'avec l'essai réservé aux testeurs. Journalisé.",
         AccesOrangeMoney.testeurs =>
-          'Essai en cours : un testeur voit Orange Money et peut payer avec ($_argentOrange). Journalisé.',
-        AccesOrangeMoney.tous => "Orange Money est ouvert à tous les clients : cette marque n'a plus d'effet.",
+          'Compte de test : peut payer et recharger avec Wave ($_argentDeTestWave) et avec Orange Money ($_argentOrange). '
+              'Les autres clients ne voient ni Wave ni Orange Money. Journalisé.',
+        AccesOrangeMoney.tous =>
+          'Orange Money est ouvert à tous les clients ; ce compte garde en plus Wave ($_argentDeTestWave). Journalisé.',
       };
 
   Future<void> _definirTesteur(bool testeur) async {
@@ -106,10 +112,11 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
       final confirme = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Désigner un testeur Orange Money ?'),
+          title: const Text('Désigner un compte de test ?'),
           content: Text(
-            "${widget.nomClient} pourra voir Orange Money et payer avec pendant l'essai réservé aux testeurs "
-            '($_argentOrange). Les autres clients ne voient rien.\n\n'
+            '${widget.nomClient} pourra payer et recharger avec Wave ($_argentDeTestWave) et, pendant '
+            "l'essai réservé aux testeurs, avec Orange Money ($_argentOrange). "
+            'Les autres clients ne voient ni Wave ni Orange Money.\n\n'
             'Cette opération est journalisée.',
           ),
           actions: [
@@ -125,8 +132,8 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
       await widget.service.definirTesteurOrangeMoney(clientId: widget.clientId, testeur: testeur);
       if (!mounted) return;
       _message(testeur
-          ? '${widget.nomClient} est désormais testeur Orange Money.'
-          : "${widget.nomClient} n'est plus testeur Orange Money.");
+          ? '${widget.nomClient} est désormais un compte de test.'
+          : "${widget.nomClient} n'est plus un compte de test.");
     } on ApiException catch (e) {
       _message(e.message);
     } on Object {
@@ -214,7 +221,7 @@ class _AdminPortefeuillePageState extends State<AdminPortefeuillePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Testeur Orange Money', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                        const Text('Compte de test', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 4),
                         Text(_effetTesteur, style: const TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
                       ],

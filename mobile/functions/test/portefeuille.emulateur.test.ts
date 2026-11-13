@@ -3,8 +3,9 @@
 import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { ajusterPortefeuille, rembourserCourseAdmin } from '../src/admin';
+import { DEBUT_ARGENT_REEL_ORANGE } from '../src/argent_reel';
 import { calculDistance } from '../src/distances';
 import { FournisseurSimule, type EvenementPaiement } from '../src/fournisseurs';
 import type { ClientGoogle } from '../src/google';
@@ -52,11 +53,12 @@ let fournisseur: FournisseurSimule;
 
 const googleFactice = { itineraire: async () => ({ distanceKm: 10.2 }) } as unknown as ClientGoogle;
 
+// Orange Money est fermé ici (réglage « ferme ») : ces tests portent sur le faux Wave et le solde Sprint.
 const creerPaiement = (uid: string | undefined, donnees: unknown, quand = midi) =>
-  creerPaiementCore(db, calculDistance(db, googleFactice, () => quand), () => fournisseur, uid, donnees, quand);
+  creerPaiementCore(db, calculDistance(db, googleFactice, () => quand), () => fournisseur, uid, donnees, quand, undefined, 'ferme');
 
 const creerRecharge = (uid: string | undefined, donnees: unknown, quand = midi) =>
-  creerRechargeCore(db, () => fournisseur, uid, donnees, quand);
+  creerRechargeCore(db, () => fournisseur, uid, donnees, quand, 'ferme');
 
 async function code(promesse: Promise<unknown>): Promise<string> {
   try {
@@ -75,6 +77,7 @@ interface Mouvement {
   soldeApresFcfa: number;
   reference: string | null;
   note?: string;
+  argentDeTest?: boolean;
 }
 const mouvements = async (uid: string) =>
   (await db.collection(`portefeuilles/${uid}/mouvements`).get()).docs.map((d) => ({ id: d.id, ...d.data() }) as Mouvement);
@@ -119,8 +122,11 @@ beforeEach(async () => {
     await Promise.all(mvts.map((d) => d.delete()));
     await db.doc(`portefeuilles/${uid}`).delete();
   }
-  await db.doc('users/awa').set({ role: 'client', nom: 'Awa' });
-  await db.doc('users/fatou').set({ role: 'client', nom: 'Fatou' });
+  // Comptes de test : le faux Wave leur est réservé (décision du client, 13 novembre 2026).
+  await db.doc('users/awa').set({ role: 'client', nom: 'Awa', testeurOrangeMoney: true });
+  await db.doc('users/fatou').set({ role: 'client', nom: 'Fatou', testeurOrangeMoney: true });
+  // Client ordinaire : n'a que son solde Sprint.
+  await db.doc('users/lambda').set({ role: 'client', nom: 'Lambda' });
   await db.doc('users/moussa').set({ role: 'conducteur', statutValidation: 'valide' });
   await db.doc('users/banni').set({ role: 'client', statutCompte: 'banni' });
   await db.doc('users/admin').set({ role: 'admin' });
@@ -165,6 +171,94 @@ test('recharge : Orange Money fermé (pas de recharge, pas de session de paiemen
   assert.equal((await db.collection('recharges').get()).size, 0);
   assert.equal(sessions, 0);
   assert.equal(await soldeDe('awa'), 0);
+});
+
+test('recharge : le faux Wave est réservé aux comptes de test (un client ordinaire n\'a aucun mobile money à proposer)', async () => {
+  let sessions = 0;
+  const reel = fournisseur.creerSession.bind(fournisseur);
+  fournisseur.creerSession = async () => {
+    sessions++;
+    return reel();
+  };
+  for (const methodePaiement of ['WAVE', 'ORANGE_MONEY', 'PORTEFEUILLE']) {
+    assert.equal(await code(creerRecharge('lambda', { montantFcfa: 5000, methodePaiement })), 'failed-precondition', methodePaiement);
+  }
+  assert.equal((await db.collection('recharges').get()).size, 0);
+  assert.equal(sessions, 0);
+  // Le compte de test, lui, recharge avec le faux Wave.
+  await creerRecharge('awa', { montantFcfa: 5000, methodePaiement: 'WAVE' });
+  assert.equal(sessions, 1);
+});
+
+test('argent de test : la recharge en faux Wave est marquée, son mouvement du livre aussi', async () => {
+  const rechargeId = await recharger('awa', 5000);
+  assert.equal((await db.doc(`recharges/${rechargeId}`).get()).get('argentDeTest'), true);
+  const [mouvement] = await mouvements('awa');
+  assert.equal(mouvement.type, 'recharge');
+  assert.equal(mouvement.argentDeTest, true);
+
+  // Une recharge d'avant ce marquage (en cours à la mise en ligne) : jugée sur son fournisseur, de même.
+  const ancienne = await creerRecharge('fatou', { montantFcfa: 1000, methodePaiement: 'WAVE' });
+  await db.doc(`recharges/${ancienne.rechargeId}`).update({ argentDeTest: FieldValue.delete() });
+  assert.equal(await traiterEvenementRecharge(db, await evenementRecharge(ancienne.rechargeId), midi), 'recharge_creditee');
+  assert.equal((await mouvements('fatou'))[0].argentDeTest, true);
+});
+
+test('course payée avec le solde : en argent de test tant que le solde est de l\'argent de test, en argent réel dès que la part réelle la couvre en entier', async () => {
+  // fatou : 5 000 FCFA réels (Orange Money en production) + 5 000 FCFA de test (faux Wave).
+  // Midi du 2 novembre : après le début de l'argent réel d'Orange Money, à la même tranche de prix que `midi`.
+  const apresProduction = new Date(Date.UTC(2026, 10, 2, 12));
+  assert.ok(apresProduction.getTime() > DEBUT_ARGENT_REEL_ORANGE.getTime());
+  await db.doc('recharges/rch_reelle').set({
+    clientId: 'fatou', montantFcfa: 5000, methodePaiement: 'ORANGE_MONEY', fournisseur: 'orange_money', statut: 'reussie',
+    creeLe: Timestamp.fromDate(apresProduction),
+  });
+  await db.doc('portefeuilles/fatou').set({ soldeFcfa: 5000 });
+  await db.doc('portefeuilles/fatou/mouvements/recharge_rch_reelle').set({
+    type: 'recharge', montantFcfa: 5000, soldeApresFcfa: 5000, reference: 'rch_reelle', creeLe: Timestamp.fromDate(apresProduction),
+  });
+  await recharger('fatou', 5000, apresProduction);
+  assert.equal(await soldeDe('fatou'), 10_000);
+
+  const argentDeTest = async (id: string) => (await db.doc(`commandes/${id}`).get()).get('argentDeTest');
+  const marques = async (courseId: string) => [(await course(courseId)).argentDeTest, (await db.doc(`radar/${courseId}`).get()).get('argentDeTest')];
+
+  // Course 1 : 2 300 FCFA, couverts par les 5 000 réels (comptés d'abord) : argent réel.
+  const c1 = await creerPaiement('fatou', demande(), apresProduction);
+  assert.equal(await argentDeTest(c1.commandeId), false);
+  const course1 = (await db.doc(`commandes/${c1.commandeId}`).get()).get('courseId') as string;
+  assert.deepEqual(await marques(course1), [false, false]);
+  assert.equal((await mouvements('fatou')).find((m) => m.id === `course_${c1.commandeId}`)!.argentDeTest, undefined, 'argent réel : aucune marque');
+
+  // Course 2 : il ne reste que 2 700 réels, la course les couvre encore (2 300) : argent réel.
+  const c2 = await creerPaiement('fatou', demande(), apresProduction);
+  assert.equal(await argentDeTest(c2.commandeId), false);
+
+  // Course 3 : il ne reste que 400 FCFA réels sur 5 400 de solde : la part réelle ne la couvre pas, argent de test.
+  assert.equal(await soldeDe('fatou'), 5400);
+  const c3 = await creerPaiement('fatou', demande(), apresProduction);
+  assert.equal(await argentDeTest(c3.commandeId), true);
+  const course3 = (await db.doc(`commandes/${c3.commandeId}`).get()).get('courseId') as string;
+  assert.deepEqual(await marques(course3), [true, true]);
+  assert.equal((await mouvements('fatou')).find((m) => m.id === `course_${c3.commandeId}`)!.argentDeTest, true);
+
+  // Compte de test sans un franc réel : toujours de l'argent de test.
+  await recharger('awa', 5000);
+  const c4 = await creerPaiement('awa', demande());
+  assert.equal(await argentDeTest(c4.commandeId), true);
+  const course4 = (await db.doc(`commandes/${c4.commandeId}`).get()).get('courseId') as string;
+  assert.deepEqual(await marques(course4), [true, true]);
+});
+
+test('annulation d\'une course payée en argent de test : le remboursement sur le solde est de l\'argent de test aussi', async () => {
+  await recharger('awa', 5000);
+  const { commandeId } = await creerPaiement('awa', demande());
+  const courseId = (await db.doc(`commandes/${commandeId}`).get()).get('courseId') as string;
+  await annulerCourse(db, fournisseur, 'awa', { courseId }, midi);
+  const rendu = (await mouvements('awa')).find((m) => m.type === 'remboursement')!;
+  assert.equal(rendu.montantFcfa, PRIX);
+  assert.equal(rendu.argentDeTest, true);
+  await verifierLivre('awa');
 });
 
 test('recharge : connexion, rôle client et compte actif exigés', async () => {

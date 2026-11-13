@@ -7,6 +7,7 @@ import '../../../core/firebase/fonctions_cloud.dart';
 import '../../../core/paiement/retour_operateur.dart';
 import '../../../core/utils/flux_repris.dart';
 import '../../conducteur/data/position_chauffeur_service.dart';
+import '../../finances/data/argent_de_test.dart';
 import 'depart_gps.dart';
 import 'position_chauffeur.dart';
 
@@ -36,6 +37,7 @@ class CourseFirestore {
     this.points,
     this.departArrondi = false,
     this.adressesMasquees = false,
+    this.argentDeTest = false,
     this.annuleePar,
     this.motifAnnulation,
     this.termineeLe,
@@ -77,6 +79,13 @@ class CourseFirestore {
   /// radar, voir [CourseService.streamCoursesEnAttente]). L'adresse exacte et le
   /// point GPS précis viennent avec la course une fois acceptée.
   final bool adressesMasquees;
+
+  /// Course payée en argent de test (faux Wave, ou solde fait d'argent de test) :
+  /// aucune somme réelle n'a été encaissée, elle ne compte pas dans la comptabilité
+  /// (voir `LigneCourse`). Posé par le serveur seul à la création de la course ;
+  /// une course d'avant ce marquage est jugée sur son moyen de paiement
+  /// (voir [courseSansMarqueEnArgentDeTest]).
+  final bool argentDeTest;
 
   /// `'client'`, `'chauffeur'` (voir [CourseService.annulerParChauffeur])
   /// ou `'systeme'` (aucun chauffeur à temps) ; `null` sinon.
@@ -130,8 +139,14 @@ class CourseFirestore {
         _ => 'Paiement dans l\'app',
       };
 
+  /// [libellePaiement], suivi de la mention « argent de test » quand aucune somme
+  /// réelle n'a été payée.
+  String get libellePaiementMarque => argentDeTest ? '$libellePaiement · argent de test' : libellePaiement;
+
   factory CourseFirestore.depuisDocument(String id, Map<String, dynamic> donnees) {
     final horodatage = donnees['timestamp'];
+    final date = horodatage is Timestamp ? horodatage.toDate() : DateTime.now();
+    final methode = donnees['methodePaiement'] as String? ?? '';
     return CourseFirestore(
       id: id,
       clientId: donnees['clientId'] as String? ?? '',
@@ -141,13 +156,17 @@ class CourseFirestore {
       adresseDepart: donnees['adresseDepart'] as String? ?? '',
       adresseArrivee: donnees['adresseArrivee'] as String? ?? '',
       prixFcfa: (donnees['prixFcfa'] as num?)?.toInt() ?? 0,
-      methodePaiement: donnees['methodePaiement'] as String? ?? '',
+      methodePaiement: methode,
       // `timestamp` est un FieldValue.serverTimestamp() : encore `null`
       // côté client le temps que le serveur confirme l'écriture.
-      timestamp: horodatage is Timestamp ? horodatage.toDate() : DateTime.now(),
+      timestamp: date,
       points: PointsCourse.depuisDocument(donnees),
       departArrondi: donnees['departArrondi'] == true,
       adressesMasquees: donnees['adressesMasquees'] == true,
+      // La marque du serveur fait foi ; sans elle (course d'avant le marquage), le moyen de paiement.
+      argentDeTest: donnees['argentDeTest'] is bool
+          ? donnees['argentDeTest'] as bool
+          : courseSansMarqueEnArgentDeTest(methodePaiement: methode, date: date),
       annuleePar: donnees['annuleePar'] as String?,
       motifAnnulation: donnees['motifAnnulation'] as String?,
       termineeLe: donnees['termineeLe'] is Timestamp ? (donnees['termineeLe'] as Timestamp).toDate() : null,
@@ -174,6 +193,7 @@ class CourseFirestore {
       methodePaiement: methodePaiement,
       timestamp: timestamp,
       points: actuels.avecDepart(exact.latitude, exact.longitude),
+      argentDeTest: argentDeTest,
       annuleePar: annuleePar,
       motifAnnulation: motifAnnulation,
       termineeLe: termineeLe,

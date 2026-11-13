@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { argentDeTestDe, encaissementReel } from './argent_reel';
 import { prixServeur, validerDemande, verifierClient, type Demande, type PrixServeur } from './commandes';
 import type { CalculDistance } from './distances';
 import type { CreateurSession, EvenementPaiement, FournisseurDuMoyen, FournisseurPaiement, SessionPaiement } from './fournisseurs';
@@ -15,7 +16,9 @@ import {
   FOURNISSEURS_REMBOURSES_SUR_SOLDE,
   lirePortefeuille,
   METHODE_PORTEFEUILLE,
+  montantRetirable,
   rembourserSurPortefeuille,
+  solde,
 } from './portefeuille';
 
 /**
@@ -112,6 +115,9 @@ export async function creerPaiement(
     prixFcfa: estimation.prixFcfa,
     methodePaiement: demande.methodePaiement,
     fournisseur: fournisseur.nom,
+    // Faux Wave : de l'argent de test, jamais compté dans la comptabilité
+    // (voir `argent_reel.ts`). La course le reprend à sa création.
+    argentDeTest: !encaissementReel(fournisseur.nom, maintenant),
     sessionPaiementId: session.sessionId,
     lienPaiement: session.lienPaiement,
     creeLe: Timestamp.fromDate(maintenant),
@@ -140,6 +146,10 @@ export function departExactDe(course: DocumentReference): DocumentReference {
  * le chauffeur qui accepte la course et l'Admin la lisent (voir
  * `firestore.rules`). L'arrivée reste exacte : son adresse est déjà montrée aux
  * chauffeurs, qui en ont besoin pour juger la course.
+ *
+ * `argentDeTest` : course payée en argent de test (faux Wave, ou solde fait
+ * d'argent de test), jamais comptée dans la comptabilité. Posé ici, par le
+ * serveur seul : aucune règle ne laisse une app le modifier.
  */
 function donneesCourse(c: FirebaseFirestore.DocumentData, prixFcfa: number, transactionId: string, commandeId: string) {
   const depart = arrondirPosition(c.latitudeDepart, c.longitudeDepart);
@@ -161,6 +171,7 @@ function donneesCourse(c: FirebaseFirestore.DocumentData, prixFcfa: number, tran
     methodePaiement: c.methodePaiement,
     transactionId,
     modePaiement: c.fournisseur,
+    argentDeTest: argentDeTestDe(c),
     commandeId,
     timestamp: FieldValue.serverTimestamp(),
   };
@@ -190,7 +201,13 @@ async function payerParSolde(
   const refCourse = db.collection('courses').doc();
   await db.runTransaction(async (tx) => {
     const portefeuille = await lirePortefeuille(tx, db, clientId);
-    debiterPourCourse(tx, db, clientId, portefeuille, refCommande.id, prixFcfa, maintenant);
+    // Toutes les lectures d'abord : la part d'argent réel du solde dit si la
+    // course est payée en argent réel. Elle ne l'est que si cette part la couvre
+    // en entier ; sinon (solde fait, même en partie, d'argent de test) c'est une
+    // course en argent de test, qui ne compte pas dans la comptabilité.
+    const reelDuSolde = await montantRetirable(tx, db, clientId, solde(portefeuille));
+    const argentDeTest = reelDuSolde < prixFcfa;
+    debiterPourCourse(tx, db, clientId, portefeuille, refCommande.id, prixFcfa, maintenant, argentDeTest);
     const commande = {
       clientId,
       statut: STATUTS_COMMANDE.payee,
@@ -206,6 +223,7 @@ async function payerParSolde(
       prixFcfa,
       methodePaiement: METHODE_PORTEFEUILLE,
       fournisseur: FOURNISSEUR_PORTEFEUILLE,
+      argentDeTest,
       sessionPaiementId: `wallet_${refCommande.id}`,
       courseId: refCourse.id,
       creeLe: Timestamp.fromDate(maintenant),

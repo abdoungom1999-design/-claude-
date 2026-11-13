@@ -53,6 +53,7 @@ class MouvementPortefeuille {
     required this.soldeApresFcfa,
     this.note,
     this.creeLe,
+    this.argentDeTest = false,
   });
 
   final String id;
@@ -63,6 +64,10 @@ class MouvementPortefeuille {
   final int soldeApresFcfa;
   final String? note;
   final DateTime? creeLe;
+
+  /// Mouvement en argent de test (faux Wave, voir `functions/src/argent_reel.ts`) :
+  /// il sert à payer des courses d'essai et ne se retire jamais. Absent : argent réel.
+  final bool argentDeTest;
 
   static const recharge = 'recharge';
   static const paiementCourse = 'paiement_course';
@@ -92,6 +97,7 @@ class MouvementPortefeuille {
       soldeApresFcfa: (donnees['soldeApresFcfa'] as num?)?.toInt() ?? 0,
       note: donnees['note'] as String?,
       creeLe: creeLe is Timestamp ? creeLe.toDate() : null,
+      argentDeTest: donnees['argentDeTest'] == true,
     );
   }
 }
