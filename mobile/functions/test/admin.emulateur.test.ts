@@ -36,7 +36,7 @@ async function course(id: string, statut: string, extra: Record<string, unknown>
 beforeEach(async () => {
   remboursements = [];
   fournisseur = new FournisseurSimule('secret', 'https://page', remboursements);
-  for (const nom of ['users', 'courses', 'commandes', 'tickets', 'journal_admin', 'profils_publics', 'positions_chauffeurs']) {
+  for (const nom of ['users', 'courses', 'radar', 'commandes', 'tickets', 'journal_admin', 'profils_publics', 'positions_chauffeurs']) {
     const docs = await db.collection(nom).listDocuments();
     await Promise.all(docs.map((d) => db.recursiveDelete(d)));
   }

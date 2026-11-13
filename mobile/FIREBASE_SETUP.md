@@ -121,6 +121,13 @@ l'émulateur Firestore à chaque publication : `firestore_rules_test/regles.test
 `securite/LISEZMOI.md`). Elles remplacent les règles "mode Test" de l'étape 3,
 qui laissent n'importe qui lire et modifier toute la base.
 
+Radar des chauffeurs (13 novembre 2026, lot « adresses ») : la collection `radar`
+est ce qu'un chauffeur voit d'une course avant de l'accepter (zones arrondies,
+prix, distance ; aucune adresse). Lue par les chauffeurs actifs et l'Admin,
+écrite par le serveur seul, retirée par le chauffeur qui accepte dans la même
+écriture que l'acceptation (`firestore.rules`, bloc `radar` ; détail dans
+`README.md`, « Radar des chauffeurs »).
+
 Bornes ajoutées à la phase B de la sécurité (13 novembre 2026), sans rien
 changer à ce que l'app envoie : message de chat de 2000 signes au plus avec
 l'heure du serveur (l'app limite la saisie à 1000), temps en ligne réservé au

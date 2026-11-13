@@ -94,9 +94,29 @@ guidage montre la zone du client (cercle) sans itinéraire ; `itineraireCourse` 
 privé. L'arrivée reste exacte. Tests : `depart_exact_test.dart`, `suivi_depart_exact_test.dart`,
 `guidage_controller_test.dart`, `guidage_course_test.dart`, règles Firestore
 (`firestore_rules_test`), `functions/test/paiements.emulateur.test.ts` et `itineraire.emulateur.test.ts`.
-Limites connues : l'adresse écrite par le client et son `clientId` restent visibles des chauffeurs
-avant l'acceptation ; une course créée avant ce masquage garde sa position exacte dans le document ; le
+Limites connues : une course créée avant ce masquage garde sa position exacte dans le document ; le
 document privé d'une course supprimée par l'Admin n'est pas supprimé avec elle.
+
+**Radar des chauffeurs : zones arrondies avant l'acceptation** (décision du client, 13 novembre 2026,
+priorité haute) : avant d'accepter une course, un chauffeur ne voit qu'une zone. Le serveur écrit, avec la
+course, un document `radar/{id}` (`functions/src/radar.ts`) qui porte les mêmes champs qu'une course mais un
+départ ET une arrivée arrondis à une case d'environ 150 m, des libellés « Zone de départ approximative
+(Dakar|Thiès|Mbour) », le prix, la distance, le type et `clientId` (nécessaire à la liaison créée à
+l'acceptation), jamais d'adresse ni de position exacte. L'app du chauffeur lit ce radar
+(`CourseService.streamCoursesEnAttente`, `CourseFirestore.adressesMasquees`) et affiche « L'adresse exacte et
+le point précis s'affichent dès que vous acceptez ». Elle accepte par une transaction sans lecture
+(`accepterCourse` : la course, la liaison et le retrait du radar partent ensemble ; les règles font gagner un
+seul chauffeur). Une fois la course acceptée, le chauffeur lit la course complète (adresses et arrivée
+exactes) et la position exacte du départ (`prive/depart`), comme avant. Le radar est retiré à l'acceptation,
+à l'annulation par le client et à l'expiration (10 minutes), et la surveillance de chaque minute balaie les
+oublis. La notification « Nouvelle course » ne contient plus d'adresses : la zone, la longueur du trajet et le
+prix. Deux étapes : l'étape 1 ajoute le radar sans rien retirer (les chauffeurs qui n'ont pas encore mis à jour
+leur app voient encore les courses comme avant) ; l'étape 2 retire aux règles la lecture des courses en attente
+par les chauffeurs, une fois les apps mises à jour (PWA rouverte, APK réinstallé). Reste visible avant
+l'acceptation : le `clientId` (identifiant sans nom ni téléphone) ; après la course, le chauffeur garde
+l'adresse des courses qu'il a faites dans son historique. Tests : `radar_chauffeur_test.dart`, règles
+Firestore (`regles.test.mjs`, `attaques.test.mjs`), `functions/test/paiements.emulateur.test.ts` et
+`notifications.emulateur.test.ts`.
 
 Mise en ligne le 9 octobre 2026 (run #102), avec l'écran Colis par GPS et la correction du contrôle des
 secrets de l'APK (`securite/garde_fuites.mjs apk`). Après la mise en ligne, l'app installée doit être

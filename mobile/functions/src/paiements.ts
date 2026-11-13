@@ -8,6 +8,7 @@ import type { CreateurSession, EvenementPaiement, FournisseurDuMoyen, Fournisseu
 import { ACCES_ORANGE_MONEY, methodesPour, type AccesOrangeMoney } from './methodes_paiement';
 import { notifierAnnulation, notifierNouvelleCourse, type Messagerie } from './notifications';
 import { arrondirPosition } from './proximite';
+import { balayerRadar, donneesRadar, refRadar } from './radar';
 import {
   debiterPourCourse,
   FOURNISSEUR_PORTEFEUILLE,
@@ -213,6 +214,7 @@ async function payerParSolde(
     tx.create(refCommande, commande);
     tx.create(refCourse, donneesCourse(commande, prixFcfa, commande.sessionPaiementId, refCommande.id));
     tx.create(departExactDe(refCourse), donneesDepartExact(commande));
+    tx.create(refRadar(db, refCourse.id), donneesRadar(commande, prixFcfa));
   });
   // Les chauffeurs disponibles sont prévenus ; jamais bloquant.
   await notifierNouvelleCourse(db, messagerie, refCourse.id);
@@ -268,6 +270,7 @@ export async function traiterEvenement(
     const c = commande.data()!;
     tx.create(refCourse, donneesCourse(c, prixFcfa, evenement.sessionId, refCommande.id));
     tx.create(departExactDe(refCourse), donneesDepartExact(c));
+    tx.create(refRadar(db, refCourse.id), donneesRadar(c, prixFcfa));
     tx.update(refCommande, {
       statut: STATUTS_COMMANDE.payee,
       courseId: refCourse.id,
@@ -385,6 +388,7 @@ export async function annulerCourse(
         throw new HttpsError('failed-precondition', 'Un chauffeur a déjà accepté cette course.');
       }
       tx.update(ref, { statut: 'annulee', annuleePar: 'client', annuleeLe: Timestamp.fromDate(maintenant) });
+      tx.delete(refRadar(db, ref.id));
     } else if (course.get('chauffeurId') === uid) {
       if (statut !== 'acceptee' && statut !== 'en_cours') {
         throw new HttpsError('failed-precondition', 'Cette course ne peut plus être annulée.');
@@ -448,6 +452,7 @@ export async function surveiller(
         motifAnnulation: 'aucun_chauffeur',
         annuleeLe: Timestamp.fromDate(maintenant),
       });
+      tx.delete(refRadar(db, doc.id));
       return true;
     });
     if (annulee) {
@@ -455,6 +460,16 @@ export async function surveiller(
       await rembourserCourse(db, fournisseur, doc.get('commandeId'), 'aucun_chauffeur', maintenant);
       await notifierAnnulation(db, messagerie, doc.get('clientId'), doc.id, 'systeme');
     }
+  }
+
+  // Le radar ne garde que les courses qui attendent encore un chauffeur : une
+  // course acceptée par une ancienne version de l'app, ou supprimée par
+  // l'Admin, y laisserait sinon une proposition qui n'existe plus.
+  try {
+    const retires = await balayerRadar(db);
+    if (retires > 0) logger.info('Radar : propositions périmées retirées', { retires });
+  } catch (e) {
+    logger.error('Radar : balayage impossible', e);
   }
   return { expirees, sansChauffeur };
 }

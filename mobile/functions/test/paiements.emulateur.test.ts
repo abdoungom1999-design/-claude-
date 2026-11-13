@@ -81,7 +81,7 @@ beforeEach(async () => {
   appelsRoutes = 0;
   remboursements = [];
   fournisseur = new FournisseurSimule('secret', 'https://page', remboursements);
-  for (const nom of ['users', 'courses', 'commandes', 'distances', 'config']) {
+  for (const nom of ['users', 'courses', 'radar', 'commandes', 'distances', 'config']) {
     // Récursif : une course porte aussi son document privé (position exacte du départ).
     await db.recursiveDelete(db.collection(nom));
   }
@@ -101,6 +101,79 @@ async function refuse(promesse: Promise<unknown>, code: string): Promise<HttpsEr
   }
   assert.fail(`aurait dû être refusé (${code})`);
 }
+
+// --- Radar des chauffeurs : ce qu'ils voient d'une course en attente ------
+
+const radar = async (id: string) => (await db.doc(`radar/${id}`).get()).data();
+
+test('radar : une course payée apparaît aux chauffeurs en zones arrondies, sans aucune adresse ; la course garde l\'exacte', async () => {
+  const { courseId } = await payer();
+  const r = (await radar(courseId))!;
+  const c = await course(courseId);
+
+  assert.equal(r.adresseDepart, 'Zone de départ approximative (Dakar)');
+  assert.equal(r.adresseArrivee, 'Zone d\'arrivée approximative (Dakar)');
+  assert.equal(r.adressesMasquees, true);
+  assert.deepEqual({ latitude: r.latitudeDepart, longitude: r.longitudeDepart }, arrondirPosition(PLATEAU.latitude, PLATEAU.longitude));
+  assert.deepEqual({ latitude: r.latitudeArrivee, longitude: r.longitudeArrivee }, arrondirPosition(ALMADIES.latitude, ALMADIES.longitude));
+  assert.equal(r.departArrondi, true);
+  // Ce qui sert à juger la course et à l'accepter.
+  assert.deepEqual(
+    { clientId: r.clientId, statut: r.statut, type: r.type, prixFcfa: r.prixFcfa, distanceKm: r.distanceKm, methodePaiement: r.methodePaiement },
+    { clientId: 'awa', statut: 'en_attente', type: 'PASSAGER', prixFcfa: 2300, distanceKm: 10.2, methodePaiement: 'WAVE' },
+  );
+  assert.equal((r.timestamp as Timestamp).toMillis(), (c.timestamp as Timestamp).toMillis());
+
+  // Rien d'exact dans le radar : ni adresse, ni coordonnées.
+  const texte = JSON.stringify(r);
+  for (const exact of ['Plateau', 'Almadies', String(PLATEAU.latitude), String(PLATEAU.longitude), String(ALMADIES.latitude), String(ALMADIES.longitude)]) {
+    assert.ok(!texte.includes(exact), `« ${exact} » dans le radar`);
+  }
+  // La course, lisible du seul client, du chauffeur qui l'accepte et de l'Admin, garde l'adresse exacte.
+  assert.equal(c.adresseDepart, 'Plateau');
+  assert.equal(c.adresseArrivee, 'Almadies');
+  assert.equal(c.latitudeArrivee, ALMADIES.latitude);
+});
+
+test('radar : retiré quand le client annule sa demande, ou quand personne ne la prend en 10 minutes', async () => {
+  const annulee = await payer('awa');
+  const sansChauffeur = await payer('fatou');
+  assert.ok(await radar(annulee.courseId));
+  assert.ok(await radar(sansChauffeur.courseId));
+
+  await annulerCourse(db, fournisseur, 'awa', { courseId: annulee.courseId }, midi);
+  assert.equal(await radar(annulee.courseId), undefined);
+  assert.ok(await radar(sansChauffeur.courseId), 'la demande de l\'autre client reste proposée');
+
+  // L'heure de création est celle du serveur : le délai se compte à partir d'elle.
+  const creeLe = ((await course(sansChauffeur.courseId)).timestamp as Timestamp).toDate();
+  await surveiller(db, fournisseur, new Date(creeLe.getTime() + 11 * 60 * 1000));
+  assert.equal(await radar(sansChauffeur.courseId), undefined);
+  assert.equal(await nombre('radar'), 0);
+});
+
+test('radar : la surveillance balaie ce qui n\'attend plus (acceptée par une ancienne app, course supprimée), jamais une demande en attente', async () => {
+  const acceptee = await payer('awa');
+  const supprimee = await payer('fatou');
+  const enAttente = await payer('awa');
+  await db.doc(`courses/${acceptee.courseId}`).update({ statut: 'acceptee', chauffeurId: 'moussa' });
+  await db.recursiveDelete(db.doc(`courses/${supprimee.courseId}`));
+  assert.equal(await nombre('radar'), 3);
+
+  await surveiller(db, fournisseur, minutes(1));
+  assert.equal(await radar(acceptee.courseId), undefined);
+  assert.equal(await radar(supprimee.courseId), undefined);
+  assert.ok(await radar(enAttente.courseId));
+  assert.equal(await statutCommande(enAttente.commandeId), 'payee');
+});
+
+test('radar : un paiement refusé ou en anomalie n\'y laisse aucune proposition', async () => {
+  const { commandeId } = await creerPaiement('awa', demande());
+  assert.equal(await traiterEvenement(db, fournisseur, await evenement(commandeId, { reussi: false }), midi), 'echec_enregistre');
+  const autre = await creerPaiement('fatou', demande());
+  assert.equal(await traiterEvenement(db, fournisseur, await evenement(autre.commandeId, { montantFcfa: 1 }), midi), 'anomalie');
+  assert.equal(await nombre('radar'), 0);
+});
 
 // --- Demande de paiement -------------------------------------------------
 

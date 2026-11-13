@@ -35,6 +35,7 @@ class CourseFirestore {
     required this.timestamp,
     this.points,
     this.departArrondi = false,
+    this.adressesMasquees = false,
     this.annuleePar,
     this.motifAnnulation,
     this.termineeLe,
@@ -70,6 +71,12 @@ class CourseFirestore {
   /// (voir [CourseService.streamDepartExact]). `false` pour une course d'avant
   /// ce masquage, et dès que la position exacte a été lue ([avecDepartExact]).
   final bool departArrondi;
+
+  /// [adresseDepart] et [adresseArrivee] ne sont qu'un libellé de zone : c'est
+  /// ce que le chauffeur voit d'une course tant qu'il ne l'a pas acceptée (le
+  /// radar, voir [CourseService.streamCoursesEnAttente]). L'adresse exacte et le
+  /// point GPS précis viennent avec la course une fois acceptée.
+  final bool adressesMasquees;
 
   /// `'client'`, `'chauffeur'` (voir [CourseService.annulerParChauffeur])
   /// ou `'systeme'` (aucun chauffeur à temps) ; `null` sinon.
@@ -140,6 +147,7 @@ class CourseFirestore {
       timestamp: horodatage is Timestamp ? horodatage.toDate() : DateTime.now(),
       points: PointsCourse.depuisDocument(donnees),
       departArrondi: donnees['departArrondi'] == true,
+      adressesMasquees: donnees['adressesMasquees'] == true,
       annuleePar: donnees['annuleePar'] as String?,
       motifAnnulation: donnees['motifAnnulation'] as String?,
       termineeLe: donnees['termineeLe'] is Timestamp ? (donnees['termineeLe'] as Timestamp).toDate() : null,
@@ -379,11 +387,10 @@ abstract final class MotifAnnulation {
 /// une collection `courses` à plat (pas de sous-collection), chaque
 /// document représentant une demande de course. Le client la paie (le
 /// serveur la crée alors, voir [creerPaiement]) et écoute son évolution
-/// ([streamCourse]) ; tout chauffeur en ligne écoute la collection
-/// filtrée sur `statut == 'en_attente'`
-/// ([streamCoursesEnAttente]) et peut l'accepter ([accepterCourse]),
-/// sous transaction pour qu'un seul des chauffeurs qui tentent
-/// d'accepter en même temps gagne la course.
+/// ([streamCourse]) ; tout chauffeur en ligne écoute le radar
+/// ([streamCoursesEnAttente] : des zones arrondies, sans adresse) et peut
+/// accepter une course ([accepterCourse]), sous transaction pour qu'un seul
+/// des chauffeurs qui tentent d'accepter en même temps gagne la course.
 class CourseService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   CollectionReference<Map<String, dynamic>> get _courses => _firestore.collection('courses');
@@ -483,20 +490,20 @@ class CourseService {
         );
   }
 
-  /// Flux temps réel de toutes les courses en attente d'un chauffeur,
-  /// de la plus ancienne à la plus récente — écouté en continu par
-  /// chaque chauffeur en ligne (le "radar").
+  /// Flux temps réel des courses qui attendent un chauffeur, de la plus
+  /// ancienne à la plus récente — écouté en continu par chaque chauffeur en
+  /// ligne (le "radar").
   ///
-  /// Important : ce filtre (égalité sur `statut` + tri sur
-  /// `timestamp`) nécessite un index composite Firestore. Au premier
-  /// lancement, Firestore refuse la requête avec une erreur
-  /// `failed-precondition` contenant un lien direct pour créer cet
-  /// index en un clic dans la Console Firebase — il faut le créer une
-  /// fois (quelques minutes de construction), après quoi la requête
-  /// fonctionne normalement.
+  /// Ce que le chauffeur voit AVANT d'accepter : le document du radar
+  /// (`radar/{id}`, écrit par le serveur avec la course), qui n'a que des zones
+  /// arrondies à ~150 m, le prix, la distance et le type ; jamais l'adresse du
+  /// client ni sa position exacte (décision du client, 13 novembre 2026). Il
+  /// porte les mêmes champs qu'une course : [CourseFirestore.depuisDocument] le
+  /// lit tel quel, avec [CourseFirestore.adressesMasquees] à `true`. Tri sur un
+  /// seul champ : pas d'index composite à créer.
   Stream<List<CourseFirestore>> streamCoursesEnAttente() {
-    return _courses
-        .where('statut', isEqualTo: 'en_attente')
+    return _firestore
+        .collection('radar')
         .orderBy('timestamp')
         .snapshots()
         .map(
@@ -506,30 +513,37 @@ class CourseService {
         );
   }
 
-  /// Un chauffeur accepte une course. Passe par une transaction pour
-  /// garantir qu'un seul chauffeur gagne si plusieurs tentent
-  /// d'accepter la même course au même instant : la transaction relit
-  /// le document, et n'écrit que si `statut` est toujours
-  /// `en_attente` — sinon elle échoue et cette méthode retourne
-  /// `false` (course déjà prise par quelqu'un d'autre).
-  Future<bool> accepterCourse({required String courseId, required String chauffeurId}) async {
-    final courseRef = _courses.doc(courseId);
+  /// Un chauffeur accepte une course ([clientId] est celui du radar : le
+  /// chauffeur ne lit plus la course avant de l'avoir acceptée).
+  ///
+  /// Une transaction qui relit la proposition du radar, puis écrit ensemble
+  /// l'acceptation, la liaison avec le client et le retrait de la proposition.
+  /// Si deux chauffeurs acceptent au même instant, le second voit la
+  /// proposition changer avant d'écrire : la transaction repart, ne la trouve
+  /// plus et retourne `false` ; les règles Firestore refusent de toute façon
+  /// l'acceptation d'une course qui n'est plus `en_attente`. Course déjà prise,
+  /// annulée entre-temps, ou pas de réseau : `false`. Une transaction (et non un
+  /// lot d'écritures) pour qu'elle échoue franchement sans réseau au lieu de
+  /// rester en attente et d'attribuer la course plus tard à un chauffeur qui est
+  /// passé à autre chose.
+  Future<bool> accepterCourse({
+    required String courseId,
+    required String chauffeurId,
+    required String clientId,
+  }) async {
+    if (clientId.isEmpty) return false;
+    final proposition = _firestore.collection('radar').doc(courseId);
     try {
       final gagnee = await _firestore.runTransaction<bool>((transaction) async {
-        final instantane = await transaction.get(courseRef);
-        final donnees = instantane.data();
-        if (!instantane.exists || donnees == null || donnees['statut'] != 'en_attente') {
-          return false;
-        }
-        final clientId = donnees['clientId'];
-        if (clientId is! String) return false;
-        transaction.update(courseRef, {'chauffeurId': chauffeurId, 'statut': 'acceptee'});
+        if (!(await transaction.get(proposition)).exists) return false;
+        transaction.update(_courses.doc(courseId), {'chauffeurId': chauffeurId, 'statut': 'acceptee'});
         // La liaison naît avec l'acceptation : sans elle, le client ne
         // pourrait ni voir son chauffeur ni lui écrire.
         transaction.set(
           _firestore.collection('liaisons').doc(Liaison.id(clientId: clientId, chauffeurId: chauffeurId)),
           Liaison.donnees(clientId: clientId, chauffeurId: chauffeurId, courseId: courseId),
         );
+        transaction.delete(proposition);
         return true;
       });
       if (gagnee) unawaited(prevenirClientAcceptation(courseId));

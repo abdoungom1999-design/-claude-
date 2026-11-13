@@ -54,7 +54,7 @@ before(() => {
 after(() => deleteApp(app));
 
 async function vider() {
-  for (const nom of ['users', 'courses', 'commandes', 'chats', 'appareils', 'profils_publics', 'positions_chauffeurs']) {
+  for (const nom of ['users', 'courses', 'radar', 'commandes', 'chats', 'appareils', 'profils_publics', 'positions_chauffeurs']) {
     await db.recursiveDelete(db.collection(nom));
   }
 }
@@ -233,7 +233,8 @@ async function chauffeur(uid: string, extra: Record<string, unknown> = {}, avecJ
 test('nouvelle course : seuls les chauffeurs en ligne, validés, non sanctionnés et libres sont prévenus', async () => {
   await db.doc('courses/nouvelle').set({
     clientId: 'awa', chauffeurId: null, statut: 'en_attente', type: 'PASSAGER',
-    adresseDepart: 'Plateau', adresseArrivee: 'Almadies', prixFcfa: 2300,
+    adresseDepart: '12 rue Carnot, Médina', adresseArrivee: 'Aéroport Blaise Diagne', prixFcfa: 2300,
+    latitudeDepart: 14.6928, longitudeDepart: -17.4467, distanceKm: 8.46,
   });
   await chauffeur('libre1');
   await chauffeur('libre2');
@@ -253,11 +254,36 @@ test('nouvelle course : seuls les chauffeurs en ligne, validés, non sanctionné
   assert.deepEqual([...fcm.envois[0].jetons].sort(), ['jeton_libre1', 'jeton_libre2']);
   const { push } = fcm.envois[0];
   assert.equal(push.titre, 'Nouvelle course');
-  assert.equal(push.corps, 'Plateau → Almadies · 2 300 FCFA');
+  // Aucune adresse : la notification arrive chez tous les chauffeurs prévenus, qui n'ont pas accepté la course.
+  assert.equal(push.corps, 'Départ à Dakar · trajet de 8,5 km · 2\u202f300 FCFA');
+  assert.doesNotMatch(push.corps, /Carnot|Médina|Aéroport|Blaise/);
   assert.equal(push.canal, 'courses');
   assert.deepEqual(push.donnees, { type: 'course', courseId: 'nouvelle' });
   assert.equal(push.lien, LIENS.chauffeur);
   assert.equal(push.dureeVieSecondes, 120);
+});
+
+test('nouvelle course : sans position ni distance (ancienne course), le prix seul ; à Thiès et à Mbour, la ville', async () => {
+  await db.doc('courses/ancienne').set({ clientId: 'awa', statut: 'en_attente', type: 'PASSAGER', adresseDepart: '5 rue X', adresseArrivee: 'Y', prixFcfa: 1500 });
+  await db.doc('courses/thies').set({
+    clientId: 'awa', statut: 'en_attente', type: 'COLIS', adresseDepart: 'Gare de Thiès', adresseArrivee: 'Marché', prixFcfa: 1000,
+    latitudeDepart: 14.791, longitudeDepart: -16.9359, distanceKm: 3,
+  });
+  await db.doc('courses/mbour').set({
+    clientId: 'awa', statut: 'en_attente', type: 'PASSAGER', adresseDepart: 'Saly Portudal', adresseArrivee: 'Mbour', prixFcfa: 2000,
+    latitudeDepart: 14.4496, longitudeDepart: -17.0173, distanceKm: 12.04,
+  });
+  await db.doc('courses/vide').set({ clientId: 'awa', statut: 'en_attente', type: 'PASSAGER', adresseDepart: 'A', adresseArrivee: 'B' });
+  await chauffeur('libre');
+  const corps = async (id: string) => {
+    fcm.envois = [];
+    await notifierNouvelleCourse(db, fcm, id);
+    return fcm.envois[0].push.corps;
+  };
+  assert.equal(await corps('ancienne'), '1\u202f500 FCFA');
+  assert.equal(await corps('thies'), 'Départ à Thiès · trajet de 3 km · 1\u202f000 FCFA');
+  assert.equal(await corps('mbour'), 'Départ à Mbour · trajet de 12 km · 2\u202f000 FCFA');
+  assert.equal(await corps('vide'), 'Ouvrez Sprint pour la voir.');
 });
 
 test('nouvelle course : colis, course déjà prise ou inconnue, plafond de chauffeurs', async () => {

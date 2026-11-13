@@ -442,6 +442,24 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
+    // Radar des chauffeurs : ce qu'un chauffeur voit d'une course tant qu'il
+    // ne l'a pas acceptée (décision du client, 13 novembre 2026) : zones
+    // arrondies à ~150 m, prix, distance, type. Aucune adresse, aucune position
+    // exacte : elles restent dans la course, lisible du client, du chauffeur qui
+    // l'a acceptée et de l'Admin. Écrit par le serveur seul, en même temps que
+    // la course (functions/src/radar.ts) ; le chauffeur qui accepte le retire
+    // dans la même écriture que l'acceptation, le serveur le retire à
+    // l'annulation et à l'expiration.
+    // ---------------------------------------------------------------
+    match /radar/{courseId} {
+      allow get, list: if conducteurActif() || estAdmin();
+      allow create, update: if false;
+      allow delete: if estAdmin()
+        || (connecte()
+            && getAfter(/databases/$(database)/documents/courses/$(courseId)).data.chauffeurId == moi());
+    }
+
+    // ---------------------------------------------------------------
     // Position GPS des chauffeurs en ligne. Seul un chauffeur actif
     // publie sa propre position. L'Admin la lit (carte "Courses en
     // direct") ; le client la lit uniquement pendant SA course avec ce

@@ -110,7 +110,7 @@ after(() => deleteApp(app));
 beforeEach(async () => {
   remboursements = [];
   fournisseur = new FournisseurSimule('secret', 'https://page', remboursements);
-  for (const nom of ['users', 'courses', 'commandes', 'distances', 'config', 'recharges', 'journal_admin']) {
+  for (const nom of ['users', 'courses', 'radar', 'commandes', 'distances', 'config', 'recharges', 'journal_admin']) {
     // Récursif : une course porte aussi son document privé (position exacte du départ).
     await db.recursiveDelete(db.collection(nom));
   }
@@ -318,6 +318,14 @@ test('course payée avec le solde : débit, commande payée et course créées e
   assert.deepEqual({ latitude: c.latitudeDepart, longitude: c.longitudeDepart }, arrondi);
   const prive = await departExactDe(db.doc(`courses/${commande.courseId}`)).get();
   assert.deepEqual(prive.data(), PLATEAU);
+
+  // Les chauffeurs voient le radar (zones arrondies), pas l'adresse du client.
+  const radar = (await db.doc(`radar/${commande.courseId}`).get()).data()!;
+  assert.equal(radar.adressesMasquees, true);
+  assert.equal(radar.clientId, 'awa');
+  assert.equal(radar.prixFcfa, PRIX);
+  assert.deepEqual({ latitude: radar.latitudeDepart, longitude: radar.longitudeDepart }, arrondi);
+  assert.ok(!JSON.stringify(radar).includes('Plateau'));
 
   const debit = (await mouvements('awa')).find((m) => m.id === `course_${r.commandeId}`)!;
   assert.deepEqual(

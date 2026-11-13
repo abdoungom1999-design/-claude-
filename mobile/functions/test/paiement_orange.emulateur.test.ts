@@ -107,7 +107,7 @@ beforeEach(async () => {
   remboursementsWave = [];
   simule = new FournisseurSimule('secret', 'https://page', remboursementsWave);
   fournisseurs = (quand) => fournisseursDuMoyen(simule, () => new FournisseurOrangeMoney(config, () => quand));
-  for (const nom of ['users', 'courses', 'commandes', 'recharges', 'portefeuilles', 'distances', 'config', 'tickets', 'journal_admin']) {
+  for (const nom of ['users', 'courses', 'radar', 'commandes', 'recharges', 'portefeuilles', 'distances', 'config', 'tickets', 'journal_admin']) {
     await db.recursiveDelete(db.collection(nom));
   }
   await db.doc('users/chef').set({ role: 'admin' });

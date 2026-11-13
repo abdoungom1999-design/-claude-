@@ -98,6 +98,7 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
     final gagnee = await widget.courseService.accepterCourse(
       courseId: widget.course.id,
       chauffeurId: widget.chauffeurId,
+      clientId: widget.course.clientId,
     );
     if (!mounted) return;
     if (!gagnee) {
@@ -222,6 +223,13 @@ class _NouvelleCourseReelleSheetState extends State<_NouvelleCourseReelleSheet>
                   icon: Icons.location_on_outlined,
                   texte: widget.course.adresseArrivee,
                 ),
+                if (widget.course.adressesMasquees) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'L\'adresse exacte et le point précis s\'affichent dès que vous acceptez.',
+                    style: TextStyle(fontSize: 12, color: AppColors.texteDiscret, height: 1.3),
+                  ),
+                ],
               ],
             ),
           ),

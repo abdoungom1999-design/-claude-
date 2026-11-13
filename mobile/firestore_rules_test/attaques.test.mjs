@@ -14,7 +14,7 @@ import { after, before, describe, test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 let env;
@@ -70,6 +70,12 @@ async function semer() {
     await poser('temps_en_ligne/moussa_2026-09-27', { chauffeurId: 'moussa', date: '2026-09-27', secondes: 600, majLe: new Date(Date.now() - 120000) });
     await poser('temps_en_ligne/moussa_2026-09-28', { chauffeurId: 'moussa', date: '2026-09-28', secondes: 600, majLe: new Date(Date.now() - 120000) });
     await poser('courses/finie_fatou/prive/depart', { latitude: 14.69251, longitude: -17.44682 });
+    await poser('radar/attente_fatou', {
+      clientId: 'fatou', statut: 'en_attente', type: 'PASSAGER', prixFcfa: 2300, distanceKm: 8.2, methodePaiement: 'WAVE',
+      adresseDepart: 'Zone de départ approximative (Dakar)', adresseArrivee: 'Zone d\'arrivée approximative (Dakar)', adressesMasquees: true,
+      latitudeDepart: 14.69278, longitudeDepart: -17.44617, departArrondi: true, latitudeArrivee: 14.74533, longitudeArrivee: -17.51307,
+      timestamp: new Date(),
+    });
   });
 }
 
@@ -135,6 +141,8 @@ describe('contrôles : les gestes légitimes fonctionnent (sans eux, les refus n
 
   test('un chauffeur validé voit les courses en attente (le radar) ; un administrateur voit tout', async () => {
     await assertSucceeds(getDocs(query(collection(en('moussa'), 'courses'), where('statut', '==', 'en_attente'))));
+    await assertSucceeds(getDocs(query(collection(en('moussa'), 'radar'), orderBy('timestamp'))));
+    await assertSucceeds(getDoc(doc(en('moussa'), 'radar', 'attente_fatou')));
     for (const chemin of ['users/fatou', 'journal_admin/j1', 'portefeuilles/fatou', 'retraits/r1']) {
       await assertSucceeds(getDoc(doc(en('admin'), chemin)));
     }
@@ -276,6 +284,28 @@ famille('aspiration de masse (listes complètes, annuaires, positions)', [
   ['chauffeur validé : position exacte du départ d\'une course en attente', () => getDoc(doc(en('moussa'), 'courses', 'attente_fatou', 'prive', 'depart'))],
   ['chauffeur validé : départ exact d\'une course terminée (il perd l\'accès à la fin)', () => getDoc(doc(en('moussa'), 'courses', 'finie_fatou', 'prive', 'depart'))],
   ['chauffeur validé : profil d\'un client sans course en cours avec lui', () => getDoc(doc(en('moussa'), 'profils_publics', 'awa'))],
+]);
+
+famille('radar des chauffeurs : zones arrondies avant l\'acceptation', [
+  ['un client lit le radar des chauffeurs', () => getDoc(doc(en('awa'), 'radar', 'attente_fatou'))],
+  ['un client liste le radar des chauffeurs', () => getDocs(query(collection(en('awa'), 'radar'), orderBy('timestamp')))],
+  ['un dossier en attente lit le radar', () => getDoc(doc(en('ibou'), 'radar', 'attente_fatou'))],
+  ['un chauffeur suspendu lit le radar', () => getDoc(doc(en('suspendu'), 'radar', 'attente_fatou'))],
+  ['un visiteur non connecté lit le radar', () => getDocs(collection(anonyme(), 'radar'))],
+  ['un chauffeur se crée une fausse proposition au radar', () => setDoc(doc(en('moussa'), 'radar', 'fausse'), { clientId: 'awa', statut: 'en_attente', prixFcfa: 1, timestamp: serverTimestamp() })],
+  ['un chauffeur ajoute une proposition au radar', () => addDoc(collection(en('moussa'), 'radar'), { clientId: 'awa', statut: 'en_attente', prixFcfa: 1 })],
+  ['un chauffeur change le prix affiché d\'une proposition', () => updateDoc(doc(en('moussa'), 'radar', 'attente_fatou'), { prixFcfa: 9999 })],
+  ['un client change l\'identifiant du client d\'une proposition', () => updateDoc(doc(en('awa'), 'radar', 'attente_fatou'), { clientId: 'awa' })],
+  ['un Admin écrit une proposition depuis l\'app (le serveur seul l\'écrit)', () => setDoc(doc(en('admin'), 'radar', 'admin'), { statut: 'en_attente' })],
+  ['un chauffeur retire une proposition sans l\'accepter', () => deleteDoc(doc(en('moussa'), 'radar', 'attente_fatou'))],
+  ['un client retire une proposition du radar', () => deleteDoc(doc(en('fatou'), 'radar', 'attente_fatou'))],
+  ['un chauffeur accepte une course et retire la proposition d\'une autre', () => {
+    const db = en('moussa');
+    const lot = writeBatch(db);
+    lot.update(doc(db, 'courses', 'attente_fatou'), { statut: 'acceptee', chauffeurId: 'moussa' });
+    lot.delete(doc(db, 'radar', 'autre_course'));
+    return lot.commit();
+  }],
 ]);
 
 famille('abus de taille et de volume (phase B)', [

@@ -3,6 +3,7 @@ import { getMessaging, type MulticastMessage } from 'firebase-admin/messaging';
 import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { distanceKm, type Point } from './tarification';
+import { villeDe } from './radar';
 
 /**
  * Notifications push (Android) : elles arrivent même quand l'app est fermée.
@@ -447,9 +448,18 @@ export async function notifierNouvelleCourse(
     const depart = typeof latitude === 'number' && typeof longitude === 'number' ? { latitude, longitude } : undefined;
     const chauffeurs = await chauffeursEligibles(db, depart, maintenant);
     const prix = course.get('prixFcfa');
+    const trajetKm = course.get('distanceKm');
+    // Aucune adresse dans la notification : elle arrive sur le téléphone de
+    // tous les chauffeurs prévenus, qui n'ont pas (encore) accepté la course.
+    // La zone, la longueur du trajet et le prix suffisent à décider d'ouvrir l'app.
+    const details = [
+      depart ? `Départ à ${villeDe(depart)}` : null,
+      typeof trajetKm === 'number' ? `trajet de ${(Math.round(trajetKm * 10) / 10).toString().replace('.', ',')} km` : null,
+      typeof prix === 'number' ? fcfa(prix) : null,
+    ].filter((d): d is string => d !== null);
     return await pousser(db, messagerie, chauffeurs, {
       titre: course.get('type') === 'COLIS' ? 'Nouveau colis à livrer' : 'Nouvelle course',
-      corps: `${course.get('adresseDepart')} → ${course.get('adresseArrivee')}${typeof prix === 'number' ? ` · ${fcfa(prix)}` : ''}`,
+      corps: details.length > 0 ? details.join(' · ') : 'Ouvrez Sprint pour la voir.',
       canal: 'courses',
       lien: LIENS.chauffeur,
       donnees: { type: 'course', courseId },

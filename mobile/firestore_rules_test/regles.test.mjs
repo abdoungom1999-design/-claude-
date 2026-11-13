@@ -1623,3 +1623,92 @@ describe('phase B : l\'app continue comme avant, les abus s\'arrêtent', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Radar des chauffeurs (lot « adresses », décision du client du 13 novembre
+// 2026) : avant d'accepter une course, un chauffeur ne voit que des zones
+// arrondies. Le radar est écrit par le serveur seul et retiré par le chauffeur
+// qui accepte, dans la même écriture que l'acceptation.
+// ---------------------------------------------------------------------------
+describe('radar des chauffeurs : zones arrondies avant l\'acceptation', () => {
+  const proposition = (extra = {}) => ({
+    clientId: 'client', statut: 'en_attente', type: 'PASSAGER', prixFcfa: 2000, distanceKm: 8.2, methodePaiement: 'WAVE',
+    adresseDepart: 'Zone de départ approximative (Dakar)', adresseArrivee: 'Zone d\'arrivée approximative (Dakar)', adressesMasquees: true,
+    latitudeDepart: 14.69278, longitudeDepart: -17.44617, departArrondi: true,
+    latitudeArrivee: 14.74533, longitudeArrivee: -17.51307, timestamp: new Date(), ...extra,
+  });
+  const liaison = () => ({ clientId: 'client', chauffeurId: 'chauffeur', courseId: 'c1', creeLe: serverTimestamp() });
+
+  beforeEach(() => env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'radar', 'c1'), proposition())));
+
+  test('un chauffeur actif lit une proposition et la liste du radar, comme l\'app : accepté', async () => {
+    const db = en('chauffeur');
+    await assertSucceeds(getDoc(doc(db, 'radar', 'c1')));
+    await assertSucceeds(getDocs(query(collection(db, 'radar'), orderBy('timestamp'))));
+  });
+
+  test('client, dossier en attente, chauffeur suspendu ou banni, visiteur : refusé ; l\'Admin : accepté', async () => {
+    for (const uid of ['client', 'autreClient', 'enAttente', 'suspendu', 'banni']) {
+      await assertFails(getDoc(doc(en(uid), 'radar', 'c1')), uid);
+      await assertFails(getDocs(query(collection(en(uid), 'radar'), orderBy('timestamp'))), uid);
+    }
+    await assertFails(getDoc(doc(anonyme(), 'radar', 'c1')));
+    await assertSucceeds(getDoc(doc(en('admin'), 'radar', 'c1')));
+  });
+
+  test('personne n\'écrit dans le radar depuis l\'app : ni créer, ni modifier, pas même l\'Admin ou un chauffeur', async () => {
+    for (const uid of ['chauffeur', 'client', 'admin']) {
+      await assertFails(setDoc(doc(en(uid), 'radar', 'faux'), proposition()), uid);
+      await assertFails(addDoc(collection(en(uid), 'radar'), proposition()), uid);
+      await assertFails(updateDoc(doc(en(uid), 'radar', 'c1'), { prixFcfa: 1 }), uid);
+      await assertFails(updateDoc(doc(en(uid), 'radar', 'c1'), { adresseDepart: 'Autre' }), uid);
+    }
+  });
+
+  test('acceptation exactement comme l\'app : lecture du radar, puis course, liaison et retrait du radar ensemble : accepté', async () => {
+    const db = en('chauffeur');
+    await assertSucceeds(runTransaction(db, async (transaction) => {
+      if (!(await transaction.get(doc(db, 'radar', 'c1'))).exists()) throw new Error('proposition absente');
+      transaction.update(doc(db, 'courses', 'c1'), { chauffeurId: 'chauffeur', statut: 'acceptee' });
+      transaction.set(doc(db, 'liaisons', 'client_chauffeur'), liaison());
+      transaction.delete(doc(db, 'radar', 'c1'));
+    }));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      assert.equal((await getDoc(doc(ctx.firestore(), 'radar', 'c1'))).exists(), false, 'la proposition a disparu du radar');
+    });
+    // Le client voit son chauffeur dès l'acceptation, le chauffeur lit sa course.
+    await assertSucceeds(getDoc(doc(en('client'), 'profils_publics', 'chauffeur')));
+    await assertSucceeds(getDoc(doc(en('chauffeur'), 'courses', 'c1')));
+  });
+
+  test('la proposition ne se retire pas sans acceptation : refusé à un chauffeur seul, à un autre chauffeur, à un client', async () => {
+    for (const uid of ['chauffeur', 'suspendu', 'client', 'autreClient']) {
+      await assertFails(deleteDoc(doc(en(uid), 'radar', 'c1')), uid);
+    }
+    // Un chauffeur qui n'est pas celui de la course ne la retire pas non plus avec sa propre acceptation d'une autre.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'courses', 'c2'), { clientId: 'autreClient', chauffeurId: null, statut: 'en_attente', prixFcfa: 2000 });
+    });
+    const db = en('chauffeur');
+    const lot = writeBatch(db);
+    lot.update(doc(db, 'courses', 'c2'), { chauffeurId: 'chauffeur', statut: 'acceptee' });
+    lot.delete(doc(db, 'radar', 'c1'));
+    await assertFails(lot.commit());
+  });
+
+  test('un chauffeur qui accepte ne peut pas accepter une course déjà prise : la proposition reste, rien ne change', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), 'courses', 'c1'), { chauffeurId: 'autre', statut: 'acceptee' }));
+    const db = en('chauffeur');
+    await assertFails(runTransaction(db, async (transaction) => {
+      await transaction.get(doc(db, 'radar', 'c1'));
+      transaction.update(doc(db, 'courses', 'c1'), { chauffeurId: 'chauffeur', statut: 'acceptee' });
+      transaction.set(doc(db, 'liaisons', 'client_chauffeur'), liaison());
+      transaction.delete(doc(db, 'radar', 'c1'));
+    }));
+  });
+
+  test('l\'Admin retire une proposition périmée', async () => {
+    await assertSucceeds(deleteDoc(doc(en('admin'), 'radar', 'c1')));
+  });
+});
