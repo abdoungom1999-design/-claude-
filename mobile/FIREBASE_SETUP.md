@@ -1518,3 +1518,11 @@ client « 124 étapes 1 et 2 » : l'essai sans publication avait pris le numéro
 Les chauffeurs ne voient plus qu'une zone arrondie avant d'accepter ; les anciennes
 apps de chauffeur (avant la 124) ne voient plus aucune course et doivent être mises
 à jour (site rouvert, APK réinstallé). Voir `README.md`, « Radar des chauffeurs ».
+
+Faux Wave cloisonné aux comptes de test et marqué « argent de test » : mis en ligne le
+14 novembre 2026 (publication 126, go du client « go 126 » : l'essai sans publication
+avait pris le numéro 125). Avant la mise en ligne, le client a vérifié que « Versé aux
+chauffeurs » était à 0 FCFA et il marque lui-même ses comptes de test dans l'espace Admin
+(Clients > Portefeuille > « Compte de test »). Les autres clients n'ont que leur solde
+Sprint tant qu'Orange Money n'est pas ouvert à tous ou que le vrai Wave n'est pas branché.
+Voir « 7.1 quinquies » plus haut et `README.md`, « Faux Wave ».
