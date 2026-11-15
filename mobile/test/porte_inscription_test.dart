@@ -125,14 +125,15 @@ Future<void> _validerLeNumero(WidgetTester tester) async {
 }
 
 void main() {
-  group('Fermé : l\'état de la publication 126, sans aucun effet', () {
-    test('réglages livrés : tout est fermé, aucun compte n\'est « nouveau »', () {
+  group('Réglages livrés (publication 128) et retour à l\'état de la 126', () {
+    test('réglages livrés : SMS facultatif, bienvenue, comptes neufs depuis l\'ouverture (décisions du client)', () {
       const livre = ReglageInscription();
-      expect(livre.validation, EtatValidationTelephone.fermee);
-      expect(livre.bienvenue, isFalse);
-      expect(livre.ouvert, isFalse);
-      expect(livre.depuis.year, 2099);
-      expect(livre.estNouveau(DateTime.now()), isFalse);
+      expect(livre.validation, EtatValidationTelephone.facultative, reason: 'obligatoire seulement sur demande du client');
+      expect(livre.bienvenue, isTrue);
+      expect(livre.ouvert, isTrue);
+      expect(livre.depuis, DateTime.utc(2026, 11, 15, 19, 28), reason: 'même instant que le serveur (un test les compare)');
+      expect(livre.estNouveau(livre.depuis), isTrue);
+      expect(livre.estNouveau(livre.depuis.subtract(const Duration(minutes: 1))), isFalse);
       expect(livre.estNouveau(null), isFalse);
     });
 
@@ -145,9 +146,9 @@ void main() {
       expect(r.estNouveau(null), isFalse);
     });
 
-    testWidgets('l\'espace s\'affiche tel quel, sans même regarder le compte ni le profil', (tester) async {
+    testWidgets('refermé (validation fermée, pas de bienvenue) : l\'espace s\'affiche tel quel, sans même regarder le compte ni le profil', (tester) async {
       final banc = _Banc();
-      await _ouvrir(tester, banc, reglage: const ReglageInscription());
+      await _ouvrir(tester, banc, reglage: const ReglageInscription(validation: EtatValidationTelephone.fermee, bienvenue: false));
       await tester.pump(const Duration(seconds: 30));
       expect(_espace, findsOneWidget);
       expect(banc.lecturesCompte, 0);
@@ -188,6 +189,38 @@ void main() {
       expect(banc.lecturesProfil, 0);
       expect(banc.appelsBienvenue, 0);
       expect(banc.lecturesCompte, 1, reason: 'une seule lecture : pas de surveillance');
+    });
+
+    testWidgets('réglages LIVRÉS : un compte antérieur à l\'ouverture ne voit rien de nouveau (ni écran, ni lecture du profil, ni bienvenue)', (tester) async {
+      const livre = ReglageInscription();
+      final banc = _Banc()..compte = CompteConnecte(uid: 'ancien', emailVerifie: true, creeLe: livre.depuis.subtract(const Duration(minutes: 1)));
+      await _ouvrir(tester, banc, reglage: livre);
+      await tester.pump(const Duration(seconds: 30));
+      expect(_espace, findsOneWidget);
+      expect(banc.lecturesProfil, 0);
+      expect(banc.appelsBienvenue, 0);
+      expect(banc.appelsServeur, isEmpty);
+    });
+
+    testWidgets('réglages LIVRÉS : un compte neuf voit « Plus tard » (SMS facultatif), puis « Bienvenue chez SPRINT », puis son espace', (tester) async {
+      const livre = ReglageInscription();
+      final banc = _Banc()..compte = CompteConnecte(uid: 'awa', emailVerifie: true, creeLe: livre.depuis);
+      await _ouvrir(tester, banc, reglage: livre);
+      expect(find.text('Validez votre numéro'), findsOneWidget);
+      expect(find.byKey(const ValueKey('tel-plus-tard')), findsOneWidget);
+      expect(_espace, findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('tel-plus-tard')));
+      await _laisser(tester);
+      expect(banc.passes, {'awa'});
+      expect(banc.appelsBienvenue, 1);
+      expect(find.text('Bienvenue chez SPRINT'), findsOneWidget);
+      expect(find.text('Bonjour Awa, votre compte SPRINT est prêt.'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('bienvenue-continuer')));
+      await _laisser(tester);
+      expect(_espace, findsOneWidget);
+      expect(banc.appelsServeur, isEmpty, reason: 'numéro passé : aucun SMS, aucune validation');
     });
 
     testWidgets('sans connexion, ou sans date de création connue : l\'espace', (tester) async {

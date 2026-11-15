@@ -15,9 +15,10 @@ m'envoyer.
 > | **DKIM** | signature numérique ajoutée à chaque e-mail | « ce message n'a pas été modifié et vient bien de ce domaine » |
 > | **DMARC** | consigne aux boîtes de réception en cas d'échec de SPF/DKIM, et rapports | « que faire des faux, et dites-moi qui en envoie » |
 
-Dans tout le guide, le domaine est **`groupesantine.sn`** (celui de vos adresses
-`support@` et `donnees@`, déjà publiées dans l'app). Si c'est un autre domaine,
-remplacez-le partout.
+Décisions du client (15 novembre 2026) : le domaine est **`groupesantine.sn`** et
+l'adresse officielle **`contact@groupesantine.sn`** : c'est elle qui reçoit les
+réponses et les rapports DMARC dans ce guide. (L'app affiche encore `support@` et
+`donnees@` dans le centre d'aide et les pages légales : ils ne sont pas modifiés.)
 
 ---
 
@@ -30,7 +31,8 @@ remplacez-le partout.
 2. L'accès **Propriétaire / Éditeur** au projet Firebase `sprint-vtc`
    (console Firebase).
 3. Une adresse de messagerie que vous lisez réellement pour recevoir les
-   rapports DMARC (par exemple `support@groupesantine.sn`).
+   rapports DMARC : `contact@groupesantine.sn` (voir 5 pour éviter qu'ils
+   encombrent la boîte).
 
 Ce que l'on ajoute ne casse rien : ce sont des lignes **ajoutées** à la zone.
 Seule exception, le SPF : il ne peut y avoir qu'**un seul** enregistrement SPF
@@ -63,7 +65,11 @@ Les libellés peuvent varier légèrement d'une version de la console à l'autre
 
 Firebase affiche quatre lignes. Voici à quoi elles ressemblent, pour que vous
 reconnaissiez chacune ; **copiez les valeurs exactes de la console**, pas
-celles de ce tableau si elles diffèrent.
+celles de ce tableau si elles diffèrent. (La documentation de Firebase ne publie
+pas ces valeurs : seule votre console les donne ; le tableau reprend la forme
+décrite dans les exemples publics, avec votre domaine. La partie après
+`firebase=` de la première ligne est celle qui varie le plus d'un exemple à
+l'autre : recopiez-la depuis la console.)
 
 | # | Type | Nom (host) | Valeur | À quoi ça sert |
 |---|---|---|---|---|
@@ -76,7 +82,7 @@ celles de ce tableau si elles diffèrent.
 
 | Type | Nom (host) | Valeur |
 |---|---|---|
-| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:support@groupesantine.sn; fo=1` |
+| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:contact@groupesantine.sn; fo=1` |
 
 `p=none` signifie « surveiller sans rien bloquer » : c'est le bon réglage de
 départ (voir l'étape 5 pour le durcir progressivement).
@@ -85,7 +91,7 @@ départ (voir l'étape 5 pour le durcir progressivement).
 
 Regardez d'abord s'il existe **déjà** un enregistrement `TXT` commençant par
 `v=spf1` sur `groupesantine.sn` (c'est le cas si vos adresses e-mail
-`support@…` sont hébergées chez votre hébergeur ou chez Google/Microsoft).
+`contact@…` sont hébergées chez votre hébergeur ou chez Google/Microsoft).
 Si oui, **ne créez pas une deuxième ligne** : deux SPF rendent les deux
 invalides. Modifiez la ligne existante en y **ajoutant**
 `include:_spf.firebasemail.com` juste avant le `~all` (ou `-all`) final :
@@ -118,10 +124,15 @@ Gardez tout le reste de la ligne tel quel.
 ## 3. Étape 3 : vérifier
 
 1. Retournez dans la fenêtre Firebase de l'étape 1 et cliquez **Vérifier**
-   (*Verify*). Tant que c'est en attente, revenez plus tard : rien à refaire.
-2. Quand c'est vérifié, réglez dans le même modèle :
+   (*Verify*). Tant que c'est en attente, revenez plus tard : rien à refaire
+   (jusqu'à 24 heures ; un outil comme <https://www.whatsmydns.net> montre si
+   les lignes sont déjà visibles).
+2. Quand l'onglet Modèles affiche le message vert **« Vérification terminée »**,
+   cliquez **« Appliquer le domaine personnalisé »** (*Apply custom domain*) :
+   sans ce clic, les e-mails continuent de partir de l'ancienne adresse. Puis
+   réglez dans le même modèle :
    * **Nom de l'expéditeur** : `SPRINT` ;
-   * **Répondre à** : `support@groupesantine.sn` ;
+   * **Répondre à** : `contact@groupesantine.sn` ;
    * **Langue** du modèle : **Français** (pour *chaque* modèle utilisé :
      validation de l'adresse et réinitialisation du mot de passe), puis relisez
      l'objet et le texte.
@@ -136,7 +147,12 @@ Gardez tout le reste de la ligne tel quel.
 
 ---
 
-## 4. Le message « Bienvenue chez SPRINT » par e-mail (facultatif)
+## 4. Le message « Bienvenue chez SPRINT » par e-mail (facultatif, non activé)
+
+> **Décision du client (15 novembre 2026) : pas d'e-mail de bienvenue pour le
+> moment.** Cette partie est conservée pour le jour où vous le voudrez ;
+> `EMAIL_BIENVENUE` reste à `false` et rien de ce qui suit n'est à faire
+> maintenant.
 
 Le message de bienvenue part **toujours** dans l'app (écran) et en notification
 sur les appareils du compte. L'envoi **par e-mail** en plus demande un service
@@ -167,7 +183,7 @@ de votre choix.
      toute prête). C'est l'extension qui range ce secret dans Secret
      Manager : **ne le collez ni dans un message ni dans le code**.
    * *Default FROM address* : `SPRINT <bienvenue@groupesantine.sn>`
-   * *Default REPLY-TO address* : `support@groupesantine.sn`
+   * *Default REPLY-TO address* : `contact@groupesantine.sn`
 4. Dites-moi quand c'est fait : je passe `EMAIL_BIENVENUE` à `true` (serveur),
    avec votre accord de publication. Après chaque bienvenue, le document
    `mail/bienvenue_<identifiant du compte>` montre dans `delivery` si l'envoi
@@ -183,15 +199,15 @@ montrent plus que des envois légitimes qui passent SPF ou DKIM :
 
 | Étape | Quand | Valeur du `TXT` `_dmarc` |
 |---|---|---|
-| 1 | semaines 0 à 2 | `v=DMARC1; p=none; rua=mailto:support@groupesantine.sn; fo=1` |
-| 2 | semaines 3 à 4 | `v=DMARC1; p=quarantine; pct=25; rua=mailto:support@groupesantine.sn` |
-| 3 | semaine 5 | `v=DMARC1; p=quarantine; pct=100; rua=mailto:support@groupesantine.sn` |
-| 4 | après 6 semaines sans surprise | `v=DMARC1; p=reject; rua=mailto:support@groupesantine.sn` |
+| 1 | semaines 0 à 2 | `v=DMARC1; p=none; rua=mailto:contact@groupesantine.sn; fo=1` |
+| 2 | semaines 3 à 4 | `v=DMARC1; p=quarantine; pct=25; rua=mailto:contact@groupesantine.sn` |
+| 3 | semaine 5 | `v=DMARC1; p=quarantine; pct=100; rua=mailto:contact@groupesantine.sn` |
+| 4 | après 6 semaines sans surprise | `v=DMARC1; p=reject; rua=mailto:contact@groupesantine.sn` |
 
 Les rapports sont des fichiers XML illisibles à l'œil : un service gratuit comme
 Postmark DMARC (<https://dmarc.postmarkapp.com>) les transforme en résumé
 hebdomadaire lisible. **Ne passez pas à `quarantine` ni `reject` si vos propres
-e-mails (ceux de `support@…`) échouent aux tests de l'étape 3** : ils seraient
+e-mails (ceux de `contact@…`) échouent aux tests de l'étape 3** : ils seraient
 eux aussi mis de côté.
 
 ---
@@ -205,9 +221,14 @@ eux aussi mis de côté.
 * Retour arrière : supprimer les lignes ajoutées, ou, dans la console Firebase,
   revenir au domaine par défaut. Rien n'est perdu.
 
-## 7. Décisions à prendre (je les ai listées dans mon compte rendu)
+## 7. Décisions prises (15 novembre 2026)
 
-1. Le domaine d'envoi : `groupesantine.sn` (à confirmer) ou un sous-domaine
-   dédié (`mail.groupesantine.sn`).
-2. L'envoi de l'e-mail de bienvenue : oui ou non, et avec quel service d'envoi.
-3. Qui reçoit les rapports DMARC.
+1. Domaine d'envoi : `groupesantine.sn` ; adresse officielle : `contact@groupesantine.sn`.
+2. E-mail de bienvenue : non, pas pour le moment (l'écran et la notification
+   suffisent).
+3. Rapports DMARC : `contact@groupesantine.sn`. Si les rapports encombrent la
+   boîte, créez une adresse `dmarc@groupesantine.sn` qui les redirige vers un
+   dossier, puis remplacez `rua=mailto:…` dans la ligne `_dmarc`.
+
+Sources : [Utiliser un domaine personnalisé pour les e-mails d'authentification (Firebase)](https://firebase.google.com/docs/auth/email-custom-domain),
+[exemple public des enregistrements `firebasemail.com` et piège des noms d'hôte (Namecheap)](https://medium.com/the-solo-developer-journey/connecting-firebase-with-a-namecheap-domain-f0fc88a8c548).

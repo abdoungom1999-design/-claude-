@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { HttpsError } from 'firebase-functions/v2/https';
 import {
-  ADRESSE_SUPPORT,
+  ADRESSE_CONTACT,
   BIENVENUE_AUTOMATIQUE,
   courrielBienvenue,
   declencherBienvenue,
@@ -27,22 +27,28 @@ const source = (fichier: string) => readFileSync(path.join(racine, fichier), 'ut
 
 const profil = (champs: Record<string, unknown>) => ({ get: (c: string) => champs[c] });
 
-test('FERMÉ par défaut : la publication qui apporte le tunnel ne change rien pour personne', () => {
-  assert.equal(VALIDATION_TELEPHONE, 'fermee');
-  assert.equal(BIENVENUE_AUTOMATIQUE, false);
-  assert.equal(EMAIL_BIENVENUE, false);
-  // Avant l'ouverture, aucun compte n'est « nouveau » (la date est lointaine).
-  assert.ok(NOUVEAUX_COMPTES_DEPUIS.getTime() > Date.UTC(2090, 0, 1));
+test('réglages de la publication 128 (décisions du client) : SMS facultatif, bienvenue en écran et notification, pas d\'e-mail, comptes neufs depuis l\'ouverture', () => {
+  assert.equal(VALIDATION_TELEPHONE, 'facultative', 'obligatoire seulement sur demande du client, après ses essais sur les opérateurs');
+  assert.equal(BIENVENUE_AUTOMATIQUE, true);
+  assert.equal(EMAIL_BIENVENUE, false, 'pas d\'e-mail de bienvenue pour le moment (décision du client)');
+  // Le jour de la mise en ligne : ni une date lointaine (qui n'accueillerait personne), ni une date ancienne (qui solliciterait les anciens comptes).
+  assert.ok(NOUVEAUX_COMPTES_DEPUIS.getTime() >= Date.UTC(2026, 10, 15), NOUVEAUX_COMPTES_DEPUIS.toISOString());
+  assert.ok(NOUVEAUX_COMPTES_DEPUIS.getTime() < Date.UTC(2026, 10, 17), NOUVEAUX_COMPTES_DEPUIS.toISOString());
+  assert.equal(ADRESSE_CONTACT, 'contact@groupesantine.sn', 'adresse officielle choisie par le client');
 });
 
 test('mêmes réglages dans l\'app (un écart ouvrirait l\'un sans l\'autre)', () => {
   const app = source('lib/features/auth/data/reglage_inscription.dart');
-  assert.match(app, /validationTelephone\s*=\s*EtatValidationTelephone\.fermee/);
-  assert.match(app, /bienvenueAutomatique\s*=\s*false/);
-  const depuis = app.match(/nouveauxComptesDepuis\s*=\s*DateTime\.utc\((\d+),\s*(\d+),\s*(\d+)\)/);
+  const etat = app.match(/validationTelephone\s*=\s*EtatValidationTelephone\.(\w+)/);
+  assert.ok(etat, 'état de la validation introuvable dans l\'app');
+  assert.equal(etat[1], VALIDATION_TELEPHONE);
+  const bienvenue = app.match(/bienvenueAutomatique\s*=\s*(true|false)/);
+  assert.ok(bienvenue, 'réglage de la bienvenue introuvable dans l\'app');
+  assert.equal(bienvenue[1] === 'true', BIENVENUE_AUTOMATIQUE);
+  const depuis = app.match(/nouveauxComptesDepuis\s*=\s*DateTime\.utc\(([\d,\s]+)\)/);
   assert.ok(depuis, 'date des nouveaux comptes introuvable dans l\'app');
-  const dateApp = Date.UTC(Number(depuis[1]), Number(depuis[2]) - 1, Number(depuis[3]));
-  assert.equal(dateApp, NOUVEAUX_COMPTES_DEPUIS.getTime());
+  const [annee, mois, jour, heure = 0, minute = 0, seconde = 0] = depuis[1].split(',').map((n) => Number(n.trim()));
+  assert.equal(Date.UTC(annee, mois - 1, jour, heure, minute, seconde), NOUVEAUX_COMPTES_DEPUIS.getTime());
 });
 
 test('numéro : seuls les mobiles du Sénégal, rendus au format international', () => {
@@ -93,7 +99,7 @@ test('e-mail de bienvenue : objet, texte et HTML ; rien d\'injectable dans le HT
   const message = messageBienvenue('client', '<img src=x onerror=alert(1)>');
   const courriel = courrielBienvenue('awa@exemple.sn', message);
   assert.deepEqual(courriel.to, ['awa@exemple.sn']);
-  assert.equal(courriel.replyTo, ADRESSE_SUPPORT);
+  assert.equal(courriel.replyTo, ADRESSE_CONTACT);
   assert.equal(courriel.message.subject, 'Bienvenue chez SPRINT');
   assert.ok(courriel.message.text.includes('Bienvenue chez SPRINT'));
   assert.ok(courriel.message.html.includes('Bienvenue chez SPRINT'));
@@ -121,9 +127,9 @@ async function code(promesse: Promise<unknown>): Promise<string> {
   return 'aucune erreur';
 }
 
-test('fermé : la validation du numéro est refusée avant toute lecture (jeton, base, Auth)', async () => {
+test('refermé : la validation du numéro est refusée avant toute lecture (jeton, base, Auth)', async () => {
   const demande = { jeton: 'x'.repeat(40) };
-  assert.equal(await code(validerTelephone(basDeDonnees, refuser, comptesInterdits, 'awa', demande, new Date())), 'failed-precondition');
+  assert.equal(await code(validerTelephone(basDeDonnees, refuser, comptesInterdits, 'awa', demande, new Date(), 'fermee')), 'failed-precondition');
   assert.equal(await code(validerTelephone(basDeDonnees, refuser, comptesInterdits, undefined, demande, new Date(), 'obligatoire')), 'unauthenticated');
 });
 
@@ -137,8 +143,8 @@ test('ouvert : une demande sans jeton valable est refusée avant toute lecture',
   }
 });
 
-test('fermé : la bienvenue ne lit ni la base ni Firebase Auth et ne répond pas d\'erreur', async () => {
-  assert.deepEqual(await declencherBienvenue(basDeDonnees, comptesInterdits, undefined, 'awa', new Date()), { envoye: false, raison: 'ferme' });
+test('refermé : la bienvenue ne lit ni la base ni Firebase Auth et ne répond pas d\'erreur', async () => {
+  assert.deepEqual(await declencherBienvenue(basDeDonnees, comptesInterdits, undefined, 'awa', new Date(), { bienvenue: false }), { envoye: false, raison: 'ferme' });
   assert.equal(await code(declencherBienvenue(basDeDonnees, comptesInterdits, undefined, undefined, new Date())), 'unauthenticated');
 });
 

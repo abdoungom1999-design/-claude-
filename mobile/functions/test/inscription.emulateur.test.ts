@@ -13,6 +13,7 @@ import {
   ComptesFirebase,
   declencherBienvenue,
   FRAICHEUR_CODE_MS,
+  NOUVEAUX_COMPTES_DEPUIS,
   validerTelephone,
   verifierJetonFirebase,
   type CompteAuth,
@@ -370,6 +371,19 @@ test('bienvenue : ne touche ni au portefeuille ni aux champs de paiement ni à l
   assert.ok(bienvenueEnvoyeeLe);
   assert.deepEqual(reste, avant);
   assert.deepEqual((await db.doc('portefeuilles/awa').get()).data(), { soldeFcfa: 500, argentReelFcfa: 500 });
+});
+
+test('réglages LIVRÉS (sans rien injecter) : un compte antérieur à l\'ouverture n\'est pas accueilli, un compte postérieur l\'est, sans numéro validé ni e-mail', async () => {
+  await jetonAppareil('awa');
+  compte = { creeLe: new Date(NOUVEAUX_COMPTES_DEPUIS.getTime() - 1), emailVerifie: true, email: 'awa@test.sn' };
+  assert.deepEqual(await declencherBienvenue(db, comptes, fcm, 'awa', t0), { envoye: false, raison: 'compte_ancien' });
+  assert.equal(fcm.envois.length, 0);
+  assert.equal((await profil()).bienvenueEnvoyeeLe, undefined, 'un ancien compte n\'est même pas marqué');
+
+  compte = { creeLe: NOUVEAUX_COMPTES_DEPUIS, emailVerifie: true, email: 'awa@test.sn' };
+  assert.deepEqual(await declencherBienvenue(db, comptes, fcm, 'awa', t0), { envoye: true, role: 'client' }, 'validation facultative : le numéro n\'est pas exigé');
+  assert.equal(fcm.envois.length, 1);
+  assert.equal((await db.collection('mail').get()).size, 0, 'pas d\'e-mail de bienvenue (décision du client)');
 });
 
 // --- Vrai parcours par téléphone dans l'émulateur Auth -----------------------------------------

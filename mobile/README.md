@@ -133,16 +133,17 @@ du portefeuille, radar). Les courses d'avant le marquage sont jugées sur leur m
 de test ». Tests : `argent_de_test_test.dart`, `finances_test.dart`, `functions/test/argent_reel.test.ts`,
 `paiements.emulateur.test.ts`, `portefeuille.emulateur.test.ts`, `attaques.test.mjs`.
 
-**Inscription en deux vérifications et message de bienvenue (lot du 15 novembre 2026, FERMÉ, non publié)** :
+**Inscription en deux vérifications et message de bienvenue (publication 128, 15 novembre 2026 : SMS facultatif, bienvenue en écran et notification, pas d'e-mail)** :
 après la vérification de l'e-mail, un NOUVEAU compte valide son numéro par un code à 6 chiffres reçu par SMS
 (Firebase Phone Auth, contrôlé sur une session secondaire pour que le même numéro serve encore un compte Client et
 un compte Chauffeur ; le serveur vérifie le jeton et pose les marques `telephoneVerifie`, `telephoneValide`,
 `telephoneVerifieLe`, que l'app ne peut pas écrire), puis reçoit « Bienvenue chez SPRINT » une seule fois (écran,
 notification, e-mail si ouvert). Réglages en un seul endroit de chaque côté (`functions/src/inscription.ts`,
 `lib/features/auth/data/reglage_inscription.dart`) : `fermee` / `facultative` / `obligatoire`, bienvenue, e-mail de
-bienvenue, date d'ouverture des « nouveaux comptes ». **Livré FERMÉ** : l'app se comporte comme la publication 126 (la
-`PorteInscription` ne lit rien), les comptes existants, les paiements, les recharges, les retraits et les comptes de
-test ne sont jamais concernés. Mise en service et réglages de la console : `FIREBASE_SETUP.md`, section 13 ; e-mails
+bienvenue, date d'ouverture des « nouveaux comptes ». **Ouvert en `facultative` à la publication 128** (décisions du
+client : « Plus tard » possible, `obligatoire` sur sa demande après ses essais sur les opérateurs sénégalais) ; les
+comptes créés avant l'ouverture, les paiements, les recharges, les retraits et les comptes de test ne sont jamais
+concernés (la `PorteInscription` ne lit rien pour un compte ancien). Mise en service et réglages de la console : `FIREBASE_SETUP.md`, section 13 ; e-mails
 envoyés du domaine officiel (SPF, DKIM, DMARC) : `EMAILS_DOMAINE.md`. Tests : `validation_telephone_test.dart`,
 `porte_inscription_test.dart`, `functions/test/inscription.test.ts`, `inscription.emulateur.test.ts`,
 `attaques.test.mjs`.

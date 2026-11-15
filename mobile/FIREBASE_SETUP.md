@@ -1527,13 +1527,17 @@ chauffeurs » était à 0 FCFA et il marque lui-même ses comptes de test dans l
 Sprint tant qu'Orange Money n'est pas ouvert à tous ou que le vrai Wave n'est pas branché.
 Voir « 7.1 quinquies » plus haut et `README.md`, « Faux Wave ».
 
-## 13. Inscription en deux vérifications et message de bienvenue (lot du 15 novembre 2026, FERMÉ)
+## 13. Inscription en deux vérifications et message de bienvenue (publication 128 : SMS facultatif et bienvenue OUVERTS le 15 novembre 2026)
 
 Demande du client (« petite parenthèse », 15 novembre 2026) : valider le numéro de téléphone par un code à
 6 chiffres reçu par SMS, envoyer les e-mails depuis le domaine officiel (anti-spam), et envoyer « Bienvenue chez
-SPRINT » dès l'inscription validée, **sans rien casser** de la publication 126. Le lot est préparé et testé, **livré
-fermé** : le publier ne change rien pour personne tant que les réglages ci-dessous ne sont pas ouverts, avec l'accord
-du client, après ses réglages de console.
+SPRINT » dès l'inscription validée, **sans rien casser** de la publication 126. Le lot a été préparé et testé fermé
+(essai sans publication n°127), puis **ouvert à la publication 128** sur le go du client (15 novembre 2026) avec ses
+décisions : domaine `groupesantine.sn` et adresse officielle `contact@groupesantine.sn` ; validation du numéro
+**facultative** au lancement (« Plus tard »), à passer en obligatoire sur sa demande quand les SMS auront été essayés
+sur Orange, Free et Expresso ; « Bienvenue chez SPRINT » en écran et en notification ; **pas d'e-mail de bienvenue** pour
+le moment. Tant que les réglages de la console (13.3) ne sont pas faits, « Envoyer le code » affiche « momentanément
+indisponible » et « Plus tard » laisse passer : personne n'est bloqué.
 
 ### 13.1 Comment ça marche
 
@@ -1558,25 +1562,27 @@ du client, après ses réglages de console.
    l'app, notification sur les appareils du compte, e-mail si `EMAIL_BIENVENUE` (document `mail/bienvenue_{uid}` lu par
    l'extension « Trigger Email from Firestore », voir `EMAILS_DOMAINE.md`).
 
-### 13.2 Les réglages (livrés FERMÉS) : un seul endroit de chaque côté, comparés par un test
+### 13.2 Les réglages (ouverts à la publication 128) : un seul endroit de chaque côté, comparés par un test
 
 | Réglage | Serveur (`functions/src/inscription.ts`) | App (`lib/features/auth/data/reglage_inscription.dart`) | Livré |
 |---|---|---|---|
-| Validation du numéro par SMS | `VALIDATION_TELEPHONE` | `validationTelephone` | `fermee` |
-| Message « Bienvenue chez SPRINT » | `BIENVENUE_AUTOMATIQUE` | `bienvenueAutomatique` | `false` |
-| Même message par e-mail | `EMAIL_BIENVENUE` | (serveur seul) | `false` |
-| Début des « nouveaux comptes » | `NOUVEAUX_COMPTES_DEPUIS` | `nouveauxComptesDepuis` | 1er janvier 2099 |
+| Validation du numéro par SMS | `VALIDATION_TELEPHONE` | `validationTelephone` | `facultative` |
+| Message « Bienvenue chez SPRINT » | `BIENVENUE_AUTOMATIQUE` | `bienvenueAutomatique` | `true` |
+| Même message par e-mail | `EMAIL_BIENVENUE` | (serveur seul) | `false` (décision du client) |
+| Début des « nouveaux comptes » | `NOUVEAUX_COMPTES_DEPUIS` | `nouveauxComptesDepuis` | 15 novembre 2026, instant de la mise en ligne de la 128 (voir le fichier) |
 
 * `fermee` : rien ne change, **rien n'est lu** (la porte n'appelle même pas le compte connecté).
-* `facultative` : l'écran est proposé aux nouveaux comptes, « Plus tard » le passe (retenu sur l'appareil).
-  **Recommandé pour les premiers jours** : si l'envoi de SMS pose problème chez un opérateur, personne n'est bloqué.
+* `facultative` (**état de la publication 128**) : l'écran est proposé aux nouveaux comptes, « Plus tard » le passe
+  (retenu sur l'appareil). Si l'envoi de SMS pose problème chez un opérateur, personne n'est bloqué.
 * `obligatoire` : l'espace d'un nouveau compte reste fermé tant que le numéro n'est pas validé.
 * **Nouveaux comptes** : seuls ceux créés à la date `NOUVEAUX_COMPTES_DEPUIS` ou après (date d'ouverture du compte
-  Firebase Auth, posée par Google) sont concernés. À l'ouverture, on la fixe à l'instant de la publication : tous les
-  comptes déjà inscrits, dont ceux des testeurs, ne sont ni bloqués, ni sollicités, ni accueillis.
+  Firebase Auth, posée par Google) sont concernés. Elle a été fixée à l'instant de la publication 128 : tous les comptes
+  déjà inscrits, dont ceux des testeurs, ne sont ni bloqués, ni sollicités, ni accueillis.
 
-Pour ouvrir : un commit « Ouverture … » qui change ces quatre valeurs (mêmes valeurs des deux côtés), les tests
-`inscription.test.ts` (qui exigent aujourd'hui l'état fermé) mis à jour dans le même commit, et le go du client.
+**Pour passer en obligatoire** (sur demande du client, après ses essais) : un commit qui change `VALIDATION_TELEPHONE`
+et `validationTelephone` en `obligatoire` (même valeur des deux côtés), les tests qui fixent aujourd'hui `facultative`
+(`inscription.test.ts`, `porte_inscription_test.dart`) mis à jour dans le même commit, et le go du client. Nous avons
+convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateurs, et d'activer d'abord App Check (13.7).
 
 ### 13.3 À faire dans la console Firebase / Google Cloud AVANT l'ouverture (par le client)
 
@@ -1600,8 +1606,10 @@ Pour ouvrir : un commit « Ouverture … » qui change ces quatre valeurs (même
 
 ### 13.4 Ce qui ne change pas (garanties vérifiées par des tests)
 
-* Fermé : `PorteInscription` rend l'espace tel quel, sans aucune lecture ni aucun appel ; `validerTelephone` répond
-  « pas encore ouverte » avant de lire quoi que ce soit ; `declencherBienvenue` répond `ferme`.
+* Pour un compte créé avant l'ouverture : `PorteInscription` rend l'espace tel quel, sans lecture du profil ni appel du
+  serveur, et `declencherBienvenue` répond `compte_ancien`. Si l'on referme les réglages de 13.2 (`fermee`, `false`,
+  date lointaine) : plus rien du tout, comme la 126 (`validerTelephone` répond « pas encore ouverte » avant de lire quoi
+  que ce soit, `declencherBienvenue` répond `ferme`).
 * Aucune règle Firestore modifiée : les marques du serveur ne sont dans aucune liste de champs autorisés (le client ne
   peut ni les écrire à l'inscription ni les modifier), `telephones_valides` et `mail` ne sont lisibles ni écrivables par
   personne depuis l'app (11 attaques ajoutées à `attaques.test.mjs`, contrôlées par sabotage des règles).
@@ -1643,3 +1651,11 @@ Pour ouvrir : un commit « Ouverture … » qui change ces quatre valeurs (même
 * **Délivrabilité des SMS** au Sénégal : à mesurer pendant la période `facultative` avant de rendre le numéro obligatoire.
 * **Blocage dur côté serveur** (refuser un paiement à un compte neuf dont le numéro n'est pas validé) : non fait, pour
   ne rien changer aux paiements ; à décider après quelques semaines d'observation.
+* **La notification de bienvenue est discrète pour un tout nouveau compte** : elle part vers les appareils du compte déjà
+  enregistrés pour les notifications, or un nouveau téléphone n'enregistre son jeton qu'en entrant dans son espace,
+  APRÈS l'écran de bienvenue ; et l'app n'affiche pas les notifications reçues pendant qu'elle est ouverte. Le message
+  visible pour un nouveau compte est donc l'écran de bienvenue ; la notification n'apparaît que sur un autre appareil du
+  même compte déjà enregistré. Seul l'e-mail (13.1, `EMAIL_BIENVENUE`) joint une personne hors de l'app.
+* **Adresse officielle** : l'app affiche encore `support@groupesantine.sn` (centre d'aide, conditions) et
+  `donnees@groupesantine.sn` (confidentialité). Le client a choisi `contact@groupesantine.sn` comme adresse officielle ;
+  ces textes ne sont pas modifiés sans sa demande.

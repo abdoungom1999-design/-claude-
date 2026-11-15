@@ -9,10 +9,12 @@ import { numeroSenegal } from './retraits';
  * Tunnel d'inscription : double vérification (e-mail, puis numéro de
  * téléphone par SMS) et message « Bienvenue chez SPRINT ».
  *
- * Tout ce fichier est FERMÉ tant que les trois réglages ci-dessous le sont :
- * la publication qui l'apporte ne change rien pour personne (aucun écran, aucun
- * SMS, aucun message). On l'ouvre avec l'accord du client, une fois les
- * réglages de la console faits (voir FIREBASE_SETUP.md, section 13).
+ * OUVERT à la publication 128 (go du client, 15 novembre 2026) : validation du
+ * numéro FACULTATIVE (« Plus tard »), bienvenue en écran et en notification,
+ * PAS d'e-mail de bienvenue. Quand le client aura vérifié sur le terrain que les
+ * opérateurs sénégalais reçoivent les SMS sans retard, il demandera le passage à
+ * `obligatoire` (un seul réglage, ici et dans l'app). Réglages de la console :
+ * FIREBASE_SETUP.md, section 13.
  *
  * Ce qui ne change JAMAIS, ouvert ou fermé :
  *   - les comptes existants (créés avant [NOUVEAUX_COMPTES_DEPUIS]) ne sont ni
@@ -43,30 +45,34 @@ export type EtatValidationTelephone = 'fermee' | 'facultative' | 'obligatoire';
  *   - `facultative` : l'écran est proposé, « Plus tard » le passe ;
  *   - `obligatoire` : l'écran bloque l'espace tant que le numéro n'est pas validé.
  * Même valeur dans l'app (`reglage_inscription.dart`) : un test les compare.
+ * Décision du client (publication 128) : `facultative` au lancement.
  */
-export const VALIDATION_TELEPHONE: EtatValidationTelephone = 'fermee';
+export const VALIDATION_TELEPHONE: EtatValidationTelephone = 'facultative';
 
 /**
  * Message « Bienvenue chez SPRINT » à la fin de l'inscription (écran dans l'app
- * et notification sur les appareils du compte). Fermé : aucun message.
+ * et notification sur les appareils du compte déjà enregistrés pour les
+ * notifications). Fermé : aucun message.
  */
-export const BIENVENUE_AUTOMATIQUE: boolean = false;
+export const BIENVENUE_AUTOMATIQUE: boolean = true;
 
 /**
  * Même message par e-mail, en plus. Il part du domaine officiel via
  * l'extension Firebase « Trigger Email from Firestore » (document dans `mail`),
  * à installer par le client : tant que ce n'est pas fait, laisser à `false`
- * (voir EMAILS_DOMAINE.md).
+ * (voir EMAILS_DOMAINE.md). Décision du client (publication 128) : pas d'e-mail
+ * de bienvenue pour le moment.
  */
 export const EMAIL_BIENVENUE: boolean = false;
 
 /**
  * Un compte est « nouveau » s'il a été créé (date d'ouverture de son compte
- * Firebase Auth, posée par Google, pas par l'app) à cet instant ou après. Avant
- * l'ouverture du tunnel, la date est lointaine : AUCUN compte n'est nouveau.
- * Même valeur dans l'app.
+ * Firebase Auth, posée par Google, pas par l'app) à cet instant ou après :
+ * l'instant de la mise en ligne de la publication 128. Tous les comptes déjà
+ * inscrits (dont ceux des testeurs) ne sont ni bloqués, ni sollicités, ni
+ * accueillis. Même valeur dans l'app.
  */
-export const NOUVEAUX_COMPTES_DEPUIS = new Date('2099-01-01T00:00:00Z');
+export const NOUVEAUX_COMPTES_DEPUIS = new Date('2026-11-15T19:28:00Z');
 
 /** Le code vient d'être saisi : au-delà, le jeton ne prouve plus rien (erreur d'horloge tolérée : 2 minutes). */
 export const FRAICHEUR_CODE_MS = 10 * 60_000;
@@ -291,8 +297,8 @@ export function messageBienvenue(role: string, prenom: string): MessageBienvenue
 const echapperHtml = (texte: string) =>
   texte.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-/** Adresse que les réponses des e-mails de Sprint atteignent (déjà publiée dans l'app). */
-export const ADRESSE_SUPPORT = 'support@groupesantine.sn';
+/** Adresse officielle de Sprint, celle où aboutissent les réponses aux e-mails (décision du client, 15 novembre 2026). */
+export const ADRESSE_CONTACT = 'contact@groupesantine.sn';
 
 /**
  * Document pour l'extension « Trigger Email from Firestore » (collection
@@ -308,12 +314,12 @@ export function courrielBienvenue(email: string, message: MessageBienvenue) {
     `<h1 style="margin:12px 0 8px;font-size:24px;line-height:1.25;color:#F5F5F7">${echapperHtml(message.titre)}</h1>` +
     `<p style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#F5F5F7">${echapperHtml(message.accroche)}</p>` +
     `<ul style="margin:0 0 20px;padding-left:20px;font-size:14px;line-height:1.5;color:#C9C9CF">${items}</ul>` +
-    `<p style="margin:0;font-size:12px;line-height:1.5;color:#9A9AA2">Une question ? Répondez à ce message ou écrivez à ${ADRESSE_SUPPORT}.</p>` +
+    `<p style="margin:0;font-size:12px;line-height:1.5;color:#9A9AA2">Une question ? Répondez à ce message ou écrivez à ${ADRESSE_CONTACT}.</p>` +
     '</div></div>';
-  const texte = [message.titre, '', message.accroche, '', ...message.points.map((p) => `- ${p}`), '', `Une question ? Écrivez à ${ADRESSE_SUPPORT}.`].join('\n');
+  const texte = [message.titre, '', message.accroche, '', ...message.points.map((p) => `- ${p}`), '', `Une question ? Écrivez à ${ADRESSE_CONTACT}.`].join('\n');
   return {
     to: [email],
-    replyTo: ADRESSE_SUPPORT,
+    replyTo: ADRESSE_CONTACT,
     message: { subject: message.titre, text: texte, html },
   };
 }
