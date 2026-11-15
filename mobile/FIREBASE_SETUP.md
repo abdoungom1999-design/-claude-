@@ -1526,3 +1526,120 @@ chauffeurs » était à 0 FCFA et il marque lui-même ses comptes de test dans l
 (Clients > Portefeuille > « Compte de test »). Les autres clients n'ont que leur solde
 Sprint tant qu'Orange Money n'est pas ouvert à tous ou que le vrai Wave n'est pas branché.
 Voir « 7.1 quinquies » plus haut et `README.md`, « Faux Wave ».
+
+## 13. Inscription en deux vérifications et message de bienvenue (lot du 15 novembre 2026, FERMÉ)
+
+Demande du client (« petite parenthèse », 15 novembre 2026) : valider le numéro de téléphone par un code à
+6 chiffres reçu par SMS, envoyer les e-mails depuis le domaine officiel (anti-spam), et envoyer « Bienvenue chez
+SPRINT » dès l'inscription validée, **sans rien casser** de la publication 126. Le lot est préparé et testé, **livré
+fermé** : le publier ne change rien pour personne tant que les réglages ci-dessous ne sont pas ouverts, avec l'accord
+du client, après ses réglages de console.
+
+### 13.1 Comment ça marche
+
+1. L'inscription n'a pas changé (e-mail + mot de passe, profil `users/{uid}` avec le numéro saisi). L'écran « Vérifiez
+   votre adresse e-mail » reste le premier passage obligé.
+2. Une fois l'e-mail vérifié, la `PorteInscription` (autour des deux espaces, dans `app_router.dart`) lit le profil d'un
+   NOUVEAU compte et, si son numéro n'est pas validé, affiche « Validez votre numéro » : envoi du code par SMS, saisie
+   des 6 chiffres (ou lecture automatique du SMS sur Android), renvoi limité (60 s, 3 fois).
+3. **Pourquoi une session secondaire** : Firebase ne permet qu'UN compte par numéro, alors que Sprint permet le même
+   numéro à un compte Client et à un compte Chauffeur (comme l'annuaire de connexion). L'app fait donc le contrôle du
+   code sur une seconde application Firebase du même projet (`verification-telephone`) : la session de la personne, par
+   e-mail, n'est jamais touchée. Le jeton de cette session « téléphone » est remis au callable `validerTelephone`.
+4. **Le serveur est seul juge** (`functions/src/inscription.ts`) : il vérifie le jeton auprès de Google (signature,
+   fournisseur `phone`, saisie du code de moins de 10 minutes), lit le numéro DANS le jeton (jamais dans la demande), le
+   compare au numéro du profil (format international sénégalais `+2217XXXXXXXX`), applique la règle « un numéro validé
+   par compte et par rôle » (`telephones_valides/{rôle}_{numéro}`, serveur seul) puis pose `telephoneVerifie`,
+   `telephoneValide` et `telephoneVerifieLe` sur `users/{uid}`. La session « téléphone » est ensuite supprimée (jamais un
+   vrai compte : aucune adresse e-mail, fournisseur `phone` uniquement).
+5. **Bienvenue** : le callable `declencherBienvenue` envoie « Bienvenue chez SPRINT » **une seule fois** (marque
+   `bienvenueEnvoyeeLe`, posée dans une transaction) à un compte neuf dont l'e-mail est vérifié (relu chez Firebase
+   Auth, pas dans le jeton de l'appelant) et, quand le numéro est obligatoire, dont le numéro est validé : écran dans
+   l'app, notification sur les appareils du compte, e-mail si `EMAIL_BIENVENUE` (document `mail/bienvenue_{uid}` lu par
+   l'extension « Trigger Email from Firestore », voir `EMAILS_DOMAINE.md`).
+
+### 13.2 Les réglages (livrés FERMÉS) : un seul endroit de chaque côté, comparés par un test
+
+| Réglage | Serveur (`functions/src/inscription.ts`) | App (`lib/features/auth/data/reglage_inscription.dart`) | Livré |
+|---|---|---|---|
+| Validation du numéro par SMS | `VALIDATION_TELEPHONE` | `validationTelephone` | `fermee` |
+| Message « Bienvenue chez SPRINT » | `BIENVENUE_AUTOMATIQUE` | `bienvenueAutomatique` | `false` |
+| Même message par e-mail | `EMAIL_BIENVENUE` | (serveur seul) | `false` |
+| Début des « nouveaux comptes » | `NOUVEAUX_COMPTES_DEPUIS` | `nouveauxComptesDepuis` | 1er janvier 2099 |
+
+* `fermee` : rien ne change, **rien n'est lu** (la porte n'appelle même pas le compte connecté).
+* `facultative` : l'écran est proposé aux nouveaux comptes, « Plus tard » le passe (retenu sur l'appareil).
+  **Recommandé pour les premiers jours** : si l'envoi de SMS pose problème chez un opérateur, personne n'est bloqué.
+* `obligatoire` : l'espace d'un nouveau compte reste fermé tant que le numéro n'est pas validé.
+* **Nouveaux comptes** : seuls ceux créés à la date `NOUVEAUX_COMPTES_DEPUIS` ou après (date d'ouverture du compte
+  Firebase Auth, posée par Google) sont concernés. À l'ouverture, on la fixe à l'instant de la publication : tous les
+  comptes déjà inscrits, dont ceux des testeurs, ne sont ni bloqués, ni sollicités, ni accueillis.
+
+Pour ouvrir : un commit « Ouverture … » qui change ces quatre valeurs (mêmes valeurs des deux côtés), les tests
+`inscription.test.ts` (qui exigent aujourd'hui l'état fermé) mis à jour dans le même commit, et le go du client.
+
+### 13.3 À faire dans la console Firebase / Google Cloud AVANT l'ouverture (par le client)
+
+1. **Authentication > Méthode de connexion > Téléphone** : activer.
+2. **Authentication > Paramètres > Stratégie de région SMS** : n'autoriser que le **Sénégal (SN)**. C'est la première
+   protection contre l'envoi massif de SMS vers l'étranger (« SMS pumping »).
+3. **Paramètres du projet > Général > Nom public** : `SPRINT` (c'est le nom qui apparaît dans le SMS).
+4. **Paramètres du projet > Vos applications > Android > Ajouter une empreinte** : SHA-1
+   `6D:6B:BA:F8:1D:D1:B7:3B:DB:47:10:2F:B0:05:31:F5:25:9A:41:92` et SHA-256
+   `3E:3B:F8:6C:03:0A:5A:A1:D4:DD:FD:A0:D8:F2:F1:D8:89:0F:7F:40:B8:B2:80:24:B1:41:BF:24:05:37:5F:DA` (les deux sont celles du
+   certificat de signature de l'APK, déjà publiques : `hebergement/assetlinks.json`). Sans elles, l'envoi du code échoue
+   sur l'APK avec « app non autorisée ». Sur le site et l'iPhone (PWA), rien à ajouter.
+5. **Authentication > Paramètres > Domaines autorisés** : `sprint-vtc.web.app` doit y figurer (il y est par défaut).
+6. **Numéros de test** (Authentication > Méthode de connexion > Téléphone > « Numéros de téléphone pour les tests ») :
+   jusqu'à 10 numéros fictifs avec un code fixe (par exemple `+221 77 000 00 01` → `123456`) : essai complet sans envoyer
+   de SMS ni dépenser un centime. À supprimer avant l'ouverture à tous.
+7. **Coût** : les SMS sont facturés par pays (page « Tarifs » de Firebase, ligne Phone Authentication, région Sénégal) ;
+   je n'ai pas pu lire cette page depuis mon environnement. Créez une **alerte de budget** (Google Cloud > Facturation >
+   Budgets et alertes) avant l'ouverture, par exemple à 20 € par mois avec alertes à 50, 90 et 100 %.
+8. **E-mails** : voir `EMAILS_DOMAINE.md` (domaine d'envoi, SPF, DKIM, DMARC, extension d'envoi).
+
+### 13.4 Ce qui ne change pas (garanties vérifiées par des tests)
+
+* Fermé : `PorteInscription` rend l'espace tel quel, sans aucune lecture ni aucun appel ; `validerTelephone` répond
+  « pas encore ouverte » avant de lire quoi que ce soit ; `declencherBienvenue` répond `ferme`.
+* Aucune règle Firestore modifiée : les marques du serveur ne sont dans aucune liste de champs autorisés (le client ne
+  peut ni les écrire à l'inscription ni les modifier), `telephones_valides` et `mail` ne sont lisibles ni écrivables par
+  personne depuis l'app (11 attaques ajoutées à `attaques.test.mjs`, contrôlées par sabotage des règles).
+* Le lot ne touche qu'à trois collections (`users`, `telephones_valides`, `mail`), jamais à un champ de paiement,
+  de portefeuille, de retrait ni de compte de test : un test lit le code source pour le garantir, un autre vérifie
+  sur l'émulateur que le profil et le portefeuille d'un compte de test sont identiques avant et après.
+* Les deux nouvelles fonctions (`validerTelephone`, `declencherBienvenue`) sont rendues publiques et vérifiées par la
+  publication comme les autres (`flutter-web.yml`, étapes « Autoriser l'appel des fonctions depuis l'app » et « Vérifier
+  que les fonctions répondent », avec quelques essais pour une fonction neuve) ; `securite/test/workflows.test.mjs`
+  échoue dès qu'une fonction du serveur manque à l'une de ces listes (sans cela, Google bloquerait l'app avec une erreur 403).
+* Les anciens comptes et les anciennes versions de l'app (APK 126) continuent de fonctionner : le tunnel n'ajoute que
+  des écrans, jamais d'obligation côté serveur (pas de blocage dur : un compte non validé garde l'accès aux fonctions du
+  serveur ; décision à prendre plus tard, avec le go du client).
+* Panne ou lenteur de la lecture du profil, de la bienvenue ou du serveur : l'espace s'ouvre (la porte n'enferme
+  personne par accident).
+
+### 13.5 Essai à faire par le client après l'ouverture en `facultative`
+
+1. Compte neuf avec un numéro de test (13.3, point 6) puis avec votre propre numéro, sur **Orange, Free et Expresso**,
+   sur **Android (APK)**, **Chrome** et **iPhone (PWA)** : le SMS arrive-t-il, en combien de secondes, avec quel nom ?
+2. Mauvais code, code expiré, renvoi, « Modifier » le numéro, « Plus tard ».
+3. Un second compte du même rôle avec le même numéro : refusé avec « déjà validé sur un autre compte ». Un compte de
+   l'autre rôle avec le même numéro : accepté.
+4. « Bienvenue chez SPRINT » : écran, notification (appareil avec notifications autorisées), une seule fois.
+5. Un compte de test existant et un client qui paie : rien n'a changé (courses, recharges, retraits).
+
+### 13.6 Libérer un numéro, retour arrière
+
+* **Libérer un numéro** (client qui a perdu l'accès à son premier compte) : console Firestore > `telephones_valides` >
+  supprimer le document `client_+221…` (ou `conducteur_+221…`). Le compte concerné reste marqué ; le nouveau pourra valider.
+* **Retour arrière** : remettre `fermee`, `false`, `false` et la date lointaine, republier. Les marques déjà posées
+  (`telephoneVerifie`, …) restent sans effet. Ou republier la 126 (commit `f088b42`).
+
+### 13.7 Risques connus et suites possibles
+
+* **Envoi massif de SMS** : Firebase protège (reCAPTCHA sur le site, vérification de l'application sur Android), la région
+  SMS est limitée au Sénégal et une alerte de budget prévient. La protection de fond est **App Check** (phase de
+  sécurité A, après la confirmation des consoles Google) : à activer avant de passer en `obligatoire`.
+* **Délivrabilité des SMS** au Sénégal : à mesurer pendant la période `facultative` avant de rendre le numéro obligatoire.
+* **Blocage dur côté serveur** (refuser un paiement à un compte neuf dont le numéro n'est pas validé) : non fait, pour
+  ne rien changer aux paiements ; à décider après quelques semaines d'observation.
