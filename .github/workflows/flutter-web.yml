@@ -381,7 +381,7 @@ jobs:
                          rechercheradresses coordonneesadresse remboursercourseadmin sanctionnercompte definirtesteurorangemoney \
                          chauffeursproches itinerairecourse notifiermessage notifieracceptation \
                          creerrecharge ajusterportefeuille migrerdocumentskyc demanderretrait traiterretrait infosretrait \
-                         connexiontelephone synchroniserannuaire; do
+                         connexiontelephone synchroniserannuaire validertelephone declencherbienvenue; do
             gcloud run services add-iam-policy-binding "$service" \
               --project=sprint-vtc --region=europe-west1 \
               --member=allUsers --role=roles/run.invoker --quiet > /dev/null
@@ -399,8 +399,14 @@ jobs:
           for fonction in estimerPrix creerPaiement annulerCourse rechercherAdresses coordonneesAdresse \
                           rembourserCourseAdmin sanctionnerCompte definirTesteurOrangeMoney chauffeursProches itineraireCourse \
                           notifierMessage notifierAcceptation creerRecharge ajusterPortefeuille demanderRetrait traiterRetrait infosRetrait \
-                          migrerDocumentsKyc synchroniserAnnuaire; do
-            reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
+                          migrerDocumentsKyc synchroniserAnnuaire validerTelephone declencherBienvenue; do
+            # Fonction neuve à sa première publication : son accès public peut mettre
+            # quelques secondes à s'appliquer (403 entre-temps), d'où quelques essais.
+            for essai in 1 2 3 4 5 6; do
+              reponse=$(curl -s -X POST "$base/$fonction" -H 'Content-Type: application/json' -d '{"data":{}}')
+              echo "$reponse" | grep -q UNAUTHENTICATED && break
+              [ "$essai" = 6 ] || sleep 5
+            done
             echo "$fonction : $reponse"
             echo "$reponse" | grep -q UNAUTHENTICATED || { echo "::error::$fonction ne répond pas correctement"; exit 1; }
           done

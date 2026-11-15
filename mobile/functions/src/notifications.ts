@@ -67,6 +67,7 @@ export const SITE = 'https://sprint-vtc.web.app';
 
 /** Destinations dans l'app (adresses en `#`, comme le routeur du site). */
 export const LIENS = {
+  accueilClient: '/#/accueil',
   messagesClient: '/#/accueil/messages',
   activiteClient: '/#/accueil/activite',
   chauffeur: '/#/conducteur',

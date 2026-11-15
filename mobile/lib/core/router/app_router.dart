@@ -7,6 +7,7 @@ import '../../features/auth/presentation/admin_login_page.dart';
 import '../../features/auth/presentation/client_login_page.dart';
 import '../../features/auth/presentation/conducteur_login_page.dart';
 import '../../features/auth/presentation/conducteur_onboarding/conducteur_onboarding_page.dart';
+import '../../features/auth/presentation/porte_inscription.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/client/presentation/colis_page.dart';
 import '../../features/client/presentation/passager_page.dart';
@@ -75,8 +76,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const WelcomePage(),
     ),
     StatefulShellRoute.indexedStack(
+      // La porte d'inscription ne fait rien tant que le tunnel est fermé et pour
+      // les comptes créés avant son ouverture (voir PorteInscription).
       builder: (context, state, navigationShell) =>
-          HomeShellPage(navigationShell: navigationShell),
+          PorteInscription(enfant: HomeShellPage(navigationShell: navigationShell)),
       branches: [
         StatefulShellBranch(
           routes: [
@@ -136,7 +139,7 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.conducteur,
       // Transition commune de l'app (thème) : l'accueil, opaque, chasse
       // l'écran de connexion, sans jamais se superposer à lui.
-      builder: (context, state) => const ConducteurShellPage(),
+      builder: (context, state) => const PorteInscription(enfant: ConducteurShellPage()),
     ),
     GoRoute(
       path: AppRoutes.conducteurLogin,

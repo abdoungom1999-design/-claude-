@@ -64,6 +64,30 @@ test(`Flutter figé : chaque installation demande exactement la version ${FLUTTE
   assert.ok(installations > 0, 'aucune installation de Flutter trouvée : le contrôle ne vérifierait rien');
 });
 
+test('chaque fonction appelable du serveur est rendue publique ET vérifiée à la publication (une fonction oubliée serait bloquée par Google sans que la CI le dise)', () => {
+  const index = readFileSync(path.resolve(DOSSIER_SECURITE, '..', 'functions', 'src', 'index.ts'), 'utf8');
+  const exportees = [...index.matchAll(/^export const (\w+) = (onCall|onRequest)\(/gm)].map((m) => ({ nom: m[1], type: m[2] }));
+  assert.ok(exportees.length >= 25, `seulement ${exportees.length} fonctions appelables trouvées dans index.ts : le contrôle ne vérifierait rien`);
+  const principal = lire('flutter-web.yml');
+  const liste = (boucle) => {
+    const trouve = principal.match(new RegExp(`for ${boucle} in ([^;]+); do`));
+    assert.ok(trouve, `boucle « for ${boucle} in … » introuvable dans flutter-web.yml`);
+    return trouve[1].split(/[\s\\]+/).filter(Boolean);
+  };
+  const publiques = liste('service');
+  const verifiees = liste('fonction');
+  for (const { nom, type } of exportees) {
+    assert.ok(publiques.includes(nom.toLowerCase()), `${nom} : absente de la liste « Autoriser l'appel des fonctions depuis l'app » (flutter-web.yml) : l'app recevrait 403 de Google`);
+    // connexionTelephone et les fonctions HTTP ont leur propre vérification, juste après la boucle.
+    if (type === 'onCall' && nom !== 'connexionTelephone') {
+      assert.ok(verifiees.includes(nom), `${nom} : absente de la liste « Vérifier que les fonctions répondent » (flutter-web.yml)`);
+    }
+  }
+  const noms = new Set(exportees.map((e) => e.nom));
+  for (const service of publiques) assert.ok([...noms].some((n) => n.toLowerCase() === service), `« ${service} » est rendu public mais n'est pas une fonction de index.ts (faute de frappe ?)`);
+  for (const fonction of verifiees) assert.ok(noms.has(fonction), `« ${fonction} » est vérifiée mais n'est pas une fonction de index.ts (faute de frappe ?)`);
+});
+
 test('essai sans publication : l\'option existe, firebase est sauté, et hebergement et deploy ne peuvent pas partir sans lui', () => {
   const principal = lire('flutter-web.yml');
   assert.match(principal, /^ {6}essai:\s*$/m, 'l\'option « essai » du lancement à la main est absente');

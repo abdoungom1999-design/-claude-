@@ -18,6 +18,12 @@ import {
   synchroniserAnnuaire as synchroniserAnnuaireCore,
   verifierMotDePasseFirebase,
 } from './connexion_telephone';
+import {
+  ComptesFirebase,
+  declencherBienvenue as declencherBienvenueCore,
+  validerTelephone as validerTelephoneCore,
+  verifierJetonFirebase,
+} from './inscription';
 import { migrerDocumentsKyc as migrerKycCore, StockageFirebase } from './kyc_stockage';
 import { itineraireCourse as itineraireCourseCore } from './itineraire';
 import { chauffeursProches as chauffeursProchesCore } from './proximite';
@@ -522,6 +528,28 @@ export const connexionTelephone = onCall((requete) => {
 export const synchroniserAnnuaire = onCall((requete) =>
   synchroniserAnnuaireCore(getFirestore(), requete.auth?.uid, requete.auth?.token.email),
 );
+
+/**
+ * Inscription, validation du numéro : l'app a fait contrôler le code SMS par
+ * Firebase (session secondaire) et remet le jeton de cette session ; le serveur
+ * le vérifie et pose la marque « numéro validé » sur le compte de l'appelant.
+ * Fermée (`failed-precondition`) tant que VALIDATION_TELEPHONE l'est : voir
+ * `inscription.ts`.
+ */
+export const validerTelephone = onCall(async (requete) => {
+  await sansRetarder(frequence.observer('validerTelephone', requete.auth?.uid));
+  return validerTelephoneCore(getFirestore(), verifierJetonFirebase, new ComptesFirebase(), requete.auth?.uid, requete.data, new Date());
+});
+
+/**
+ * Inscription terminée : « Bienvenue chez SPRINT », une seule fois par compte
+ * neuf (notification, e-mail si ouvert). L'app affiche son écran de bienvenue
+ * quand la réponse dit `envoye`. Fermée tant que BIENVENUE_AUTOMATIQUE l'est.
+ */
+export const declencherBienvenue = onCall(async (requete) => {
+  await sansRetarder(frequence.observer('declencherBienvenue', requete.auth?.uid));
+  return declencherBienvenueCore(getFirestore(), new ComptesFirebase(), messagerie, requete.auth?.uid, new Date());
+});
 
 /** Push : prévient l'autre partie d'un message qui vient d'être envoyé (texte relu côté serveur). */
 export const notifierMessage = onCall(async (requete) => {

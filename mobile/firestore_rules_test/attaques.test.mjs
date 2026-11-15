@@ -64,6 +64,8 @@ async function semer() {
     await poser('tickets/aide_fatou/messages/t1', { auteurId: 'fatou', auteurRole: 'client', texte: 'Bonjour' });
     await poser('evaluations/finie_fatou', { courseId: 'finie_fatou', chauffeurId: 'moussa', clientId: 'fatou', note: 5 });
     await poser('annuaire_telephones/client_+221770000002', { uid: 'fatou', email: 'fatou@test.sn' });
+    await poser('telephones_valides/client_+221770000002', { uid: 'fatou', role: 'client', telephone: '+221770000002' });
+    await poser('mail/bienvenue_fatou', { to: ['fatou@test.sn'], message: { subject: 'Bienvenue chez SPRINT', text: 'Bonjour' } });
     await poser('config/paiementSimule', { secret: 'x' });
     await poser('journal_admin/j1', { action: 'ajustement' });
     await poser('controle_admin/admin_2026-11-13', { adminId: 'admin', jour: '2026-11-13', creditsFcfa: 5000, versementsFcfa: 0, operations: 1 });
@@ -161,6 +163,16 @@ describe('contrôles : les gestes légitimes fonctionnent (sans eux, les refus n
     await assertSucceeds(updateDoc(doc(en('ibou'), 'users', 'ibou'), { 'documents.permis': adresseStorage, statutValidation: 'en_attente' }));
   });
 
+  test('le client corrige son numéro avant de le valider ; l\'inscription n\'embarque aucune marque du serveur', async () => {
+    await assertSucceeds(updateDoc(doc(en('awa'), 'users', 'awa'), { telephone: '+221770000009' }));
+    await assertSucceeds(updateDoc(doc(en('awa'), 'users', 'awa'), { nom: 'Awa Ndiaye', telephone: '+221770000001' }));
+    await assertSucceeds(setDoc(doc(en('inscrit2'), 'users', 'inscrit2'), {
+      role: 'conducteur', nom: 'Ali Ba', prenom: 'Ali', nomDeFamille: 'Ba', email: 'inscrit2@test.sn', telephone: '+221771111112',
+      vehiculeId: 'Honda CB125 Rouge', plaqueImmatriculation: 'DK-1234-AB', moto: { marque: 'Honda', modele: 'CB125', couleur: 'Rouge' },
+      statut: 'HORS_LIGNE', estValide: false, creeLe: serverTimestamp(),
+    }));
+  });
+
   test('le chauffeur d\'une course en cours la termine avec la commission de 10 % (sans toucher à la marque « argent de test »)', async () => {
     await assertSucceeds(updateDoc(doc(en('moussa'), 'courses', 'cours_controle'), { statut: 'terminee', termineeLe: serverTimestamp(), commissionFcfa: 230 }));
   });
@@ -239,6 +251,16 @@ famille('élévation de privilèges', [
   ['un dossier en attente se déclare validé (estValide)', () => updateDoc(doc(en('ibou'), 'users', 'ibou'), { estValide: true })],
   ['un chauffeur suspendu lève sa suspension', () => updateDoc(doc(en('suspendu'), 'users', 'suspendu'), { statutCompte: 'actif' })],
   ['un client se déclare testeur Orange Money', () => updateDoc(doc(en('awa'), 'users', 'awa'), { testeurOrangeMoney: true })],
+  ['un client se marque « numéro validé » sans SMS', () => updateDoc(doc(en('awa'), 'users', 'awa'), { telephoneVerifie: true })],
+  ['un client se donne un numéro validé', () => updateDoc(doc(en('awa'), 'users', 'awa'), { telephoneValide: '+221770000001' })],
+  ['un client se donne une date de validation du numéro', () => updateDoc(doc(en('awa'), 'users', 'awa'), { telephoneVerifieLe: serverTimestamp() })],
+  ['un client se marque tout de suite avec le numéro et la date (les trois marques d\'un coup)', () => updateDoc(doc(en('awa'), 'users', 'awa'), { telephone: '+221770000001', telephoneVerifie: true, telephoneValide: '+221770000001', telephoneVerifieLe: serverTimestamp() })],
+  ['un chauffeur validé se marque « numéro validé » sans SMS', () => updateDoc(doc(en('moussa'), 'users', 'moussa'), { telephoneVerifie: true })],
+  ['un client se marque « déjà accueilli » (bienvenue)', () => updateDoc(doc(en('awa'), 'users', 'awa'), { bienvenueEnvoyeeLe: serverTimestamp() })],
+  ['un client efface la marque de bienvenue pour la recevoir encore', () => updateDoc(doc(en('fatou'), 'users', 'fatou'), { bienvenueEnvoyeeLe: null })],
+  ['un inconnu s\'inscrit déjà « numéro validé »', () => setDoc(doc(en('nouveau'), 'users', 'nouveau'), { role: 'client', email: 'nouveau@test.sn', telephone: '+221771111111', telephoneVerifie: true })],
+  ['un inconnu s\'inscrit avec un numéro validé et une date', () => setDoc(doc(en('nouveau'), 'users', 'nouveau'), { role: 'client', email: 'nouveau@test.sn', telephoneValide: '+221771111111', telephoneVerifieLe: serverTimestamp() })],
+  ['un inconnu s\'inscrit déjà accueilli', () => setDoc(doc(en('nouveau'), 'users', 'nouveau'), { role: 'client', email: 'nouveau@test.sn', bienvenueEnvoyeeLe: serverTimestamp() })],
   ['un inconnu crée un compte admin', () => setDoc(doc(en('nouveau'), 'users', 'nouveau'), { role: 'admin', email: 'nouveau@test.sn' })],
   ['un inconnu s\'inscrit avec un solde', () => setDoc(doc(en('nouveau'), 'users', 'nouveau'), { role: 'client', email: 'nouveau@test.sn', soldeFcfa: 100000 })],
   ['un inconnu s\'inscrit déjà validé', () => setDoc(doc(en('nouveau'), 'users', 'nouveau'), { role: 'conducteur', email: 'nouveau@test.sn', estValide: true })],
@@ -284,6 +306,12 @@ famille('aspiration de masse (listes complètes, annuaires, positions)', [
   ['client : liste des positions des chauffeurs', () => getDocs(collection(en('awa'), 'positions_chauffeurs'))],
   ['client : un numéro de l\'annuaire de connexion', () => getDoc(doc(en('awa'), 'annuaire_telephones', 'client_+221770000002'))],
   ['client : liste de l\'annuaire de connexion', () => getDocs(collection(en('awa'), 'annuaire_telephones'))],
+  ['non connecté : liste des numéros validés', () => getDocs(collection(anonyme(), 'telephones_valides'))],
+  ['client : un numéro validé par un autre compte', () => getDoc(doc(en('awa'), 'telephones_valides', 'client_+221770000002'))],
+  ['client : liste des numéros validés', () => getDocs(collection(en('awa'), 'telephones_valides'))],
+  ['admin (application) : liste des numéros validés', () => getDocs(collection(en('admin'), 'telephones_valides'))],
+  ['client : lit les e-mails en attente d\'envoi', () => getDoc(doc(en('awa'), 'mail', 'bienvenue_fatou'))],
+  ['client : liste des e-mails en attente d\'envoi', () => getDocs(collection(en('awa'), 'mail'))],
   ['client : liste de tous les utilisateurs', () => getDocs(collection(en('awa'), 'users'))],
   ['client : courses en attente de tous les clients', () => getDocs(query(collection(en('awa'), 'courses'), where('statut', '==', 'en_attente')))],
   ['client : tous les tickets d\'aide', () => getDocs(collection(en('awa'), 'tickets'))],
@@ -300,6 +328,23 @@ famille('aspiration de masse (listes complètes, annuaires, positions)', [
   ['chauffeur validé : position exacte du départ d\'une course en attente', () => getDoc(doc(en('moussa'), 'courses', 'attente_fatou', 'prive', 'depart'))],
   ['chauffeur validé : départ exact d\'une course terminée (il perd l\'accès à la fin)', () => getDoc(doc(en('moussa'), 'courses', 'finie_fatou', 'prive', 'depart'))],
   ['chauffeur validé : profil d\'un client sans course en cours avec lui', () => getDoc(doc(en('moussa'), 'profils_publics', 'awa'))],
+]);
+
+famille('numéros validés et e-mails à envoyer : réservés au serveur (tunnel d\'inscription)', [
+  ['client : se déclare propriétaire d\'un numéro validé', () => setDoc(doc(en('awa'), 'telephones_valides', 'client_+221770000001'), { uid: 'awa', role: 'client', telephone: '+221770000001' })],
+  ['client : prend le numéro validé d\'un autre compte', () => updateDoc(doc(en('awa'), 'telephones_valides', 'client_+221770000002'), { uid: 'awa' })],
+  ['client : libère le numéro validé d\'un autre compte', () => deleteDoc(doc(en('awa'), 'telephones_valides', 'client_+221770000002'))],
+  ['client : efface la preuve de son propre numéro validé', () => deleteDoc(doc(en('fatou'), 'telephones_valides', 'client_+221770000002'))],
+  ['chauffeur validé : écrit un numéro validé', () => setDoc(doc(en('moussa'), 'telephones_valides', 'conducteur_+221770000003'), { uid: 'moussa', role: 'conducteur' })],
+  ['admin (application) : écrit un numéro validé', () => setDoc(doc(en('admin'), 'telephones_valides', 'client_+221770000099'), { uid: 'awa', role: 'client' })],
+  ['non connecté : écrit un numéro validé', () => setDoc(doc(anonyme(), 'telephones_valides', 'client_+221770000099'), { uid: 'awa', role: 'client' })],
+  ['client : écrit un e-mail à envoyer au nom de la société (relais de spam)', () => addDoc(collection(en('awa'), 'mail'), { to: ['victime@exemple.sn'], message: { subject: 'Gagnez de l\'argent', text: 'Cliquez ici' } })],
+  ['client : écrit un e-mail à envoyer sous un identifiant de son choix', () => setDoc(doc(en('awa'), 'mail', 'bienvenue_awa'), { to: ['victime@exemple.sn'], message: { subject: 'Bienvenue chez SPRINT', text: 'Cliquez ici' } })],
+  ['chauffeur validé : écrit un e-mail à envoyer', () => addDoc(collection(en('moussa'), 'mail'), { to: ['victime@exemple.sn'], message: { subject: 'x', text: 'y' } })],
+  ['non connecté : écrit un e-mail à envoyer', () => addDoc(collection(anonyme(), 'mail'), { to: ['victime@exemple.sn'], message: { subject: 'x', text: 'y' } })],
+  ['admin (application) : écrit un e-mail à envoyer', () => addDoc(collection(en('admin'), 'mail'), { to: ['victime@exemple.sn'], message: { subject: 'x', text: 'y' } })],
+  ['client : change le destinataire d\'un e-mail en attente', () => updateDoc(doc(en('awa'), 'mail', 'bienvenue_fatou'), { to: ['pirate@exemple.sn'] })],
+  ['client : supprime l\'e-mail en attente d\'un autre', () => deleteDoc(doc(en('awa'), 'mail', 'bienvenue_fatou'))],
 ]);
 
 famille('radar des chauffeurs : zones arrondies avant l\'acceptation', [

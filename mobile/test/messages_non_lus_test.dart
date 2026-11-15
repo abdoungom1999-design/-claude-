@@ -369,6 +369,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('page ${AppRoutes.activiteTab}'), findsOneWidget);
+
+      // Notification « Bienvenue chez SPRINT » : l'accueil.
+      appuis.add(const MessagePush({'type': 'bienvenue'}));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('page ${AppRoutes.home}'), findsOneWidget);
     });
   });
 }

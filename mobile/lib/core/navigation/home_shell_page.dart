@@ -68,7 +68,11 @@ class _HomeShellPageState extends State<HomeShellPage> {
       uid: uid,
       surAppui: (message) {
         if (!mounted) return;
-        context.go(message.type == 'message' ? AppRoutes.messagesTab : AppRoutes.activiteTab);
+        context.go(switch (message.type) {
+          'message' => AppRoutes.messagesTab,
+          'bienvenue' => AppRoutes.home,
+          _ => AppRoutes.activiteTab,
+        });
       },
     ));
   }

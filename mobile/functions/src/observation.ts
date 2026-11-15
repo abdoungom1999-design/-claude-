@@ -79,6 +79,9 @@ export const REGLES_FREQUENCE: Readonly<Record<string, RegleFrequence>> = {
   itineraireCourse: { fenetreSecondes: 60, seuil: 20 },
   chauffeursProches: { fenetreSecondes: 60, seuil: 30 },
   notifierMessage: { fenetreSecondes: 60, seuil: 30 },
+  // Inscription : une personne valide son numéro en un ou deux essais.
+  validerTelephone: { fenetreSecondes: 600, seuil: 10 },
+  declencherBienvenue: { fenetreSecondes: 60, seuil: 10 },
 };
 
 /** Les Admin ne sont prévenus qu'à ce multiple du seuil : un pic isolé ne dérange personne. */
