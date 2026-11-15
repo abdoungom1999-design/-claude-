@@ -1539,6 +1539,11 @@ sur Orange, Free et Expresso ; « Bienvenue chez SPRINT » en écran et en notif
 le moment. Tant que les réglages de la console (13.3) ne sont pas faits, « Envoyer le code » affiche « momentanément
 indisponible » et « Plus tard » laisse passer : personne n'est bloqué.
 
+Mise en ligne le 15 novembre 2026 : publication 128 (l'essai sans publication avait pris le numéro 127), run
+`43752832591`, commit `c65e2d6`, les 6 jobs verts ; vérifiés par la chaîne : fonctions déployées (`validerTelephone` et
+`declencherBienvenue` publiques et répondant `UNAUTHENTICATED` sans connexion), règles inchangées, site publié, en-têtes
+de sécurité présents, lien d'application Android conforme, APK 0.1.0 (128).
+
 ### 13.1 Comment ça marche
 
 1. L'inscription n'a pas changé (e-mail + mot de passe, profil `users/{uid}` avec le numéro saisi). L'écran « Vérifiez
