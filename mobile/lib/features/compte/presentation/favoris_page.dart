@@ -18,11 +18,15 @@ IconData _iconePour(String type) {
 
 /// Adresses enregistrées par le client.
 class FavorisPage extends StatelessWidget {
-  const FavorisPage({super.key});
+  /// [demo] : mode démonstration (adresses d'exemple). Un compte réel n'a
+  /// encore aucune adresse favorite : la liste est vide, sans fausses adresses.
+  const FavorisPage({super.key, this.demo = true});
+
+  final bool demo;
 
   @override
   Widget build(BuildContext context) {
-    final favoris = DemoData.favoris();
+    final favoris = demo ? DemoData.favoris() : const <AdresseFavorite>[];
 
     return SousPageOnyx(child: Scaffold(
       appBar: AppBar(

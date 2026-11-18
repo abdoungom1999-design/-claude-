@@ -18,6 +18,7 @@ import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/wallet_card.dart';
 import '../../../firebase_options.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../courses/data/course_service.dart';
 import '../../portefeuille/data/portefeuille_service.dart';
 import '../../portefeuille/data/retraits.dart';
 import '../../portefeuille/presentation/mouvements_portefeuille_page.dart';
@@ -46,6 +47,7 @@ class CompteTabPage extends StatefulWidget {
     this.compteDeTest,
     this.retraits,
     this.retraitsDisponibles = retraitsOuverts,
+    this.courses,
   });
 
   /// Injectables pour les tests : accès au portefeuille, client connecté,
@@ -63,6 +65,9 @@ class CompteTabPage extends StatefulWidget {
   /// le réglage en service [retraitsOuverts] ; fermé, rien n'apparaît).
   final RetraitService? retraits;
   final bool retraitsDisponibles;
+
+  /// Courses du client (statistique « Courses ») : accès injectable.
+  final CourseService? courses;
 
   @override
   State<CompteTabPage> createState() => _CompteTabPageState();
@@ -85,6 +90,12 @@ class _CompteTabPageState extends State<CompteTabPage> {
   StreamSubscription<Retrait?>? _suiviRetrait;
   Retrait? _retraitEnCours;
 
+  /// Courses terminées du client, suivies en direct ; `null` tant qu'elles ne
+  /// sont pas lues (ou si la lecture échoue) : l'écran affiche alors « – »,
+  /// jamais un chiffre inventé.
+  StreamSubscription<List<CourseFirestore>>? _suiviCourses;
+  int? _coursesTerminees;
+
   /// Dernier profil lu (en-tête) : numéro du compte proposé pour un retrait.
   Map<String, dynamic>? _profilConnu;
 
@@ -99,6 +110,20 @@ class _CompteTabPageState extends State<CompteTabPage> {
     super.initState();
     final uid = _uid;
     if (uid != null) _fluxPortefeuille = _portefeuille.streamPortefeuille(uid);
+    if (uid != null) {
+      try {
+        _suiviCourses = (widget.courses ?? CourseService()).streamCoursesClient(uid).listen(
+              (courses) {
+                if (mounted) {
+                  setState(() => _coursesTerminees = courses.where((c) => c.statut == StatutCourse.terminee).length);
+                }
+              },
+              onError: (Object _) {},
+            );
+      } on Object {
+        _suiviCourses = null;
+      }
+    }
     if (uid != null && widget.retraitsDisponibles) {
       try {
         _suiviRetrait = _retraits.streamRetraitEnCours(uid).listen(
@@ -120,7 +145,52 @@ class _CompteTabPageState extends State<CompteTabPage> {
   @override
   void dispose() {
     _suiviRetrait?.cancel();
+    _suiviCourses?.cancel();
     super.dispose();
+  }
+
+  /// Statistiques du client. Mode démo : valeurs de démonstration. Compte réel :
+  /// seulement ce que l'app sait vraiment (courses terminées ; aucune adresse
+  /// favorite n'existe encore). La « Note » (aucune note n'est donnée aux
+  /// clients) et les « Réservations » (fonction pas encore ouverte) ne sont pas
+  /// affichées : mieux vaut pas de chiffre qu'un faux chiffre.
+  Widget _rangeeStatistiques() {
+    if (_uid == null) {
+      return Row(
+        children: [
+          const Expanded(
+            child: StatTile(label: 'Note', valeur: '${DemoData.noteMoyenneClient}', icon: Icons.star_outline_rounded),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: StatTile(label: 'Courses', valeur: '${DemoData.coursesEffectueesClient}', icon: Icons.route_outlined),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: StatTile(
+              label: 'Réservations',
+              valeur: '${DemoData.reservationsClient}',
+              icon: Icons.event_available_outlined,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: StatTile(label: 'Favoris', valeur: '${DemoData.favorisClient}', icon: Icons.favorite_border_rounded),
+          ),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: StatTile(label: 'Courses', valeur: '${_coursesTerminees ?? '–'}', icon: Icons.route_outlined),
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: StatTile(label: 'Favoris', valeur: '0', icon: Icons.favorite_border_rounded),
+        ),
+      ],
+    );
   }
 
   void _ouvrir(Widget page) {
@@ -283,29 +353,7 @@ class _CompteTabPageState extends State<CompteTabPage> {
                   _BandeauRetrait(texte: 'Retrait en cours : ${_resumeRetrait(retrait)}'),
                 ],
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: StatTile(label: 'Note', valeur: '${DemoData.noteMoyenneClient}', icon: Icons.star_outline_rounded),
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: StatTile(label: 'Courses', valeur: '${DemoData.coursesEffectueesClient}', icon: Icons.route_outlined),
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: StatTile(
-                        label: 'Réservations',
-                        valeur: '${DemoData.reservationsClient}',
-                        icon: Icons.event_available_outlined,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: StatTile(label: 'Favoris', valeur: '${DemoData.favorisClient}', icon: Icons.favorite_border_rounded),
-                    ),
-                  ],
-                ),
+                _rangeeStatistiques(),
                 const SizedBox(height: 26),
                 const _TitreSection('Compte'),
                 _GroupeMenu(
@@ -329,7 +377,7 @@ class _CompteTabPageState extends State<CompteTabPage> {
                     SectionListTile(
                       icon: Icons.favorite_border_rounded,
                       label: 'Favoris',
-                      onTap: () => _ouvrir(const FavorisPage()),
+                      onTap: () => _ouvrir(FavorisPage(demo: _uid == null)),
                     ),
                     SectionListTile(
                       icon: Icons.star_border_rounded,
