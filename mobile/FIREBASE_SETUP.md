@@ -1666,3 +1666,10 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   commit `35dbcee`, 6 jobs verts, APK « 0.1.0 (130) », textes seulement) a remplacé dans l'app `support@groupesantine.sn`
   et `donnees@groupesantine.sn`, et dans le serveur `ADRESSE_CONTACT`, par cette adresse, après le test de la
   redirection `contact@` et sur go du client (essai à blanc n°129 vert).
+* **Publication 132** (go du client, 18 novembre 2026 ; essai à blanc n°131 vert) : lot d'apparence et de contenu de
+  l'app, sans serveur, règle, paiement ni retrait. Le faux numéro `+221 33 800 00 00` et la promesse « 24/7 » disparaissent
+  (seule `contact@sprintvtc.sn` reste) ; la photo de la moto Sprint (`assets/moto/moto.jpg`) remplace l'icône verte dans
+  l'onglet Activité ; l'onglet Compte d'un client réel n'affiche plus de chiffres de démonstration (Courses = courses
+  terminées, Favoris à 0, Note et Réservations retirées) et la page Favoris est vide sans fausses adresses. Décidé pour le
+  lot suivant : retirer « Inviter des amis » (code de parrainage fictif) et le faux fil « Mes échanges » du support ;
+  la Réservation est en pause.
