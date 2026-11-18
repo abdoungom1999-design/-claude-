@@ -29,7 +29,7 @@ class AideSupportPage extends StatelessWidget {
               onTap: () => _ouvrir(context, const CentreAidePage()),
             ),
             SectionListTile(
-              icon: Icons.call_outlined,
+              icon: Icons.mail_outline_rounded,
               label: 'Nous contacter',
               onTap: () => _ouvrir(context, const NousContacterPage()),
             ),

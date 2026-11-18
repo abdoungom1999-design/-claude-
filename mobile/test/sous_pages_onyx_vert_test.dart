@@ -52,6 +52,9 @@ void main() {
 
     expect(find.text('Mes échanges'), findsNothing);
     expect(find.byIcon(Icons.forum_outlined), findsNothing);
+    // Plus de numéro de téléphone : « Nous contacter » porte l'icône courrier.
+    expect(find.byIcon(Icons.call_outlined), findsNothing);
+    expect(find.byIcon(Icons.mail_outline_rounded), findsOneWidget);
     for (final reste in ['Centre d\'aide', 'Nous contacter', 'À propos de Sprint']) {
       expect(find.text(reste), findsOneWidget, reason: reste);
     }
