@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../core/demo/demo_data.dart';
 import '../../../core/widgets/section_list_tile.dart';
-import '../../messages/presentation/chat_page.dart';
 import 'a_propos_page.dart';
 import 'centre_aide_page.dart';
 import 'nous_contacter_page.dart';
 import '../../../core/widgets/onyx_vert.dart';
 
-/// Menu Aide & Support : Centre d'aide, Nous contacter, Mes échanges,
-/// À propos de Sprint.
+/// Menu Aide & Support : Centre d'aide, Nous contacter, À propos de Sprint.
+/// (Le faux fil « Mes échanges » a été retiré : il n'envoyait rien à personne ;
+/// le vrai canal est « Contacter le support » du Centre d'aide.)
 class AideSupportPage extends StatelessWidget {
   const AideSupportPage({super.key});
 
@@ -33,24 +32,6 @@ class AideSupportPage extends StatelessWidget {
               icon: Icons.call_outlined,
               label: 'Nous contacter',
               onTap: () => _ouvrir(context, const NousContacterPage()),
-            ),
-            SectionListTile(
-              icon: Icons.forum_outlined,
-              label: 'Mes échanges',
-              onTap: () => _ouvrir(
-                context,
-                ChatPage(
-                  titre: 'Mes échanges',
-                  sousTitre: 'Support Sprint',
-                  messages: DemoData.messagesSupport,
-                  reponseAutomatique:
-                      'Merci pour votre message ! Notre équipe support vous '
-                      'répond dans les plus brefs délais.',
-                  emptyIcon: Icons.forum_outlined,
-                  emptyTitre: 'Aucun échange',
-                  emptyMessage: 'Écrivez à l\'équipe Sprint, nous vous répondrons ici.',
-                ),
-              ),
             ),
             SectionListTile(
               icon: Icons.info_outline_rounded,

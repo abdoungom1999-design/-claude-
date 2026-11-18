@@ -43,6 +43,20 @@ void main() {
     });
   }
 
+  testWidgets('Aide & Support : plus de faux fil « Mes échanges » (rien n\'y était envoyé à personne)', (tester) async {
+    tester.view.physicalSize = const Size(390, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: AideSupportPage()));
+    await tester.pump();
+
+    expect(find.text('Mes échanges'), findsNothing);
+    expect(find.byIcon(Icons.forum_outlined), findsNothing);
+    for (final reste in ['Centre d\'aide', 'Nous contacter', 'À propos de Sprint']) {
+      expect(find.text(reste), findsOneWidget, reason: reste);
+    }
+  });
+
   testWidgets('Nous contacter : une seule adresse officielle, aucun numéro de téléphone fictif', (tester) async {
     tester.view.physicalSize = const Size(390, 700);
     tester.view.devicePixelRatio = 1;
