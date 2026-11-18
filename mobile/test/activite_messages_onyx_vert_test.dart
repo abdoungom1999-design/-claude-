@@ -26,6 +26,11 @@ class _Courses extends CourseService {
       ]);
 }
 
+class _Vide extends CourseService {
+  @override
+  Stream<List<CourseFirestore>> streamCoursesClient(String clientId) => Stream.value(const []);
+}
+
 class _Chat extends ChatService {
   @override
   Stream<List<ChatMessageFirestore>> streamMessages(String chatId) => Stream.value([
@@ -59,6 +64,19 @@ void main() {
     expect(barre.labelColor, AppColors.onyx);
     expect((barre.indicator! as BoxDecoration).gradient, AppColors.degradeAction);
     expect(find.text('Suivre ma course'), findsOneWidget);
+  });
+
+  testWidgets('Activité vide : la photo de la moto Sprint remplace l\'icône verte', (tester) async {
+    grandEcran(tester);
+    await tester.pumpWidget(MaterialApp(home: ActiviteTabPage(courseService: _Vide(), clientId: 'awa')));
+    await tester.pump();
+    await tester.pump();
+    final photo = find.byWidgetPredicate(
+      (w) => w is Image && w.image is ResizeImage && ((w.image as ResizeImage).imageProvider as AssetImage).assetName == 'assets/moto/moto.jpg',
+    );
+    expect(photo, findsOneWidget);
+    expect(find.byIcon(Icons.two_wheeler_rounded), findsNothing);
+    expect(find.text('Aucune course en cours'), findsOneWidget);
   });
 
   testWidgets('Livraison vide : carrousel horizontal de cartes (Colis, Repas, Courses) au-dessus du bouton', (tester) async {

@@ -283,21 +283,7 @@ class _CarteHistorique extends StatelessWidget {
     return AppCard(
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.vertTeinte,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              course.type == 'COLIS'
-                  ? Icons.inventory_2_outlined
-                  : Icons.two_wheeler_rounded,
-              color: AppColors.vert,
-              size: 20,
-            ),
-          ),
+          _VignetteCourse(colis: course.type == 'COLIS'),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -367,12 +353,7 @@ class _OngletReel extends StatelessWidget {
           AppCard(
             child: Column(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(color: AppColors.carteHaute, shape: BoxShape.circle),
-                  child: const Icon(Icons.two_wheeler_rounded, color: AppColors.vert, size: 26),
-                ),
+                const ClipOval(child: _PhotoMoto(taille: 56, iconeSecours: 26)),
                 const SizedBox(height: 14),
                 const Text('Aucune course en cours', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.texte)),
                 const SizedBox(height: 4),
@@ -459,16 +440,7 @@ class _CarteCourseReelle extends StatelessWidget {
         child: AppCard(
           child: Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(color: AppColors.vertTeinte, borderRadius: BorderRadius.circular(12)),
-                child: Icon(
-                  course.type == 'COLIS' ? Icons.inventory_2_outlined : Icons.two_wheeler_rounded,
-                  color: AppColors.vert,
-                  size: 20,
-                ),
-              ),
+              _VignetteCourse(colis: course.type == 'COLIS'),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -495,6 +467,56 @@ class _CarteCourseReelle extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Photo de la moto Sprint, recadrée sur la moto (assets/moto/moto.jpg). Si le
+/// fichier ne peut pas être lu, l'ancienne icône verte reprend sa place.
+class _PhotoMoto extends StatelessWidget {
+  const _PhotoMoto({required this.taille, required this.iconeSecours});
+
+  final double taille;
+  final double iconeSecours;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/moto/moto.jpg',
+      width: taille,
+      height: taille,
+      fit: BoxFit.cover,
+      cacheWidth: (taille * 3).round(),
+      errorBuilder: (_, __, ___) => Container(
+        width: taille,
+        height: taille,
+        color: AppColors.vertTeinte,
+        child: Icon(Icons.two_wheeler_rounded, color: AppColors.vert, size: iconeSecours),
+      ),
+    );
+  }
+}
+
+/// Vignette de 42 px d'une ligne de course : photo de la moto pour une course,
+/// icône de colis pour une livraison.
+class _VignetteCourse extends StatelessWidget {
+  const _VignetteCourse({required this.colis});
+
+  final bool colis;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!colis) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: const _PhotoMoto(taille: 42, iconeSecours: 20),
+      );
+    }
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(color: AppColors.vertTeinte, borderRadius: BorderRadius.circular(12)),
+      child: const Icon(Icons.inventory_2_outlined, color: AppColors.vert, size: 20),
     );
   }
 }
