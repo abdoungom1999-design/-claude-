@@ -120,8 +120,8 @@ class CentreAidePage extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Notre équipe support est disponible 24/7 au +221 33 800 00 00 '
-                          'ou contact@sprintvtc.sn.',
+                          'Écrivez-nous à contact@sprintvtc.sn, ou utilisez le bouton '
+                          'ci-dessous une fois connecté.',
                           style: TextStyle(fontSize: 13, color: AppColors.texteDiscret, height: 1.5),
                         ),
                         const SizedBox(height: 16),

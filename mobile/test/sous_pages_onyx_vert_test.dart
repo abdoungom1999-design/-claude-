@@ -43,6 +43,18 @@ void main() {
     });
   }
 
+  testWidgets('Nous contacter : une seule adresse officielle, aucun numéro de téléphone fictif', (tester) async {
+    tester.view.physicalSize = const Size(390, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: NousContacterPage()));
+    await tester.pump();
+
+    expect(find.text('contact@sprintvtc.sn'), findsOneWidget);
+    expect(find.textContaining('+221 33'), findsNothing);
+    expect(find.byIcon(Icons.phone_outlined), findsNothing);
+  });
+
   testWidgets('Préférences : plus de choix de thème, l\'app est uniquement en mode sombre', (tester) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;

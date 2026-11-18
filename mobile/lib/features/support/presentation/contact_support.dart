@@ -46,7 +46,7 @@ Future<void> ouvrirContactSupport(BuildContext context) async {
       context,
       icon: Icons.lock_outline_rounded,
       titre: 'Connexion nécessaire',
-      message: 'Connectez-vous à votre compte pour écrire au support, ou appelez-nous au +221 33 800 00 00.',
+      message: 'Connectez-vous à votre compte pour écrire au support, ou écrivez-nous à contact@sprintvtc.sn.',
     );
   }
   await Navigator.of(context).push(

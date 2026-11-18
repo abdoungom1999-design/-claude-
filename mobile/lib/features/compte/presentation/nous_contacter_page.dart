@@ -58,17 +58,11 @@ class _NousContacterPageState extends State<NousContacterPage> {
                       color: AppColors.vertTeinte,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.phone_outlined, color: AppColors.vert, size: 20),
+                    child: const Icon(Icons.mail_outline_rounded, color: AppColors.vert, size: 20),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('+221 33 800 00 00', style: TextStyle(fontWeight: FontWeight.w700)),
-                        Text('contact@sprintvtc.sn', style: TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
-                      ],
-                    ),
+                    child: Text('contact@sprintvtc.sn', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
