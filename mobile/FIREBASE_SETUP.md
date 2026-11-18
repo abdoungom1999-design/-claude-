@@ -1661,6 +1661,7 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   APRÈS l'écran de bienvenue ; et l'app n'affiche pas les notifications reçues pendant qu'elle est ouverte. Le message
   visible pour un nouveau compte est donc l'écran de bienvenue ; la notification n'apparaît que sur un autre appareil du
   même compte déjà enregistré. Seul l'e-mail (13.1, `EMAIL_BIENVENUE`) joint une personne hors de l'app.
-* **Adresse officielle** : l'app affiche encore `support@groupesantine.sn` (centre d'aide, conditions) et
-  `donnees@groupesantine.sn` (confidentialité). Le client a choisi `contact@groupesantine.sn` comme adresse officielle ;
-  ces textes ne sont pas modifiés sans sa demande.
+* **Adresse officielle** : le domaine d'envoi est désormais `sprintvtc.sn` (revendeur Afriregister, DNS sous Cloudflare ;
+  `sprint.sn` n'était pas disponible) et l'adresse unique est `contact@sprintvtc.sn`. Le lot suivant (publication 129,
+  textes seulement) remplace dans l'app `support@groupesantine.sn` et `donnees@groupesantine.sn`, et dans le serveur
+  `ADRESSE_CONTACT`, par cette adresse ; il n'est publié qu'après le test de la redirection `contact@` et sur go du client.

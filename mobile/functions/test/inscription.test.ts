@@ -34,7 +34,7 @@ test('réglages de la publication 128 (décisions du client) : SMS facultatif, b
   // Le jour de la mise en ligne : ni une date lointaine (qui n'accueillerait personne), ni une date ancienne (qui solliciterait les anciens comptes).
   assert.ok(NOUVEAUX_COMPTES_DEPUIS.getTime() >= Date.UTC(2026, 10, 15), NOUVEAUX_COMPTES_DEPUIS.toISOString());
   assert.ok(NOUVEAUX_COMPTES_DEPUIS.getTime() < Date.UTC(2026, 10, 17), NOUVEAUX_COMPTES_DEPUIS.toISOString());
-  assert.equal(ADRESSE_CONTACT, 'contact@groupesantine.sn', 'adresse officielle choisie par le client');
+  assert.equal(ADRESSE_CONTACT, 'contact@sprintvtc.sn', 'adresse officielle choisie par le client');
 });
 
 test('mêmes réglages dans l\'app (un écart ouvrirait l\'un sans l\'autre)', () => {

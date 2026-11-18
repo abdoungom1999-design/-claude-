@@ -298,7 +298,7 @@ const echapperHtml = (texte: string) =>
   texte.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 /** Adresse officielle de Sprint, celle où aboutissent les réponses aux e-mails (décision du client, 15 novembre 2026). */
-export const ADRESSE_CONTACT = 'contact@groupesantine.sn';
+export const ADRESSE_CONTACT = 'contact@sprintvtc.sn';
 
 /**
  * Document pour l'extension « Trigger Email from Firestore » (collection

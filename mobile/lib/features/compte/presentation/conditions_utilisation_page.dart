@@ -126,7 +126,7 @@ class ConditionsUtilisationPage extends StatelessWidget {
           'Contact',
           'Pour toute question relative aux présentes conditions, vous pouvez '
               'contacter Groupe Santine via le Centre d\'aide de l\'application '
-              'ou à l\'adresse support@groupesantine.sn.',
+              'ou à l\'adresse contact@sprintvtc.sn.',
         ),
       ],
     );

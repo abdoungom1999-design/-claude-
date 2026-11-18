@@ -66,7 +66,7 @@ class _NousContacterPageState extends State<NousContacterPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('+221 33 800 00 00', style: TextStyle(fontWeight: FontWeight.w700)),
-                        Text('support@groupesantine.sn', style: TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
+                        Text('contact@sprintvtc.sn', style: TextStyle(fontSize: 12, color: AppColors.texteDiscret)),
                       ],
                     ),
                   ),

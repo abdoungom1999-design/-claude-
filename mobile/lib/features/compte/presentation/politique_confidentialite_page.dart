@@ -24,7 +24,7 @@ class PolitiqueConfidentialitePage extends StatelessWidget {
               'Groupe Santine, dont le siège est basé à Dakar, Sénégal. Toute '
               'question relative à vos données peut être adressée à notre '
               'délégué à la protection des données via '
-              'donnees@groupesantine.sn.',
+              'contact@sprintvtc.sn.',
         ),
         SectionJuridique(
           'Données collectées',
@@ -147,7 +147,7 @@ class PolitiqueConfidentialitePage extends StatelessWidget {
         SectionJuridique(
           'Contact',
           'Pour toute question ou demande relative à vos données personnelles, '
-              'contactez-nous à donnees@groupesantine.sn ou via le Centre '
+              'contactez-nous à contact@sprintvtc.sn ou via le Centre '
               'd\'aide de l\'application.',
         ),
       ],

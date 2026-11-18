@@ -15,10 +15,10 @@ m'envoyer.
 > | **DKIM** | signature numérique ajoutée à chaque e-mail | « ce message n'a pas été modifié et vient bien de ce domaine » |
 > | **DMARC** | consigne aux boîtes de réception en cas d'échec de SPF/DKIM, et rapports | « que faire des faux, et dites-moi qui en envoie » |
 
-Décisions du client (15 novembre 2026) : le domaine est **`groupesantine.sn`** et
-l'adresse officielle **`contact@groupesantine.sn`** : c'est elle qui reçoit les
-réponses et les rapports DMARC dans ce guide. (L'app affiche encore `support@` et
-`donnees@` dans le centre d'aide et les pages légales : ils ne sont pas modifiés.)
+Décisions du client (novembre 2026) : le domaine est **`sprintvtc.sn`** (`sprint.sn` n'était pas disponible ;
+revendeur Afriregister, DNS sous Cloudflare) et l'adresse officielle **`contact@sprintvtc.sn`** : c'est elle qui reçoit les
+réponses et les rapports DMARC dans ce guide. (Le lot de la publication 129 remplace `support@` et `donnees@` de l'app
+par cette adresse unique, après le test de la redirection.)
 
 ---
 
@@ -31,7 +31,7 @@ réponses et les rapports DMARC dans ce guide. (L'app affiche encore `support@` 
 2. L'accès **Propriétaire / Éditeur** au projet Firebase `sprint-vtc`
    (console Firebase).
 3. Une adresse de messagerie que vous lisez réellement pour recevoir les
-   rapports DMARC : `contact@groupesantine.sn` (voir 5 pour éviter qu'ils
+   rapports DMARC : `contact@sprintvtc.sn` (voir 5 pour éviter qu'ils
    encombrent la boîte).
 
 Ce que l'on ajoute ne casse rien : ce sont des lignes **ajoutées** à la zone.
@@ -51,7 +51,7 @@ arrivent en courrier indésirable.
 2. Ouvrez un modèle (crayon à droite de « Validation de l'adresse e-mail »).
 3. À côté de l'adresse d'expéditeur, cliquez **Personnaliser le domaine**
    (*Customize domain*).
-4. Saisissez `groupesantine.sn` puis validez. Firebase affiche alors **les
+4. Saisissez `sprintvtc.sn` puis validez. Firebase affiche alors **les
    enregistrements DNS à créer**. Laissez cette fenêtre ouverte (ou notez les
    valeurs) : elles sont propres à votre projet et **font foi** (voir 2.1).
 
@@ -73,16 +73,16 @@ l'autre : recopiez-la depuis la console.)
 
 | # | Type | Nom (host) | Valeur | À quoi ça sert |
 |---|---|---|---|---|
-| 1 | `TXT` | `groupesantine.sn` (ou `@`) | `firebase=sprint-vtc` | prouve que le domaine est à vous |
-| 2 | `TXT` | `groupesantine.sn` (ou `@`) | `v=spf1 include:_spf.firebasemail.com ~all` | **SPF** : autorise les serveurs de Firebase |
-| 3 | `CNAME` | `firebase1._domainkey` | `mail-groupesantine-sn.dkim1._domainkey.firebasemail.com` | **DKIM** (clé 1) |
-| 4 | `CNAME` | `firebase2._domainkey` | `mail-groupesantine-sn.dkim2._domainkey.firebasemail.com` | **DKIM** (clé 2) |
+| 1 | `TXT` | `sprintvtc.sn` (ou `@`) | `firebase=sprint-vtc` | prouve que le domaine est à vous |
+| 2 | `TXT` | `sprintvtc.sn` (ou `@`) | `v=spf1 include:_spf.firebasemail.com ~all` | **SPF** : autorise les serveurs de Firebase |
+| 3 | `CNAME` | `firebase1._domainkey` | `mail-sprintvtc-sn.dkim1._domainkey.firebasemail.com` | **DKIM** (clé 1) |
+| 4 | `CNAME` | `firebase2._domainkey` | `mail-sprintvtc-sn.dkim2._domainkey.firebasemail.com` | **DKIM** (clé 2) |
 
 ### 2.2 Celui que Firebase ne donne pas, mais qu'il faut : DMARC
 
 | Type | Nom (host) | Valeur |
 |---|---|---|
-| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:contact@groupesantine.sn; fo=1` |
+| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:contact@sprintvtc.sn; fo=1` |
 
 `p=none` signifie « surveiller sans rien bloquer » : c'est le bon réglage de
 départ (voir l'étape 5 pour le durcir progressivement).
@@ -90,7 +90,7 @@ départ (voir l'étape 5 pour le durcir progressivement).
 ### 2.3 Attention : un seul SPF par domaine
 
 Regardez d'abord s'il existe **déjà** un enregistrement `TXT` commençant par
-`v=spf1` sur `groupesantine.sn` (c'est le cas si vos adresses e-mail
+`v=spf1` sur `sprintvtc.sn` (c'est le cas si vos adresses e-mail
 `contact@…` sont hébergées chez votre hébergeur ou chez Google/Microsoft).
 Si oui, **ne créez pas une deuxième ligne** : deux SPF rendent les deux
 invalides. Modifiez la ligne existante en y **ajoutant**
@@ -105,9 +105,9 @@ Gardez tout le reste de la ligne tel quel.
 
 ### 2.4 Pièges fréquents à l'écran de l'hébergeur
 
-* **Le nom (host)** : certains hébergeurs ajoutent d'eux-mêmes `.groupesantine.sn`
+* **Le nom (host)** : certains hébergeurs ajoutent d'eux-mêmes `.sprintvtc.sn`
   à ce que vous tapez ; d'autres demandent le nom complet. Si vous voyez
-  `firebase1._domainkey.groupesantine.sn.groupesantine.sn` après enregistrement,
+  `firebase1._domainkey.sprintvtc.sn.sprintvtc.sn` après enregistrement,
   retirez la fin que vous avez tapée en trop.
 * **Le point final** : sur les `CNAME`, certains hébergeurs veulent un point
   après la valeur (`….firebasemail.com.`), d'autres non. Suivez l'exemple de
@@ -132,7 +132,7 @@ Gardez tout le reste de la ligne tel quel.
    sans ce clic, les e-mails continuent de partir de l'ancienne adresse. Puis
    réglez dans le même modèle :
    * **Nom de l'expéditeur** : `SPRINT` ;
-   * **Répondre à** : `contact@groupesantine.sn` ;
+   * **Répondre à** : `contact@sprintvtc.sn` ;
    * **Langue** du modèle : **Français** (pour *chaque* modèle utilisé :
      validation de l'adresse et réinitialisation du mot de passe), puis relisez
      l'objet et le texte.
@@ -142,8 +142,8 @@ Gardez tout le reste de la ligne tel quel.
 4. Pour une note sur 10 : envoyez le même e-mail à l'adresse affichée par
    <https://www.mail-tester.com> (gratuit) et visez **9/10 ou plus**.
 5. Contrôle des lignes DNS (facultatif) : <https://mxtoolbox.com/SuperTool.aspx>
-   → `SPF Record Lookup` avec `groupesantine.sn`, puis `DKIM Lookup` avec
-   `groupesantine.sn:firebase1`.
+   → `SPF Record Lookup` avec `sprintvtc.sn`, puis `DKIM Lookup` avec
+   `sprintvtc.sn:firebase1`.
 
 ---
 
@@ -182,8 +182,8 @@ de votre choix.
      passe, le serveur et le port ; la plupart des services la fournissent
      toute prête). C'est l'extension qui range ce secret dans Secret
      Manager : **ne le collez ni dans un message ni dans le code**.
-   * *Default FROM address* : `SPRINT <bienvenue@groupesantine.sn>`
-   * *Default REPLY-TO address* : `contact@groupesantine.sn`
+   * *Default FROM address* : `SPRINT <bienvenue@sprintvtc.sn>`
+   * *Default REPLY-TO address* : `contact@sprintvtc.sn`
 4. Dites-moi quand c'est fait : je passe `EMAIL_BIENVENUE` à `true` (serveur),
    avec votre accord de publication. Après chaque bienvenue, le document
    `mail/bienvenue_<identifiant du compte>` montre dans `delivery` si l'envoi
@@ -199,10 +199,10 @@ montrent plus que des envois légitimes qui passent SPF ou DKIM :
 
 | Étape | Quand | Valeur du `TXT` `_dmarc` |
 |---|---|---|
-| 1 | semaines 0 à 2 | `v=DMARC1; p=none; rua=mailto:contact@groupesantine.sn; fo=1` |
-| 2 | semaines 3 à 4 | `v=DMARC1; p=quarantine; pct=25; rua=mailto:contact@groupesantine.sn` |
-| 3 | semaine 5 | `v=DMARC1; p=quarantine; pct=100; rua=mailto:contact@groupesantine.sn` |
-| 4 | après 6 semaines sans surprise | `v=DMARC1; p=reject; rua=mailto:contact@groupesantine.sn` |
+| 1 | semaines 0 à 2 | `v=DMARC1; p=none; rua=mailto:contact@sprintvtc.sn; fo=1` |
+| 2 | semaines 3 à 4 | `v=DMARC1; p=quarantine; pct=25; rua=mailto:contact@sprintvtc.sn` |
+| 3 | semaine 5 | `v=DMARC1; p=quarantine; pct=100; rua=mailto:contact@sprintvtc.sn` |
+| 4 | après 6 semaines sans surprise | `v=DMARC1; p=reject; rua=mailto:contact@sprintvtc.sn` |
 
 Les rapports sont des fichiers XML illisibles à l'œil : un service gratuit comme
 Postmark DMARC (<https://dmarc.postmarkapp.com>) les transforme en résumé
@@ -223,11 +223,11 @@ eux aussi mis de côté.
 
 ## 7. Décisions prises (15 novembre 2026)
 
-1. Domaine d'envoi : `groupesantine.sn` ; adresse officielle : `contact@groupesantine.sn`.
+1. Domaine d'envoi : `sprintvtc.sn` ; adresse officielle : `contact@sprintvtc.sn`.
 2. E-mail de bienvenue : non, pas pour le moment (l'écran et la notification
    suffisent).
-3. Rapports DMARC : `contact@groupesantine.sn`. Si les rapports encombrent la
-   boîte, créez une adresse `dmarc@groupesantine.sn` qui les redirige vers un
+3. Rapports DMARC : `contact@sprintvtc.sn`. Si les rapports encombrent la
+   boîte, créez une adresse `dmarc@sprintvtc.sn` qui les redirige vers un
    dossier, puis remplacez `rua=mailto:…` dans la ligne `_dmarc`.
 
 Sources : [Utiliser un domaine personnalisé pour les e-mails d'authentification (Firebase)](https://firebase.google.com/docs/auth/email-custom-domain),
