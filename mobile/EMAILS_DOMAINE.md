@@ -17,7 +17,7 @@ m'envoyer.
 
 Décisions du client (novembre 2026) : le domaine est **`sprintvtc.sn`** (`sprint.sn` n'était pas disponible ;
 revendeur Afriregister, DNS sous Cloudflare) et l'adresse officielle **`contact@sprintvtc.sn`** : c'est elle qui reçoit les
-réponses et les rapports DMARC dans ce guide. (Le lot de la publication 129 remplace `support@` et `donnees@` de l'app
+réponses et les rapports DMARC dans ce guide. (Le lot de la publication 130 remplace `support@` et `donnees@` de l'app
 par cette adresse unique, après le test de la redirection.)
 
 ---
