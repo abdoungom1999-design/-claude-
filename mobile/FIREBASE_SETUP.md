@@ -1671,5 +1671,8 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   (seule `contact@sprintvtc.sn` reste) ; la photo de la moto Sprint (`assets/moto/moto.jpg`) remplace l'icône verte dans
   l'onglet Activité ; l'onglet Compte d'un client réel n'affiche plus de chiffres de démonstration (Courses = courses
   terminées, Favoris à 0, Note et Réservations retirées) et la page Favoris est vide sans fausses adresses. Décidé pour le
-  lot suivant : retirer « Inviter des amis » (code de parrainage fictif) et le faux fil « Mes échanges » du support ;
-  la Réservation est en pause.
+  lot suivant : retirer le faux fil « Mes échanges » du support (« Inviter des amis », au code de parrainage fictif commun
+  à tous, est gardé pour l'instant sur décision du client) ; la Réservation est en pause.
+* **Publication 134** (go du client, 19 novembre 2026 ; essai à blanc n°133 vert) : le faux fil « Mes échanges » est
+  retiré d'Aide et support (il n'envoyait rien à personne et répondait automatiquement ; le vrai canal est « Contacter le
+  support » du Centre d'aide) et « Nous contacter » prend l'icône courrier. Aucun serveur, règle, paiement ni retrait touché.
