@@ -1673,6 +1673,6 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   terminées, Favoris à 0, Note et Réservations retirées) et la page Favoris est vide sans fausses adresses. Décidé pour le
   lot suivant : retirer le faux fil « Mes échanges » du support (« Inviter des amis », au code de parrainage fictif commun
   à tous, est gardé pour l'instant sur décision du client) ; la Réservation est en pause.
-* **Publication 134** (go du client, 19 novembre 2026 ; essai à blanc n°133 vert) : le faux fil « Mes échanges » est
+* **Publication 134** (en ligne le 19 novembre 2026, run 44433295209, commit `0335375`, 6 jobs verts, APK « 0.1.0 (134) » ; go du client, essai à blanc n°133 vert) : le faux fil « Mes échanges » est
   retiré d'Aide et support (il n'envoyait rien à personne et répondait automatiquement ; le vrai canal est « Contacter le
   support » du Centre d'aide) et « Nous contacter » prend l'icône courrier. Aucun serveur, règle, paiement ni retrait touché.
