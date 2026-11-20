@@ -1,5 +1,5 @@
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -57,12 +57,15 @@ Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
   );
   if (source == null) return null;
   if (source == 'fichier') {
-    final resultat = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
-      withData: true,
-    );
-    return resultat?.files.firstOrNull?.bytes;
+    final fichier = await openFile(acceptedTypeGroups: const [
+      XTypeGroup(
+        label: 'PDF ou image',
+        extensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+        mimeTypes: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+        uniformTypeIdentifiers: ['com.adobe.pdf', 'public.jpeg', 'public.png', 'org.webmproject.webp'],
+      ),
+    ]);
+    return fichier?.readAsBytes();
   }
   final photo = await ImagePicker().pickImage(
     source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
