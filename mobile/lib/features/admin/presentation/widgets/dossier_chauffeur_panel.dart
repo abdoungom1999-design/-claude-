@@ -10,10 +10,18 @@ import '../../data/admin_kyc_service.dart';
 import 'dialogue_sanction.dart';
 import 'visionneuse_document.dart';
 
+/// Pièces demandées aujourd'hui : carte d'identité et carte grise, toujours
+/// affichées (« Non envoyé » tant qu'elles manquent).
 const _documentsKyc = [
-  ('permis', 'Permis de conduire', Icons.badge_outlined),
+  ('carteIdentite', "Carte d'identité", Icons.badge_outlined),
   ('carteGrise', 'Carte grise', Icons.description_outlined),
-  // Clé historique « attestationVtc » : la pièce demandée est l'assurance de la moto.
+];
+
+/// Anciens dossiers (avant la simplification à deux pièces) : ces pièces ne
+/// sont plus demandées, mais elles restent visibles quand elles ont été
+/// envoyées. Clé historique « attestationVtc » : l'assurance de la moto.
+const _documentsKycAnciens = [
+  ('permis', 'Permis de conduire', Icons.badge_outlined),
   ('attestationVtc', 'Assurance moto', Icons.shield_outlined),
 ];
 
@@ -141,6 +149,11 @@ class _DossierChauffeurPanelState extends State<_DossierChauffeurPanel> {
                   _PieceJustificative(label: label, icone: icone, source: c.documents[cle] as String?),
                   const SizedBox(height: 14),
                 ],
+                for (final (cle, label, icone) in _documentsKycAnciens)
+                  if ((c.documents[cle] as String?)?.isNotEmpty ?? false) ...[
+                    _PieceJustificative(label: label, icone: icone, source: c.documents[cle] as String?),
+                    const SizedBox(height: 14),
+                  ],
                 const SizedBox(height: 14),
                 const _TitreSection('Validation du dossier (KYC)'),
                 const SizedBox(height: 12),
@@ -260,7 +273,7 @@ class _EnTete extends StatelessWidget {
 }
 
 /// Changement demandé par le chauffeur (dossier validé) : avant / après,
-/// à comparer avec le permis et la carte grise plus bas.
+/// à comparer avec la pièce d'identité et la carte grise plus bas.
 class _ModificationDemandee extends StatelessWidget {
   const _ModificationDemandee({
     required this.conducteur,
@@ -324,7 +337,7 @@ class _ModificationDemandee extends StatelessWidget {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           const Text(
-            'Comparez avec le permis et la carte grise ci-dessous. Validée, elle devient ce que voient ses clients.',
+            'Comparez avec la carte d\'identité et la carte grise ci-dessous. Validée, elle devient ce que voient ses clients.',
             style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
           ),
           const SizedBox(height: 12),

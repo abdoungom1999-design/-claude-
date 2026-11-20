@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/image_document.dart';
 
 /// Ouvre une pièce justificative en plein écran pour l'audit : zoom
 /// (molette, pincement ou boutons), déplacement, rotation par quart de
-/// tour (photos prises de travers) et retour à l'échelle d'origine.
+/// tour (photos prises de travers) et retour à l'échelle d'origine. Un PDF
+/// s'ouvre dans le lecteur du navigateur ou du téléphone.
 Future<void> ouvrirVisionneuseDocument(
   BuildContext context, {
   required String titre,
   required String source,
 }) {
+  if (estUrlPdf(source)) {
+    return launchUrl(Uri.parse(source), mode: LaunchMode.externalApplication);
+  }
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black,

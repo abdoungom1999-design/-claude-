@@ -98,11 +98,11 @@ void main() {
       expect(find.text('Moussa Diop'), findsOneWidget);
     });
 
-    testWidgets('véhicule et plaque absents : dit "non renseigné", rien d\'inventé', (tester) async {
+    testWidgets('véhicule et plaque absents : véhicule « non renseigné », aucune plaque affichée, rien d\'inventé', (tester) async {
       await tester.pumpWidget(_carte({'nom': 'Awa Fall'}));
       expect(find.text('Awa Fall'), findsOneWidget);
       expect(find.text('Non renseigné'), findsOneWidget);
-      expect(find.text('Plaque non renseignée'), findsOneWidget);
+      expect(find.text('Plaque non renseignée'), findsNothing);
       expect(find.text('Nouveau chauffeur'), findsOneWidget); // pas encore d'avis
     });
 
@@ -227,7 +227,7 @@ void main() {
 
       expect(find.text('Chauffeur Sprint'), findsOneWidget);
       expect(find.text('Non renseigné'), findsOneWidget);
-      expect(find.text('Plaque non renseignée'), findsOneWidget);
+      expect(find.text('Plaque non renseignée'), findsNothing);
     });
   });
 }

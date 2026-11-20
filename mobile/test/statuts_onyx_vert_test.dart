@@ -63,31 +63,43 @@ void main() {
     expect(tester.widget<Icon>(find.byIcon(Icons.pause_circle_outline_rounded)).color, AppColors.vert);
   });
 
-  testWidgets('Dossier KYC : bouton inactif tant que les 3 documents ne sont pas envoyés', (tester) async {
-    await _ecran(tester, _kyc({'permis': 'x'}));
+  testWidgets('Dossier KYC : bouton inactif tant que les 2 documents ne sont pas envoyés', (tester) async {
+    await _ecran(tester, _kyc({'carteIdentite': 'x'}));
 
-    expect(find.text('1 document sur 3 envoyé'), findsOneWidget);
+    expect(find.text('1 document sur 2 envoyé'), findsOneWidget);
     expect(find.text('Envoyé'), findsOneWidget);
-    expect(find.text('Ajouter'), findsNWidgets(2));
+    expect(find.text('Ajouter'), findsNWidgets(1));
     final bouton = find.widgetWithText(ElevatedButton, 'Soumettre mon dossier');
     expect(tester.widget<ElevatedButton>(bouton).onPressed, isNull);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Dossier KYC : la 3e pièce est l\'« Assurance moto » (plus d\'« Attestation VTC »)', (tester) async {
+  testWidgets("Dossier KYC : carte d'identité et carte grise seulement (plus de permis ni d'assurance)", (tester) async {
     await _ecran(tester, _kyc({}));
+    expect(find.text('0 document sur 2 envoyé'), findsOneWidget);
+    expect(find.text("Carte d'identité"), findsOneWidget);
     expect(find.text('Carte grise'), findsOneWidget);
-    expect(find.text('Assurance moto'), findsOneWidget);
+    expect(find.text('Ajouter'), findsNWidgets(2));
+    expect(find.text('Permis de conduire'), findsNothing);
+    expect(find.text('Assurance moto'), findsNothing);
     expect(find.textContaining('VTC'), findsNothing);
   });
 
-  testWidgets('Dossier KYC : les 3 documents envoyés activent la soumission', (tester) async {
+  testWidgets('Dossier KYC : les 2 documents envoyés activent la soumission', (tester) async {
     var soumis = false;
-    await _ecran(tester, _kyc({'permis': 'x', 'carteGrise': 'x', 'attestationVtc': 'x'}, onSoumis: () => soumis = true));
+    await _ecran(tester, _kyc({'carteIdentite': 'x', 'carteGrise': 'x'}, onSoumis: () => soumis = true));
 
-    expect(find.text('3 documents sur 3 envoyés'), findsOneWidget);
+    expect(find.text('2 documents sur 2 envoyés'), findsOneWidget);
     await tester.tap(find.text('Soumettre mon dossier'));
     expect(soumis, isTrue);
+  });
+
+  testWidgets("Dossier KYC : les anciennes pièces (permis, assurance) ne comptent pas à la place de la carte d'identité", (tester) async {
+    await _ecran(tester, _kyc({'permis': 'x', 'carteGrise': 'x', 'attestationVtc': 'x'}));
+
+    expect(find.text('1 document sur 2 envoyé'), findsOneWidget);
+    final bouton = find.widgetWithText(ElevatedButton, 'Soumettre mon dossier');
+    expect(tester.widget<ElevatedButton>(bouton).onPressed, isNull);
   });
 
   testWidgets("Centre d'aide : charte Onyx & Vert, accordéon, aucun débordement à 320 px", (tester) async {

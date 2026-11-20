@@ -3,9 +3,13 @@ rules_version = '2';
 // Règles Firebase Storage du projet Sprint VTC (publiées par la CI dès que
 // Storage est activé, voir FIREBASE_SETUP.md, étape 5).
 //
-// Seules les 4 pièces d'un chauffeur existent, à un emplacement fixe :
-//   kyc_documents/{uid}/permis.jpg | carteGrise.jpg | attestationVtc.jpg
+// Seules les pièces d'un chauffeur existent, à un emplacement fixe :
+//   kyc_documents/{uid}/carteIdentite.jpg | carteGrise.jpg  (photos : JPEG,
+//   PNG ou WebP, le nom .jpg est historique)
+//   | carteIdentite.pdf | carteGrise.pdf  (PDF)
 //   | photoProfil.jpg
+//   | permis.jpg | attestationVtc.jpg  (anciens dossiers : ces deux pièces ne
+//   sont plus demandées, mais un ancien envoi reste possible)
 // Le chauffeur est le seul à pouvoir les écrire, remplacer, relire ou
 // supprimer. L'Admin les affiche via l'URL de téléchargement (jeton
 // secret) enregistrée dans Firestore (`users/{uid}.documents`), lisible par
@@ -19,17 +23,26 @@ service firebase.storage {
       }
 
       function pieceConnue() {
-        return fichier in ['permis.jpg', 'carteGrise.jpg', 'attestationVtc.jpg', 'photoProfil.jpg'];
+        return fichier in ['permis.jpg', 'carteGrise.jpg', 'attestationVtc.jpg', 'photoProfil.jpg',
+                           'carteIdentite.jpg', 'carteIdentite.pdf', 'carteGrise.pdf'];
+      }
+
+      // Le type annoncé par l'app doit correspondre au nom : une photo sous
+      // un nom .jpg, un PDF sous un nom .pdf. Un type absent ou inconnu
+      // (HEIC, texte, page web...) est refusé.
+      function typeCorrespondAuNom() {
+        return (fichier.matches('.*[.]jpg') && request.resource.contentType.matches('image/(jpeg|png|webp)'))
+          || (fichier.matches('.*[.]pdf') && request.resource.contentType == 'application/pdf');
       }
 
       // Pas de liste des fichiers : on lit une pièce précise ou rien.
       allow get: if proprietaire() && pieceConnue();
       allow list: if false;
 
-      // Même plafond que l'app (5 Mo), images uniquement.
+      // Même plafond que l'app (10 Mo) ; photos (JPEG, PNG, WebP) ou PDF.
       allow create, update: if proprietaire() && pieceConnue()
-        && request.resource.size <= 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+        && request.resource.size <= 10 * 1024 * 1024
+        && typeCorrespondAuNom();
 
       allow delete: if proprietaire() && pieceConnue();
     }

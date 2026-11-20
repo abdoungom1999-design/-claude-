@@ -21,6 +21,7 @@ test('decoderDataUri : URL Storage, autre type, base64 vide ou valeur absente �
 
 test('cheminDocument : même emplacement que l\'app et les règles Storage', () => {
   assert.equal(cheminDocument('uid1', 'permis'), 'kyc_documents/uid1/permis.jpg');
+  assert.equal(cheminDocument('uid1', 'carteIdentite'), 'kyc_documents/uid1/carteIdentite.jpg');
 });
 
 test('documentsBase64 : seuls les documents encore encodés, parmi les clés connues', () => {
@@ -29,10 +30,15 @@ test('documentsBase64 : seuls les documents encore encodés, parmi les clés con
       permis: 'data:image/jpeg;base64,AAAA',
       carteGrise: 'https://firebasestorage.googleapis.com/v0/b/x/o/y?alt=media&token=t',
       attestationVtc: 'data:image/jpeg;base64,BBBB',
+      carteIdentite: 'data:image/jpeg;base64,DDDD',
       inconnu: 'data:image/jpeg;base64,CCCC',
     },
   });
-  assert.deepEqual(trouves, { permis: 'data:image/jpeg;base64,AAAA', attestationVtc: 'data:image/jpeg;base64,BBBB' });
+  assert.deepEqual(trouves, {
+    permis: 'data:image/jpeg;base64,AAAA',
+    attestationVtc: 'data:image/jpeg;base64,BBBB',
+    carteIdentite: 'data:image/jpeg;base64,DDDD',
+  });
   assert.deepEqual(documentsBase64({}), {});
   assert.deepEqual(documentsBase64({ documents: 'x' }), {});
 });

@@ -212,6 +212,17 @@ describe('chauffeur 100 % moto : identité et moto', () => {
     await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { telephone: '+221778888888' }));
   });
 
+  test('plaque facultative : inscription chauffeur sans plaque, et demande de modification avec une plaque vide : acceptées', async () => {
+    await assertSucceeds(setDoc(doc(en('nouveau'), 'users', 'nouveau'), {
+      role: 'conducteur', nom: 'Moussa Diop', email: 'nouveau@test.sn', telephone: '+221771111111',
+      statut: 'HORS_LIGNE', estValide: false, vehiculeId: 'Bajaj Boxer 125 Noir',
+      prenom: 'Moussa', nomDeFamille: 'Diop', moto,
+    }));
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: demande({ plaque: '' }) }));
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: deleteField() }));
+    await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: demande({ plaque: 'DK' }) }));
+  });
+
   test('chauffeur validé : demande de modification complète, datée par le serveur ; annulable', async () => {
     await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: demande() }));
     await assertSucceeds(updateDoc(doc(en('chauffeur'), 'users', 'chauffeur'), { modificationDemandee: deleteField() }));
@@ -219,7 +230,8 @@ describe('chauffeur 100 % moto : identité et moto', () => {
     assert.ok(couleur);
     for (const invalide of [
       incomplete,
-      demande({ plaque: 'DK' }),
+      demande({ plaque: 'x'.repeat(16) }),
+      demande({ plaque: 12345 }),
       demande({ prenom: 'x'.repeat(41) }),
       demande({ demandeLe: new Date('2026-01-01') }),
       demande({ statutValidation: 'valide' }),
@@ -1537,7 +1549,7 @@ describe('phase B : l\'app continue comme avant, les abus s\'arrêtent', () => {
   });
 
   describe('pièces du dossier chauffeur', () => {
-    const CLES = ['permis', 'carteGrise', 'attestationVtc', 'photoProfil'];
+    const CLES = ['carteIdentite', 'carteGrise', 'permis', 'attestationVtc', 'photoProfil'];
 
     test('envois réels de l\'app (adresse Storage ou image encodée, avec statutValidation) : acceptés', async () => {
       const ref = doc(en('enAttente'), 'users', 'enAttente');
@@ -1547,6 +1559,21 @@ describe('phase B : l\'app continue comme avant, les abus s\'arrêtent', () => {
       // Repli quand Storage est indisponible : jusqu'à 700 Ko avant encodage, environ 955 000 signes.
       const image = 'data:image/jpeg;base64,' + 'A'.repeat(955000);
       await assertSucceeds(updateDoc(ref, { 'documents.permis': image, statutValidation: 'en_attente' }));
+    });
+
+    test('PDF : l\'adresse Storage d\'un PDF est acceptée pour la carte d\'identité et la carte grise', async () => {
+      const ref = doc(en('enAttente'), 'users', 'enAttente');
+      const pdf = (cle) => adresseStorage('enAttente', cle).replace(`${cle}.jpg`, `${cle}.pdf`);
+      await assertSucceeds(updateDoc(ref, { 'documents.carteIdentite': pdf('carteIdentite'), statutValidation: 'en_attente' }));
+      await assertSucceeds(updateDoc(ref, { 'documents.carteGrise': pdf('carteGrise'), statutValidation: 'en_attente' }));
+      // Un PDF ne se range jamais sous forme d'image encodée.
+      await assertFails(updateDoc(ref, { 'documents.carteIdentite': 'data:application/pdf;base64,JVBERi0=', statutValidation: 'en_attente' }));
+    });
+
+    test('un dossier envoie les deux pièces d\'un nouveau parcours en deux écritures successives : acceptées', async () => {
+      const ref = doc(en('enAttente'), 'users', 'enAttente');
+      await assertSucceeds(updateDoc(ref, { 'documents.carteIdentite': adresseStorage('enAttente', 'carteIdentite'), statutValidation: 'en_attente' }));
+      await assertSucceeds(updateDoc(ref, { 'documents.carteGrise': adresseStorage('enAttente', 'carteGrise'), statutValidation: 'en_attente' }));
     });
 
     test('chauffeur validé qui renouvelle une pièce : accepté', async () => {
@@ -1573,6 +1600,9 @@ describe('phase B : l\'app continue comme avant, les abus s\'arrêtent', () => {
       const valide = adresseStorage('enAttente', 'permis');
       const refusees = [
         { 'documents.pirate': valide },
+        { 'documents.carteIdentite': 'https://exemple.sn/pixel.gif' },
+        { 'documents.carteIdentite': 'data:text/html;base64,PGgxPmhpPC9oMT4=' },
+        { 'documents.carteIdentite': 'data:application/pdf;base64,JVBERi0=' },
         { 'documents.permis': 'https://exemple.sn/pixel.gif' },
         { 'documents.permis': 'http://firebasestorage.googleapis.com/v0/b/x/o/y?alt=media' },
         { 'documents.permis': 'https://firebasestorage.googleapis.com.exemple.sn/v0/b/x/o/y' },

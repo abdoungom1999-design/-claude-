@@ -71,11 +71,15 @@ côté Admin, etc. restent sur les données de démonstration
 suivante ; la migration des pièces déjà envoyées en Base64 se lance ensuite
 depuis Admin > Paramètres (voir plus bas).
 
-Les documents chauffeur (permis, carte grise, assurance moto — clé
-historique `attestationVtc`, libellé « Attestation VTC » jusqu'à la
-publication 118 —, photo de profil) partent dans Firebase Storage
-(`kyc_documents/{uid}/{document}.jpg`), et seule leur URL est gardée
-dans Firestore. **Tant que Storage n'est pas activé, l'app retombe
+Les documents chauffeur (carte d'identité — clé `carteIdentite` —, carte
+grise, photo de profil ; et, pour les dossiers envoyés avant la
+simplification à deux pièces, permis et assurance moto — clé historique
+`attestationVtc`) partent dans Firebase Storage
+(`kyc_documents/{uid}/{document}.jpg` pour une photo JPEG, PNG ou WebP,
+`{document}.pdf` pour un PDF de la carte d'identité ou de la carte grise,
+10 Mo au plus), avec leur type réel, et seule leur URL est gardée dans
+Firestore. Un envoi qui échoue affiche son code précis (`storage/…`,
+`firestore/…`) au lieu d'un message muet. **Tant que Storage n'est pas activé, l'app retombe
 automatiquement sur le stockage Base64 dans Firestore** (plafond 700 Ko
 par pièce) : rien ne casse, mais la migration n'est pas effective. La CI
 vérifie à chaque déploiement si le bucket existe et le signale par un
@@ -132,8 +136,8 @@ Bornes ajoutées à la phase B de la sécurité (13 novembre 2026), sans rien
 changer à ce que l'app envoie : message de chat de 2000 signes au plus avec
 l'heure du serveur (l'app limite la saisie à 1000), temps en ligne réservé au
 chauffeur actif, pièces du dossier chauffeur réservées aux comptes chauffeur
-(permis, carte grise, attestation, photo ; adresse Firebase Storage ou image
-encodée), nom jusqu'à 200 signes et téléphone jusqu'à 60.
+(carte d'identité, carte grise, photo, et les deux anciennes pièces ; adresse
+Firebase Storage ou image encodée), nom jusqu'à 200 signes et téléphone jusqu'à 60.
 
 **L'ordre compte** : l'app doit être déployée *avant* de publier les
 règles (l'ancienne version de l'app lisait des données que ces règles
@@ -186,7 +190,7 @@ depuis la Console.
   `InformationsPersonnellesChauffeurPage`, même parcours que côté client)
   tant que son dossier n'est pas validé ; ensuite, ses clients les voyant,
   il envoie une demande (`modificationDemandee`, complète, bornée, datée
-  par le serveur) que l'Admin compare avec le permis et la carte grise
+  par le serveur) que l'Admin compare avec la carte d'identité et la carte grise
   (Dossier chauffeur › « Valider la modification » ou « Refuser » ;
   `modificationRefuseeLe` informe le chauffeur pendant un mois). Il peut
   annuler sa demande ; revenir à ses informations vérifiées la retire.

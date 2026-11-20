@@ -3,10 +3,24 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+/// L'adresse de téléchargement est celle d'un PDF (envoyé sous `{cle}.pdf`
+/// dans Firebase Storage).
+bool estUrlPdf(String? source) {
+  if (source == null || source.startsWith('data:')) return false;
+  final chemin = Uri.tryParse(source)?.path;
+  if (chemin == null) return false;
+  try {
+    return Uri.decodeComponent(chemin).toLowerCase().endsWith('.pdf');
+  } on ArgumentError {
+    return false;
+  }
+}
+
 /// Affiche une photo de document chauffeur, quel que soit son format de
 /// stockage : URL Firebase Storage (format actuel) ou data URI Base64
 /// (repli, et documents envoyés avant la migration vers Storage — voir
-/// `ConducteurDocumentsService`).
+/// `ConducteurDocumentsService`). Un PDF ne s'affiche pas en image : une
+/// pastille « Document PDF » le représente (l'Admin l'ouvre en plein écran).
 class ImageDocument extends StatelessWidget {
   const ImageDocument({
     super.key,
@@ -27,6 +41,23 @@ class ImageDocument extends StatelessWidget {
   Widget build(BuildContext context) {
     final valeur = source;
     if (valeur == null || valeur.isEmpty) return placeholder;
+
+    if (estUrlPdf(valeur)) {
+      return SizedBox(
+        width: width,
+        height: height,
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.picture_as_pdf_outlined, color: AppColors.vert, size: 40),
+              SizedBox(height: 8),
+              Text('Document PDF', style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret)),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (valeur.startsWith('data:')) {
       try {

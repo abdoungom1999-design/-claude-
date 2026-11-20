@@ -204,9 +204,11 @@ String? validerChampMoto(String? saisie, {required String champ}) {
   return null;
 }
 
-/// Plaque : 4 à 15 caractères, lettres, chiffres, espaces et tirets.
+/// Plaque, FACULTATIVE (elle n'est plus demandée à l'inscription) : vide, ou
+/// 4 à 15 caractères, lettres, chiffres, espaces et tirets.
 String? validerPlaque(String? saisie) {
   final v = normaliserPlaque(saisie ?? '');
+  if (v.isEmpty) return null;
   if (v.length < 4 || v.length > 15 || !RegExp(r'^[A-Z0-9][A-Z0-9 -]*$').hasMatch(v)) {
     return 'Plaque invalide (ex : DK-1234-AB).';
   }

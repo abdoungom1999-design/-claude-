@@ -161,7 +161,7 @@ class _Identite extends StatelessWidget {
             final etroit = contraintes.maxWidth < 300;
             final vehiculeEtPlaque = [
               Expanded(child: _Vehicule(vehicule: vehicule)),
-              if (!etroit) ...[const SizedBox(width: 10), _Plaque(plaque: plaque)],
+              if (!etroit && plaque != null) ...[const SizedBox(width: 10), _Plaque(plaque: plaque)],
             ];
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +178,7 @@ class _Identite extends StatelessWidget {
                     ...vehiculeEtPlaque,
                   ],
                 ),
-                if (etroit) ...[
+                if (etroit && plaque != null) ...[
                   const SizedBox(height: 12),
                   _Plaque(plaque: plaque),
                 ],
@@ -218,8 +218,9 @@ class _Vehicule extends StatelessWidget {
   }
 }
 
-/// Plaque d'immatriculation : la première chose que le client vérifie
-/// quand la moto arrive.
+/// Plaque d'immatriculation, affichée seulement quand le chauffeur l'a
+/// renseignée (elle n'est plus demandée à l'inscription : rien n'est affiché
+/// à la place, pour ne pas inquiéter le client).
 class _Plaque extends StatelessWidget {
   const _Plaque({required this.plaque});
 
@@ -227,9 +228,7 @@ class _Plaque extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (plaque == null) {
-      return const Text('Plaque non renseignée', style: TextStyle(fontSize: 12, color: AppColors.texteDiscret));
-    }
+    if (plaque == null) return const SizedBox.shrink();
     return Semantics(
       label: 'Plaque $plaque',
       child: Container(

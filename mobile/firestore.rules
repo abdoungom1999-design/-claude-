@@ -59,10 +59,11 @@ service cloud.firestore {
       return texteBorne(v, 0, 60);
     }
 
-    // Une pièce du dossier chauffeur (permis, carte grise, attestation, photo)
-    // est soit l'adresse de téléchargement Firebase Storage (cas normal), soit
-    // une image encodée (repli de l'app quand Storage est indisponible, 700 Ko
-    // au plus avant encodage). Jamais une adresse extérieure : l'Admin ouvre
+    // Une pièce du dossier chauffeur (carte d'identité, carte grise, photo ; et
+    // permis, attestation pour les anciens dossiers) est soit l'adresse de
+    // téléchargement Firebase Storage (cas normal, photo ou PDF), soit une
+    // image encodée (repli de l'app pour les photos quand Storage est
+    // indisponible, 700 Ko au plus avant encodage). Jamais une adresse extérieure : l'Admin ouvre
     // ces images en consultant le dossier.
     function pieceValide(v) {
       return v is string
@@ -74,15 +75,17 @@ service cloud.firestore {
       return !(cle in touchees) || !(cle in documents) || pieceValide(documents[cle]);
     }
 
-    // Envoi de pièces : réservé à un compte chauffeur, aux quatre pièces que
-    // l'app envoie, chacune bien formée. Seules les pièces de CETTE écriture
+    // Envoi de pièces : réservé à un compte chauffeur, aux pièces que l'app
+    // envoie (carte d'identité, carte grise, photo de profil, et les deux
+    // anciennes pièces), chacune bien formée. Seules les pièces de CETTE écriture
     // sont contrôlées : une ancienne pièce ne bloque jamais un nouvel envoi.
     function piecesDossierValides(avant, apres) {
       let documents = apres.get('documents', {});
       let touchees = documents.diff(avant.get('documents', {})).affectedKeys();
       return avant.get('role', '') == 'conducteur'
         && documents is map
-        && touchees.hasOnly(['permis', 'carteGrise', 'attestationVtc', 'photoProfil'])
+        && touchees.hasOnly(['permis', 'carteGrise', 'attestationVtc', 'carteIdentite', 'photoProfil'])
+        && pieceEnvoyeeValide(documents, touchees, 'carteIdentite')
         && pieceEnvoyeeValide(documents, touchees, 'permis')
         && pieceEnvoyeeValide(documents, touchees, 'carteGrise')
         && pieceEnvoyeeValide(documents, touchees, 'attestationVtc')
@@ -122,7 +125,7 @@ service cloud.firestore {
         && d.keys().hasAll(['prenom', 'nomDeFamille', 'marque', 'modele', 'couleur', 'plaque', 'demandeLe'])
         && texteBorne(d.prenom, 2, 40) && texteBorne(d.nomDeFamille, 2, 40)
         && texteBorne(d.marque, 1, 30) && texteBorne(d.modele, 1, 30) && texteBorne(d.couleur, 1, 30)
-        && texteBorne(d.plaque, 4, 15)
+        && texteBorne(d.plaque, 0, 15)
         && d.demandeLe == request.time;
     }
 

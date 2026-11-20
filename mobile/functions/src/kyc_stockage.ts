@@ -5,8 +5,8 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { verifierAdmin } from './admin';
 
 /**
- * Migration des pièces KYC des chauffeurs (permis, carte grise, attestation
- * VTC, photo de profil) du repli « image Base64 dans Firestore » vers
+ * Migration des pièces KYC des chauffeurs (carte d'identité, carte grise, photo
+ * de profil ; permis et attestation pour les anciens dossiers) du repli « image Base64 dans Firestore » vers
  * Firebase Storage.
  *
  * Les documents déjà dans Storage (valeur `https://…`) ne sont jamais
@@ -18,7 +18,7 @@ import { verifierAdmin } from './admin';
  * chauffeur qui renvoie une pièce pendant la migration garde la sienne).
  */
 
-export const CLES_DOCUMENTS = ['permis', 'carteGrise', 'attestationVtc', 'photoProfil'] as const;
+export const CLES_DOCUMENTS = ['carteIdentite', 'carteGrise', 'permis', 'attestationVtc', 'photoProfil'] as const;
 
 /** Même plafond que les règles Storage (`storage.rules`). */
 export const TAILLE_MAX_OCTETS = 5 * 1024 * 1024;

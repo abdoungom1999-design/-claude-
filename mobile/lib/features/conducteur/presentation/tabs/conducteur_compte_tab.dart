@@ -118,19 +118,10 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
           const SnackBar(content: Text('Document envoyé pour vérification.')),
         );
       }
-    } on DocumentTropVolumineuxException {
+    } on Object catch (e) {
+      // Plus d'échec muet : la cause (taille, format, code technique) est dite.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cette photo est trop volumineuse. Choisissez-en une plus légère.'),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Échec de l'envoi. Réessayez.")),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreurEnvoi(e))));
       }
     } finally {
       if (mounted) setState(() => _enCoursTeleversement.remove(cle));
@@ -190,7 +181,7 @@ class _ConducteurCompteTabState extends State<ConducteurCompteTab> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                fiche.motoEtPlaque.isNotEmpty ? fiche.motoEtPlaque : 'Ajoutez votre moto et sa plaque',
+                                fiche.motoEtPlaque.isNotEmpty ? fiche.motoEtPlaque : 'Ajoutez votre moto',
                                 key: const ValueKey('moto-chauffeur'),
                                 style: TextStyle(
                                   fontSize: 13,

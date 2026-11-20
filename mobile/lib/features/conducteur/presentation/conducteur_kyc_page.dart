@@ -1,5 +1,8 @@
+
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
@@ -8,7 +11,66 @@ import '../../../core/widgets/onyx_vert.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/conducteur_documents_service.dart';
 
-const _documentsRequis = ['permis', 'carteGrise', 'attestationVtc'];
+/// Les deux pièces demandées à un nouveau chauffeur. Les anciennes clés
+/// (`permis`, `attestationVtc`) ne sont plus demandées mais restent lisibles
+/// dans les dossiers déjà envoyés.
+const documentsKycRequis = ['carteIdentite', 'carteGrise'];
+
+/// Choix d'une pièce : photo (appareil photo ou galerie, compressée par le
+/// téléphone) ou fichier (PDF, ou image prise dans les fichiers). Renvoie les
+/// octets, ou `null` si la personne annule.
+typedef ChoisirPiece = Future<Uint8List?> Function(BuildContext context);
+
+/// Photo : redimensionnée et compressée par le téléphone AVANT l'envoi (1600 px,
+/// qualité 75 : lisible pour une carte d'identité, en général moins de 700 Ko,
+/// donc rapide sur 4G). Le sélecteur de photos convertit lui-même les HEIC
+/// de l'iPhone en JPEG.
+Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
+  final source = await showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: AppColors.carte,
+    builder: (contexte) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            key: const ValueKey('source-camera'),
+            leading: const Icon(Icons.photo_camera_outlined, color: AppColors.vert),
+            title: const Text('Prendre une photo'),
+            onTap: () => Navigator.of(contexte).pop('camera'),
+          ),
+          ListTile(
+            key: const ValueKey('source-galerie'),
+            leading: const Icon(Icons.photo_library_outlined, color: AppColors.vert),
+            title: const Text('Choisir une photo'),
+            onTap: () => Navigator.of(contexte).pop('galerie'),
+          ),
+          ListTile(
+            key: const ValueKey('source-fichier'),
+            leading: const Icon(Icons.attach_file_rounded, color: AppColors.vert),
+            title: const Text('Choisir un fichier (PDF ou image)'),
+            onTap: () => Navigator.of(contexte).pop('fichier'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (source == null) return null;
+  if (source == 'fichier') {
+    final resultat = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+      withData: true,
+    );
+    return resultat?.files.firstOrNull?.bytes;
+  }
+  final photo = await ImagePicker().pickImage(
+    source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+    maxWidth: 1600,
+    imageQuality: 75,
+  );
+  return photo?.readAsBytes();
+}
 
 /// Page obligatoire affichée juste après la création du compte
 /// Conducteur, avant tout accès au tableau de bord (voir le "Gardien"
@@ -28,9 +90,12 @@ class ConducteurKYCPage extends StatefulWidget {
     required this.onDossierSoumis,
     required this.onDeconnexion,
     this.fluxProfil,
+    this.choisirPiece,
+    this.service,
+    this.uid,
   });
 
-  /// Appelé une fois les 3 documents envoyés et le bouton "Soumettre
+  /// Appelé une fois les 2 documents envoyés et le bouton "Soumettre
   /// mon dossier" pressé : fait passer [ConducteurShellPage] à l'écran
   /// d'attente directement, sans recharger tout le profil.
   final VoidCallback onDossierSoumis;
@@ -40,48 +105,47 @@ class ConducteurKYCPage extends StatefulWidget {
   /// connecté. Sert aux tests et aux aperçus, sans projet Firebase.
   final Stream<Map<String, dynamic>?>? fluxProfil;
 
+  /// Injectables pour les tests : choix de la pièce, envoi, identifiant du compte.
+  final ChoisirPiece? choisirPiece;
+  final ConducteurDocumentsService? service;
+  final String? uid;
+
   @override
   State<ConducteurKYCPage> createState() => _ConducteurKYCPageState();
 }
 
 class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
   final _authRepository = AuthRepository();
-  final _documentsService = ConducteurDocumentsService();
-  final _imagePicker = ImagePicker();
+  late final ConducteurDocumentsService _documentsService = widget.service ?? ConducteurDocumentsService();
   final Set<String> _enCoursTeleversement = {};
 
-  /// Ouvre la galerie, compresse l'image (voir la note de
-  /// [ConducteurDocumentsService]) et l'envoie sous la clé [cle]
-  /// ('permis', 'carteGrise' ou 'attestationVtc').
+  void _annoncer(String message) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Choisit la pièce (photo ou fichier) puis l'envoie sous la clé [cle]
+  /// ('carteIdentite' ou 'carteGrise'). Plus d'échec muet : un refus, un format
+  /// non pris en charge ou un incident technique est dit clairement, avec le
+  /// code précis de la cause quand il est technique.
   Future<void> _choisirEtTeleverser(String cle) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = widget.uid ?? FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final fichier = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      imageQuality: 40,
-    );
-    if (fichier == null || !mounted) return;
+    Uint8List? octets;
+    try {
+      octets = await (widget.choisirPiece ?? choisirPieceReelle)(context);
+    } on Object catch (e) {
+      final code = e is PlatformException ? e.code : e.runtimeType.toString();
+      _annoncer(messageErreurEnvoi(EchecEnvoiPieceException('selection/$code', cause: e)));
+      return;
+    }
+    if (octets == null || !mounted) return;
 
     setState(() => _enCoursTeleversement.add(cle));
     try {
-      final octets = await fichier.readAsBytes();
       await _documentsService.televerserDocument(uid: uid, cle: cle, octets: octets);
-    } on DocumentTropVolumineuxException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cette photo est trop volumineuse. Choisissez-en une plus légère.'),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Échec de l'envoi. Réessayez.")),
-        );
-      }
+    } on Object catch (e) {
+      _annoncer(messageErreurEnvoi(e));
     } finally {
       if (mounted) setState(() => _enCoursTeleversement.remove(cle));
     }
@@ -100,8 +164,8 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
             stream: widget.fluxProfil ?? _authRepository.profilUtilisateurStream(),
             builder: (context, snapshot) {
               final documents = (snapshot.data?['documents'] as Map<String, dynamic>?) ?? {};
-              final nbEnvoyes = _documentsRequis.where((cle) => _envoye(cle, documents)).length;
-              final tousEnvoyes = nbEnvoyes == _documentsRequis.length;
+              final nbEnvoyes = documentsKycRequis.where((cle) => _envoye(cle, documents)).length;
+              final tousEnvoyes = nbEnvoyes == documentsKycRequis.length;
 
               return Center(
                 child: ConstrainedBox(
@@ -115,12 +179,12 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
                       const SizedBox(height: 10),
                       const Text(
                         'Avant de prendre votre première course, envoyez une photo lisible '
-                        "de chacun de ces documents. L'équipe du Groupe Santine les vérifie "
-                        "avant d'activer votre compte.",
+                        "ou un PDF de chacun de ces documents. L'équipe du Groupe Santine les "
+                        "vérifie avant d'activer votre compte.",
                         style: TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.5),
                       ),
                       const SizedBox(height: 22),
-                      _ProgressionDossier(envoyes: nbEnvoyes, total: _documentsRequis.length),
+                      _ProgressionDossier(envoyes: nbEnvoyes, total: documentsKycRequis.length),
                       const SizedBox(height: 14),
                       AppCard(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -128,10 +192,10 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
                           children: [
                             _LigneDocumentKyc(
                               icon: Icons.badge_outlined,
-                              label: 'Permis de conduire',
-                              envoye: _envoye('permis', documents),
-                              enCours: _enCoursTeleversement.contains('permis'),
-                              onTap: () => _choisirEtTeleverser('permis'),
+                              label: "Carte d'identité",
+                              envoye: _envoye('carteIdentite', documents),
+                              enCours: _enCoursTeleversement.contains('carteIdentite'),
+                              onTap: () => _choisirEtTeleverser('carteIdentite'),
                             ),
                             const _SeparateurKyc(),
                             _LigneDocumentKyc(
@@ -140,15 +204,6 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
                               envoye: _envoye('carteGrise', documents),
                               enCours: _enCoursTeleversement.contains('carteGrise'),
                               onTap: () => _choisirEtTeleverser('carteGrise'),
-                            ),
-                            const _SeparateurKyc(),
-                            _LigneDocumentKyc(
-                              icon: Icons.shield_outlined,
-                              // Clé historique « attestationVtc » : assurance de la moto.
-                              label: 'Assurance moto',
-                              envoye: _envoye('attestationVtc', documents),
-                              enCours: _enCoursTeleversement.contains('attestationVtc'),
-                              onTap: () => _choisirEtTeleverser('attestationVtc'),
                             ),
                           ],
                         ),

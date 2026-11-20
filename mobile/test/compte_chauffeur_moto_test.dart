@@ -91,8 +91,12 @@ void main() {
       expect(validerChampMoto('x' * 31, champ: 'Modèle'), contains('30'));
       expect(validerPlaque('DK-1234-AB'), isNull);
       expect(validerPlaque('dk 1234 ab'), isNull);
-      for (final invalide in ['DK', 'DK-1234-AB-0000000', 'DK_1234', '']) {
+      for (final invalide in ['DK', 'DK-1234-AB-0000000', 'DK_1234']) {
         expect(validerPlaque(invalide), isNotNull, reason: invalide);
+      }
+      // Facultative : vide ou espaces seulement, c'est valable.
+      for (final vide in ['', '   ', null]) {
+        expect(validerPlaque(vide), isNull, reason: '$vide');
       }
     });
 
@@ -253,7 +257,7 @@ void main() {
     testWidgets('ancien compte au nom saisi en minuscules : affiché en majuscules initiales ; moto à compléter', (tester) async {
       await ouvrir(tester, {'nom': 'lueur dell', 'telephone': '+221 77 1', 'statutValidation': 'valide'});
       expect(find.text('Lueur Dell'), findsOneWidget);
-      expect(find.text('Ajoutez votre moto et sa plaque'), findsOneWidget);
+      expect(find.text('Ajoutez votre moto'), findsOneWidget);
     });
 
     testWidgets('« Plus » : Centre d\'aide, Paramètres, puis « Informations personnelles » (3e ligne) ; rien d\'autre', (tester) async {
@@ -337,7 +341,7 @@ void main() {
 
       expect(find.widgetWithText(AppBar, 'Informations personnelles'), findsOneWidget);
       expect(find.text('M'), findsOneWidget); // initiale dans l'avatar
-      final libelles = ['Prénom *', 'Nom *', 'Email', 'Téléphone', 'Ma moto', 'Marque *', 'Modèle *', 'Couleur *', "Plaque d'immatriculation *"];
+      final libelles = ['Prénom *', 'Nom *', 'Email', 'Téléphone', 'Ma moto', 'Marque *', 'Modèle *', 'Couleur *', "Plaque d'immatriculation (facultatif)"];
       final hauteurs = [for (final l in libelles) tester.getTopLeft(find.text(l)).dy];
       for (var i = 1; i < hauteurs.length; i++) {
         expect(hauteurs[i] > hauteurs[i - 1], isTrue, reason: '${libelles[i - 1]} puis ${libelles[i]}');
@@ -493,7 +497,7 @@ void main() {
   });
 
   group('inscription chauffeur 100 % moto', () {
-    testWidgets('étape « Votre moto » : marque, modèle, couleur, plaque ; plus de voiture (Peugeot) ni d\'année', (tester) async {
+    testWidgets('étape « Votre moto » : marque, modèle, couleur, sans plaque ; plus de voiture (Peugeot) ni d\'année', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -507,9 +511,13 @@ void main() {
       await tester.tap(find.text('Suivant'));
       await tester.pumpAndSettle();
       expect(find.text('Votre moto'), findsOneWidget);
-      for (final libelle in ['Marque', 'Modèle', 'Couleur', "Plaque d'immatriculation"]) {
+      for (final libelle in ['Marque', 'Modèle', 'Couleur']) {
         expect(find.text(libelle), findsOneWidget, reason: libelle);
       }
+      // Plus de plaque à l'inscription (champ et mention du sous-titre retirés).
+      expect(find.text("Plaque d'immatriculation"), findsNothing);
+      expect(find.textContaining('plaque'), findsNothing);
+      expect(find.textContaining('reconnaîtront à sa description.'), findsOneWidget);
       expect(find.text('Ex : Bajaj'), findsOneWidget);
       expect(find.textContaining('Peugeot'), findsNothing);
       expect(find.textContaining('Année'), findsNothing);
@@ -519,7 +527,8 @@ void main() {
       await tester.tap(find.text('Créer mon compte'));
       await tester.pump();
       expect(find.text('Marque requis.'), findsOneWidget);
-      expect(find.text('Plaque invalide (ex : DK-1234-AB).'), findsOneWidget);
+      expect(find.text('Couleur requis.'), findsOneWidget);
+      expect(find.textContaining('Plaque'), findsNothing);
     });
 
     testWidgets('prénom ou nom fantaisistes refusés dès la première étape', (tester) async {

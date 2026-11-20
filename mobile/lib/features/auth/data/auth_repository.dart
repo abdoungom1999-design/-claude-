@@ -195,7 +195,7 @@ class AuthRepository {
     required String telephone,
     required String motDePasse,
     required String vehiculeId,
-    required String plaqueImmatriculation,
+    String? plaqueImmatriculation,
     String? prenom,
     String? nomDeFamille,
     Map<String, String>? moto,
@@ -206,7 +206,7 @@ class AuthRepository {
         nom: nom,
         telephone: telephone,
         vehiculeId: vehiculeId,
-        plaqueImmatriculation: plaqueImmatriculation,
+        plaqueImmatriculation: plaqueImmatriculation ?? '',
       );
       return;
     }
@@ -222,7 +222,9 @@ class AuthRepository {
         'email': identifiants.user!.email ?? email,
         'telephone': telephone,
         'vehiculeId': vehiculeId,
-        'plaqueImmatriculation': plaqueImmatriculation,
+        // La plaque n'est plus demandée à l'inscription : le champ n'est écrit que s'il est fourni.
+        if (plaqueImmatriculation != null && plaqueImmatriculation.isNotEmpty)
+          'plaqueImmatriculation': plaqueImmatriculation,
         if (prenom != null) 'prenom': prenom,
         if (nomDeFamille != null) 'nomDeFamille': nomDeFamille,
         if (moto != null) 'moto': moto,

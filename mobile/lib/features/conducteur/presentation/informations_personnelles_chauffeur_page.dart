@@ -130,7 +130,7 @@ class _InformationsPersonnellesChauffeurPageState extends State<InformationsPers
         ResultatFiche.enregistre => ('Informations mises à jour', 'Vos informations personnelles ont bien été enregistrées.'),
         ResultatFiche.aVerifier => (
             'Modification envoyée',
-            'Sprint vérifie votre nom, votre moto ou votre plaque avec vos pièces (permis, carte grise). '
+            'Sprint vérifie votre nom, votre moto ou votre plaque avec vos pièces (carte d\'identité, carte grise). '
                 'Vos clients verront le changement dès sa validation.'
                 '${telephoneChange ? ' Votre téléphone, lui, est déjà à jour.' : ''}',
           ),
@@ -222,7 +222,7 @@ class _InformationsPersonnellesChauffeurPageState extends State<InformationsPers
                               prefixIcon: Icons.person_outline,
                               validator: (v) => validerNomPropre(v, champ: 'Nom'),
                             ),
-                            _noteSousChamp('Comme sur votre permis de conduire : c\'est le nom que voient vos clients.'),
+                            _noteSousChamp('Comme sur votre carte d\'identité : c\'est le nom que voient vos clients.'),
                             const SizedBox(height: 14),
                             AppTextField(
                               key: const ValueKey('champ-email'),
@@ -283,7 +283,7 @@ class _InformationsPersonnellesChauffeurPageState extends State<InformationsPers
                             const SizedBox(height: 14),
                             AppTextField(
                               key: const ValueKey('champ-plaque'),
-                              label: "Plaque d'immatriculation *",
+                              label: "Plaque d'immatriculation (facultatif)",
                               hint: 'Ex : DK-1234-AB',
                               controller: _plaque,
                               prefixIcon: Icons.pin_outlined,

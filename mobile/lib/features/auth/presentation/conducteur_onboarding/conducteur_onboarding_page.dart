@@ -49,7 +49,6 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
   final _marqueController = TextEditingController();
   final _modeleController = TextEditingController();
   final _couleurController = TextEditingController();
-  final _plaqueController = TextEditingController();
 
   @override
   void dispose() {
@@ -62,7 +61,6 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
     _marqueController.dispose();
     _modeleController.dispose();
     _couleurController.dispose();
-    _plaqueController.dispose();
     super.dispose();
   }
 
@@ -100,7 +98,6 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
         telephone: _telephoneController.text.trim(),
         motDePasse: _motDePasseController.text,
         vehiculeId: moto.description,
-        plaqueImmatriculation: normaliserPlaque(_plaqueController.text),
         prenom: prenom,
         nomDeFamille: nomDeFamille,
         moto: moto.versFirestore(),
@@ -172,7 +169,6 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
                           marqueController: _marqueController,
                           modeleController: _modeleController,
                           couleurController: _couleurController,
-                          plaqueController: _plaqueController,
                         ),
                     },
                   ),
@@ -338,14 +334,12 @@ class _EtapeMoto extends StatelessWidget {
     required this.marqueController,
     required this.modeleController,
     required this.couleurController,
-    required this.plaqueController,
   });
 
   final GlobalKey<FormState> formKey;
   final TextEditingController marqueController;
   final TextEditingController modeleController;
   final TextEditingController couleurController;
-  final TextEditingController plaqueController;
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +351,7 @@ class _EtapeMoto extends StatelessWidget {
           const _EnTeteEtape(
             titre: 'Votre moto',
             sousTitre: 'La moto avec laquelle vous ferez vos courses. Vos clients la reconnaîtront à sa '
-                'description et à sa plaque.',
+                'description.',
           ),
           const SizedBox(height: 22),
           Row(
@@ -391,14 +385,6 @@ class _EtapeMoto extends StatelessWidget {
             controller: couleurController,
             prefixIcon: Icons.palette_outlined,
             validator: (v) => validerChampMoto(v, champ: 'Couleur'),
-          ),
-          const SizedBox(height: 14),
-          AppTextField(
-            label: "Plaque d'immatriculation",
-            hint: 'Ex : DK-1234-AB',
-            controller: plaqueController,
-            prefixIcon: Icons.pin_outlined,
-            validator: validerPlaque,
           ),
         ],
       ),
