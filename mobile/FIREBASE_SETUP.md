@@ -1680,3 +1680,13 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
 * **Publication 134** (en ligne le 19 novembre 2026, run 44433295209, commit `0335375`, 6 jobs verts, APK « 0.1.0 (134) » ; go du client, essai à blanc n°133 vert) : le faux fil « Mes échanges » est
   retiré d'Aide et support (il n'envoyait rien à personne et répondait automatiquement ; le vrai canal est « Contacter le
   support » du Centre d'aide) et « Nous contacter » prend l'icône courrier. Aucun serveur, règle, paiement ni retrait touché.
+* **Publication 138** (go du client, 20 novembre 2026 ; essai à blanc n°137 vert, après les essais 135 et 136 en échec
+  pour `file_picker`, remplacé par `file_selector`) : dossier chauffeur simplifié. L'étape « Votre moto » n'a plus de plaque
+  (facultative partout : inscription, profil, demande de modification) ; deux pièces seulement, la carte d'identité
+  (clé `carteIdentite`) et la carte grise (clé `carteGrise` conservée), le permis et l'assurance restant visibles dans les
+  anciens dossiers ; envoi d'une photo (JPEG, PNG, WebP) ou d'un PDF, 10 Mo au plus, avec le type réel reconnu d'après le
+  contenu, et l'échec d'un envoi affiche son code précis (`storage/…`, `firestore/…`, `selection/…`). Règles Storage :
+  photos sous `.jpg`, PDF sous `.pdf` (carte d'identité et carte grise), type conforme au nom, 10 Mo ; règles Firestore :
+  `carteIdentite` ajoutée aux pièces, plaque de la demande de modification de 0 à 15 signes. Contrôlé par sabotage.
+  Les anciens APK restent compatibles (les règles acceptent toujours les anciennes pièces). À venir : lot « Conditions
+  d'utilisation » (phrase sur le permis de conduire).
