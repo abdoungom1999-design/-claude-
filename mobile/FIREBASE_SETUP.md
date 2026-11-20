@@ -1693,7 +1693,7 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   assurance valide requises pour l'exercice de son activité au Sénégal, et à fournir une pièce d'identité ainsi que la
   carte grise du véhicule déclaré » (l'assurance reste un engagement contractuel, sans être demandée comme pièce) ; le
   sous-titre de l'inscription chauffeur parle de la carte d'identité.
-* **Activation du chauffeur sans reconnexion** (publication 142, go du client, 20 novembre 2026 ; essai à blanc n°141 vert) : l'écran « Dossier en cours de
+* **Activation du chauffeur sans reconnexion** (**en ligne** : publication 142, run 44694111175, commit `e4b8b5c`, 6 jobs verts, APK « 0.1.0 (142) » ; go du client, essai à blanc n°141 vert) : l'écran « Dossier en cours de
   vérification » écoute en direct le profil du chauffeur (`users/{uid}.statutValidation`). Dès que l'Admin approuve
   (`valide`), il se transforme en célébration (étapes illuminées, halo du logo, confettis dorés et verts, « Félicitations !
   Votre compte chauffeur Sprint est activé »), puis l'espace chauffeur s'ouvre tout seul au bout d'environ 2,5 secondes ou
