@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { setGlobalOptions } from 'firebase-functions/v2';
+import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret, type SecretParam } from 'firebase-functions/params';
@@ -24,6 +25,14 @@ import {
   validerTelephone as validerTelephoneCore,
   verifierJetonFirebase,
 } from './inscription';
+import {
+  approbationChauffeur,
+  ComptesFirebaseEmail,
+  EMAIL_ACTIVATION_CHAUFFEUR,
+  envoyerEmailActivation,
+  NOM_SECRET_RESEND,
+} from './email_activation';
+import { ClientResend } from './email_resend';
 import { migrerDocumentsKyc as migrerKycCore, StockageFirebase } from './kyc_stockage';
 import { itineraireCourse as itineraireCourseCore } from './itineraire';
 import { chauffeursProches as chauffeursProchesCore } from './proximite';
@@ -119,6 +128,14 @@ const frequence = new ObservateurFrequence(async ({ uid, fonction, appels, regle
 /** Clé Google Maps Platform (Places + Routes), dans Secret Manager. */
 const cleGoogle = defineSecret('GOOGLE_MAPS_API_KEY');
 const options = { secrets: [cleGoogle] };
+
+/**
+ * Clé d'API Resend (e-mail d'activation des chauffeurs), dans Secret Manager
+ * sous le nom `RESEND_API_KEY`. Déclarée et liée à la fonction SEULEMENT quand
+ * EMAIL_ACTIVATION_CHAUFFEUR est ouvert (`email_activation.ts`) : fermé, aucun
+ * secret n'est demandé et aucune publication ne dépend de Resend.
+ */
+const cleResend = EMAIL_ACTIVATION_CHAUFFEUR ? defineSecret(NOM_SECRET_RESEND) : null;
 
 /**
  * Orange Money, dans l'environnement en service (ENVIRONNEMENT_ORANGE_MONEY :
@@ -550,6 +567,37 @@ export const declencherBienvenue = onCall(async (requete) => {
   await sansRetarder(frequence.observer('declencherBienvenue', requete.auth?.uid));
   return declencherBienvenueCore(getFirestore(), new ComptesFirebase(), messagerie, requete.auth?.uid, new Date());
 });
+
+/**
+ * E-mail « Bienvenue chez SPRINT : votre compte chauffeur est activé », par
+ * l'API Resend, quand l'Admin approuve un dossier (`users/{uid}.statutValidation`
+ * passe à `valide`). Une fois par chauffeur ; un échec est consigné sans jamais
+ * faire échouer le déclencheur (ni relancer en boucle). N'existe pas tant que
+ * EMAIL_ACTIVATION_CHAUFFEUR est fermé : rien n'est alors déployé.
+ */
+export const activationChauffeurEmail = cleResend
+  ? onDocumentUpdated({ document: 'users/{uid}', secrets: [cleResend] }, async (evenement) => {
+      const avant = evenement.data?.before.data();
+      const apres = evenement.data?.after.data();
+      if (!approbationChauffeur(avant, apres)) return;
+      const uid = evenement.params.uid;
+      try {
+        const resultat = await envoyerEmailActivation(
+          { db: getFirestore(), comptes: new ComptesFirebaseEmail(), envoi: new ClientResend(cleResend.value()) },
+          uid,
+          avant,
+          apres,
+        );
+        // Jamais l'adresse ni la clé dans le journal : le début de l'identifiant suffit pour retrouver le compte.
+        const trace = { compte: `${uid.slice(0, 6)}…`, ...resultat };
+        if (resultat.envoye) logger.info('E-mail d\'activation chauffeur envoyé', trace);
+        else if (resultat.raison === 'echec') logger.error('E-mail d\'activation chauffeur : échec de l\'envoi', trace);
+        else logger.info('E-mail d\'activation chauffeur non envoyé', trace);
+      } catch (e) {
+        logger.error('E-mail d\'activation chauffeur en erreur', { compte: `${uid.slice(0, 6)}…`, erreur: e instanceof Error ? e.name : 'inconnue' });
+      }
+    })
+  : undefined;
 
 /** Push : prévient l'autre partie d'un message qui vient d'être envoyé (texte relu côté serveur). */
 export const notifierMessage = onCall(async (requete) => {

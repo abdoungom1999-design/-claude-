@@ -359,6 +359,35 @@ jobs:
           fi
           echo "Secrets d'Orange Money présents ($environnement)."
 
+      # E-mail d'activation des chauffeurs (EMAIL_ACTIVATION_CHAUFFEUR,
+      # functions/src/email_activation.ts) : ouvert, la fonction est liée au
+      # secret RESEND_API_KEY, qui doit exister AVANT le déploiement, sinon il
+      # échouerait. Créé par le client dans Secret Manager (voir
+      # mobile/EMAILS_DOMAINE.md, section 4). Fermé : aucune clé n'est demandée.
+      # La valeur est lue pour contrôler sa forme seulement : masquée dans le
+      # journal dès sa lecture, jamais affichée.
+      - name: Clé Resend présente (si l'e-mail d'activation est ouvert)
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          reglage=functions/src/email_activation.ts
+          if ! grep -qxF "export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = true;" "$reglage"; then
+            echo "E-mail d'activation fermé : aucune clé Resend requise."
+            exit 0
+          fi
+          etat=$(gcloud secrets versions describe latest --secret=RESEND_API_KEY --project=sprint-vtc --format='value(state)' 2>/dev/null || true)
+          if [ "$etat" != ENABLED ]; then
+            echo "::error title=Clé Resend manquante::Le secret RESEND_API_KEY est absent ou désactivé dans Secret Manager (projet sprint-vtc) : à créer par le client, voir mobile/EMAILS_DOMAINE.md, section 4. Rien n'a été déployé."
+            exit 1
+          fi
+          valeur=$(gcloud secrets versions access latest --secret=RESEND_API_KEY --project=sprint-vtc 2>/dev/null || true)
+          [ -n "$valeur" ] && echo "::add-mask::$valeur"
+          if ! printf '%s' "$valeur" | grep -qE '^re_[A-Za-z0-9_]{16,}$'; then
+            echo "::error title=Clé Resend mal collée::RESEND_API_KEY n'a pas la forme d'une clé Resend (re_… sans espace, retour à la ligne ni autre caractère). Ajoutez une nouvelle version du secret avec la clé seule. Rien n'a été déployé."
+            exit 1
+          fi
+          unset valeur
+          echo "Clé Resend présente et bien formée."
+
       # --force : accepte sans question la politique de nettoyage des
       # images de build (Artifact Registry) et supprime les fonctions
       # retirées du code (ex. l'ancienne "creerCourse").

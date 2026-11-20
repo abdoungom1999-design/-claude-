@@ -147,47 +147,71 @@ Gardez tout le reste de la ligne tel quel.
 
 ---
 
-## 4. Le message « Bienvenue chez SPRINT » par e-mail (facultatif, non activé)
+## 4. L'e-mail d'activation du chauffeur, envoyé par Resend
 
-> **Décision du client (15 novembre 2026) : pas d'e-mail de bienvenue pour le
-> moment.** Cette partie est conservée pour le jour où vous le voudrez ;
-> `EMAIL_BIENVENUE` reste à `false` et rien de ce qui suit n'est à faire
-> maintenant.
+> **Décision du client (20 novembre 2026) : l'extension « Trigger Email from
+> Firestore » est abandonnée.** Le serveur appelle directement l'API de
+> **Resend** (<https://resend.com>), depuis une Cloud Function. L'ancien
+> envoi par la collection `mail` (`EMAIL_BIENVENUE`) reste fermé et ne sert
+> plus : ne l'ouvrez pas.
 
-Le message de bienvenue part **toujours** dans l'app (écran) et en notification
-sur les appareils du compte. L'envoi **par e-mail** en plus demande un service
-d'envoi : Firebase n'en fournit pas pour les e-mails libres.
+**Ce qui part, et quand.** Quand l'Admin approuve le dossier d'un chauffeur
+(`statutValidation` passe à `valide`), la fonction `activationChauffeurEmail`
+envoie « Bienvenue chez SPRINT : votre compte chauffeur est activé », UNE SEULE
+FOIS par chauffeur :
 
-Ce qui est prêt côté code (fermé, aucun effet tant que vous ne l'ouvrez pas) :
-à la bienvenue, le serveur écrit un document dans la collection `mail` de la
-base. L'extension Firebase officielle **« Trigger Email from Firestore »**, que
-vous installez, lit cette collection et envoie le message par le serveur d'envoi
-de votre choix.
+* expéditeur `SPRINT <contact@sprintvtc.sn>`, réponses vers `contact@sprintvtc.sn` ;
+* destinataire : l'adresse du compte, **seulement si elle est vérifiée** (relue
+  chez Firebase Auth) ; un compte suspendu ou banni ne reçoit rien ;
+* design noir Onyx et orange, avec les trois étapes pour recevoir une première
+  course et le bouton « Ouvrir SPRINT » ;
+* seuls les dossiers approuvés APRÈS l'ouverture reçoivent l'e-mail : les
+  chauffeurs déjà validés n'en reçoivent pas.
 
-À faire (une seule fois) :
+**Livré fermé.** `EMAIL_ACTIVATION_CHAUFFEUR` (`functions/src/email_activation.ts`)
+vaut `false` : la fonction n'est pas déployée et aucune clé n'est demandée.
+L'ouverture est une publication à part, sur votre go, une fois la clé créée.
 
-1. Choisissez le serveur d'envoi (SMTP) : celui de votre hébergeur de
-   messagerie, ou un service d'envoi spécialisé (Brevo, Mailjet, Mailgun,
-   Amazon SES…). Il vous donne un **nom de serveur**, un **port**, un
-   **identifiant** et un **mot de passe**.
-2. Chez ce service, **ajoutez votre domaine** : il vous indique ses propres
-   enregistrements SPF et DKIM (même principe qu'à l'étape 2). Pour le SPF,
-   **ajoutez son `include:`** à votre ligne existante (2.3). N'ajoutez **pas**
-   de second DMARC : celui de l'étape 2.2 couvre le domaine entier.
-3. Console Firebase → **Extensions** → **Trigger Email from Firestore** →
-   **Installer**. Réglages à saisir :
-   * *Email documents collection* : `mail`
-   * *SMTP connection URI* : l'adresse de connexion que votre service d'envoi
-     vous donne (elle commence par `smtps` et contient l'identifiant, le mot de
-     passe, le serveur et le port ; la plupart des services la fournissent
-     toute prête). C'est l'extension qui range ce secret dans Secret
-     Manager : **ne le collez ni dans un message ni dans le code**.
-   * *Default FROM address* : `SPRINT <bienvenue@sprintvtc.sn>`
-   * *Default REPLY-TO address* : `contact@sprintvtc.sn`
-4. Dites-moi quand c'est fait : je passe `EMAIL_BIENVENUE` à `true` (serveur),
-   avec votre accord de publication. Après chaque bienvenue, le document
-   `mail/bienvenue_<identifiant du compte>` montre dans `delivery` si l'envoi
-   a réussi (`SUCCESS`) ou pourquoi il a échoué.
+**Où renseigner la clé Resend (une seule fois, par vous).** Elle ne passe JAMAIS
+par un message, GitHub ni le code : elle va dans **Secret Manager**, sous le nom
+exact `RESEND_API_KEY`.
+
+1. Chez Resend : **API Keys**, **Create API Key**, permission **Sending access**,
+   domaine `sprintvtc.sn`. Copiez la clé (elle commence par `re_` et ne
+   s'affiche qu'une fois).
+2. <https://console.cloud.google.com> : en haut, choisissez le projet
+   **`sprint-vtc`**.
+3. Menu **Sécurité** (*Security*), puis **Secret Manager**
+   (ou <https://console.cloud.google.com/security/secret-manager?project=sprint-vtc>).
+4. **Créer un secret** (*Create secret*).
+5. **Nom** : `RESEND_API_KEY` (en majuscules, exactement).
+6. **Valeur du secret** : collez la clé, **sans espace ni retour à la ligne**.
+   Ne cochez pas « Importer un fichier ».
+7. Laissez le reste par défaut (réplication automatique), puis **Créer le secret**.
+8. Dites-moi « clé Resend créée » : je vérifie le nom et la forme sans jamais
+   afficher la valeur, puis je prépare l'ouverture, avec votre go de publication.
+
+Pour **changer de clé** plus tard : dans Secret Manager, ouvrez `RESEND_API_KEY`,
+**Nouvelle version**, collez la nouvelle clé, puis relancez une publication
+(onglet Actions) : le serveur lit la dernière version. Désactivez ensuite
+l'ancienne chez Resend. Si une clé a été écrite dans un message ou un document, **supprimez-la
+chez Resend et recréez-en une**.
+
+**Contrôler un envoi.** Console Google Cloud, **Logs Explorer**, filtre
+`E-mail d'activation chauffeur` : « envoyé » ou « échec de l'envoi » avec un code
+(`resend/401` clé refusée, `resend/403` domaine non vérifié ou clé non
+autorisée, `resend/422` message refusé, `resend/429` trop d'envois,
+`resend/reseau` ou `resend/delai`). L'adresse et la clé n'y apparaissent jamais.
+Après un envoi, le profil du chauffeur porte `emailActivationEnvoyeLe` et
+`emailActivationId` (identifiant du message chez Resend). Un échec n'est pas
+rejoué tout seul : le chauffeur n'a alors pas reçu d'e-mail et son compte
+fonctionne normalement.
+
+**Côté DNS.** Resend vous fait ajouter ses propres enregistrements (DKIM, et un
+SPF sur un sous-domaine d'envoi). Il ne doit toujours y avoir **qu'un seul SPF
+à la racine** (voir 2.3) : si Resend en propose un à la racine, ajoutez son
+`include:` à la ligne existante au lieu d'en créer une deuxième. Contrôlez
+ensuite un e-mail reçu (« Afficher l'original » : SPF, DKIM et DMARC en PASS).
 
 ---
 

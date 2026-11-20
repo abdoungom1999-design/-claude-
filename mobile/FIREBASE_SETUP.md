@@ -1569,7 +1569,7 @@ de sécurité présents, lien d'application Android conforme, APK 0.1.0 (128).
    `bienvenueEnvoyeeLe`, posée dans une transaction) à un compte neuf dont l'e-mail est vérifié (relu chez Firebase
    Auth, pas dans le jeton de l'appelant) et, quand le numéro est obligatoire, dont le numéro est validé : écran dans
    l'app, notification sur les appareils du compte, e-mail si `EMAIL_BIENVENUE` (document `mail/bienvenue_{uid}` lu par
-   l'extension « Trigger Email from Firestore », voir `EMAILS_DOMAINE.md`).
+   l'extension « Trigger Email from Firestore », ABANDONNÉE le 20 novembre 2026 : voir `EMAILS_DOMAINE.md`, section 4, e-mail d'activation par Resend).
 
 ### 13.2 Les réglages (ouverts à la publication 128) : un seul endroit de chaque côté, comparés par un test
 
@@ -1611,7 +1611,7 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
 7. **Coût** : les SMS sont facturés par pays (page « Tarifs » de Firebase, ligne Phone Authentication, région Sénégal) ;
    je n'ai pas pu lire cette page depuis mon environnement. Créez une **alerte de budget** (Google Cloud > Facturation >
    Budgets et alertes) avant l'ouverture, par exemple à 20 € par mois avec alertes à 50, 90 et 100 %.
-8. **E-mails** : voir `EMAILS_DOMAINE.md` (domaine d'envoi, SPF, DKIM, DMARC, extension d'envoi).
+8. **E-mails** : voir `EMAILS_DOMAINE.md` (domaine d'envoi, SPF, DKIM, DMARC, et section 4 : e-mail d'activation du chauffeur par Resend, clé `RESEND_API_KEY`).
 
 ### 13.4 Ce qui ne change pas (garanties vérifiées par des tests)
 
@@ -1700,3 +1700,16 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   au clic sur « Commencer », sans reconnexion. Aucun rafraîchissement de jeton : les droits du chauffeur ne passent pas par
   des « custom claims » mais par son document Firestore, relu par les règles à chaque requête. Côté chauffeur seulement :
   panneau Admin, serveur et règles inchangés. Le chauffeur passe « En ligne » lui-même (localisation à autoriser). Pas encore traité : un dossier REJETÉ pendant l'attente (l'écran reste en attente jusqu'à la prochaine ouverture), prévu pour une prochaine mise à jour.
+* **E-mail d'activation du chauffeur par Resend** (lot préparé après la 142, FERMÉ, non publié) : abandon de l'extension
+  « Trigger Email from Firestore ». Fonction `activationChauffeurEmail` (`functions/src/email_activation.ts`,
+  `email_resend.ts`), déclenchée par l'écriture de `users/{uid}` quand `statutValidation` passe à `valide` : envoi, une seule
+  fois par chauffeur, de « Bienvenue chez SPRINT : votre compte chauffeur est activé » (expéditeur
+  `SPRINT <contact@sprintvtc.sn>`, design noir Onyx et orange) à l'adresse VÉRIFIÉE du compte, par `POST
+  https://api.resend.com/emails` (clé d'idempotence `activation-chauffeur-{uid}`, délai de 10 s, aucun secret dans les
+  erreurs ni les journaux). Marque posée par le serveur : `emailActivationEnvoyeLe`, `emailActivationId` (les règles ne
+  les laissent pas écrire au client). Livré FERMÉ : `EMAIL_ACTIVATION_CHAUFFEUR = false` ⇒ ni fonction déployée ni secret
+  demandé. OUVERTURE (commit à part, sur go, après création par le client du secret `RESEND_API_KEY` dans Secret Manager,
+  mode d'emploi dans `EMAILS_DOMAINE.md`) : la constante passe à `true`, la fonction est liée au secret, et la publication
+  vérifie avant de déployer que le secret existe et a la forme d'une clé Resend (étape « Clé Resend présente »). C'est le
+  premier déclencheur Firestore du projet (Eventarc) : si le premier déploiement ouvert échoue sur un droit manquant,
+  l'erreur nomme le rôle à ajouter au compte `github-deploy`. Les chauffeurs déjà validés ne reçoivent rien. Aperçu validé par captures ; manifeste vérifié ouvert (déclencheur `google.cloud.firestore.document.v1.updated` sur `users/{uid}`, région `europe-west1`, secret `RESEND_API_KEY`, sans relance automatique).

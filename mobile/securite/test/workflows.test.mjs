@@ -142,3 +142,18 @@ test('refus des clés Google : contrôlé pour le site et pour l\'APK, clé tran
   // « actif » ensuite. Toute autre valeur ferait sauter le contrôle sans que personne le voie.
   assert.match(principal, /^env:\s*\n(?:\s+#.*\n)+\s+CONTROLE_RESTRICTIONS_GOOGLE: (actif|inactif)\s*$/m, 'réglage CONTROLE_RESTRICTIONS_GOOGLE absent ou invalide (« actif » ou « inactif »)');
 });
+
+test('e-mail d\'activation des chauffeurs : la CI lit la même ligne que le serveur et exige le secret RESEND_API_KEY, bien formé et masqué, AVANT le déploiement', () => {
+  const source = readFileSync(path.resolve(DOSSIER_SECURITE, '..', 'functions', 'src', 'email_activation.ts'), 'utf8');
+  assert.match(source, /^export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = (true|false);$/m, 'la ligne du réglage doit garder cette forme exacte : la CI la lit telle quelle');
+  assert.match(source, /^export const NOM_SECRET_RESEND = 'RESEND_API_KEY';$/m);
+
+  const principal = lire('flutter-web.yml');
+  assert.match(principal, /grep -qxF "export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = true;" "\$reglage"/, 'la CI doit chercher la ligne « ouverte » du serveur');
+  assert.match(principal, /--secret=RESEND_API_KEY/);
+  assert.match(principal, /::add-mask::\$valeur/, 'la valeur du secret doit être masquée dès sa lecture');
+  assert.doesNotMatch(principal, /echo "\$valeur"|echo \$valeur|printf '%s\\n' "\$valeur"/, 'la valeur du secret ne doit jamais être affichée');
+  const etape = principal.indexOf('name: Clé Resend présente');
+  const deploiement = principal.indexOf('name: Déployer les Cloud Functions');
+  assert.ok(etape > 0 && deploiement > etape, 'la clé doit être contrôlée AVANT le déploiement des fonctions');
+});
