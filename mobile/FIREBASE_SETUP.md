@@ -1688,7 +1688,7 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   contenu, et l'échec d'un envoi affiche son code précis (`storage/…`, `firestore/…`, `selection/…`). Règles Storage :
   photos sous `.jpg`, PDF sous `.pdf` (carte d'identité et carte grise), type conforme au nom, 10 Mo ; règles Firestore :
   `carteIdentite` ajoutée aux pièces, plaque de la demande de modification de 0 à 15 signes. Contrôlé par sabotage.
-  Les anciens APK restent compatibles (les règles acceptent toujours les anciennes pièces). **Publication 140** (go du client, 20 novembre 2026 ; essai à blanc n°139 vert sur la version précédente de la phrase, la 140 ne change que ce texte) : lot « Conditions d'utilisation », la phrase sur le permis de conduire, l'assurance
+  Les anciens APK restent compatibles (les règles acceptent toujours les anciennes pièces). **Publication 140** (en ligne le 20 novembre 2026, run 44665419078, commit `e90f0e9`, 6 jobs verts, APK « 0.1.0 (140) » ; go du client, essai à blanc n°139 vert sur la version précédente de la phrase, la 140 ne change que ce texte) : lot « Conditions d'utilisation », la phrase sur le permis de conduire, l'assurance
   et les documents de la réglementation devient « Le Conducteur s'engage à détenir les autorisations légales et une
   assurance valide requises pour l'exercice de son activité au Sénégal, et à fournir une pièce d'identité ainsi que la
   carte grise du véhicule déclaré » (l'assurance reste un engagement contractuel, sans être demandée comme pièce) ; le
