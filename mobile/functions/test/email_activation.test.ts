@@ -297,8 +297,8 @@ test('Envoi : si la marque ne peut pas être écrite, l\'e-mail est parti et le 
 
 // --- Réglages et câblage ---------------------------------------------------------------------
 
-test('Livré FERMÉ : constante fermée, aucun secret ni fonction tant que le client n\'a pas donné son go', () => {
-  assert.equal(EMAIL_ACTIVATION_CHAUFFEUR, false, 'ouverture = commit à part, sur le go du client, une fois RESEND_API_KEY créé');
+test('OUVERT sur la demande du client (lot 149) : la fonction est liée au secret RESEND_API_KEY, qui n\'est déclaré que si l\'envoi est ouvert', () => {
+  assert.equal(EMAIL_ACTIVATION_CHAUFFEUR, true, 'ouvert le 20 novembre 2026 (lot 149), après création de RESEND_API_KEY par le client');
   assert.equal(NOM_SECRET_RESEND, 'RESEND_API_KEY');
   assert.equal(EXPEDITEUR, 'SPRINT <contact@sprintvtc.sn>');
 

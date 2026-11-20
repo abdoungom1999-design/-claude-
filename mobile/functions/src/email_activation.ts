@@ -12,14 +12,16 @@ import { ADRESSE_CONTACT } from './inscription';
  */
 
 /**
- * FERMÉ tant que le client n'a pas créé le secret `RESEND_API_KEY` dans Secret
- * Manager. Fermé : la fonction n'est même pas déployée et aucun secret n'est
- * demandé à la publication ; rien ne dépend de Resend. L'ouverture est un
- * commit à part, sur le go du client (la publication vérifie alors que le
- * secret existe, voir `.github/workflows/flutter-web.yml`). Ne changer que
- * cette ligne : la CI la lit telle quelle.
+ * OUVERT (lot 149, demande du client du 20 novembre 2026) : la fonction
+ * `activationChauffeurEmail` est déployée et liée au secret `RESEND_API_KEY`
+ * de Secret Manager, créé par le client. Avant tout déploiement, la
+ * publication vérifie que ce secret existe et a la forme d'une clé Resend,
+ * ainsi que les droits du premier déclencheur Firestore
+ * (`scripts/controle_email_activation.sh`) ; sinon elle s'arrête sans rien
+ * déployer. Fermé (`false`) : la fonction n'est pas déployée et aucun secret
+ * n'est demandé. Ne changer que cette ligne : la CI la lit telle quelle.
  */
-export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = false;
+export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = true;
 
 /** Nom du secret dans Secret Manager (projet `sprint-vtc`). */
 export const NOM_SECRET_RESEND = 'RESEND_API_KEY';

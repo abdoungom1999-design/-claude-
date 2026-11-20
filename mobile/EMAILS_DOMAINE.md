@@ -168,9 +168,15 @@ FOIS par chauffeur :
 * seuls les dossiers approuvés APRÈS l'ouverture reçoivent l'e-mail : les
   chauffeurs déjà validés n'en reçoivent pas.
 
-**Livré fermé.** `EMAIL_ACTIVATION_CHAUFFEUR` (`functions/src/email_activation.ts`)
-vaut `false` : la fonction n'est pas déployée et aucune clé n'est demandée.
-L'ouverture est une publication à part, sur votre go, une fois la clé créée.
+**Ouverture (lot 149, préparé le 20 novembre 2026).** `EMAIL_ACTIVATION_CHAUFFEUR`
+(`functions/src/email_activation.ts`) vaut désormais `true` : à la prochaine
+publication, la fonction est déployée et liée à la clé. Avant de déployer quoi
+que ce soit, la publication (et déjà l'essai sans publication) vérifie, avec
+`scripts/controle_email_activation.sh` : que la clé existe et a la bonne forme,
+puis, pour cette toute première fonction déclenchée par la base (Eventarc), les
+droits que Google exige (voir « Droits du premier déclencheur » plus bas). Au
+moindre manque, elle s'arrête avec un message clair et l'app en ligne ne change
+pas. Pour refermer : remettre la ligne à `false` et publier.
 
 **Où renseigner la clé Resend (une seule fois, par vous).** Elle ne passe JAMAIS
 par un message, GitHub ni le code : elle va dans **Secret Manager**, sous le nom
@@ -188,8 +194,32 @@ exact `RESEND_API_KEY`.
 6. **Valeur du secret** : collez la clé, **sans espace ni retour à la ligne**.
    Ne cochez pas « Importer un fichier ».
 7. Laissez le reste par défaut (réplication automatique), puis **Créer le secret**.
-8. Dites-moi « clé Resend créée » : je vérifie le nom et la forme sans jamais
-   afficher la valeur, puis je prépare l'ouverture, avec votre go de publication.
+8. Dites-moi « clé Resend créée » : je lance l'essai sans publication, qui vérifie
+   le nom et la forme sans jamais afficher la valeur, ainsi que les droits ci-dessous ;
+   puis j'attends votre go de publication.
+
+Avant cela, chez Resend, page **Domains** : `sprintvtc.sn` doit être marqué
+**Verified** (sinon chaque envoi est refusé, code `resend/403`).
+
+**Droits du premier déclencheur (seulement si l'essai le demande).** Le déploiement
+d'une première fonction déclenchée par la base exige trois droits pour des comptes
+techniques de Google. Si le compte `github-deploy` ne peut pas les poser lui-même,
+l'essai s'arrête sur « Droits Eventarc manquants » et liste ceux qui manquent, avec
+le numéro du projet (`NUMÉRO` ci-dessous, aussi visible sur le tableau de bord du
+projet). Dans <https://console.cloud.google.com/iam-admin/iam?project=sprint-vtc>,
+**Accorder l'accès** (*Grant access*) :
+
+1. Compte principal `NUMÉRO-compute@developer.gserviceaccount.com` : rôles
+   **Demandeur Cloud Run** (*Cloud Run Invoker*) et **Destinataire d'événements
+   Eventarc** (*Eventarc Event Receiver*), puis **Enregistrer**.
+2. Compte principal `service-NUMÉRO@gcp-sa-pubsub.iam.gserviceaccount.com` : rôle
+   **Créateur de jetons du compte de service** (*Service Account Token Creator*), puis
+   **Enregistrer**.
+
+Si l'essai s'arrête sur « Droits Eventarc invérifiables » : sur la même page, crayon
+à droite de `github-deploy`, **+ Ajouter un autre rôle** : **Navigateur** (*Browser*,
+lecture seule), **Enregistrer**. Puis dites-le-moi : je relance l'essai. Une fois la
+fonction en place, ce contrôle n'est plus refait.
 
 Pour **changer de clé** plus tard : dans Secret Manager, ouvrez `RESEND_API_KEY`,
 **Nouvelle version**, collez la nouvelle clé, puis relancez une publication

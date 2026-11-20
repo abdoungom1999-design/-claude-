@@ -1764,3 +1764,14 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   refus des règles à l'envoi d'une pièce affiche l'état du profil relu (`profil absent`, `compte client`,
   `profil chauffeur`). Tests : `firestore_rules_test/parcours_chauffeur.test.mjs` (« compte réel de production »),
   `test/espace_chauffeur_compte_test.dart`.
+* **Ouverture de l'e-mail d'activation par Resend** (lot 149, préparé, NON publié ; aucune règle modifiée, app inchangée).
+  `EMAIL_ACTIVATION_CHAUFFEUR = true` : la fonction `activationChauffeurEmail` (déclencheur
+  `google.cloud.firestore.document.v1.updated` sur `users/{uid}`, `europe-west1`, secret `RESEND_API_KEY`, sans relance)
+  est déployée à la prochaine publication. C'est la première fonction déclenchée par un événement du projet : l'outil
+  Firebase exige alors trois droits au niveau du projet (Compute par défaut : `roles/run.invoker`,
+  `roles/eventarc.eventReceiver` ; agent Pub/Sub : `roles/iam.serviceAccountTokenCreator`), les pose s'il le peut, et
+  sinon s'arrête (ou, s'il ne peut même pas les lire, continue en avertissant, envoi possiblement muet).
+  `scripts/controle_email_activation.sh` vérifie, AVANT tout déploiement, la clé (présente, activée, forme `re_…`, valeur
+  masquée) puis ces droits tant que la fonction n'existe pas ; il tourne dans le job `firebase` (publication) et dans le
+  job `controle_email` (essai sans publication, qui ne déploie rien). Marche à suivre du client : `EMAILS_DOMAINE.md`,
+  section 4. Tant que la clé n'existe pas, toute publication s'arrête avant de déployer (app en ligne inchangée).

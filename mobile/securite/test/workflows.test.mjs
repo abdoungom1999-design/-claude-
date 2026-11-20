@@ -148,12 +148,34 @@ test('e-mail d\'activation des chauffeurs : la CI lit la même ligne que le serv
   assert.match(source, /^export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = (true|false);$/m, 'la ligne du réglage doit garder cette forme exacte : la CI la lit telle quelle');
   assert.match(source, /^export const NOM_SECRET_RESEND = 'RESEND_API_KEY';$/m);
 
+  // Les contrôles sont dans un script commun, lancé à la publication ET pendant un essai.
+  const script = readFileSync(path.resolve(DOSSIER_SECURITE, '..', 'scripts', 'controle_email_activation.sh'), 'utf8');
+  assert.match(script, /grep -qxF "export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = true;" "\$reglage"/, 'la CI doit chercher la ligne « ouverte » du serveur');
+  assert.match(script, /^reglage=functions\/src\/email_activation\.ts$/m);
+  assert.match(script, /--secret=RESEND_API_KEY/);
+  assert.match(script, /::add-mask::\$valeur/, 'la valeur du secret doit être masquée dès sa lecture');
+  assert.ok(script.indexOf('::add-mask::$valeur') < script.indexOf("grep -qE '^re_"), 'masquée AVANT tout contrôle de sa forme');
+  assert.doesNotMatch(script, /echo "\$valeur"|echo \$valeur|printf '%s\\n' "\$valeur"/, 'la valeur du secret ne doit jamais être affichée');
+  assert.match(script, /exit 1/, 'un manque doit arrêter la publication');
+
   const principal = lire('flutter-web.yml');
-  assert.match(principal, /grep -qxF "export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = true;" "\$reglage"/, 'la CI doit chercher la ligne « ouverte » du serveur');
-  assert.match(principal, /--secret=RESEND_API_KEY/);
-  assert.match(principal, /::add-mask::\$valeur/, 'la valeur du secret doit être masquée dès sa lecture');
-  assert.doesNotMatch(principal, /echo "\$valeur"|echo \$valeur|printf '%s\\n' "\$valeur"/, 'la valeur du secret ne doit jamais être affichée');
-  const etape = principal.indexOf('name: Clé Resend présente');
+  const etape = principal.indexOf('name: Clé Resend et droits Eventarc');
   const deploiement = principal.indexOf('name: Déployer les Cloud Functions');
   assert.ok(etape > 0 && deploiement > etape, 'la clé doit être contrôlée AVANT le déploiement des fonctions');
+  const firebase = job(principal, 'firebase');
+  assert.match(firebase, /run: bash scripts\/controle_email_activation\.sh/);
+});
+
+test('e-mail d\'activation : premier déclencheur Firestore, les droits exigés par l\'outil Firebase sont vérifiés avant de déployer, et l\'essai sans publication refait ces contrôles', () => {
+  const script = readFileSync(path.resolve(DOSSIER_SECURITE, '..', 'scripts', 'controle_email_activation.sh'), 'utf8');
+  for (const role of ['roles/run.invoker', 'roles/eventarc.eventReceiver', 'roles/iam.serviceAccountTokenCreator']) {
+    assert.ok(script.includes(role), `droit ${role} non vérifié`);
+  }
+  assert.match(script, /gcloud functions describe activationChauffeurEmail/, 'une fois la fonction en place, plus de contrôle de droits (les publications suivantes ne doivent pas en dépendre)');
+
+  const principal = lire('flutter-web.yml');
+  const controle = job(principal, 'controle_email');
+  assert.match(controle, /^ {4}if: \$\{\{ format\('\{0\}', inputs\.essai\) == 'true' \}\}\s*$/m, 'seulement pendant un essai (la publication contrôle dans le job firebase)');
+  assert.match(controle, /run: bash scripts\/controle_email_activation\.sh/);
+  assert.doesNotMatch(controle, /firebase-tools|deploy /, 'l\'essai ne déploie rien');
 });

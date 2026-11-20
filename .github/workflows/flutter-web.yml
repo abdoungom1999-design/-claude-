@@ -366,29 +366,13 @@ jobs:
       # secret RESEND_API_KEY, qui doit exister AVANT le déploiement, sinon il
       # échouerait. Créé par le client dans Secret Manager (voir
       # mobile/EMAILS_DOMAINE.md, section 4). Fermé : aucune clé n'est demandée.
-      # La valeur est lue pour contrôler sa forme seulement : masquée dans le
-      # journal dès sa lecture, jamais affichée.
-      - name: Clé Resend présente (si l'e-mail d'activation est ouvert)
+      # Contrôles dans mobile/scripts/controle_email_activation.sh (aussi lancé
+      # pendant un essai, job controle_email) : forme de la clé (valeur masquée
+      # dans le journal dès sa lecture, jamais affichée), puis, tant que la
+      # fonction n'existe pas, droits du premier déclencheur Firestore (Eventarc).
+      - name: Clé Resend et droits Eventarc (si l'e-mail d'activation est ouvert)
         if: steps.secret.outputs.present == 'true'
-        run: |
-          reglage=functions/src/email_activation.ts
-          if ! grep -qxF "export const EMAIL_ACTIVATION_CHAUFFEUR: boolean = true;" "$reglage"; then
-            echo "E-mail d'activation fermé : aucune clé Resend requise."
-            exit 0
-          fi
-          etat=$(gcloud secrets versions describe latest --secret=RESEND_API_KEY --project=sprint-vtc --format='value(state)' 2>/dev/null || true)
-          if [ "$etat" != ENABLED ]; then
-            echo "::error title=Clé Resend manquante::Le secret RESEND_API_KEY est absent ou désactivé dans Secret Manager (projet sprint-vtc) : à créer par le client, voir mobile/EMAILS_DOMAINE.md, section 4. Rien n'a été déployé."
-            exit 1
-          fi
-          valeur=$(gcloud secrets versions access latest --secret=RESEND_API_KEY --project=sprint-vtc 2>/dev/null || true)
-          [ -n "$valeur" ] && echo "::add-mask::$valeur"
-          if ! printf '%s' "$valeur" | grep -qE '^re_[A-Za-z0-9_]{16,}$'; then
-            echo "::error title=Clé Resend mal collée::RESEND_API_KEY n'a pas la forme d'une clé Resend (re_… sans espace, retour à la ligne ni autre caractère). Ajoutez une nouvelle version du secret avec la clé seule. Rien n'a été déployé."
-            exit 1
-          fi
-          unset valeur
-          echo "Clé Resend présente et bien formée."
+        run: bash scripts/controle_email_activation.sh
 
       # --force : accepte sans question la politique de nettoyage des
       # images de build (Artifact Registry) et supprime les fonctions
@@ -527,6 +511,40 @@ jobs:
           else
             echo "::warning title=CORS Storage::Réglage CORS du bucket refusé (droit storage.buckets.update du compte github-deploy ?). Sans effet sur l'envoi des pièces ; voir mobile/FIREBASE_SETUP.md."
           fi
+
+  # Essai sans publication : le job firebase est sauté ; celui-ci refait ses
+  # contrôles de l'e-mail d'activation (clé Resend, droits du premier
+  # déclencheur Firestore) sans rien déployer, pour savoir AVANT de publier si
+  # l'ouverture passera. Fermé : il s'arrête aussitôt.
+  controle_email:
+    if: ${{ format('{0}', inputs.essai) == 'true' }}
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secret FIREBASE_SERVICE_ACCOUNT présent ?
+        id: secret
+        env:
+          COMPTE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$COMPTE_SERVICE" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Contrôle impossible::Secret FIREBASE_SERVICE_ACCOUNT absent : clé Resend et droits non vérifiés."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.secret.outputs.present == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Clé Resend et droits Eventarc (si l'e-mail d'activation est ouvert)
+        if: steps.secret.outputs.present == 'true'
+        run: bash scripts/controle_email_activation.sh
 
   # Ancienne adresse (GitHub Pages) : page de redirection vers
   # https://sprint-vtc.web.app, publiée une fois le nouveau site en ligne.
