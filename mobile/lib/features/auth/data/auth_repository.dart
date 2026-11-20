@@ -11,6 +11,36 @@ import '../../../firebase_options.dart';
 import 'connexion_telephone.dart';
 import 'role_du_compte.dart';
 
+/// Profil d'un chauffeur tel que l'inscription l'enregistre dans
+/// `users/{uid}` (les règles Firestore n'acceptent que ces champs à la
+/// création). La plaque n'est plus demandée : le champ n'est écrit que s'il
+/// est fourni.
+Map<String, dynamic> profilConducteurInscription({
+  required String email,
+  required String nom,
+  required String telephone,
+  required String vehiculeId,
+  String? plaqueImmatriculation,
+  String? prenom,
+  String? nomDeFamille,
+  Map<String, String>? moto,
+}) =>
+    {
+      'role': 'conducteur',
+      'nom': nom,
+      'email': email,
+      'telephone': telephone,
+      'vehiculeId': vehiculeId,
+      if (plaqueImmatriculation != null && plaqueImmatriculation.isNotEmpty)
+        'plaqueImmatriculation': plaqueImmatriculation,
+      if (prenom != null) 'prenom': prenom,
+      if (nomDeFamille != null) 'nomDeFamille': nomDeFamille,
+      if (moto != null) 'moto': moto,
+      'statut': 'HORS_LIGNE',
+      'estValide': false,
+      'creeLe': FieldValue.serverTimestamp(),
+    };
+
 /// Authentification Client, Conducteur et Admin.
 ///
 /// Bascule automatiquement selon [DefaultFirebaseOptions.estConfigure] :
@@ -216,28 +246,92 @@ class AuthRepository {
         password: motDePasse,
       );
       await identifiants.user!.sendEmailVerification();
-      await _firestore.collection('users').doc(identifiants.user!.uid).set({
-        'role': 'conducteur',
-        'nom': nom,
-        'email': identifiants.user!.email ?? email,
-        'telephone': telephone,
-        'vehiculeId': vehiculeId,
-        // La plaque n'est plus demandée à l'inscription : le champ n'est écrit que s'il est fourni.
-        if (plaqueImmatriculation != null && plaqueImmatriculation.isNotEmpty)
-          'plaqueImmatriculation': plaqueImmatriculation,
-        if (prenom != null) 'prenom': prenom,
-        if (nomDeFamille != null) 'nomDeFamille': nomDeFamille,
-        if (moto != null) 'moto': moto,
-        'statut': 'HORS_LIGNE',
-        'estValide': false,
-        'creeLe': FieldValue.serverTimestamp(),
-      });
+      await _enregistrerProfilInscription(
+        identifiants.user!,
+        profilConducteurInscription(
+          email: identifiants.user!.email ?? email,
+          nom: nom,
+          telephone: telephone,
+          vehiculeId: vehiculeId,
+          plaqueImmatriculation: plaqueImmatriculation,
+          prenom: prenom,
+          nomDeFamille: nomDeFamille,
+          moto: moto,
+        ),
+      );
       await _role.memoriser(identifiants.user!.uid, 'conducteur');
       await _publierProfilEtAnnuaire();
     } on FirebaseAuthException catch (e) {
       throw ApiException.depuisFirebaseAuth(e);
     }
   }
+
+  /// Enregistre le profil juste après la création du compte. Juste après
+  /// celle-ci, la base peut refuser l'écriture le temps de reconnaître le
+  /// nouveau compte : on rafraîchit son jeton et on réessaie une fois. Si cela
+  /// échoue encore, l'erreur est DITE (avant, elle passait sous silence et le
+  /// chauffeur se retrouvait connecté sans profil, puis refusé à l'envoi de
+  /// ses pièces) ; à la connexion suivante, l'espace chauffeur lui propose de
+  /// terminer son inscription ([completerProfilConducteur]).
+  Future<void> _enregistrerProfilInscription(User utilisateur, Map<String, dynamic> profil) async {
+    final reference = _firestore.collection('users').doc(utilisateur.uid);
+    try {
+      await reference.set(profil);
+      return;
+    } on FirebaseException {
+      // Réessai ci-dessous.
+    }
+    try {
+      await utilisateur.getIdToken(true);
+      if ((await reference.get()).exists) return; // la première écriture était passée
+      await reference.set(profil);
+    } on FirebaseException catch (e) {
+      throw ApiException(
+        "Votre compte est créé, mais votre profil chauffeur n'a pas pu être enregistré "
+        '(code : ${_codeCourt(e)}). Connectez-vous dans l\'Espace Conducteur : '
+        "l'app vous proposera de terminer votre inscription.",
+      );
+    }
+  }
+
+  /// Termine l'inscription d'un chauffeur connecté dont le profil n'a jamais
+  /// été enregistré (voir [_enregistrerProfilInscription]). Ne remplace jamais
+  /// un profil existant : si un profil existe déjà (créé entre-temps sur un
+  /// autre appareil), rien n'est écrit.
+  Future<void> completerProfilConducteur({
+    required String nom,
+    required String telephone,
+    required String vehiculeId,
+    required String prenom,
+    required String nomDeFamille,
+    required Map<String, String> moto,
+  }) async {
+    final utilisateur = _auth.currentUser;
+    if (utilisateur == null) throw ApiException('Session expirée. Reconnectez-vous.');
+    final reference = _firestore.collection('users').doc(utilisateur.uid);
+    final profil = profilConducteurInscription(
+      email: utilisateur.email ?? '',
+      nom: nom,
+      telephone: telephone,
+      vehiculeId: vehiculeId,
+      prenom: prenom,
+      nomDeFamille: nomDeFamille,
+      moto: moto,
+    );
+    try {
+      await _firestore.runTransaction((transaction) async {
+        if ((await transaction.get(reference)).exists) return;
+        transaction.set(reference, profil);
+      });
+    } on FirebaseException catch (e) {
+      throw ApiException("Votre profil n'a pas pu être enregistré (code : ${_codeCourt(e)}). Réessayez.");
+    }
+    await _role.memoriser(utilisateur.uid, 'conducteur');
+    await _publierProfilEtAnnuaire();
+  }
+
+  static String _codeCourt(FirebaseException e) =>
+      '${e.plugin == 'cloud_firestore' ? 'firestore' : e.plugin}/${e.code}';
 
   /// [identifiant] : email ou numéro de téléphone, saisis
   /// indifféremment dans le même champ (voir [_resoudreEmail]).

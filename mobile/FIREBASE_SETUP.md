@@ -1747,3 +1747,20 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   (machine virtuelle et vrai navigateur), panneau Admin (`admin_dossier_photo_carte_test.dart`), parcours complet sur
   émulateur en moins de 3 s (`parcours_chauffeur.test.mjs`). Conditions d'utilisation (accord du client) : le Conducteur
   s'engage désormais « à fournir une photo récente de lui-même ainsi que sa carte d'identité » (au lieu de la carte grise).
+* **Espace chauffeur : comptes Client et profils absents reconnus** (lot 148, préparé, NON publié ; aucune règle
+  modifiée). Constat en publication 147 sur iPhone (« v147 » visible) : « firestore/permission-denied » SANS suffixe dès
+  l'ajout de la Photo, donc Storage avait accepté et seule l'écriture du profil était refusée. Sur l'émulateur, un vrai
+  profil de chauffeur (champs écrits par le serveur compris : `telephoneVerifie`, `telephoneValide`,
+  `telephoneVerifieLe`, `bienvenueEnvoyeeLe` ; dossier rejeté ; ancienne carte grise encodée) accepte ses deux pièces ;
+  le même refus se produit pour un compte CLIENT connecté dans l'espace chauffeur, ou pour un compte de connexion SANS
+  profil. Or l'espace chauffeur ne vérifiait pas le rôle, et l'inscription chauffeur pouvait laisser un compte sans profil
+  (écriture du profil refusée ou coupée juste après la création du compte, erreur alors passée sous silence) ; de plus,
+  une adresse déjà prise était annoncée comme « Ce numéro est déjà associé à un compte ». Les explications données aux
+  publications 145 (envoi de secours trop lourd, limite réelle mais pas en cause ici) et 146 (ancien code gardé par
+  l'iPhone) ne couvraient pas ce cas. Correction côté app : `etapeDossierChauffeur` (compte Client : écran « Ce compte
+  est un compte Client », avec « Créer un compte chauffeur » ; profil absent : « Terminez votre inscription »,
+  `AuthRepository.completerProfilConducteur`, transaction qui ne remplace jamais un profil existant) ; enregistrement du
+  profil à l'inscription réessayé une fois, puis erreur dite ; message « Cette adresse e-mail est déjà utilisée… » ; un
+  refus des règles à l'envoi d'une pièce affiche l'état du profil relu (`profil absent`, `compte client`,
+  `profil chauffeur`). Tests : `firestore_rules_test/parcours_chauffeur.test.mjs` (« compte réel de production »),
+  `test/espace_chauffeur_compte_test.dart`.

@@ -16,7 +16,7 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, doc, getDoc, runTransaction, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
 let env;
 before(async () => {
@@ -176,5 +176,73 @@ describe('envoi de secours (Storage indisponible) : image encodée dans le profi
     await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
     await assertSucceeds(deposer(ctx, 'photoProfil', imageEncodee(PIECE_DE_SECOURS)));
     await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
+  });
+});
+
+// Publication 147, iPhone, compte de test du client : « firestore/permission-denied » SANS suffixe dès l'ajout de la
+// Photo (Storage avait donc accepté). Un vrai profil de chauffeur, tel que la production le contient (champs écrits par
+// le serveur compris), accepte pourtant ses deux pièces : le refus n'arrive que pour un compte CLIENT connecté dans
+// l'espace chauffeur, ou pour un compte de connexion SANS profil (inscription interrompue juste après la création du
+// compte). Ces deux cas sont désormais reconnus par l'app (lot 148 : écran « Ce compte est un compte Client » et
+// formulaire « Terminez votre inscription ») ; les règles restent inchangées.
+describe('compte réel de production (lot 148)', () => {
+  // Ce que le serveur ajoute au profil après l'inscription : validation du numéro (validerTelephone) et
+  // « Bienvenue chez SPRINT » (declencherBienvenue), écrits par l'Admin SDK.
+  const champsServeur = () => ({
+    telephoneVerifie: true,
+    telephoneValide: '+221771234567',
+    telephoneVerifieLe: Timestamp.now(),
+    bienvenueEnvoyeeLe: Timestamp.now(),
+  });
+  const profilProduction = (extra = {}) => ({ ...profilInscription(), creeLe: Timestamp.now(), ...champsServeur(), ...extra });
+
+  for (const [cas, extra] of [
+    ['compte neuf', {}],
+    ['dossier rejeté puis repris', { statutValidation: 'rejete' }],
+    ['ancien dossier avec une carte grise encodée', { documents: { carteGrise: imageEncodee(PIECE_DE_SECOURS) } }],
+  ]) {
+    test(`vrai profil de chauffeur (${cas}) : photo puis carte d'identité acceptées, l'Admin approuve`, async () => {
+      await env.withSecurityRulesDisabled((c) => setDoc(doc(c.firestore(), 'users', UID), profilProduction(extra)));
+      const ctx = connecte(false);
+      await assertSucceeds(deposer(ctx, 'photoProfil', adresse('photoProfil')));
+      await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
+      await env.withSecurityRulesDisabled((c) => setDoc(doc(c.firestore(), 'users', 'admin1'), { role: 'admin', email: 'admin@test.sn' }));
+      const admin = env.authenticatedContext('admin1', { email: 'admin@test.sn' });
+      await assertSucceeds(updateDoc(doc(admin.firestore(), 'users', UID), { statutValidation: 'valide', estValide: true }));
+    });
+  }
+
+  test('compte CLIENT connecté dans l\'espace chauffeur : ses pièces sont refusées (le refus de la capture)', async () => {
+    await env.withSecurityRulesDisabled((c) =>
+      setDoc(doc(c.firestore(), 'users', UID), { role: 'client', nom: 'Awa Ndiaye', email: EMAIL, telephone: '+221771234567', statut: 'HORS_LIGNE', estValide: false, creeLe: Timestamp.now() }));
+    const ctx = connecte(true);
+    await assertFails(deposer(ctx, 'photoProfil', adresse('photoProfil')));
+    await assertFails(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
+    // Et il ne peut pas se déclarer chauffeur lui-même : le rôle est réservé à l'Admin.
+    await assertFails(updateDoc(profilDe(ctx), { role: 'conducteur' }));
+    // L'app relit son profil pour dire pourquoi (« compte client ») : lecture permise.
+    assert.equal((await assertSucceeds(getDoc(profilDe(ctx)))).data().role, 'client');
+  });
+
+  test('compte SANS profil : pièces refusées ; « Terminez votre inscription » crée le profil, puis les pièces passent', async () => {
+    const ctx = connecte(false);
+    await assertFails(deposer(ctx, 'photoProfil', adresse('photoProfil')));
+    // L'app relit le profil pour dire pourquoi (« profil absent ») : lecture permise, document inexistant.
+    assert.equal((await assertSucceeds(getDoc(profilDe(ctx)))).exists(), false);
+    // AuthRepository.completerProfilConducteur : transaction qui ne crée le profil que s'il n'existe pas.
+    await assertSucceeds(runTransaction(ctx.firestore(), async (tx) => {
+      if ((await tx.get(profilDe(ctx))).exists()) return;
+      tx.set(profilDe(ctx), profilInscription());
+    }));
+    await assertSucceeds(deposer(ctx, 'photoProfil', adresse('photoProfil')));
+    await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
+  });
+
+  test('un profil existant n\'est jamais remplacé par une nouvelle inscription (pièces et statut conservés)', async () => {
+    const ctx = connecte(true);
+    await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
+    await assertSucceeds(deposer(ctx, 'photoProfil', adresse('photoProfil')));
+    await assertFails(setDoc(profilDe(ctx), profilInscription()));
+    assert.equal((await getDoc(profilDe(ctx))).data().documents.photoProfil, adresse('photoProfil'));
   });
 });

@@ -111,8 +111,23 @@ class ConducteurDocumentsService {
       });
     } on FirebaseException catch (e, pile) {
       _consigner('Firestore', e, pile);
-      // Après un repli, le code garde aussi la cause de l'échec de Storage.
-      throw EchecEnvoiPieceException(codeEchecFirestore(e.code, codeStockage: codeStorage), cause: e);
+      // Refus des règles : l'état du profil dit pourquoi (profil absent, compte
+      // client…). Après un repli, le code garde aussi la cause de l'échec de Storage.
+      final etatProfil = e.code == 'permission-denied' ? await _etatProfil(uid) : null;
+      throw EchecEnvoiPieceException(
+        codeEchecFirestore(e.code, codeStockage: codeStorage, etatProfil: etatProfil),
+        cause: e,
+      );
+    }
+  }
+
+  /// Relit le profil après un refus (lecture permise à son propriétaire, même
+  /// absent). `null` si la lecture échoue : le code reste alors le code brut.
+  Future<String?> _etatProfil(String uid) async {
+    try {
+      return etatProfilRefus((await _firestore.collection('users').doc(uid).get()).data());
+    } on Object {
+      return null;
     }
   }
 

@@ -10,7 +10,13 @@ class ApiException implements Exception {
   factory ApiException.depuisFirebaseAuth(FirebaseAuthException erreur) {
     switch (erreur.code) {
       case 'email-already-in-use':
-        return ApiException('Ce numéro est déjà associé à un compte.');
+        // C'est l'ADRESSE E-MAIL qui est déjà prise (l'identifiant du compte),
+        // souvent par un compte Client : un même compte ne peut pas être à la
+        // fois Client et Chauffeur.
+        return ApiException(
+          'Cette adresse e-mail est déjà utilisée par un compte Sprint. Connectez-vous, '
+          'ou choisissez une autre adresse pour créer un nouveau compte.',
+        );
       case 'weak-password':
         return ApiException('Mot de passe trop faible (8 caractères minimum).');
       case 'invalid-email':

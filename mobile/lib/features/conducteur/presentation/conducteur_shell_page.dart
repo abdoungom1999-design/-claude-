@@ -27,11 +27,14 @@ import '../../messages/data/chat_service.dart';
 import '../../messages/data/detecteur_nouveaux_messages.dart';
 import '../../messages/presentation/messagerie_chat_page.dart';
 import '../data/conducteur_repository.dart';
+import '../data/etape_dossier.dart';
 import '../data/position_chauffeur_service.dart';
 import '../data/rayon_alertes.dart';
 import 'conducteur_compte_bloque_page.dart';
+import 'conducteur_compte_client_page.dart';
 import 'conducteur_en_attente_page.dart';
 import 'conducteur_kyc_page.dart';
+import 'conducteur_profil_incomplet_page.dart';
 import 'tabs/conducteur_accueil_tab.dart';
 import 'tabs/conducteur_compte_tab.dart';
 import 'tabs/conducteur_evaluations_tab.dart';
@@ -49,7 +52,7 @@ import 'widgets/nouvelle_course_sheet.dart';
 /// après connexion) à partir du champ `statutValidation` du document
 /// Firestore de l'utilisateur — jamais du booléen legacy `estValide` de
 /// [ConducteurRepository] (voir [_ConducteurShellPageState._chargerProfil]).
-enum _EtapeKyc { chargement, nonEnvoye, enAttente, valide }
+enum _EtapeKyc { chargement, profilAbsent, compteClient, nonEnvoye, enAttente, valide }
 
 /// Coquille de navigation de l'espace Conducteur (Sprint Conducteur) :
 /// barre du bas à 5 onglets (Accueil, Messages, Gains, Évaluations,
@@ -192,12 +195,15 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       return;
     }
     _surveillerStatutCompte();
-    final statutValidation = donnees?['statutValidation'] as String?;
+    // Profil absent ou compte Client : un écran qui le dit, au lieu de
+    // « Complétez votre dossier » où l'envoi des pièces serait refusé.
     setState(() {
-      _etapeKyc = switch (statutValidation) {
-        'valide' => _EtapeKyc.valide,
-        'en_attente' => _EtapeKyc.enAttente,
-        _ => _EtapeKyc.nonEnvoye,
+      _etapeKyc = switch (etapeDossierChauffeur(donnees)) {
+        EtapeDossierChauffeur.profilAbsent => _EtapeKyc.profilAbsent,
+        EtapeDossierChauffeur.compteClient => _EtapeKyc.compteClient,
+        EtapeDossierChauffeur.valide => _EtapeKyc.valide,
+        EtapeDossierChauffeur.enAttente => _EtapeKyc.enAttente,
+        EtapeDossierChauffeur.nonEnvoye => _EtapeKyc.nonEnvoye,
       };
     });
   }
@@ -604,14 +610,14 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
     if (mounted && _enLigne) _programmerProchaineCourseDemo();
   }
 
-  Future<void> _seDeconnecter() async {
+  Future<void> _seDeconnecter({String vers = AppRoutes.espacePro}) async {
     _abonnementStatutCompte?.cancel();
     _abonnementCourseActive?.cancel();
     _abonnementMessages?.cancel();
     await _arreterEnvoiPosition();
     _arreterRadarCourses();
     await _authRepository.deconnecter();
-    if (mounted) context.go(AppRoutes.espacePro);
+    if (mounted) context.go(vers);
   }
 
   @override
@@ -646,6 +652,19 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
           return const Scaffold(
             backgroundColor: AppColors.fond,
             body: Center(child: CircularProgressIndicator(color: AppColors.vert)),
+          );
+        case _EtapeKyc.profilAbsent:
+          return ConducteurProfilIncompletPage(
+            onTermine: () {
+              setState(() => _etapeKyc = _EtapeKyc.chargement);
+              unawaited(_chargerEtapeKyc());
+            },
+            onDeconnexion: _seDeconnecter,
+          );
+        case _EtapeKyc.compteClient:
+          return ConducteurCompteClientPage(
+            onCreerCompteChauffeur: () => _seDeconnecter(vers: AppRoutes.conducteurRegister),
+            onDeconnexion: _seDeconnecter,
           );
         case _EtapeKyc.nonEnvoye:
           return ConducteurKYCPage(

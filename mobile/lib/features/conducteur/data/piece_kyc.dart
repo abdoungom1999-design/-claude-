@@ -77,8 +77,22 @@ bool repliBase64Possible(TypePiece type, int octets) => type.estImage && octets 
 
 /// Code d'un échec d'écriture Firestore. Après un repli, il garde la cause de
 /// l'échec de Storage : c'est elle qu'il faut corriger, pas l'écriture de secours.
-String codeEchecFirestore(String codeFirestore, {String? codeStockage}) =>
-    codeStockage == null ? 'firestore/$codeFirestore' : 'firestore/$codeFirestore, repli après $codeStockage';
+/// [etatProfil] (voir [etatProfilRefus]) précise un refus des règles.
+String codeEchecFirestore(String codeFirestore, {String? codeStockage, String? etatProfil}) {
+  final code = etatProfil == null ? 'firestore/$codeFirestore' : 'firestore/$codeFirestore ($etatProfil)';
+  return codeStockage == null ? code : '$code, repli après $codeStockage';
+}
+
+/// État du profil `users/{uid}` relu après un refus des règles Firestore :
+/// les règles n'acceptent les pièces que sur un profil de CHAUFFEUR existant.
+/// « profil absent » (inscription interrompue) ou « compte client » expliquent
+/// le refus ; « profil chauffeur » signale un refus inattendu, à examiner.
+String etatProfilRefus(Map<String, dynamic>? profil) {
+  if (profil == null) return 'profil absent';
+  final role = profil['role'];
+  if (role == 'conducteur') return 'profil chauffeur';
+  return role is String && role.isNotEmpty ? 'compte $role' : 'profil sans rôle';
+}
 
 /// Le fichier choisi n'est pas une photo JPEG/PNG/WebP ni un PDF.
 class FormatPieceNonSupporteException implements Exception {

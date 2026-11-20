@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_exception.dart';
@@ -112,6 +113,13 @@ class _ConducteurOnboardingPageState extends State<ConducteurOnboardingPage> {
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } on Object catch (e) {
+      // Plus d'échec muet : toute autre erreur est dite, avec sa cause.
+      if (!mounted) return;
+      final code = e is FirebaseException ? '${e.plugin}/${e.code}' : e.runtimeType.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("L'inscription n'a pas abouti (code : $code). Réessayez.")),
+      );
     } finally {
       if (mounted) setState(() => _enCours = false);
     }
