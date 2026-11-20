@@ -144,6 +144,52 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    // Toujours la DERNIÈRE version de Sprint, même sur l'iPhone où l'app
+    // installée sur l'écran d'accueil garde son code en mémoire tant qu'on ne
+    // la ferme pas :
+    // 1. les anciens service workers de Flutter éventuellement restés
+    //    enregistrés sont retirés (celui des notifications, lui, est gardé) ;
+    // 2. le numéro de la version chargée est lu dans version.json (sans aucun
+    //    cache) ; chaque fois que l'app revient au premier plan, et toutes les
+    //    10 minutes, il est relu : s'il a changé, l'app se recharge
+    //    aussitôt sur la nouvelle version.
+    (function () {
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (inscrits) {
+            inscrits.forEach(function (inscrit) {
+              var script = (inscrit.active || inscrit.waiting || inscrit.installing || {}).scriptURL || '';
+              if (script.indexOf('flutter_service_worker.js') !== -1) inscrit.unregister();
+            });
+          }).catch(function () {});
+        }
+      } catch (e) {}
+
+      var chargee = null, enCours = false;
+      function lireVersion() {
+        return fetch('version.json?v=' + Date.now(), { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (v) { return v && v.build_number ? String(v.build_number) : null; })
+          .catch(function () { return null; });
+      }
+      function verifier() {
+        if (enCours || document.visibilityState !== 'visible') return;
+        enCours = true;
+        lireVersion().then(function (numero) {
+          enCours = false;
+          if (!numero) return;
+          if (chargee === null) { chargee = numero; return; }
+          if (numero !== chargee) location.reload();
+        });
+      }
+      verifier();
+      document.addEventListener('visibilitychange', verifier);
+      window.addEventListener('pageshow', verifier);
+      window.addEventListener('focus', verifier);
+      setInterval(verifier, 10 * 60 * 1000);
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 
   <!-- Aide à l'installation, une seule fois, tant que Sprint n'est pas

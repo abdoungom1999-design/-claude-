@@ -130,7 +130,7 @@ class _InformationsPersonnellesChauffeurPageState extends State<InformationsPers
         ResultatFiche.enregistre => ('Informations mises à jour', 'Vos informations personnelles ont bien été enregistrées.'),
         ResultatFiche.aVerifier => (
             'Modification envoyée',
-            'Sprint vérifie votre nom, votre moto ou votre plaque avec vos pièces (carte d\'identité, carte grise). '
+            'Sprint vérifie votre nom, votre moto ou votre plaque avec vos pièces (photo, carte d\'identité). '
                 'Vos clients verront le changement dès sa validation.'
                 '${telephoneChange ? ' Votre téléphone, lui, est déjà à jour.' : ''}',
           ),

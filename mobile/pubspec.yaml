@@ -30,6 +30,10 @@ dependencies:
   firebase_messaging: ^15.2.10
   firebase_crashlytics: ^4.3.10
   file_selector: ^1.1.0
+  # Compression des photos du dossier chauffeur sur Android (Dart pur, sans code natif).
+  image: ^4.13.1
+  # Compression des photos sur le site (canvas du navigateur, iPhone compris).
+  web: ^1.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

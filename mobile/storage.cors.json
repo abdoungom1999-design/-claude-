@@ -1,0 +1,21 @@
+[
+  {
+    "origin": ["https://sprint-vtc.web.app", "https://sprint-vtc.firebaseapp.com"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Authorization",
+      "X-Firebase-Storage-Version",
+      "X-Firebase-Gmpid",
+      "X-Goog-Upload-Command",
+      "X-Goog-Upload-Protocol",
+      "X-Goog-Upload-Header-Content-Length",
+      "X-Goog-Upload-Header-Content-Type",
+      "X-Goog-Upload-Offset",
+      "X-Goog-Upload-Status",
+      "X-Goog-Upload-URL"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

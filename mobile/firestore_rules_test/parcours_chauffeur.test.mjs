@@ -1,6 +1,7 @@
 // Parcours COMPLET d'un chauffeur fraîchement inscrit, avec les écritures exactes de l'app :
 //   1. création du profil (AuthRepository.inscrireConducteur, sans plaque) ;
-//   2. dépôt de la carte d'identité puis de la carte grise (ConducteurDocumentsService.televerserDocument :
+//   2. dépôt de la PHOTO du chauffeur (clé `photoProfil`) puis de sa CARTE D'IDENTITÉ (publication 146 ; la carte grise
+//      n'est plus demandée) (ConducteurDocumentsService.televerserDocument :
 //      { 'documents.<cle>': <adresse Storage ou image encodée>, statutValidation: 'en_attente' }) ;
 //   3. « Soumettre mon dossier » : l'app n'écrit rien (elle avance seulement l'écran) ;
 //   4. vue de l'Admin : il lit le dossier, puis l'approuve.
@@ -58,47 +59,62 @@ const tailleBase64 = (octets) => Math.floor((octets + 2) / 3) * 4;
 const PREFIXE = 'data:image/jpeg;base64,';
 const imageEncodee = (caracteres) => PREFIXE + 'A'.repeat(caracteres);
 const PIECE_DE_SECOURS = tailleBase64(LIMITE_OCTETS_REPLI); // 245 760 caractères : le plafond de l'app
+// Publication 146 : toute photo est compressée à MOINS de 150 Ko avant l'envoi (compresserImageKyc).
+const PHOTO_COMPRESSEE = tailleBase64(150 * 1024 - 1); // 204 800 caractères au plus
 
 const deposer = (contexte, cle, valeur) => updateDoc(profilDe(contexte), { [`documents.${cle}`]: valeur, statutValidation: 'en_attente' });
 
 describe('chauffeur fraîchement inscrit : dépôt des deux pièces par Storage (chemin normal)', () => {
   for (const verifie of [false, true]) {
-    test(`inscription, carte d'identité, carte grise, soumission, vue de l'Admin (e-mail ${verifie ? 'vérifié' : 'pas encore vérifié dans le jeton'})`, async () => {
+    test(`inscription, photo, carte d'identité, soumission, vue et approbation de l'Admin, en moins de 3 s (e-mail ${verifie ? 'vérifié' : 'pas encore vérifié dans le jeton'})`, async () => {
+      const debut = Date.now();
       const ctx = connecte(verifie);
       await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
       await assertSucceeds(getDoc(profilDe(ctx)));
 
+      await assertSucceeds(deposer(ctx, 'photoProfil', adresse('photoProfil')));
       await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
-      await assertSucceeds(deposer(ctx, 'carteGrise', adresse('carteGrise')));
 
       // « Soumettre mon dossier » n'écrit rien. Le chauffeur relit son profil, puis modifie son téléphone.
       const lu = (await assertSucceeds(getDoc(profilDe(ctx)))).data();
       assert.equal(lu.statutValidation, 'en_attente');
-      assert.ok(lu.documents.carteIdentite && lu.documents.carteGrise);
+      assert.ok(lu.documents.photoProfil && lu.documents.carteIdentite);
       await assertSucceeds(updateDoc(profilDe(ctx), { telephone: '+221770000000' }));
 
       // L'Admin voit le dossier et l'approuve (le panneau Admin n'a pas changé).
       await env.withSecurityRulesDisabled((c) => setDoc(doc(c.firestore(), 'users', 'admin1'), { role: 'admin', email: 'admin@test.sn' }));
       const admin = env.authenticatedContext('admin1', { email: 'admin@test.sn' });
       const vu = (await assertSucceeds(getDoc(doc(admin.firestore(), 'users', UID)))).data();
-      assert.equal(vu.documents.carteGrise, adresse('carteGrise'));
+      assert.equal(vu.documents.photoProfil, adresse('photoProfil'));
+      assert.equal(vu.documents.carteIdentite, adresse('carteIdentite'));
       await assertSucceeds(updateDoc(doc(admin.firestore(), 'users', UID), { statutValidation: 'valide', estValide: true }));
+      assert.ok(Date.now() - debut < 3000, `parcours en ${Date.now() - debut} ms`);
     });
   }
 
-  test('PDF : adresses Storage .pdf acceptées pour les deux pièces', async () => {
+  test('carte d\'identité en PDF (adresse Storage .pdf) avec la photo : acceptées', async () => {
     const ctx = connecte(true);
     await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
+    await assertSucceeds(deposer(ctx, 'photoProfil', adresse('photoProfil')));
     await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite', 'pdf')));
-    await assertSucceeds(deposer(ctx, 'carteGrise', adresse('carteGrise', 'pdf')));
+  });
+
+  test('ancien dossier avec une carte grise : toujours modifiable, la carte grise reste lisible', async () => {
+    const ctx = connecte(true);
+    await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
+    await assertSucceeds(deposer(ctx, 'carteGrise', adresse('carteGrise')));
+    await assertSucceeds(deposer(ctx, 'photoProfil', adresse('photoProfil')));
+    await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
+    const lu = (await assertSucceeds(getDoc(profilDe(ctx)))).data();
+    assert.equal(lu.documents.carteGrise, adresse('carteGrise'));
   });
 
   test('les deux pièces écrites ensemble, puis une pièce renvoyée plus tard : acceptées', async () => {
     const ctx = connecte(true);
     await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
     await assertSucceeds(updateDoc(profilDe(ctx), {
+      'documents.photoProfil': adresse('photoProfil'),
       'documents.carteIdentite': adresse('carteIdentite'),
-      'documents.carteGrise': adresse('carteGrise'),
       statutValidation: 'en_attente',
     }));
     await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite', 'pdf')));
@@ -114,16 +130,31 @@ describe('chauffeur fraîchement inscrit : dépôt des deux pièces par Storage 
       bienvenueEnvoyeeLe: new Date(),
       statutCompte: 'actif',
     }));
+    await assertSucceeds(deposer(ctx, 'photoProfil', adresse('photoProfil')));
     await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
-    await assertSucceeds(deposer(ctx, 'carteGrise', adresse('carteGrise')));
   });
 });
 
 describe('envoi de secours (Storage indisponible) : image encodée dans le profil', () => {
+  test('photos compressées (moins de 150 Ko) : photo et carte d\'identité passent, le dossier se soumet et l\'Admin l\'approuve', async () => {
+    const ctx = connecte(true);
+    await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
+    await assertSucceeds(deposer(ctx, 'photoProfil', imageEncodee(PHOTO_COMPRESSEE)));
+    await assertSucceeds(deposer(ctx, 'carteIdentite', imageEncodee(PHOTO_COMPRESSEE)));
+    // Renvoi de l'une des deux, puis modification du téléphone : toujours possible.
+    await assertSucceeds(deposer(ctx, 'carteIdentite', imageEncodee(PHOTO_COMPRESSEE)));
+    await assertSucceeds(updateDoc(profilDe(ctx), { telephone: '+221770000000' }));
+    await env.withSecurityRulesDisabled((c) => setDoc(doc(c.firestore(), 'users', 'admin1'), { role: 'admin', email: 'admin@test.sn' }));
+    const admin = env.authenticatedContext('admin1', { email: 'admin@test.sn' });
+    const vu = (await assertSucceeds(getDoc(doc(admin.firestore(), 'users', UID)))).data();
+    assert.ok(vu.documents.photoProfil.startsWith(PREFIXE) && vu.documents.carteIdentite.startsWith(PREFIXE));
+    await assertSucceeds(updateDoc(doc(admin.firestore(), 'users', UID), { statutValidation: 'valide', estValide: true }));
+  });
+
   test('aux plafonds de l\'app (180 Ko par photo) : carte d\'identité, carte grise, et même photo de profil et ancienne pièce', async () => {
     const ctx = connecte(true);
     await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
-    for (const cle of ['carteIdentite', 'carteGrise', 'photoProfil', 'permis']) {
+    for (const cle of ['photoProfil', 'carteIdentite', 'carteGrise', 'permis']) {
       await assertSucceeds(deposer(ctx, cle, imageEncodee(PIECE_DE_SECOURS)), cle);
     }
     // Et le profil reste modifiable ensuite.
@@ -134,16 +165,16 @@ describe('envoi de secours (Storage indisponible) : image encodée dans le profi
     const ctx = connecte(true);
     await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
     const grosse = imageEncodee(tailleBase64(700 * 1024)); // le plafond d'avant, 933 000 caractères
-    await assertSucceeds(deposer(ctx, 'carteIdentite', grosse), 'la première passe');
+    await assertSucceeds(deposer(ctx, 'photoProfil', grosse), 'la première passe');
     // La deuxième est refusée en « permission-denied », sans qu'aucune règle de droits soit en cause : c'est la mémoire
     // d'évaluation des règles (et, de toute façon, deux images de 933 000 caractères ne tiennent pas dans 1 Mo).
-    await assertFails(deposer(ctx, 'carteGrise', grosse));
+    await assertFails(deposer(ctx, 'carteIdentite', grosse));
   });
 
   test('un dépôt par Storage reste possible même sur un profil portant déjà une image de secours moyenne', async () => {
     const ctx = connecte(true);
     await assertSucceeds(setDoc(profilDe(ctx), profilInscription()));
-    await assertSucceeds(deposer(ctx, 'carteIdentite', imageEncodee(PIECE_DE_SECOURS)));
-    await assertSucceeds(deposer(ctx, 'carteGrise', adresse('carteGrise')));
+    await assertSucceeds(deposer(ctx, 'photoProfil', imageEncodee(PIECE_DE_SECOURS)));
+    await assertSucceeds(deposer(ctx, 'carteIdentite', adresse('carteIdentite')));
   });
 });

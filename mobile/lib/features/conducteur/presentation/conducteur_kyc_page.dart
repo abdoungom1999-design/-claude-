@@ -9,24 +9,26 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/ecran_statut_onyx.dart';
 import '../../../core/widgets/onyx_vert.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../../core/widgets/numero_version.dart';
+import '../data/compression_image.dart';
 import '../data/conducteur_documents_service.dart';
 
-/// Les deux pièces demandées à un nouveau chauffeur. Les anciennes clés
-/// (`permis`, `attestationVtc`) ne sont plus demandées mais restent lisibles
-/// dans les dossiers déjà envoyés.
-const documentsKycRequis = ['carteIdentite', 'carteGrise'];
+/// Les deux pièces demandées à un nouveau chauffeur : sa PHOTO (clé historique
+/// `photoProfil`, la même que la photo de profil) et sa CARTE D'IDENTITÉ. Les
+/// anciennes clés (`carteGrise`, `permis`, `attestationVtc`) ne sont plus
+/// demandées mais restent lisibles dans les dossiers déjà envoyés.
+const documentsKycRequis = ['photoProfil', 'carteIdentite'];
 
-/// Choix d'une pièce : photo (appareil photo ou galerie, compressée par le
-/// téléphone) ou fichier (PDF, ou image prise dans les fichiers). Renvoie les
-/// octets, ou `null` si la personne annule.
-typedef ChoisirPiece = Future<Uint8List?> Function(BuildContext context);
+/// Choix d'une pièce [cle] : renvoie les octets, ou `null` si la personne annule.
+typedef ChoisirPiece = Future<Uint8List?> Function(BuildContext context, String cle);
 
-/// Photo : redimensionnée et compressée par le téléphone AVANT l'envoi (1280 px,
-/// qualité 65 : une carte d'identité reste lisible, pour environ 150 à 250 Ko :
-/// rapide sur 4G, et assez légère pour l'envoi de secours si Storage est
-/// indisponible, voir `limiteOctetsRepliBase64`). Le sélecteur de photos convertit lui-même les HEIC
-/// de l'iPhone en JPEG.
-Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
+/// Photo du chauffeur : appareil photo (de face) ou galerie, jamais un fichier
+/// PDF. Carte d'identité : appareil photo, galerie, ou fichier (PDF ou image).
+/// Toute photo est ensuite compressée par l'app elle-même avant l'envoi (moins
+/// de 150 Ko, voir `compresserImageKyc`) : les réglages du sélecteur ci-dessous
+/// ne servent qu'à alléger le travail, Safari pouvant les ignorer.
+Future<Uint8List?> choisirPieceReelle(BuildContext context, String cle) async {
+  final photoDuChauffeur = cle == 'photoProfil';
   final source = await showModalBottomSheet<String>(
     context: context,
     backgroundColor: AppColors.carte,
@@ -36,8 +38,8 @@ Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
         children: [
           ListTile(
             key: const ValueKey('source-camera'),
-            leading: const Icon(Icons.photo_camera_outlined, color: AppColors.vert),
-            title: const Text('Prendre une photo'),
+            leading: Icon(photoDuChauffeur ? Icons.camera_front_outlined : Icons.photo_camera_outlined, color: AppColors.vert),
+            title: Text(photoDuChauffeur ? 'Prendre un selfie' : 'Prendre une photo'),
             onTap: () => Navigator.of(contexte).pop('camera'),
           ),
           ListTile(
@@ -46,12 +48,13 @@ Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
             title: const Text('Choisir une photo'),
             onTap: () => Navigator.of(contexte).pop('galerie'),
           ),
-          ListTile(
-            key: const ValueKey('source-fichier'),
-            leading: const Icon(Icons.attach_file_rounded, color: AppColors.vert),
-            title: const Text('Choisir un fichier (PDF ou image)'),
-            onTap: () => Navigator.of(contexte).pop('fichier'),
-          ),
+          if (!photoDuChauffeur)
+            ListTile(
+              key: const ValueKey('source-fichier'),
+              leading: const Icon(Icons.attach_file_rounded, color: AppColors.vert),
+              title: const Text('Choisir un fichier (PDF ou image)'),
+              onTap: () => Navigator.of(contexte).pop('fichier'),
+            ),
         ],
       ),
     ),
@@ -70,7 +73,8 @@ Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
   }
   final photo = await ImagePicker().pickImage(
     source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
-    maxWidth: 1280,
+    preferredCameraDevice: photoDuChauffeur ? CameraDevice.front : CameraDevice.rear,
+    maxWidth: coteMaxImageKyc.toDouble(),
     imageQuality: 65,
   );
   return photo?.readAsBytes();
@@ -128,7 +132,7 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
   }
 
   /// Choisit la pièce (photo ou fichier) puis l'envoie sous la clé [cle]
-  /// ('carteIdentite' ou 'carteGrise'). Plus d'échec muet : un refus, un format
+  /// ('photoProfil' ou 'carteIdentite'). Plus d'échec muet : un refus, un format
   /// non pris en charge ou un incident technique est dit clairement, avec le
   /// code précis de la cause quand il est technique.
   Future<void> _choisirEtTeleverser(String cle) async {
@@ -137,7 +141,7 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
 
     Uint8List? octets;
     try {
-      octets = await (widget.choisirPiece ?? choisirPieceReelle)(context);
+      octets = await (widget.choisirPiece ?? choisirPieceReelle)(context, cle);
     } on Object catch (e) {
       final code = e is PlatformException ? e.code : e.runtimeType.toString();
       _annoncer(messageErreurEnvoi(EchecEnvoiPieceException('selection/$code', cause: e)));
@@ -182,9 +186,9 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
                       const Text('Complétez votre dossier', style: styleTitreEcran),
                       const SizedBox(height: 10),
                       const Text(
-                        'Avant de prendre votre première course, envoyez une photo lisible '
-                        "ou un PDF de chacun de ces documents. L'équipe du Groupe Santine les "
-                        "vérifie avant d'activer votre compte.",
+                        'Avant de prendre votre première course, envoyez une photo de vous '
+                        "(votre visage, bien éclairé) et votre carte d'identité (photo ou PDF). "
+                        "L'équipe du Groupe Santine les vérifie avant d'activer votre compte.",
                         style: TextStyle(fontSize: 13.5, color: AppColors.texteDiscret, height: 1.5),
                       ),
                       const SizedBox(height: 22),
@@ -195,19 +199,19 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
                         child: Column(
                           children: [
                             _LigneDocumentKyc(
+                              icon: Icons.face_outlined,
+                              label: 'Photo',
+                              envoye: _envoye('photoProfil', documents),
+                              enCours: _enCoursTeleversement.contains('photoProfil'),
+                              onTap: () => _choisirEtTeleverser('photoProfil'),
+                            ),
+                            const _SeparateurKyc(),
+                            _LigneDocumentKyc(
                               icon: Icons.badge_outlined,
                               label: "Carte d'identité",
                               envoye: _envoye('carteIdentite', documents),
                               enCours: _enCoursTeleversement.contains('carteIdentite'),
                               onTap: () => _choisirEtTeleverser('carteIdentite'),
-                            ),
-                            const _SeparateurKyc(),
-                            _LigneDocumentKyc(
-                              icon: Icons.description_outlined,
-                              label: 'Carte grise',
-                              envoye: _envoye('carteGrise', documents),
-                              enCours: _enCoursTeleversement.contains('carteGrise'),
-                              onTap: () => _choisirEtTeleverser('carteGrise'),
                             ),
                           ],
                         ),
@@ -219,6 +223,8 @@ class _ConducteurKYCPageState extends State<ConducteurKYCPage> {
                       ),
                       const SizedBox(height: 4),
                       Center(child: LienStatut(label: 'Se déconnecter', onPressed: widget.onDeconnexion)),
+                      const SizedBox(height: 8),
+                      const NumeroVersion(),
                     ],
                   ),
                 ),

@@ -94,6 +94,8 @@ jobs:
         run: |
           flutter build web --release \
             --base-href "/" \
+            --build-number=${{ github.run_number }} \
+            --dart-define=NUMERO_PUBLICATION=${{ github.run_number }} \
             --dart-define=API_BASE_URL="${{ inputs.api_base_url }}" \
             --dart-define=GOOGLE_MAPS_WEB_KEY="$GOOGLE_MAPS_WEB_KEY"
 
@@ -511,6 +513,21 @@ jobs:
             npx --yes firebase-tools@15 deploy --only storage --project sprint-vtc --non-interactive
           fi
 
+      # Accès depuis le site (iPhone compris) au bucket des pièces des chauffeurs :
+      # règles CORS de mobile/storage.cors.json (seulement les adresses du site).
+      # L'envoi par le SDK Firebase n'en dépend pas ; elles permettent au site
+      # de relire les images directement (panneau Admin) sans détour. Jamais
+      # bloquant : un refus est signalé, le reste de la publication continue.
+      - name: CORS du bucket Storage (site et iPhone)
+        if: steps.secret.outputs.present == 'true'
+        continue-on-error: true
+        run: |
+          if gcloud storage buckets update gs://sprint-vtc.firebasestorage.app --cors-file=storage.cors.json --project=sprint-vtc; then
+            gcloud storage buckets describe gs://sprint-vtc.firebasestorage.app --project=sprint-vtc --format="json(cors_config)" || true
+          else
+            echo "::warning title=CORS Storage::Réglage CORS du bucket refusé (droit storage.buckets.update du compte github-deploy ?). Sans effet sur l'envoi des pièces ; voir mobile/FIREBASE_SETUP.md."
+          fi
+
   # Ancienne adresse (GitHub Pages) : page de redirection vers
   # https://sprint-vtc.web.app, publiée une fois le nouveau site en ligne.
   deploy:
@@ -662,6 +679,7 @@ jobs:
           flutter build apk --release \
             --target-platform android-arm,android-arm64 \
             --build-number=${{ github.run_number }} \
+            --dart-define=NUMERO_PUBLICATION=${{ github.run_number }} \
             --dart-define=FIREBASE_ANDROID_APP_ID=${{ steps.firebase_android.outputs.app_id }} \
             --dart-define=GOOGLE_MAPS_ANDROID_KEY="$GOOGLE_MAPS_ANDROID_KEY"
 

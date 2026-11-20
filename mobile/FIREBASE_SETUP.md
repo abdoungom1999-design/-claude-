@@ -71,13 +71,16 @@ côté Admin, etc. restent sur les données de démonstration
 suivante ; la migration des pièces déjà envoyées en Base64 se lance ensuite
 depuis Admin > Paramètres (voir plus bas).
 
-Les documents chauffeur (carte d'identité — clé `carteIdentite` —, carte
-grise, photo de profil ; et, pour les dossiers envoyés avant la
-simplification à deux pièces, permis et assurance moto — clé historique
-`attestationVtc`) partent dans Firebase Storage
-(`kyc_documents/{uid}/{document}.jpg` pour une photo JPEG, PNG ou WebP,
-`{document}.pdf` pour un PDF de la carte d'identité ou de la carte grise,
-10 Mo au plus), avec leur type réel, et seule leur URL est gardée dans
+Les documents chauffeur (depuis la publication 146 : la PHOTO du chauffeur —
+clé historique `photoProfil` — et sa carte d'identité — clé `carteIdentite` ;
+pour les dossiers plus anciens, la carte grise, le permis et l'assurance moto —
+clé historique `attestationVtc` —, toujours visibles par l'Admin) partent dans
+Firebase Storage (`kyc_documents/{uid}/{document}.jpg` pour une photo,
+`{document}.pdf` pour un PDF de la carte d'identité ; jamais de PDF pour la
+photo ; 10 Mo au plus). Toute photo est d'abord réduite par l'app en JPEG de
+MOINS DE 150 Ko (1024 px de côté au plus, qualité 0,65 puis moins si besoin ;
+canvas du navigateur sur le site et l'iPhone, Dart sur Android :
+`compression_image.dart`). Les pièces gardent leur type réel, et seule leur URL est gardée dans
 Firestore. Un envoi qui échoue affiche son code précis (`storage/…`,
 `firestore/…`) au lieu d'un message muet. Envoi de secours (Storage en échec) : photos
 seulement, 180 Ko au plus (`limiteOctetsRepliBase64`) : les règles Firestore n'évaluent
@@ -86,7 +89,7 @@ qu'environ 1 000 000 de caractères d'images encodées AU TOTAL sur le profil (m
 « permission-denied » par « maximum memory usage of 1000 », sans rapport avec les droits).
 Après un repli, le code d'échec garde la cause de Storage (`firestore/permission-denied,
 repli après storage/…`). **Tant que Storage n'est pas activé, l'app retombe
-automatiquement sur le stockage Base64 dans Firestore** (plafond 700 Ko
+automatiquement sur le stockage Base64 dans Firestore** (plafond 180 Ko
 par pièce) : rien ne casse, mais la migration n'est pas effective. La CI
 vérifie à chaque déploiement si le bucket existe et le signale par un
 avertissement jaune « Firebase Storage » dans le job `firebase`.
@@ -1729,3 +1732,17 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   vérifie avant de déployer que le secret existe et a la forme d'une clé Resend (étape « Clé Resend présente »). C'est le
   premier déclencheur Firestore du projet (Eventarc) : si le premier déploiement ouvert échoue sur un droit manquant,
   l'erreur nomme le rôle à ajouter au compte `github-deploy`. Les chauffeurs déjà validés ne reçoivent rien. Aperçu validé par captures ; manifeste vérifié ouvert (déclencheur `google.cloud.firestore.document.v1.updated` sur `users/{uid}`, région `europe-west1`, secret `RESEND_API_KEY`, sans relance automatique).
+* **Dossier chauffeur simplifié (Photo + Carte d'identité) et envoi des images fiabilisé** (lot 146, préparé, NON publié ;
+  aucune règle modifiée : `firestore.rules` et `storage.rules` identiques à la 145). Pièces demandées : la photo du chauffeur
+  (clé `photoProfil`, selfie ou galerie, jamais un PDF) et la carte d'identité (photo ou PDF) ; la carte grise n'est plus
+  demandée, mais reste visible pour les anciens dossiers, qui restent validables. Compression garantie avant tout envoi :
+  JPEG de moins de 150 Ko, 1024 px au plus (mesuré dans Chromium compilé comme le site : photo de 12 mégapixels, 4,4 Mo,
+  ramenée à 87 Ko en 0,27 s), donc l'envoi de secours tient toujours sous la limite des règles. Fin du code périmé sur
+  iPhone : `web/flutter_bootstrap.js` charge l'app sans service worker (l'ancien est désinscrit), et `web/index.html` compare
+  `version.json` (demandé hors cache) au numéro chargé, à l'ouverture, au retour sur l'app et toutes les 10 minutes ;
+  un nouveau numéro recharge la page. Numéro de publication affiché en bas des écrans de connexion et de « Complétez votre
+  dossier » (`v146`, `NUMERO_PUBLICATION` = numéro du run). CORS du bucket (`storage.cors.json`) appliqué par la CI
+  (étape non bloquante « CORS du bucket Storage ») ; l'envoi par le SDK Firebase n'en dépend pas. Tests : compression
+  (machine virtuelle et vrai navigateur), panneau Admin (`admin_dossier_photo_carte_test.dart`), parcours complet sur
+  émulateur en moins de 3 s (`parcours_chauffeur.test.mjs`). À savoir : les Conditions d'utilisation mentionnent encore
+  « la carte grise du véhicule déclaré » (texte choisi par le client, inchangé).

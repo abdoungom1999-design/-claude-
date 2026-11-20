@@ -10,17 +10,20 @@ import '../../data/admin_kyc_service.dart';
 import 'dialogue_sanction.dart';
 import 'visionneuse_document.dart';
 
-/// Pièces demandées aujourd'hui : carte d'identité et carte grise, toujours
-/// affichées (« Non envoyé » tant qu'elles manquent).
+/// Pièces demandées aujourd'hui : la photo du chauffeur (clé historique
+/// `photoProfil`) et sa carte d'identité, toujours affichées (« Non envoyé »
+/// tant qu'elles manquent) : l'Admin compare le visage de la photo avec celui
+/// de la carte d'identité avant d'approuver.
 const _documentsKyc = [
+  ('photoProfil', 'Photo du chauffeur', Icons.face_outlined),
   ('carteIdentite', "Carte d'identité", Icons.badge_outlined),
-  ('carteGrise', 'Carte grise', Icons.description_outlined),
 ];
 
-/// Anciens dossiers (avant la simplification à deux pièces) : ces pièces ne
-/// sont plus demandées, mais elles restent visibles quand elles ont été
-/// envoyées. Clé historique « attestationVtc » : l'assurance de la moto.
+/// Anciens dossiers : ces pièces ne sont plus demandées, mais elles restent
+/// visibles quand elles ont été envoyées. Clé historique « attestationVtc » :
+/// l'assurance de la moto.
 const _documentsKycAnciens = [
+  ('carteGrise', 'Carte grise', Icons.description_outlined),
   ('permis', 'Permis de conduire', Icons.badge_outlined),
   ('attestationVtc', 'Assurance moto', Icons.shield_outlined),
 ];
@@ -273,7 +276,7 @@ class _EnTete extends StatelessWidget {
 }
 
 /// Changement demandé par le chauffeur (dossier validé) : avant / après,
-/// à comparer avec la pièce d'identité et la carte grise plus bas.
+/// à comparer avec la photo et la carte d'identité plus bas.
 class _ModificationDemandee extends StatelessWidget {
   const _ModificationDemandee({
     required this.conducteur,
@@ -337,7 +340,7 @@ class _ModificationDemandee extends StatelessWidget {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           const Text(
-            'Comparez avec la carte d\'identité et la carte grise ci-dessous. Validée, elle devient ce que voient ses clients.',
+            'Comparez avec la photo et la carte d\'identité ci-dessous. Validée, elle devient ce que voient ses clients.',
             style: TextStyle(fontSize: 12.5, color: AppColors.texteDiscret),
           ),
           const SizedBox(height: 12),

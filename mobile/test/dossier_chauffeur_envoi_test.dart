@@ -37,7 +37,7 @@ class _ServiceFactice extends ConducteurDocumentsService {
 
 Future<void> _ouvrir(
   WidgetTester tester, {
-  required Future<Uint8List?> Function(BuildContext) choisir,
+  required Future<Uint8List?> Function(BuildContext, String) choisir,
   required _ServiceFactice service,
   Map<String, dynamic> documents = const {},
 }) async {
@@ -138,22 +138,27 @@ void main() {
   });
 
   group('page « Complétez votre dossier » : envoi d\'une pièce', () {
-    testWidgets('envoi réussi : la pièce part sous la bonne clé, avec l\'identifiant du compte', (tester) async {
+    testWidgets('envoi réussi : la photo puis la carte d\'identité partent sous la bonne clé, avec l\'identifiant du compte', (tester) async {
       final service = _ServiceFactice();
-      await _ouvrir(tester, choisir: (_) async => _jpeg, service: service);
+      final demandes = <String>[];
+      await _ouvrir(tester, choisir: (_, cle) async {
+        demandes.add(cle);
+        return _jpeg;
+      }, service: service);
 
+      await tester.tap(find.text('Photo'));
+      await tester.pump();
       await tester.tap(find.text("Carte d'identité"));
       await tester.pump();
-      await tester.tap(find.text('Carte grise'));
-      await tester.pump();
 
-      expect([for (final e in service.envois) (e.$1, e.$2)], [('chauffeur-1', 'carteIdentite'), ('chauffeur-1', 'carteGrise')]);
+      expect(demandes, ['photoProfil', 'carteIdentite'], reason: 'le sélecteur sait quelle pièce est demandée (pas de PDF pour la photo)');
+      expect([for (final e in service.envois) (e.$1, e.$2)], [('chauffeur-1', 'photoProfil'), ('chauffeur-1', 'carteIdentite')]);
       expect(find.byType(SnackBar), findsNothing);
     });
 
     testWidgets('annulation du choix : rien n\'est envoyé, aucun message', (tester) async {
       final service = _ServiceFactice();
-      await _ouvrir(tester, choisir: (_) async => null, service: service);
+      await _ouvrir(tester, choisir: (_, __) async => null, service: service);
 
       await tester.tap(find.text("Carte d'identité"));
       await tester.pump();
@@ -164,9 +169,9 @@ void main() {
 
     testWidgets('échec technique : le code exact est affiché (plus de « Échec de l\'envoi. Réessayez. » muet)', (tester) async {
       final service = _ServiceFactice(erreur: const EchecEnvoiPieceException('storage/unauthorized'));
-      await _ouvrir(tester, choisir: (_) async => _png, service: service);
+      await _ouvrir(tester, choisir: (_, __) async => _png, service: service);
 
-      await tester.tap(find.text('Carte grise'));
+      await tester.tap(find.text('Photo'));
       await tester.pump();
 
       expect(find.textContaining('storage/unauthorized'), findsOneWidget);
@@ -180,8 +185,8 @@ void main() {
       ('photo HEIC brute', const FormatPieceNonSupporteException(heic: true) as Object, 'HEIC'),
     ]) {
       testWidgets('$nom : un message clair, sans code technique inutile', (tester) async {
-        await _ouvrir(tester, choisir: (_) async => _pdf, service: _ServiceFactice(erreur: erreur));
-        await tester.tap(find.text('Carte grise'));
+        await _ouvrir(tester, choisir: (_, __) async => _pdf, service: _ServiceFactice(erreur: erreur));
+        await tester.tap(find.text('Photo'));
         await tester.pump();
         expect(find.textContaining(attendu), findsOneWidget);
         expect(find.textContaining('code :'), findsNothing);
@@ -192,7 +197,7 @@ void main() {
       final service = _ServiceFactice();
       await _ouvrir(
         tester,
-        choisir: (_) async => throw PlatformException(code: 'camera_access_denied'),
+        choisir: (_, __) async => throw PlatformException(code: 'camera_access_denied'),
         service: service,
       );
 

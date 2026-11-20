@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'numero_version.dart';
 import '../../firebase_options.dart';
 import '../config/api_config.dart';
 import '../theme/app_colors.dart';
@@ -97,6 +98,8 @@ class AuthScaffold extends StatelessWidget {
                           const SizedBox(height: 18),
                           footer!,
                         ],
+                        const SizedBox(height: 14),
+                        const NumeroVersion(),
                       ],
                     ),
                   ),

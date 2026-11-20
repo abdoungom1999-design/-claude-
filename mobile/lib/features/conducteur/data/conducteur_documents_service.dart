@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/suivi/suivi_plantages.dart';
+import 'compression_image.dart';
 import 'piece_kyc.dart';
 
 export 'piece_kyc.dart'
@@ -25,7 +26,8 @@ export 'piece_kyc.dart'
 /// (`users/{uid}.documents.{cle}`).
 ///
 /// Repli (photos seulement) : si Storage refuse l'envoi, on retombe sur
-/// l'ancien stockage Base64 dans Firestore (700 Ko au plus), pour ne pas
+/// l'ancien stockage Base64 dans Firestore (180 Ko au plus ; une photo
+/// compressée en fait moins de 150), pour ne pas
 /// bloquer un chauffeur. Les lecteurs ([ImageDocument]) acceptent les deux
 /// formats.
 ///
@@ -41,10 +43,15 @@ class ConducteurDocumentsService {
   /// au total sur le profil ; au-delà, la deuxième pièce est refusée.
   static const int limiteOctetsBase64 = limiteOctetsRepliBase64;
 
+  ConducteurDocumentsService({Future<Uint8List> Function(Uint8List octets)? compresser}) : _compresser = compresser;
+
+  /// Compression des photos (remplaçable dans les tests) ; `null` : [compresserImageKyc].
+  final Future<Uint8List> Function(Uint8List octets)? _compresser;
+
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
-  /// Enregistre [octets] sous la clé [cle] ('carteIdentite', 'carteGrise',
-  /// 'photoProfil' ; 'permis' et 'attestationVtc' pour les anciens dossiers)
+  /// Enregistre [octets] sous la clé [cle] ('photoProfil', 'carteIdentite' ;
+  /// 'carteGrise', 'permis' et 'attestationVtc' pour les anciens dossiers)
   /// sans toucher aux autres documents, et remet le dossier en file
   /// d'attente de vérification Admin (`statutValidation: 'en_attente'`).
   ///
@@ -55,7 +62,23 @@ class ConducteurDocumentsService {
     required String cle,
     required Uint8List octets,
   }) async {
-    final type = detecterTypePiece(octets);
+    var type = detecterTypePiece(octets);
+    // La photo du chauffeur est toujours une image, jamais un PDF.
+    if (type == TypePiece.pdf && cle == 'photoProfil') throw const FormatPieceNonSupporteException();
+    // Toute photo est réduite en JPEG de moins de 150 Ko AVANT l'envoi (canvas du
+    // navigateur sur le site et l'iPhone, Dart sur Android) : rapide sur 4G, et
+    // l'envoi de secours passe toujours sous la limite des règles Firestore. Le
+    // navigateur sait aussi relire le HEIC de l'iPhone ; un format que l'appareil
+    // ne sait pas lire est refusé clairement, jamais envoyé tel quel.
+    if (type != TypePiece.pdf) {
+      final original = octets;
+      try {
+        octets = await (_compresser ?? compresserImageKyc)(octets);
+      } on CompressionImpossibleException {
+        throw FormatPieceNonSupporteException(heic: estPieceHeic(original));
+      }
+      type = TypePiece.jpeg;
+    }
     if (type == null) throw FormatPieceNonSupporteException(heic: estPieceHeic(octets));
     if (octets.lengthInBytes > limiteOctetsStorage) throw const DocumentTropVolumineuxException();
 

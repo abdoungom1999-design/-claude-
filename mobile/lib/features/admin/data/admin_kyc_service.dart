@@ -43,8 +43,9 @@ class ConducteurKycAdmin {
 
   bool get estBloque => StatutCompte.estBloque(statutCompte);
 
-  /// Clés possibles : `permis`, `carteGrise`, `attestationVtc`,
-  /// `photoProfil` — chacune une URL Firebase Storage ou une data URI
+  /// Clés demandées : `photoProfil` (photo du chauffeur) et `carteIdentite` ;
+  /// anciens dossiers : `carteGrise`, `permis`, `attestationVtc` — chacune une
+  /// URL Firebase Storage ou une data URI
   /// Base64 (voir `ConducteurDocumentsService`), absente si non envoyée.
   final Map<String, dynamic> documents;
 

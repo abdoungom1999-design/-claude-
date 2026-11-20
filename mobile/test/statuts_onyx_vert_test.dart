@@ -74,28 +74,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets("Dossier KYC : carte d'identité et carte grise seulement (plus de permis ni d'assurance)", (tester) async {
+  testWidgets("Dossier KYC : photo et carte d'identité seulement (plus de carte grise, de permis ni d'assurance)", (tester) async {
     await _ecran(tester, _kyc({}));
     expect(find.text('0 document sur 2 envoyé'), findsOneWidget);
+    expect(find.text('Photo'), findsOneWidget);
     expect(find.text("Carte d'identité"), findsOneWidget);
-    expect(find.text('Carte grise'), findsOneWidget);
+    // Photo d'abord, carte d'identité ensuite.
+    expect(tester.getTopLeft(find.text('Photo')).dy, lessThan(tester.getTopLeft(find.text("Carte d'identité")).dy));
     expect(find.text('Ajouter'), findsNWidgets(2));
-    expect(find.text('Permis de conduire'), findsNothing);
-    expect(find.text('Assurance moto'), findsNothing);
+    for (final ancienne in ['Carte grise', 'Permis de conduire', 'Assurance moto']) {
+      expect(find.text(ancienne), findsNothing, reason: ancienne);
+    }
     expect(find.textContaining('VTC'), findsNothing);
   });
 
-  testWidgets('Dossier KYC : les 2 documents envoyés activent la soumission', (tester) async {
+  testWidgets('Dossier KYC : la photo et la carte d\'identité envoyées activent la soumission', (tester) async {
     var soumis = false;
-    await _ecran(tester, _kyc({'carteIdentite': 'x', 'carteGrise': 'x'}, onSoumis: () => soumis = true));
+    await _ecran(tester, _kyc({'photoProfil': 'x', 'carteIdentite': 'x'}, onSoumis: () => soumis = true));
 
     expect(find.text('2 documents sur 2 envoyés'), findsOneWidget);
     await tester.tap(find.text('Soumettre mon dossier'));
     expect(soumis, isTrue);
   });
 
-  testWidgets("Dossier KYC : les anciennes pièces (permis, assurance) ne comptent pas à la place de la carte d'identité", (tester) async {
-    await _ecran(tester, _kyc({'permis': 'x', 'carteGrise': 'x', 'attestationVtc': 'x'}));
+  testWidgets('Dossier KYC : les anciennes pièces (carte grise, permis, assurance) ne remplacent pas la photo', (tester) async {
+    await _ecran(tester, _kyc({'carteIdentite': 'x', 'carteGrise': 'x', 'permis': 'x', 'attestationVtc': 'x'}));
 
     expect(find.text('1 document sur 2 envoyé'), findsOneWidget);
     final bouton = find.widgetWithText(ElevatedButton, 'Soumettre mon dossier');
