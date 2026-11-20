@@ -1693,3 +1693,10 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   assurance valide requises pour l'exercice de son activité au Sénégal, et à fournir une pièce d'identité ainsi que la
   carte grise du véhicule déclaré » (l'assurance reste un engagement contractuel, sans être demandée comme pièce) ; le
   sous-titre de l'inscription chauffeur parle de la carte d'identité.
+* **Activation du chauffeur sans reconnexion** (lot préparé après la 140, non publié) : l'écran « Dossier en cours de
+  vérification » écoute en direct le profil du chauffeur (`users/{uid}.statutValidation`). Dès que l'Admin approuve
+  (`valide`), il se transforme en célébration (étapes illuminées, halo du logo, confettis dorés et verts, « Félicitations !
+  Votre compte chauffeur Sprint est activé »), puis l'espace chauffeur s'ouvre tout seul au bout d'environ 2,5 secondes ou
+  au clic sur « Commencer », sans reconnexion. Aucun rafraîchissement de jeton : les droits du chauffeur ne passent pas par
+  des « custom claims » mais par son document Firestore, relu par les règles à chaque requête. Côté chauffeur seulement :
+  panneau Admin, serveur et règles inchangés. Le chauffeur passe « En ligne » lui-même (localisation à autoriser).

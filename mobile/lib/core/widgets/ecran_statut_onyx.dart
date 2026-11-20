@@ -17,6 +17,7 @@ class EcranStatutOnyx extends StatelessWidget {
     this.couleurAlerte,
     this.contenu = const [],
     this.actions = const [],
+    this.haloLogo = false,
   });
 
   final IconData icone;
@@ -33,6 +34,10 @@ class EcranStatutOnyx extends StatelessWidget {
   /// Boutons sous la carte (principal, secondaire, lien discret).
   final List<Widget> actions;
 
+  /// Halo lumineux qui pulse autour du logo (écran de célébration). Éteint
+  /// par défaut : les autres écrans de statut ne changent pas.
+  final bool haloLogo;
+
   @override
   Widget build(BuildContext context) {
     return EcranOnyxVert(
@@ -48,7 +53,7 @@ class EcranStatutOnyx extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: TuileLogo(taille: 56)),
+                    Center(child: haloLogo ? const HaloLogoSprint() : const TuileLogo(taille: 56)),
                     const SizedBox(height: 28),
                     CarteVerre(
                       padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
@@ -89,6 +94,63 @@ class EcranStatutOnyx extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Logo Sprint entouré d'un halo vert et doré qui pulse doucement (célébration
+/// de l'activation du compte). Sans mouvement si l'appareil demande de réduire
+/// les animations.
+class HaloLogoSprint extends StatefulWidget {
+  const HaloLogoSprint({super.key, this.taille = 56});
+
+  final double taille;
+
+  @override
+  State<HaloLogoSprint> createState() => _HaloLogoSprintState();
+}
+
+class _HaloLogoSprintState extends State<HaloLogoSprint> with SingleTickerProviderStateMixin {
+  late final AnimationController _pulsation = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _pulsation.stop();
+      _pulsation.value = 0.6;
+    } else if (!_pulsation.isAnimating) {
+      _pulsation.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulsation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulsation,
+      builder: (context, enfant) {
+        final v = Curves.easeInOut.transform(_pulsation.value);
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.taille * 0.3),
+            boxShadow: [
+              BoxShadow(color: AppColors.vert.withValues(alpha: 0.35 + 0.35 * v), blurRadius: 22 + 26 * v, spreadRadius: 2 + 6 * v),
+              BoxShadow(color: AppColors.etoile.withValues(alpha: 0.18 + 0.28 * v), blurRadius: 40 + 30 * v, spreadRadius: 4 * v),
+            ],
+          ),
+          child: enfant,
+        );
+      },
+      child: TuileLogo(taille: widget.taille),
     );
   }
 }
@@ -257,16 +319,35 @@ class PastilleStatut extends StatelessWidget {
 }
 
 /// Les trois étapes d'un dossier chauffeur : reçu, vérification, activation.
-/// [etapeCourante] : 0 = reçu, 1 = vérification en cours, 2 = compte activé.
+/// [etapeCourante] : 0 = reçu, 1 = vérification en cours, 2 = compte activé
+/// en cours, 3 = les trois étapes sont terminées. [eclat] : la barre et les
+/// pastilles terminées s'illuminent en vert éclatant (célébration de
+/// l'activation) ; `false` par défaut, l'écran reste celui d'avant.
 class EtapesDossier extends StatelessWidget {
-  const EtapesDossier({super.key, this.etapeCourante = 1});
+  const EtapesDossier({super.key, this.etapeCourante = 1, this.eclat = false});
 
   final int etapeCourante;
+  final bool eclat;
 
   static const _etapes = ['Dossier reçu', 'Vérification', 'Compte activé'];
 
   @override
   Widget build(BuildContext context) {
+    if (!eclat) return _construire(1);
+    final sansAnimation = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: sansAnimation ? 1 : 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (context, intensite, _) => _construire(intensite),
+    );
+  }
+
+  /// [intensite] de 0 (éteint) à 1 (éclat complet) ; sans [eclat], toujours 1
+  /// et aucun éclat n'est dessiné.
+  Widget _construire(double intensite) {
+    const vertEclatant = Color(0xFF7DFFB3);
+    final couleurVive = eclat ? Color.lerp(AppColors.vert, vertEclatant, 0.7 * intensite)! : AppColors.vert;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -276,12 +357,22 @@ class EtapesDossier extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(top: 13),
                 child: Container(
-                  height: 2,
-                  color: i <= etapeCourante ? AppColors.vert : AppColors.texte.withValues(alpha: 0.12),
+                  height: eclat && i <= etapeCourante ? 2 + 1.5 * intensite : 2,
+                  decoration: BoxDecoration(
+                    color: i <= etapeCourante ? couleurVive : AppColors.texte.withValues(alpha: 0.12),
+                    boxShadow: eclat && i <= etapeCourante
+                        ? [BoxShadow(color: AppColors.vert.withValues(alpha: 0.7 * intensite), blurRadius: 10 * intensite)]
+                        : null,
+                  ),
                 ),
               ),
             ),
-          _Etape(label: _etapes[i], etat: i < etapeCourante ? 2 : (i == etapeCourante ? 1 : 0)),
+          _Etape(
+            label: _etapes[i],
+            etat: i < etapeCourante ? 2 : (i == etapeCourante ? 1 : 0),
+            couleur: couleurVive,
+            eclat: eclat ? intensite : null,
+          ),
         ],
       ],
     );
@@ -290,10 +381,14 @@ class EtapesDossier extends StatelessWidget {
 
 /// [etat] : 0 à venir, 1 en cours, 2 terminée.
 class _Etape extends StatelessWidget {
-  const _Etape({required this.label, required this.etat});
+  const _Etape({required this.label, required this.etat, this.couleur = AppColors.vert, this.eclat});
 
   final String label;
   final int etat;
+  final Color couleur;
+
+  /// Intensité de l'éclat (0 à 1) d'une pastille terminée ; `null` : pas d'éclat.
+  final double? eclat;
 
   @override
   Widget build(BuildContext context) {
@@ -308,10 +403,13 @@ class _Etape extends StatelessWidget {
             height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: terminee || enCours ? AppColors.vert : Colors.transparent,
+              color: terminee || enCours ? couleur : Colors.transparent,
               border: Border.all(
                 color: terminee || enCours ? Colors.transparent : AppColors.texte.withValues(alpha: 0.18),
               ),
+              boxShadow: terminee && eclat != null
+                  ? [BoxShadow(color: AppColors.vert.withValues(alpha: 0.75 * eclat!), blurRadius: 14 * eclat!, spreadRadius: 2 * eclat!)]
+                  : null,
             ),
             alignment: Alignment.center,
             child: terminee

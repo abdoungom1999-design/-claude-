@@ -134,22 +134,44 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
       if (DefaultFirebaseOptions.estConfigure) {
         await _chargerEtapeKyc();
       }
-      if (mounted && _gateOuverte && DefaultFirebaseOptions.estConfigure) {
-        _surveillerCourseActive();
-        // Nouvelles courses et messages, même app fermée (APK Android).
-        // Un appui sur la notification ouvre simplement l'app : le radar
-        // et le bandeau de course sont déjà à l'écran.
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid != null) unawaited(NotificationsPush.instance.activer(uid: uid, surAppui: (_) {}));
-      }
-      if (mounted && _gateOuverte && _enLigne) {
-        _demarrerEnvoiPosition();
-        _demarrerRadarCourses();
-      }
+      _demarrerEspaceValide();
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
+  }
+
+  /// Met en route ce qui n'existe que pour un chauffeur au dossier validé : suivi
+  /// de la course active, notifications, et, s'il est déjà « En ligne », envoi de
+  /// la position et radar. Sans effet tant que le dossier n'est pas validé.
+  /// Appelée à l'ouverture de l'espace chauffeur et, pour un dossier approuvé
+  /// pendant l'attente, par [_ouvrirEspaceActive].
+  void _demarrerEspaceValide() {
+    if (mounted && _gateOuverte && DefaultFirebaseOptions.estConfigure) {
+      _surveillerCourseActive();
+      // Nouvelles courses et messages, même app fermée (APK Android).
+      // Un appui sur la notification ouvre simplement l'app : le radar
+      // et le bandeau de course sont déjà à l'écran.
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) unawaited(NotificationsPush.instance.activer(uid: uid, surAppui: (_) {}));
+    }
+    if (mounted && _gateOuverte && _enLigne) {
+      _demarrerEnvoiPosition();
+      _demarrerRadarCourses();
+    }
+  }
+
+  /// L'Admin a approuvé le dossier pendant que le chauffeur attendait : une fois
+  /// la célébration finie (voir [ConducteurEnAttentePage]), l'espace chauffeur
+  /// s'ouvre sans reconnexion. Le chauffeur passe « En ligne » lui-même, comme
+  /// pour tout chauffeur.
+  void _ouvrirEspaceActive() {
+    if (!mounted || _etapeKyc == _EtapeKyc.valide) return;
+    setState(() {
+      _etapeKyc = _EtapeKyc.valide;
+      _indexSelectionne = 0;
+    });
+    _demarrerEspaceValide();
   }
 
   /// Lit une fois le document Firestore de l'utilisateur connecté pour
@@ -631,7 +653,7 @@ class _ConducteurShellPageState extends State<ConducteurShellPage> {
             onDeconnexion: _seDeconnecter,
           );
         case _EtapeKyc.enAttente:
-          return ConducteurEnAttentePage(onDeconnexion: _seDeconnecter);
+          return ConducteurEnAttentePage(onDeconnexion: _seDeconnecter, onActive: _ouvrirEspaceActive);
         case _EtapeKyc.valide:
           break;
       }
