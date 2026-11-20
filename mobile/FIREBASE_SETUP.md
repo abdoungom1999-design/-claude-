@@ -79,7 +79,13 @@ simplification à deux pièces, permis et assurance moto — clé historique
 `{document}.pdf` pour un PDF de la carte d'identité ou de la carte grise,
 10 Mo au plus), avec leur type réel, et seule leur URL est gardée dans
 Firestore. Un envoi qui échoue affiche son code précis (`storage/…`,
-`firestore/…`) au lieu d'un message muet. **Tant que Storage n'est pas activé, l'app retombe
+`firestore/…`) au lieu d'un message muet. Envoi de secours (Storage en échec) : photos
+seulement, 180 Ko au plus (`limiteOctetsRepliBase64`) : les règles Firestore n'évaluent
+qu'environ 1 000 000 de caractères d'images encodées AU TOTAL sur le profil (mesuré :
+1 pièce 998 000, 2 pièces 524 000 chacune, 3 pièces 348 000, 4 pièces 260 000 ; au-delà,
+« permission-denied » par « maximum memory usage of 1000 », sans rapport avec les droits).
+Après un repli, le code d'échec garde la cause de Storage (`firestore/permission-denied,
+repli après storage/…`). **Tant que Storage n'est pas activé, l'app retombe
 automatiquement sur le stockage Base64 dans Firestore** (plafond 700 Ko
 par pièce) : rien ne casse, mais la migration n'est pas effective. La CI
 vérifie à chaque déploiement si le bucket existe et le signale par un
@@ -1700,6 +1706,15 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   au clic sur « Commencer », sans reconnexion. Aucun rafraîchissement de jeton : les droits du chauffeur ne passent pas par
   des « custom claims » mais par son document Firestore, relu par les règles à chaque requête. Côté chauffeur seulement :
   panneau Admin, serveur et règles inchangés. Le chauffeur passe « En ligne » lui-même (localisation à autoriser). Pas encore traité : un dossier REJETÉ pendant l'attente (l'écran reste en attente jusqu'à la prochaine ouverture), prévu pour une prochaine mise à jour.
+* **Correctif urgent « firestore/permission-denied » au dépôt des pièces** (lot préparé après la 142, non publié ; aucune
+  règle modifiée : `firestore.rules` identique à la 142). Cause : quand Storage échouait (réseau lent, par exemple), l'app
+  envoyait l'image ENCODÉE (jusqu'à 700 Ko, donc 933 000 caractères) dans le profil ; Firestore n'évalue ses règles que
+  pour environ 1 000 000 de caractères d'images encodées au total, donc la DEUXIÈME pièce était refusée en
+  « permission-denied » (« maximum memory usage of 1000 »). Correction côté app : repli plafonné à 180 Ko par photo
+  (quatre pièces tiennent), photos compressées à 1280 px / qualité 65 (environ 150 à 250 Ko), patience de Storage portée à
+  120 s, et le code d'échec garde la cause de Storage. Test sur émulateur : `firestore_rules_test/parcours_chauffeur.test.mjs`
+  (parcours complet d'un nouveau chauffeur : inscription, deux pièces par Storage, secours, PDF, vue et approbation par
+  l'Admin, et la limite de Firestore documentée).
 * **E-mail d'activation du chauffeur par Resend** (lot préparé après la 142, FERMÉ, non publié) : abandon de l'extension
   « Trigger Email from Firestore ». Fonction `activationChauffeurEmail` (`functions/src/email_activation.ts`,
   `email_resend.ts`), déclenchée par l'écriture de `users/{uid}` quand `statutValidation` passe à `valide` : envoi, une seule

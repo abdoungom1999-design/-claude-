@@ -53,6 +53,33 @@ bool estPieceHeic(Uint8List octets) {
   return const ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1', 'avif'].contains(marque);
 }
 
+/// Ce que les règles Firestore savent évaluer : environ 1 000 000 de caractères
+/// d'images encodées (Base64) AU TOTAL dans `users/{uid}.documents`, mesuré sur
+/// l'émulateur (une pièce : 998 000 ; deux : 524 000 chacune ; trois : 348 000 ;
+/// quatre : 260 000). Au-delà, Firestore répond « permission-denied » par
+/// « maximum memory usage of 1000 » — sans rapport avec les droits du chauffeur —
+/// et toute écriture suivante sur ce profil est refusée aussi.
+const int capaciteReglesBase64Caracteres = 1000000;
+
+/// Plafond d'une image envoyée en REPLI (Storage indisponible) : 180 Ko, soit
+/// environ 246 000 caractères encodés. Quatre pièces tiennent ainsi sous
+/// [capaciteReglesBase64Caracteres] ; au-delà, le repli ferait échouer la
+/// deuxième pièce, et l'échec réel (Storage) serait masqué.
+const int limiteOctetsRepliBase64 = 180 * 1024;
+
+/// Taille d'une pièce une fois encodée en Base64 (hors préfixe `data:…`).
+int tailleBase64(int octets) => ((octets + 2) ~/ 3) * 4;
+
+/// Le repli en image encodée est-il permis pour cette pièce ? Photos seulement
+/// (jamais un PDF), et assez petites pour que les règles Firestore puissent
+/// encore évaluer le profil.
+bool repliBase64Possible(TypePiece type, int octets) => type.estImage && octets <= limiteOctetsRepliBase64;
+
+/// Code d'un échec d'écriture Firestore. Après un repli, il garde la cause de
+/// l'échec de Storage : c'est elle qu'il faut corriger, pas l'écriture de secours.
+String codeEchecFirestore(String codeFirestore, {String? codeStockage}) =>
+    codeStockage == null ? 'firestore/$codeFirestore' : 'firestore/$codeFirestore, repli après $codeStockage';
+
 /// Le fichier choisi n'est pas une photo JPEG/PNG/WebP ni un PDF.
 class FormatPieceNonSupporteException implements Exception {
   const FormatPieceNonSupporteException({this.heic = false});

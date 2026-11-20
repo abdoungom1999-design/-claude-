@@ -21,9 +21,10 @@ const documentsKycRequis = ['carteIdentite', 'carteGrise'];
 /// octets, ou `null` si la personne annule.
 typedef ChoisirPiece = Future<Uint8List?> Function(BuildContext context);
 
-/// Photo : redimensionnée et compressée par le téléphone AVANT l'envoi (1600 px,
-/// qualité 75 : lisible pour une carte d'identité, en général moins de 700 Ko,
-/// donc rapide sur 4G). Le sélecteur de photos convertit lui-même les HEIC
+/// Photo : redimensionnée et compressée par le téléphone AVANT l'envoi (1280 px,
+/// qualité 65 : une carte d'identité reste lisible, pour environ 150 à 250 Ko :
+/// rapide sur 4G, et assez légère pour l'envoi de secours si Storage est
+/// indisponible, voir `limiteOctetsRepliBase64`). Le sélecteur de photos convertit lui-même les HEIC
 /// de l'iPhone en JPEG.
 Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
   final source = await showModalBottomSheet<String>(
@@ -69,8 +70,8 @@ Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
   }
   final photo = await ImagePicker().pickImage(
     source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
-    maxWidth: 1600,
-    imageQuality: 75,
+    maxWidth: 1280,
+    imageQuality: 65,
   );
   return photo?.readAsBytes();
 }

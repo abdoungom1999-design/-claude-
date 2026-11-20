@@ -85,6 +85,47 @@ void main() {
     });
   });
 
+  group('envoi de secours (image encodée) : borné par ce que les règles Firestore savent évaluer', () {
+    test('tailleBase64 : 4 caractères pour 3 octets, arrondi vers le haut', () {
+      expect([0, 1, 2, 3, 4, 6, 7].map(tailleBase64), [0, 4, 4, 4, 8, 8, 12]);
+      expect(tailleBase64(180 * 1024), 245760);
+    });
+
+    test('repli permis pour une photo de 180 Ko au plus, jamais pour une photo plus lourde ni pour un PDF', () {
+      expect(repliBase64Possible(TypePiece.jpeg, 180 * 1024), isTrue);
+      expect(repliBase64Possible(TypePiece.png, 50 * 1024), isTrue);
+      expect(repliBase64Possible(TypePiece.webp, 1), isTrue);
+      expect(repliBase64Possible(TypePiece.jpeg, 180 * 1024 + 1), isFalse);
+      // La photo de 700 Ko qui passait avant faisait refuser la deuxième pièce par Firestore.
+      expect(repliBase64Possible(TypePiece.jpeg, 700 * 1024), isFalse);
+      expect(repliBase64Possible(TypePiece.pdf, 10 * 1024), isFalse);
+      expect(ConducteurDocumentsService.limiteOctetsBase64, limiteOctetsRepliBase64);
+    });
+
+    test('quatre pièces de secours au plafond tiennent sous la capacité des règles (mesurée : environ 1 000 000 de caractères)', () {
+      const prefixe = 'data:image/jpeg;base64,';
+      final unePiece = prefixe.length + tailleBase64(limiteOctetsRepliBase64);
+      expect(capaciteReglesBase64Caracteres, 1000000);
+      expect(unePiece * 4, lessThanOrEqualTo(capaciteReglesBase64Caracteres));
+      // Et l'ancien plafond (700 Ko) ne tenait que pour UNE pièce.
+      final ancien = prefixe.length + tailleBase64(700 * 1024);
+      expect(ancien * 2, greaterThan(capaciteReglesBase64Caracteres));
+    });
+
+    test('après un repli, le code d\'échec Firestore garde la cause de l\'échec de Storage', () {
+      expect(codeEchecFirestore('permission-denied'), 'firestore/permission-denied');
+      expect(
+        codeEchecFirestore('permission-denied', codeStockage: 'storage/unauthorized'),
+        'firestore/permission-denied, repli après storage/unauthorized',
+      );
+      final message = messageErreurEnvoi(
+        EchecEnvoiPieceException(codeEchecFirestore('permission-denied', codeStockage: 'storage/retry-limit-exceeded')),
+      );
+      expect(message, contains('firestore/permission-denied'));
+      expect(message, contains('storage/retry-limit-exceeded'));
+    });
+  });
+
   group('messages d\'erreur : la cause n\'est jamais cachée', () {
     test('taille, format, HEIC, code précis, erreur inconnue', () {
       expect(messageErreurEnvoi(const DocumentTropVolumineuxException()), contains('10 Mo'));

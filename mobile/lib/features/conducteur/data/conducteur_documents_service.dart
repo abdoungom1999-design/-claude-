@@ -36,9 +36,10 @@ class ConducteurDocumentsService {
   /// Plafond d'une pièce (photo ou PDF), identique à celui des règles Storage.
   static const int limiteOctetsStorage = 10 * 1024 * 1024;
 
-  /// Plafond du repli Base64 : plusieurs documents doivent tenir dans le
-  /// même document `users/{uid}`, bien en dessous du 1 Mo de Firestore.
-  static const int limiteOctetsBase64 = 700 * 1024;
+  /// Plafond du repli Base64 (voir [limiteOctetsRepliBase64]) : les règles
+  /// Firestore n'évaluent qu'environ un million de caractères d'images encodées
+  /// au total sur le profil ; au-delà, la deuxième pièce est refusée.
+  static const int limiteOctetsBase64 = limiteOctetsRepliBase64;
 
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
@@ -71,8 +72,9 @@ class ConducteurDocumentsService {
       _consigner('Storage', e, pile);
     }
 
-    // Repli Base64 : photos seulement, et seulement si elles tiennent.
-    if (valeur == null && type.estImage && octets.lengthInBytes <= limiteOctetsBase64) {
+    // Repli Base64 : photos seulement, et seulement si les règles Firestore pourront
+    // encore évaluer le profil (voir [repliBase64Possible]).
+    if (valeur == null && repliBase64Possible(type, octets.lengthInBytes)) {
       valeur = 'data:${type.contentType};base64,${base64Encode(octets)}';
     }
     if (valeur == null) {
@@ -86,7 +88,8 @@ class ConducteurDocumentsService {
       });
     } on FirebaseException catch (e, pile) {
       _consigner('Firestore', e, pile);
-      throw EchecEnvoiPieceException(codeFirebase('firestore', e), cause: e);
+      // Après un repli, le code garde aussi la cause de l'échec de Storage.
+      throw EchecEnvoiPieceException(codeEchecFirestore(e.code, codeStockage: codeStorage), cause: e);
     }
   }
 
@@ -97,7 +100,7 @@ class ConducteurDocumentsService {
     required Uint8List octets,
     required TypePiece type,
   }) async {
-    final storage = FirebaseStorage.instance..setMaxUploadRetryTime(const Duration(seconds: 60));
+    final storage = FirebaseStorage.instance..setMaxUploadRetryTime(const Duration(seconds: 120));
     final reference = storage.ref('kyc_documents/$uid/$cle.${type.estImage ? 'jpg' : 'pdf'}');
     await reference.putData(octets, SettableMetadata(contentType: type.contentType));
     final url = await reference.getDownloadURL();
