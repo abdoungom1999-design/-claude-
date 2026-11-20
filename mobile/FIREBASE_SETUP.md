@@ -1680,7 +1680,7 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
 * **Publication 134** (en ligne le 19 novembre 2026, run 44433295209, commit `0335375`, 6 jobs verts, APK « 0.1.0 (134) » ; go du client, essai à blanc n°133 vert) : le faux fil « Mes échanges » est
   retiré d'Aide et support (il n'envoyait rien à personne et répondait automatiquement ; le vrai canal est « Contacter le
   support » du Centre d'aide) et « Nous contacter » prend l'icône courrier. Aucun serveur, règle, paiement ni retrait touché.
-* **Publication 138** (go du client, 20 novembre 2026 ; essai à blanc n°137 vert, après les essais 135 et 136 en échec
+* **Publication 138** (en ligne le 20 novembre 2026, run 44662002785, commit `6204288`, 6 jobs verts, APK « 0.1.0 (138) » ; go du client, essai à blanc n°137 vert, après les essais 135 et 136 en échec
   pour `file_picker`, remplacé par `file_selector`) : dossier chauffeur simplifié. L'étape « Votre moto » n'a plus de plaque
   (facultative partout : inscription, profil, demande de modification) ; deux pièces seulement, la carte d'identité
   (clé `carteIdentite`) et la carte grise (clé `carteGrise` conservée), le permis et l'assurance restant visibles dans les
