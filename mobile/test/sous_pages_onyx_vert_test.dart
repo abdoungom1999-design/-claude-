@@ -43,6 +43,19 @@ void main() {
     });
   }
 
+  testWidgets('Conditions d\'utilisation : le Conducteur s\'engage à détenir les autorisations légales, une pièce d\'identité et la carte grise', (tester) async {
+    tester.view.physicalSize = const Size(390, 6000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: ConditionsUtilisationPage()));
+    await tester.pump();
+
+    expect(find.textContaining('s\'engage à détenir les autorisations légales requises pour conduire le véhicule déclaré'), findsOneWidget);
+    expect(find.textContaining('une pièce d\'identité ainsi que la carte grise'), findsOneWidget);
+    expect(find.textContaining('permis de conduire'), findsNothing);
+    expect(find.textContaining('assurance véhicule'), findsNothing);
+  });
+
   testWidgets('Aide & Support : plus de faux fil « Mes échanges » (rien n\'y était envoyé à personne)', (tester) async {
     tester.view.physicalSize = const Size(390, 700);
     tester.view.devicePixelRatio = 1;

@@ -503,7 +503,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(const MaterialApp(home: ConducteurOnboardingPage()));
       expect(find.text('Moto'), findsOneWidget);
-      expect(find.textContaining('comme sur votre permis de conduire'), findsOneWidget);
+      expect(find.textContaining('comme sur votre carte d\'identité'), findsOneWidget);
       final champs = find.byType(TextFormField);
       for (final (i, valeur) in ['Moussa', 'Diop', 'moussa@test.sn', '+221771234567', 'motdepasse1', 'motdepasse1'].indexed) {
         await tester.enterText(champs.at(i), valeur);

@@ -255,7 +255,7 @@ class _EtapeInfosPersonnelles extends StatelessWidget {
         children: [
           const _EnTeteEtape(
             titre: 'Vos informations',
-            sousTitre: 'Votre vrai prénom et votre vrai nom, comme sur votre permis de conduire : '
+            sousTitre: 'Votre vrai prénom et votre vrai nom, comme sur votre carte d\'identité : '
                 'ce sont eux que verront vos clients.',
           ),
           const SizedBox(height: 22),

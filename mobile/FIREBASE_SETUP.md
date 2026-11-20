@@ -1688,5 +1688,7 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   contenu, et l'échec d'un envoi affiche son code précis (`storage/…`, `firestore/…`, `selection/…`). Règles Storage :
   photos sous `.jpg`, PDF sous `.pdf` (carte d'identité et carte grise), type conforme au nom, 10 Mo ; règles Firestore :
   `carteIdentite` ajoutée aux pièces, plaque de la demande de modification de 0 à 15 signes. Contrôlé par sabotage.
-  Les anciens APK restent compatibles (les règles acceptent toujours les anciennes pièces). À venir : lot « Conditions
-  d'utilisation » (phrase sur le permis de conduire).
+  Les anciens APK restent compatibles (les règles acceptent toujours les anciennes pièces). Lot « Conditions d'utilisation » préparé après la 138 (non publié) : la phrase sur le permis de conduire, l'assurance
+  et les documents de la réglementation devient « Le Conducteur s'engage à détenir les autorisations légales requises pour
+  conduire le véhicule déclaré et à fournir une pièce d'identité ainsi que la carte grise » ; le sous-titre de l'inscription
+  chauffeur parle de la carte d'identité.

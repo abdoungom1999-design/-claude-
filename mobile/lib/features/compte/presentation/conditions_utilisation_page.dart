@@ -37,9 +37,9 @@ class ConditionsUtilisationPage extends StatelessWidget {
           'L\'utilisation de Sprint nécessite la création d\'un compte avec un '
               'numéro de téléphone valide. Le Client doit être âgé d\'au moins '
               '18 ans ou disposer de l\'autorisation d\'un représentant légal. '
-              'Le Conducteur doit en outre justifier d\'un permis de conduire '
-              'en cours de validité, d\'une assurance véhicule valide et de tout '
-              'document exigé par la réglementation sénégalaise du transport. '
+              'Le Conducteur s\'engage à détenir les autorisations légales '
+              'requises pour conduire le véhicule déclaré et à fournir une pièce '
+              'd\'identité ainsi que la carte grise. '
               'Les informations fournies lors de l\'inscription doivent être '
               'exactes et tenues à jour.',
         ),
