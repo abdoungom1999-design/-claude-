@@ -1764,7 +1764,8 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   refus des règles à l'envoi d'une pièce affiche l'état du profil relu (`profil absent`, `compte client`,
   `profil chauffeur`). Tests : `firestore_rules_test/parcours_chauffeur.test.mjs` (« compte réel de production »),
   `test/espace_chauffeur_compte_test.dart`.
-* **Ouverture de l'e-mail d'activation par Resend** (lot 149, préparé, NON publié ; aucune règle modifiée, app inchangée).
+* **Ouverture de l'e-mail d'activation par Resend** (publication 150, go du client, 20 novembre 2026 ; essai à blanc
+  n°149 vert après ajout par le client de deux droits Eventarc signalés par le contrôle ; aucune règle modifiée, app inchangée).
   `EMAIL_ACTIVATION_CHAUFFEUR = true` : la fonction `activationChauffeurEmail` (déclencheur
   `google.cloud.firestore.document.v1.updated` sur `users/{uid}`, `europe-west1`, secret `RESEND_API_KEY`, sans relance)
   est déployée à la prochaine publication. C'est la première fonction déclenchée par un événement du projet : l'outil
