@@ -1747,8 +1747,8 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   (machine virtuelle et vrai navigateur), panneau Admin (`admin_dossier_photo_carte_test.dart`), parcours complet sur
   émulateur en moins de 3 s (`parcours_chauffeur.test.mjs`). Conditions d'utilisation (accord du client) : le Conducteur
   s'engage désormais « à fournir une photo récente de lui-même ainsi que sa carte d'identité » (au lieu de la carte grise).
-* **Espace chauffeur : comptes Client et profils absents reconnus** (publication 148, go du client, 20 novembre 2026,
-  publication directe sans essai à blanc, aucune nouvelle dépendance ; aucune règle modifiée). Constat en publication 147 sur iPhone (« v147 » visible) : « firestore/permission-denied » SANS suffixe dès
+* **Espace chauffeur : comptes Client et profils absents reconnus** (**en ligne** : publication 148, run 44752468821,
+  commit `e10e52a`, 6 jobs verts, APK « 0.1.0 (148) » ; go du client, 20 novembre 2026, publication directe sans essai à blanc, aucune nouvelle dépendance ; aucune règle modifiée). Constat en publication 147 sur iPhone (« v147 » visible) : « firestore/permission-denied » SANS suffixe dès
   l'ajout de la Photo, donc Storage avait accepté et seule l'écriture du profil était refusée. Sur l'émulateur, un vrai
   profil de chauffeur (champs écrits par le serveur compris : `telephoneVerifie`, `telephoneValide`,
   `telephoneVerifieLe`, `bienvenueEnvoyeeLe` ; dossier rejeté ; ancienne carte grise encodée) accepte ses deux pièces ;
