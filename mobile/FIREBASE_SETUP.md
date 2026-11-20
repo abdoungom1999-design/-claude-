@@ -1732,7 +1732,8 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   vérifie avant de déployer que le secret existe et a la forme d'une clé Resend (étape « Clé Resend présente »). C'est le
   premier déclencheur Firestore du projet (Eventarc) : si le premier déploiement ouvert échoue sur un droit manquant,
   l'erreur nomme le rôle à ajouter au compte `github-deploy`. Les chauffeurs déjà validés ne reçoivent rien. Aperçu validé par captures ; manifeste vérifié ouvert (déclencheur `google.cloud.firestore.document.v1.updated` sur `users/{uid}`, région `europe-west1`, secret `RESEND_API_KEY`, sans relance automatique).
-* **Dossier chauffeur simplifié (Photo + Carte d'identité) et envoi des images fiabilisé** (publication 147, go du client,
+* **Dossier chauffeur simplifié (Photo + Carte d'identité) et envoi des images fiabilisé** (**en ligne** : publication 147,
+  run 44737767316, commit `871c891`, 6 jobs verts, APK « 0.1.0 (147) », CORS du bucket appliqué ; go du client,
   20 novembre 2026 ; essai à blanc n°146 vert, APK compris ; aucune règle modifiée : `firestore.rules` et `storage.rules` identiques à la 145). Pièces demandées : la photo du chauffeur
   (clé `photoProfil`, selfie ou galerie, jamais un PDF) et la carte d'identité (photo ou PDF) ; la carte grise n'est plus
   demandée, mais reste visible pour les anciens dossiers, qui restent validables. Compression garantie avant tout envoi :
