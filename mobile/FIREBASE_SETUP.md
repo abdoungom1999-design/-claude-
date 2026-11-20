@@ -1744,5 +1744,5 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   dossier » (`v146`, `NUMERO_PUBLICATION` = numéro du run). CORS du bucket (`storage.cors.json`) appliqué par la CI
   (étape non bloquante « CORS du bucket Storage ») ; l'envoi par le SDK Firebase n'en dépend pas. Tests : compression
   (machine virtuelle et vrai navigateur), panneau Admin (`admin_dossier_photo_carte_test.dart`), parcours complet sur
-  émulateur en moins de 3 s (`parcours_chauffeur.test.mjs`). À savoir : les Conditions d'utilisation mentionnent encore
-  « la carte grise du véhicule déclaré » (texte choisi par le client, inchangé).
+  émulateur en moins de 3 s (`parcours_chauffeur.test.mjs`). Conditions d'utilisation (accord du client) : le Conducteur
+  s'engage désormais « à fournir une photo récente de lui-même ainsi que sa carte d'identité » (au lieu de la carte grise).

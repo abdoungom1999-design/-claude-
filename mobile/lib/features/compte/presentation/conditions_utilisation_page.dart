@@ -39,8 +39,8 @@ class ConditionsUtilisationPage extends StatelessWidget {
               '18 ans ou disposer de l\'autorisation d\'un représentant légal. '
               'Le Conducteur s\'engage à détenir les autorisations légales et une '
               'assurance valide requises pour l\'exercice de son activité au '
-              'Sénégal, et à fournir une pièce d\'identité ainsi que la carte '
-              'grise du véhicule déclaré. '
+              'Sénégal, et à fournir une photo récente de lui-même ainsi que sa '
+              'carte d\'identité. '
               'Les informations fournies lors de l\'inscription doivent être '
               'exactes et tenues à jour.',
         ),

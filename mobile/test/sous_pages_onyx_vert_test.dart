@@ -43,7 +43,7 @@ void main() {
     });
   }
 
-  testWidgets('Conditions d\'utilisation : le Conducteur s\'engage sur les autorisations légales, l\'assurance, la pièce d\'identité et la carte grise', (tester) async {
+  testWidgets('Conditions d\'utilisation : le Conducteur s\'engage sur les autorisations légales, l\'assurance, sa photo et sa carte d\'identité', (tester) async {
     tester.view.physicalSize = const Size(390, 6000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -53,13 +53,15 @@ void main() {
     expect(
       find.textContaining(
         'Le Conducteur s\'engage à détenir les autorisations légales et une assurance valide requises pour '
-        'l\'exercice de son activité au Sénégal, et à fournir une pièce d\'identité ainsi que la carte grise '
-        'du véhicule déclaré.',
+        'l\'exercice de son activité au Sénégal, et à fournir une photo récente de lui-même ainsi que sa '
+        'carte d\'identité.',
       ),
       findsOneWidget,
     );
-    // Seules deux pièces sont demandées à l'inscription : le permis n'est plus cité.
+    // Publication 146 : les deux pièces demandées sont la photo et la carte d'identité ; ni le permis ni la
+    // carte grise ne sont plus cités.
     expect(find.textContaining('permis de conduire'), findsNothing);
+    expect(find.textContaining('carte grise'), findsNothing);
   });
 
   testWidgets('Aide & Support : plus de faux fil « Mes échanges » (rien n\'y était envoyé à personne)', (tester) async {
