@@ -1706,7 +1706,7 @@ convenu de n'y passer qu'après avoir vérifié les SMS sur les trois opérateur
   au clic sur « Commencer », sans reconnexion. Aucun rafraîchissement de jeton : les droits du chauffeur ne passent pas par
   des « custom claims » mais par son document Firestore, relu par les règles à chaque requête. Côté chauffeur seulement :
   panneau Admin, serveur et règles inchangés. Le chauffeur passe « En ligne » lui-même (localisation à autoriser). Pas encore traité : un dossier REJETÉ pendant l'attente (l'écran reste en attente jusqu'à la prochaine ouverture), prévu pour une prochaine mise à jour.
-* **Correctif urgent « firestore/permission-denied » au dépôt des pièces** (publication 145, go du client, 20 novembre 2026 ; essai à blanc n°144 vert ;
+* **Correctif urgent « firestore/permission-denied » au dépôt des pièces** (**en ligne** : publication 145, run 44724078758, commit `344874f`, 6 jobs verts, APK « 0.1.0 (145) » ; go du client, 20 novembre 2026 ; essai à blanc n°144 vert ;
   embarque aussi le lot e-mail Resend, livré FERMÉ ; aucune
   règle modifiée : `firestore.rules` identique à la 142). Cause : quand Storage échouait (réseau lent, par exemple), l'app
   envoyait l'image ENCODÉE (jusqu'à 700 Ko, donc 933 000 caractères) dans le profil ; Firestore n'évalue ses règles que
