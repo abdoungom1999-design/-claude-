@@ -57,7 +57,7 @@ Future<Uint8List?> choisirPieceReelle(BuildContext context) async {
   );
   if (source == null) return null;
   if (source == 'fichier') {
-    final resultat = await FilePicker.pickFiles(
+    final resultat = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
       withData: true,
